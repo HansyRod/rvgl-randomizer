@@ -1,0 +1,34 @@
+{
+    // Copy this file to .vscode/c_cpp_properties.json then update
+    // "compilerPath" to match your Visual Studio installation.
+    //
+    // Find your path at:
+    //   C:\Program Files\Microsoft Visual Studio\2022\<Edition>\
+    //       VC\Tools\MSVC\<version>\bin\HostX64\x64\cl.exe
+    //
+    // Replace <Edition> with Community, Professional, or Enterprise.
+    // Replace <version> with the folder name you see on disk (e.g. 14.40.33807).
+    "configurations": [
+        {
+            "name": "Win64",
+            "includePath": [
+                "${workspaceFolder}/DLL/Core",
+                "${workspaceFolder}/DLL/Game",
+                "${workspaceFolder}/DLL/Mods",
+                "${workspaceFolder}/DLL/MinHook/include",
+                "${workspaceFolder}/Launcher",
+                "${default}"
+            ],
+            "compilerPath": "C:/Program Files/Microsoft Visual Studio/2022/<Edition>/VC/Tools/MSVC/<version>/bin/HostX64/x64/cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64",
+            "defines": [
+                "_WIN64",
+                "UNICODE",
+                "_UNICODE"
+            ]
+        }
+    ],
+    "version": 4
+}

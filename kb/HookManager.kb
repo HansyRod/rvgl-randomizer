@@ -1,0 +1,276 @@
+================================================================================
+HOOKMANAGER KNOWLEDGE BASE
+================================================================================
+Files:  HookManager.h / HookManager.cpp / dllmain.cpp
+Purpose: Single point of entry for all MinHook function hooks in the mod.
+         DllMain delegates entirely to HookManager. Individual modules
+         (Randomizer.cpp etc.) declare their detour/original pairs but have
+         no knowledge of MinHook or installation order.
+================================================================================
+
+
+--------------------------------------------------------------------------------
+DESIGN INTENT
+--------------------------------------------------------------------------------
+
+Responsibilities are split across three files:
+
+    dllmain.cpp
+        Knows nothing about hooks or mod logic.
+        Calls HookManager::InstallAll on attach, RemoveAll on detach.
+
+    HookManager.cpp
+        Knows which functions are hooked and how to install them.
+        Does not know what the hooks do.
+        Adding a new hook = one new Add() call in RegisterHooks(). Nothing else.
+
+    Randomizer.cpp (and any future module)
+        Defines what hooks do — the detour functions and original pointers.
+        Has no knowledge of MinHook or installation order.
+
+Load sequence:
+    DllMain → HookManager::InstallAll()
+                  → MH_Initialize()
+                  → RegisterHooks()
+                       → Add(RVA_LOAD_CARS,  Hook_LoadCars,  &Orig_LoadCars)
+                       → Add(RVA_BUILD_GRID, Hook_BuildGrid, &Orig_BuildGrid)
+
+Unload sequence:
+    DllMain → HookManager::RemoveAll()
+                  → MH_DisableHook() for each recorded entry
+                  → MH_Uninitialize()
+
+
+--------------------------------------------------------------------------------
+PUBLIC API
+--------------------------------------------------------------------------------
+
+HookManager::InstallAll() → bool
+    Initialises MinHook and installs every hook in RegisterHooks().
+    Called once from DllMain on DLL_PROCESS_ATTACH.
+    Returns false only if MinHook itself fails to initialize.
+    Individual hook failures are non-fatal — logged and skipped.
+
+HookManager::RemoveAll()
+    Disables every installed hook and shuts down MinHook.
+    Called once from DllMain on DLL_PROCESS_DETACH.
+
+HookManager::Add(target, detour, original, name) → bool
+    Hooks one function. Used internally by RegisterHooks().
+    Can also be called directly if a hook needs to be added outside the
+    normal startup sequence, though this is discouraged.
+
+    target   — absolute runtime address of the function to hook
+               (produced by AbsFromRva(RVA_CONSTANT))
+    detour   — your replacement function; must match calling convention
+               and signature of the original
+    original — pointer to the trampoline; call this from inside the detour
+               to invoke the real original function
+    name     — label used only in debug output (OutputDebugStringA)
+
+
+--------------------------------------------------------------------------------
+HookManager::Add — STEP BY STEP
+--------------------------------------------------------------------------------
+
+Step 1 — Guard against a zero address
+    if (!target) { log; return false; }
+
+    If AbsFromRva returned zero the RVA constant is wrong or the module base
+    was not found. Nothing to hook. Bail immediately rather than passing a null
+    pointer to MinHook which would crash.
+
+Step 2 — Create the hook (MH_CreateHook)
+    MH_CreateHook(target, detour, original)
+
+    MinHook reads the machine code at target, copies the first few instructions
+    into a small trampoline buffer, then prepares a jump from target to detour.
+    Writes the trampoline address into *original so the detour can call through
+    to the real function.
+
+    At this point the hook EXISTS but is NOT yet active. The original function
+    bytes have not been modified.
+
+Step 3 — Enable the hook (MH_EnableHook)
+    MH_EnableHook(target)
+
+    This is when the patch goes live. MinHook overwrites the first bytes of the
+    original function with a jump to the detour. From this point on, any call
+    to that function inside RVGL executes the detour instead.
+
+Step 4 — Record the entry
+    g_hooks.push_back({ target, detour, original, name, true })
+
+    Appends to the internal vector so RemoveAll can find and disable this hook
+    later. The name field is only used for debug output.
+
+Failure handling:
+    MH_ERROR_ALREADY_CREATED and MH_ERROR_ENABLED are accepted as non-failures
+    (idempotent — the hook is already in the desired state).
+    Any other error is logged via OutputDebugStringA and returns false.
+    The caller (RegisterHooks / InstallAll) treats this as non-fatal and
+    continues installing remaining hooks.
+
+
+--------------------------------------------------------------------------------
+RegisterHooks — STEP BY STEP
+--------------------------------------------------------------------------------
+
+    static void RegisterHooks()
+
+The complete, authoritative list of every function the mod intercepts.
+This is the ONLY place that needs to change when adding or removing a hook.
+
+Each entry follows this pattern:
+
+    HookManager::Add(
+        AbsFromRva(RVA_LOAD_CARS),                             // where to hook
+        reinterpret_cast<void*>(Randomizer::Hook_LoadCars),    // run this instead
+        reinterpret_cast<void**>(&Randomizer::Orig_LoadCars),  // trampoline out
+        "LoadAllCars"                                          // debug label
+    );
+
+AbsFromRva converts the compile-time RVA constant from Addresses.h into the
+actual runtime address by adding the RVGL module base. This is done at call
+time (not compile time) because the module base is only known once the
+process is running.
+
+To add a new hook to the mod:
+    1. Define Hook_Foo and Orig_Foo in your module (e.g. Randomizer.cpp).
+    2. Add one Add() call here.
+    3. Add the RVA constant to Addresses.h.
+    Nothing else changes.
+
+
+--------------------------------------------------------------------------------
+HookManager::InstallAll — STEP BY STEP
+--------------------------------------------------------------------------------
+
+Step 1 — Initialise MinHook
+    MH_Initialize()
+
+    Allocates MinHook's internal heap and trampoline buffer pool.
+    Must succeed before any MH_CreateHook calls.
+    MH_ERROR_ALREADY_INITIALIZED is accepted as non-failure (another DLL in the
+    same process may have already initialised MinHook).
+
+    On genuine failure: log and return false immediately. No hooks are installed.
+
+Step 2 — Register all hooks
+    RegisterHooks()
+
+    Runs every Add() call in sequence. Individual failures are logged but do
+    not abort the remaining hooks. A partially working mod is more useful than
+    a mod that refuses to load because one hook failed.
+
+Step 3 — Report and return
+    return installed > 0
+
+    Returns false only if zero hooks were installed (fundamental problem).
+    Returns true as long as at least one hook is active.
+
+
+--------------------------------------------------------------------------------
+HookManager::RemoveAll — STEP BY STEP
+--------------------------------------------------------------------------------
+
+Step 1 — Guard
+    if (!g_minHookInitialized) return;
+
+    If InstallAll never succeeded there is nothing to clean up. Prevents
+    calling MinHook functions on an uninitialized state.
+
+Step 2 — Disable every hook
+    for (entry : g_hooks) MH_DisableHook(entry.target)
+
+    Restores the original bytes at each hooked function. After this, all RVGL
+    functions execute their original code again.
+
+    IMPORTANT: This must happen before MH_Uninitialize. MinHook frees the
+    trampoline buffers during Uninitialize. If hooks were still active, RVGL
+    code jumping into a freed trampoline would crash.
+
+Step 3 — Clear the recorded list
+    g_hooks.clear()
+
+    Drops all entries. The vector releases its memory.
+
+Step 4 — Shut down MinHook
+    MH_Uninitialize()
+
+    Frees MinHook's internal heap and trampoline buffer pool. Safe to unload
+    the DLL after this returns.
+
+
+--------------------------------------------------------------------------------
+DllMain — STEP BY STEP
+--------------------------------------------------------------------------------
+
+Intentionally minimal. All logic is delegated to HookManager.
+
+DLL_PROCESS_ATTACH:
+
+    DisableThreadLibraryCalls(hModule)
+        Prevents DllMain from being called again on thread create/destroy.
+        We have no per-thread initialisation; every unnecessary DllMain call
+        is a small risk, so we opt out entirely.
+
+    Sleep(50)
+        Short wait after the DLL loads. With suspended-process injection
+        this is not strictly necessary — RVGL's main thread hasn't run yet.
+        Left in as a safety margin for edge cases on slower machines or
+        unusual process startup sequences.
+
+    HookManager::InstallAll()
+        The only real work done on attach.
+
+DLL_PROCESS_DETACH:
+
+    HookManager::RemoveAll()
+        The only real work done on detach.
+        Fires when RVGL exits or the DLL is explicitly unloaded.
+
+
+--------------------------------------------------------------------------------
+MINIHOOK CONCEPTS REFERENCED
+--------------------------------------------------------------------------------
+
+Trampoline
+    A small buffer allocated by MinHook that holds a copy of the original
+    function's first few instructions (the ones overwritten by the hook jump),
+    followed by a jump back into the original function after those bytes.
+    Calling through the trampoline (via *original) therefore executes the
+    real original code as if the hook were not there.
+
+MH_CreateHook vs MH_EnableHook
+    CreateHook = prepare the hook (allocate trampoline, do not patch yet).
+    EnableHook = write the jump instruction (patch goes live).
+    Separating these allows hooks to be created ahead of time and enabled
+    atomically, though we don't exploit that here.
+
+Hook disable before Uninitialize
+    MH_Uninitialize frees the trampoline buffer pool. Any hook still pointing
+    into that pool would become a dangling pointer. Always disable hooks before
+    calling Uninitialize.
+
+
+--------------------------------------------------------------------------------
+NOTES
+--------------------------------------------------------------------------------
+
+OutputDebugStringA
+    All logging uses OutputDebugStringA, visible in tools like DebugView or
+    the Visual Studio Output window when a debugger is attached. No log files
+    are written. To see output: run DebugView as administrator before launching
+    the game via the launcher.
+
+Non-fatal hook failures
+    A hook failure means the mod simply does not intercept that function.
+    RVGL continues running normally for that code path. Whether that is
+    acceptable depends on which hook failed — a failed Hook_BuildGrid means
+    the randomizer never fires, but the game itself still runs.
+
+g_hooks vector
+    Uses std::vector with default allocation. Populated during InstallAll,
+    cleared during RemoveAll. Not thread-safe, but DllMain attach/detach
+    are single-threaded by the Windows loader lock so this is fine.

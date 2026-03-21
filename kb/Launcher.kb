@@ -1,0 +1,196 @@
+================================================================================
+LAUNCHER KNOWLEDGE BASE
+================================================================================
+Files:  Launcher.h / Launcher.cpp
+Purpose: Start RVGL suspended, inject the mod DLL, resume the game.
+         Intended to be called from a UI when the user clicks a launch button.
+================================================================================
+
+
+--------------------------------------------------------------------------------
+PUBLIC API
+--------------------------------------------------------------------------------
+
+LaunchConfig (input struct)
+    rvglExePath   — Absolute path to rvgl.exe
+    modDllPath    — Absolute path to randomizer.dll
+    extraArgs     — Optional CLI args passed to RVGL (e.g. "-window 1920 1080")
+
+LaunchResult (output struct)
+    success       — true if RVGL launched and the DLL was injected successfully
+    errorMessage  — human-readable failure reason; empty on success
+    processPid    — Windows process ID of the launched RVGL instance; 0 on failure
+
+Launcher::Launch(config) → LaunchResult
+    The only function the UI needs to call. All other functions are internal.
+
+
+--------------------------------------------------------------------------------
+INTERNAL FUNCTIONS
+--------------------------------------------------------------------------------
+
+BuildCommandLine(exePath, extraArgs) → std::string
+────────────────────────────────────────────────────
+Builds the command line string that CreateProcessA receives.
+
+The exe path is wrapped in double quotes to handle paths containing spaces
+(e.g. "C:\Program Files\RVGL\rvgl.exe"). Without quotes, CreateProcessA would
+treat each space-separated word as a separate token and misparse the path.
+Extra args are appended after a space if present.
+
+Example output:
+    "C:\RVGL\rvgl.exe" -window 1920 1080
+
+
+InjectDll(hProcess, dllPath) → bool
+────────────────────────────────────
+Loads a DLL into a foreign process using the standard
+VirtualAllocEx + WriteProcessMemory + CreateRemoteThread(LoadLibraryA) technique.
+
+hProcess must have been opened (or created) with at least:
+    PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_WRITE
+
+Returns true if LoadLibraryA succeeded inside the target process.
+
+Step 1 — Allocate memory inside RVGL's address space
+    VirtualAllocEx(hProcess, ..., pathLen, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE)
+
+    Your process and RVGL's process have completely separate address spaces.
+    A pointer valid in your code means nothing in RVGL. VirtualAllocEx asks
+    Windows to carve out a small region inside RVGL's address space and returns
+    its address from RVGL's perspective. The region is just large enough to hold
+    the DLL path string (including null terminator).
+
+Step 2 — Write the DLL path into that memory
+    WriteProcessMemory(hProcess, remotePath, dllPath.c_str(), pathLen, nullptr)
+
+    Copies the DLL path string from your process into the memory allocated in
+    Step 1. After this call, RVGL's address space contains the string
+    "C:\MyMod\randomizer.dll" at address remotePath.
+
+Step 3 — Get the address of LoadLibraryA
+    GetModuleHandleA("kernel32.dll") → GetProcAddress(..., "LoadLibraryA")
+
+    LoadLibraryA is the standard Windows function that loads a DLL given a path
+    string. It lives in kernel32.dll. The key fact exploited here: kernel32.dll
+    is loaded at the same virtual address in every process on the same OS session.
+    This means the address looked up in your process is valid to use in RVGL's
+    process directly.
+
+Step 4 — Create a thread inside RVGL that calls LoadLibraryA(dllPath)
+    CreateRemoteThread(hProcess, ..., loadLibraryA, remotePath, ...)
+    WaitForSingleObject(hRemoteThread, INFINITE)
+
+    CreateRemoteThread creates a new thread inside RVGL's process. That thread
+    starts executing at loadLibraryA with remotePath as its argument — in other
+    words, RVGL ends up calling LoadLibraryA("C:\MyMod\randomizer.dll") from
+    inside itself.
+
+    Windows loads the DLL and calls DllMain(DLL_PROCESS_ATTACH), which is where
+    MinHook installs the function hooks.
+
+    WaitForSingleObject blocks until the remote thread finishes. This guarantees
+    DllMain has completed and all hooks are installed before we proceed to resume
+    RVGL's main thread.
+
+    The remote thread's exit code is the return value of LoadLibraryA:
+        non-zero (HMODULE) = success
+        zero               = failure
+    This is how InjectDll knows whether loading succeeded.
+
+
+--------------------------------------------------------------------------------
+Launcher::Launch(config) — STEP BY STEP
+--------------------------------------------------------------------------------
+
+Step 1 — Validate inputs
+    Checks that rvglExePath and modDllPath are non-empty before touching any OS
+    resources. Fails fast with a clear message rather than producing a cryptic
+    Windows error code downstream.
+
+Step 2 — Start RVGL suspended
+    CreateProcessA(..., CREATE_SUSPENDED, ...)
+
+    CREATE_SUSPENDED is the critical flag. Windows creates the process — allocates
+    its address space, loads rvgl.exe and all its dependent DLLs (SDL2.dll,
+    OpenAL32.dll, libGLESv2.dll, etc.) — but the main thread is frozen at the
+    very first instruction. No game code has run. RVGL has no idea it is paused.
+
+Step 3 — Inject while the main thread is frozen
+    InjectDll(pi.hProcess, config.modDllPath)
+
+    Because RVGL's main thread is suspended, there is no race condition.
+    LoadAllCars has not been called, the car pool has not been built, nothing
+    has happened. The remote thread created for injection runs independently of
+    the main thread and completes fully before the main thread is touched.
+
+Step 4 — Handle injection failure cleanly
+    If InjectDll returns false:
+        TerminateProcess(pi.hProcess, 1)
+        CloseHandle(pi.hThread / pi.hProcess)
+        return { false, errorMessage, 0 }
+
+    A failed injection leaves RVGL suspended in memory — invisible, unreachable,
+    uncloseable by the user. TerminateProcess kills it immediately. The handles
+    are then closed so Windows can fully clean up the process resources.
+
+Step 5 — Resume RVGL
+    ResumeThread(pi.hThread)
+
+    Unpauses RVGL's main thread. From RVGL's perspective it simply starts
+    normally. It has no knowledge of the injection. The hooks are already patched
+    into its code, so when it reaches LoadAllCars or SetupAllRaceCars the mod
+    functions run instead of the originals.
+
+Step 6 — Close handles and return
+    CloseHandle(pi.hThread)
+    CloseHandle(pi.hProcess)
+    return { true, "", pid }
+
+    Closing the handles does not kill RVGL. It means the launcher no longer holds
+    a reference to the process. RVGL continues running as a fully independent
+    process. The PID is returned in LaunchResult in case the UI wants to monitor
+    whether the game is still running (e.g. to show a "Game is running" indicator
+    or re-enable the launch button when the game closes).
+
+
+--------------------------------------------------------------------------------
+WHY CREATE_SUSPENDED ELIMINATES THE RACE CONDITION
+--------------------------------------------------------------------------------
+
+Without CREATE_SUSPENDED (the polling injector approach):
+    1. Launcher starts RVGL normally
+    2. Launcher polls every ~1 second looking for rvgl.exe
+    3. RVGL is already running — LoadAllCars may have already been called
+    4. Injecting now is too late; the car pool snapshot is missed
+
+With CREATE_SUSPENDED:
+    1. RVGL process exists but its main thread has not executed a single instruction
+    2. Injection happens and hooks are installed
+    3. RVGL is resumed — hooks are guaranteed to be in place before any game code runs
+
+The suspended approach also means the launcher can exit immediately after
+ResumeThread. There is no need for it to stay alive.
+
+
+--------------------------------------------------------------------------------
+NOTES
+--------------------------------------------------------------------------------
+
+cmdLine.data() vs cmdLine.c_str()
+    CreateProcessA is documented to potentially write back into the command line
+    buffer, which the const pointer returned by c_str() does not permit since
+    C++11. data() on a non-const std::string returns a writable pointer.
+
+kernel32.dll address identity
+    The guarantee that kernel32.dll loads at the same address in every process
+    holds for the lifetime of an OS session but can change after a reboot (ASLR).
+    Since we look up the address at runtime via GetProcAddress rather than
+    hardcoding it, this is handled correctly automatically.
+
+Permissions
+    CreateProcessA with CREATE_SUSPENDED requires no special privileges when
+    launching a process your own user account owns. The VM operations
+    (VirtualAllocEx, WriteProcessMemory, CreateRemoteThread) on a process you
+    created also require no elevation. Antivirus software may flag these calls;
+    this is a known limitation of the injection approach.

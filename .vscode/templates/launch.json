@@ -1,0 +1,47 @@
+{
+    // Copy this file to .vscode/launch.json then update the rvgl.exe path
+    // in the "Debug TestLauncher" configuration.
+    "version": "0.2.0",
+    "configurations": [
+        {
+            // ----------------------------------------------------------------
+            // Debug TestLauncher
+            //
+            // Runs the test launcher under the debugger. Breakpoints in
+            // Launcher.cpp and main.cpp will be hit normally.
+            //
+            // Update the first entry in "args" to point at your rvgl.exe.
+            // ----------------------------------------------------------------
+            "name": "Debug TestLauncher",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Launcher/Debug/TestLauncher.exe",
+            "args": [
+                "C:\\path\\to\\your\\rvgl.exe"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "integratedTerminal",
+            "preLaunchTask": "CMake: build"
+        },
+        {
+            // ----------------------------------------------------------------
+            // Attach to RVGL
+            //
+            // Attaches to a running rvgl.exe after the mod DLL has been
+            // injected. Breakpoints in HookManager.cpp, Randomizer.cpp etc.
+            // will be hit when RVGL reaches those code paths.
+            //
+            // Workflow:
+            //   1. Run "Debug TestLauncher" (or TestLauncher.exe directly)
+            //   2. Switch to this configuration and press F5
+            // ----------------------------------------------------------------
+            "name": "Attach to RVGL",
+            "type": "cppvsdbg",
+            "request": "attach",
+            "processId": "${command:pickProcess}",
+            "symbolSearchPath": "${workspaceFolder}/build/DLL/Debug"
+        }
+    ]
+}
