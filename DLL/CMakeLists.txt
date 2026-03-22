@@ -30,6 +30,10 @@ add_library(randomizer SHARED
 
     # Mods — individual mod logic
     Mods/Randomizer.cpp
+
+    # DebugUtils — debug tools
+    DebugUtils/Logger.cpp        # OutputDebugStringA + file logging
+    DebugUtils/CallLogger.cpp    # auto-generated passthrough hooks from map
 )
 
 target_include_directories(randomizer PRIVATE
@@ -39,6 +43,7 @@ target_include_directories(randomizer PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Core
     ${CMAKE_CURRENT_SOURCE_DIR}/Game
     ${CMAKE_CURRENT_SOURCE_DIR}/Mods
+    ${CMAKE_CURRENT_SOURCE_DIR}/DebugUtils
     MinHook/include
 )
 

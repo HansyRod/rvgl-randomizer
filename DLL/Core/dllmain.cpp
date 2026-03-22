@@ -1,5 +1,6 @@
 #include <windows.h>
 #include "HookManager.h"
+#include "Logger.h"
 
 // ============================================================================
 // DllMain
@@ -21,11 +22,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
         // it costs nothing and prevents edge-case issues on slower machines.
         Sleep(50);
 
+        Logger::Init();
         HookManager::InstallAll();
         break;
 
     case DLL_PROCESS_DETACH:
         HookManager::RemoveAll();
+        Logger::Shutdown();
         break;
     }
 
