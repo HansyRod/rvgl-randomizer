@@ -6,6 +6,7 @@
     "cmake.platform": "x64",
     "cmake.autoConfigureOnOpen": true,
     "cmake.defaultVariant": "Debug",
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "files.associations": {
         "*.h": "cpp"
     }
