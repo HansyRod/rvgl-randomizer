@@ -1,0 +1,111 @@
+================================================================================
+
+DYNAMIC CARBOX GENERATION KNOWLEDGE BASE
+
+================================================================================
+
+Files:
+DLL/Mods/Carbox.h / Carbox.cpp
+DLL/Mods/Randomizer.cpp
+Purpose: Ensure the frontend car selection screen visually reflects the
+randomized car pool. It achieves this by generating temporary,
+modified texture atlases on the fly and seamlessly injecting them
+into the game's loading pipeline.
+
+DESIGN DECISIONS: PATH SELECTION
+
+Several approaches were evaluated to achieve dynamic carbox replacements:
+
+Direct OpenGL Interception
+Intercepting OpenGL calls (such as glTexImage2D) was explored but discarded.
+It operates at too low a level in the rendering pipeline, requiring complex
+state tracking to identify which generic texture ID corresponds to a specific
+frontend carbox.
+
+Overriding CreateCarbox
+Hooking the game's internal CreateCarbox logic was considered but ultimately
+bypassed. Modifying internal game structures often introduces instability due
+to dynamic memory allocations and rigid game logic expectations.
+
+Chosen Approach: LoadTextureByName Hook
+Intercepting the high-level texture loading function (LoadTextureByName)
+proved the most robust. By catching the request just before the file is read
+from disk, the mod can parse the requested file path, generate a temporary
+replacement image if necessary, and silently substitute the file path pointer
+before passing execution to the original function. The temporary file is
+immediately deleted once the game completes the loading process.
+
+EXECUTION FLOW
+
+The dynamic carbox generation follows a strict step-by-step lifecycle to ensure
+stability, memory safety, and visual accuracy.
+
+Step 1: Data Persistence (Hook_LoadVanillaCarPool)
+RVGL's internal memory structures are susceptible to being overwritten or used
+as temporary buffers during level transitions. To guarantee that the randomized
+car names and texture paths remain accessible when the carbox textures are
+requested later, the mod creates a deep copy of the CarInfo pool into a
+persistently managed array (s_carPool) immediately after the game builds the
+vanilla pool.
+
+Step 2: Texture Request Interception (Hook_LoadTextureByName)
+Whenever the game attempts to load any texture, the hook intercepts the call.
+Rather than relying on heavy regex or string conversions, it uses efficient
+pointer arithmetic to search the last 11 characters of the requested file path
+for the "carbox[1-5].bmp" pattern case-insensitively. If the texture is not a
+carbox, execution is passed immediately to the original function.
+
+Step 3: Grid Evaluation
+If a valid carbox is requested, the system maps the current persistent s_carPool
+state against the expected vanilla grid layout. It uses standard string
+comparisons to evaluate if the randomized cars in those specific 9 slots differ
+from the vanilla expectations. If the randomized grid perfectly matches the
+vanilla grid for that specific page, generation is skipped to save processing
+time.
+
+Step 4: High-Resolution Atlas Generation
+If differences are detected, the mod uses the STB image libraries to assemble a
+new grid. Two major graphical challenges were solved during this phase:
+
+Resolution Upscaling: To prevent extreme blurring when inserting high-
+resolution custom car textures into standard 84x84 slots, the entire atlas
+canvas is initialized at 1024x1024 (a power-of-two size ideal for GPUs).
+Vanilla 84x84 assets are dynamically upscaled to 340x340, while custom car
+textures are scaled down to 340x340. Because the game utilizes normalized UV
+mapping, it scales the 1024x1024 texture back down to fit the UI accurately
+without distortion.
+
+Texture Bleeding Prevention: Initially, a 1x1 pixel black line rendering
+artifact was observed. This occurred because OpenGL's bilinear filtering
+pulled in transparent black background pixels around the grid cells during UI
+scaling. This was resolved via edge padding (clamping) during atlas
+generation, stretching the outermost pixel of each carbox source over the grid
+gaps so the GPU blends identical colors instead of background pixels.
+
+Step 5: File Redirection
+The generated 1024x1024 atlas is saved to disk as a temporary BMP file
+(e.g., "carbox_random_1.bmp"). The hook then dynamically modifies the path
+pointer originally passed by the game, pointing it to the newly generated custom
+atlas.
+
+Step 6: Engine Loading and Cleanup
+The hook passes execution to the original LoadTextureByName function, feeding
+it the modified pointer. RVGL reads the custom BMP from the disk and allocates
+it into GPU memory. Immediately after the original function returns, the hook
+calls std::remove to delete the temporary file from the disk, ensuring no
+garbage files are left behind in the user's installation.
+
+NOTES
+
+String Comparisons
+When evaluating grid changes, the mod relies on standard C++ std::string
+comparisons rather than raw pointer comparisons. This prevents false
+positives that would occur if the mod compared the memory addresses of the
+copied CarInfo names against the static vanilla name literals.
+
+Memory Crash Prevention
+When redirecting the texture path, the mod does not use strncpy_s to
+overwrite the original path buffer. The game occasionally passes string
+literals stored in read-only memory, which would trigger an OS-level Access
+Violation if written to. Instead, the mod simply passes a new pointer to the
+original function.

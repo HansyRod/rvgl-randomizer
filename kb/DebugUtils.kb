@@ -1,0 +1,282 @@
+================================================================================
+DEBUGUTILS KNOWLEDGE BASE
+================================================================================
+Files:  DebugUtils/Logger.h / Logger.cpp
+        DebugUtils/CallLogger.h / CallLogger.cpp
+Purpose: Runtime call logging for RVGL function hooks.
+         Logger provides timestamped output to the VS Code Debug Console and a
+         log file. CallLogger auto-generates passthrough hooks from a map of
+         { RVA → name } with no per-function boilerplate.
+================================================================================
+
+
+--------------------------------------------------------------------------------
+LOGGER
+--------------------------------------------------------------------------------
+
+Logger writes every message to two sinks simultaneously:
+
+  1. OutputDebugStringA  — appears in the VS Code Debug Console in real time
+                           when the process is launched or attached with cppvsdbg.
+                           Select "Debug Console" in the Output panel drop-down.
+
+  2. rvgl-randomizer.log — written to the process working directory, flushed on
+                           every write so it is readable mid-session. When launched
+                           via TestLauncher the working directory is the RVGL exe
+                           folder (set in Launcher.cpp via GetDirectoryFromPath).
+
+
+PUBLIC API
+──────────
+
+Logger::Init()
+    Opens the log file. Call this as the very first thing in DllMain on
+    DLL_PROCESS_ATTACH, before HookManager::InstallAll(). This ensures any
+    log output from hook installation is captured.
+
+Logger::Shutdown()
+    Flushes and closes the log file. Call this as the very last thing in
+    DllMain on DLL_PROCESS_DETACH, after HookManager::RemoveAll().
+
+Logger::Log(message)
+    Writes one line. A newline is always appended. Safe from any thread.
+
+Logger::Logf(fmt, ...)
+    printf-style convenience wrapper over Log.
+
+Logger::TimestampLog(message)
+    Prepends a full datetime prefix then calls Log:
+        [YYYY-MM-DD HH:MM:SS.mmm] message
+    Uses GetLocalTime() which fills a SYSTEMTIME struct of plain WORD (uint16)
+    fields. No floating-point ops — safe to call from inside any hook including
+    generic passthrough hooks where XMM registers must not be disturbed.
+
+Logger::TimestampLogf(fmt, ...)
+    printf-style convenience wrapper over TimestampLog.
+
+
+FLOAT SAFETY
+────────────
+
+Logger is XMM-safe as long as you use integer format specifiers:
+    %s  %p  %d  %u  %lld  %llx  %02d  — all safe, integer formatting only
+    %f  %e  %g                         — UNSAFE, triggers FPU ops, clobbers XMM0-3
+
+This matters because the x64 calling convention passes float arguments in XMM0-3.
+If a hooked function receives float args and the detour calls Logger::Logf with %f,
+those args are clobbered before they reach the original. Use %p to print float-
+register arguments as hex if you need to inspect them.
+
+
+DLLMAIN WIRING
+──────────────
+
+Logger lifetime must bracket everything else:
+
+    case DLL_PROCESS_ATTACH:
+        DisableThreadLibraryCalls(hModule);
+        Sleep(50);
+        Logger::Init();              // first
+        HookManager::InstallAll();
+        break;
+
+    case DLL_PROCESS_DETACH:
+        HookManager::RemoveAll();
+        Logger::Shutdown();          // last
+
+HookManager uses Logger but does not own its lifetime. Logger::Init and
+Logger::Shutdown must not appear inside HookManager.
+
+
+--------------------------------------------------------------------------------
+CALLLOGGER
+--------------------------------------------------------------------------------
+
+CallLogger auto-generates passthrough logging hooks from a plain map. No
+per-function detour or original pointer declaration is needed — just an RVA
+and a display name.
+
+Each registered function logs its name and all arguments on entry and exit,
+then calls through to the original transparently:
+
+    [2026-03-22 15:58:11.145] --> CreateCarEntity(0000000000000001, ..., 0000000000000021, ...)
+    [2026-03-22 15:58:11.151] <-- CreateCarEntity = 0000000000000000
+
+
+THE TEMPLATE POOL TRICK
+───────────────────────
+
+MinHook requires a unique function address per hook. You cannot install the same
+detour on multiple targets because MinHook uses the address as a key, and the
+detour body needs to know which slot it belongs to in order to look up the right
+name and original pointer.
+
+Solution: pre-generate N distinct functions at compile time using a template
+parameter as a slot index:
+
+    template<size_t Slot>
+    void* __fastcall GenericDetour(void* a, ...) {
+        Logger::TimestampLogf("--> %s(...)", g_slots[Slot].name, ...);
+        void* result = CallOriginalSafe(..., g_slots[Slot].original, ...);
+        Logger::TimestampLogf("<-- %s = %p", g_slots[Slot].name, result);
+        return result;
+    }
+
+GenericDetour<0>, GenericDetour<1>, ..., GenericDetour<N-1> are all distinct
+functions with distinct addresses. std::index_sequence expands all N
+specialisations into a lookup table (g_detourTable) at startup. Registration
+picks the next unused slot and assigns the corresponding detour from the table.
+
+The pool size is compile-time fixed at MAX_AUTO_LOG_HOOKS (default 64, defined
+in CallLogger.h). Increase this constant if you need more slots.
+
+
+USAGE IN HOOKMANAGER
+────────────────────
+
+Call CallLogger::RegisterAll inside HookManager::RegisterHooks(), after
+MH_Initialize() has been called:
+
+    static void RegisterHooks() {
+
+        // Typed hooks (when you need to inspect or modify args/return value)
+        HookManager::Add(
+            AbsFromRva(RVA_LOAD_VANILLA_CAR_POOL),
+            reinterpret_cast<void*>(Randomizer::Hook_LoadVanillaCarPool),
+            reinterpret_cast<void**>(&Randomizer::Orig_LoadVanillaCarPool),
+            "LoadVanillaCarPool"
+        );
+
+        // Auto log hooks (call logging only, no modification)
+        CallLogger::RegisterAll({
+            { 0x0003FAC0, "LoadCustomCarPool"  },
+            { 0x0004CB60, "InitPlayerCar"      },
+            { 0x000F03A0, "CreateCarEntity"    },
+        });
+    }
+
+Call CallLogger::UnregisterAll inside HookManager::RemoveAll(), before
+MH_Uninitialize():
+
+    void HookManager::RemoveAll() {
+        for (const auto& entry : g_hooks)   // typed hooks
+            if (entry.installed)
+                MH_DisableHook(...);
+        g_hooks.clear();
+
+        CallLogger::UnregisterAll();        // auto-log hooks
+
+        MH_Uninitialize();                  // free trampoline pool — must be last
+        ...
+    }
+
+Do not register the same function in both RegisterAll and HookManager::Add.
+If a function already has a typed hook, MinHook returns MH_ERROR_ALREADY_CREATED
+on the second registration and does NOT write the original pointer. The slot's
+original stays null and calling through it crashes. CallLogger::RegisterAll
+detects and logs this case explicitly and skips the slot.
+
+
+RVA CALCULATION
+───────────────
+
+All addresses passed to RegisterAll are RVAs (relative virtual addresses):
+    RVA = Ghidra address − image base (0x00400000)
+
+Example:
+    Ghidra shows CreateCarEntity at 0x004F03A0
+    RVA = 0x004F03A0 − 0x00400000 = 0x0004F03A0   ← NOT 0x000F03A0
+
+A wrong RVA points MinHook at arbitrary bytes that are not a function prologue.
+MinHook's HDE disassembler reads those bytes as instructions and can crash the
+process before MH_CreateHook even returns. The VirtualQuery guard in RegisterAll
+catches addresses that are not in executable memory, but cannot catch addresses
+that land in the middle of a different function — always verify in Ghidra.
+
+
+THE 8-PARAMETER CEILING AND WHY IT MATTERS
+───────────────────────────────────────────
+
+The generic detour is declared with 8 void* parameters:
+
+    using GenericFn = void*(__fastcall*)(void*, void*, void*, void*,
+                                         void*, void*, void*, void*);
+
+    template<size_t Slot>
+    void* __fastcall GenericDetour(void* a, void* b, void* c, void* d,
+                                    void* e, void* f, void* g, void* h)
+
+In x64 Windows the first four arguments are passed in registers (RCX, RDX, R8,
+R9). Arguments 5 and beyond are passed on the stack at [RSP+0x28], [RSP+0x30],
+[RSP+0x38], [RSP+0x40].
+
+When a detour declares fewer parameters than the real function uses, the compiler
+does not allocate stack space for the missing ones. The original function reads
+those stack slots and gets uninitialized garbage instead of real arguments. This
+produces the class of bug seen with CreateCarEntity:
+
+    CreateCarEntity takes 6 params. The original 4-param detour left [RSP+0x28]
+    and [RSP+0x30] uninitialized. The function read 0x21 from [RSP+0x28] as its
+    spawnPosition float pointer, passed it to FUN_00510890 as param_2, which
+    then crashed reading *(param_2 + 0x4) = *(0x25) — a near-null dereference.
+
+Declaring MORE parameters than a function uses is always harmless. The callee
+only reads the registers and stack slots it declares in its own signature and
+ignores everything else. Extra parameters cost nothing beyond a slightly larger
+stack frame per call.
+
+The 8-parameter ceiling covers all known RVGL functions. If a future function
+has more than 8 parameters, extend GenericFn, GenericDetour, and CallOriginalSafe
+to match.
+
+
+CALLORIGINALSAFE
+────────────────
+
+CallOriginalSafe wraps the trampoline call in a Windows SEH __try/__except block
+so access violations are caught and logged instead of crashing the process:
+
+    static void* CallOriginalSafe(GenericFn fn,
+                                   void* a, void* b, void* c, void* d,
+                                   void* e, void* f, void* g, void* h,
+                                   const char* name) {
+        __try {
+            return fn(a, b, c, d, e, f, g, h);
+        }
+        __except(EXCEPTION_EXECUTE_HANDLER) {
+            Logger::Logf("[CallLogger] ACCESS VIOLATION: %s  "
+                         "a=%p b=%p c=%p d=%p e=%p f=%p g=%p h=%p  code=0x%08X",
+                         name, a, b, c, d, e, f, g, h, GetExceptionCode());
+            return nullptr;
+        }
+    }
+
+Access violations are Windows SEH exceptions (code 0xC0000005), not C++
+exceptions. A standard try/catch block does not catch them — __try/__except
+is required.
+
+MSVC does not allow __try in a function that contains C++ objects with
+destructors (std::string, std::lock_guard, etc.). For this reason
+CallOriginalSafe is kept as a plain C-style function with no RAII types.
+The Logger::Logf call in the __except block is safe because it only runs
+after the exception is already caught and the stack is being unwound.
+
+On violation the function returns nullptr. This allows RVGL to handle the
+failure through its own error paths (e.g. the "Can't create player" message)
+rather than hard-crashing. The hook remains active for subsequent calls.
+
+
+KNOWN LIMITATIONS
+─────────────────
+
+Float argument values cannot be printed from the generic detour. Float args
+arrive in XMM0-3, not in the void* parameters. Printing them with %f would
+require reading XMM registers explicitly (not possible in standard C++) and
+would clobber those registers in the process. Print all args with %p (hex)
+and interpret float values after the fact if needed.
+
+Functions with more than 8 parameters are not fully covered. Extend the
+parameter count in GenericFn, GenericDetour, and CallOriginalSafe if needed.
+
+The generic detour cannot modify arguments or return values. For that, write
+a typed hook in HookManager::RegisterHooks() instead.
