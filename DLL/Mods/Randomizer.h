@@ -17,6 +17,7 @@ namespace Randomizer {
     //   LoadVanillaCarPool:  bool ()
     // ------------------------------------------------------------------------
     using FnLoadVanillaCarPool  = bool(*)();
+    using FnLoadTextureByName   = unsigned long long(*)(char* path, int slotID, int maxMipLevel, bool enableMips, int param_5, unsigned int flags);
 
     // ------------------------------------------------------------------------
     // Original function pointers.
@@ -25,10 +26,12 @@ namespace Randomizer {
     // Call these from inside the detours to invoke the real RVGL functions.
     // ------------------------------------------------------------------------
     extern FnLoadVanillaCarPool  Orig_LoadVanillaCarPool;
+    extern FnLoadTextureByName   Orig_LoadTextureByName;
 
     // ------------------------------------------------------------------------
     // Detour functions — registered in HookManager.cpp → RegisterHooks().
     // ------------------------------------------------------------------------
     bool Hook_LoadVanillaCarPool();
+    unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLevel, bool enableMips, int param_5, unsigned int flags);
 
 } // namespace Randomizer

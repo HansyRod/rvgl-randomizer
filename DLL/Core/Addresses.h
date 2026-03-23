@@ -23,6 +23,9 @@
 // Ghidra signature: bool __fastcall Car_LoadVanillaPool(void)
 constexpr uint32_t RVA_LOAD_VANILLA_CAR_POOL   = 0x0003F140;
 
+// LoadTextureByName - receives a file path and loads a texture to a given slot id.
+constexpr uint32_t RVA_LOAD_TEXTURE_BY_NAME = 0x000962d0;
+
 // ----------------------------------------------------------------------------
 // Globals
 // ----------------------------------------------------------------------------

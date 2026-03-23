@@ -30,6 +30,7 @@ add_library(randomizer SHARED
 
     # Mods — individual mod logic
     Mods/Randomizer.cpp
+    Mods/Carbox.cpp
 
     # DebugUtils — debug tools
     DebugUtils/Logger.cpp        # OutputDebugStringA + file logging

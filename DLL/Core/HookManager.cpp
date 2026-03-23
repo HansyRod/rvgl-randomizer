@@ -101,6 +101,12 @@ static void RegisterHooks() {
         "LoadVanillaCarPool"
     );
 
+    HookManager::Add(
+        AbsFromRva(RVA_LOAD_TEXTURE_BY_NAME),
+        reinterpret_cast<void*>(Randomizer::Hook_LoadTextureByName),
+        reinterpret_cast<void**>(&Randomizer::Orig_LoadTextureByName),
+        "LoadTextureByName"
+    );
     // Add further hooks here as the mod grows, e.g.:
     //
     // HookManager::Add(

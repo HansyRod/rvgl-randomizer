@@ -23,8 +23,8 @@
 // The pool starts at DAT_006fab50. Stride is sizeof(CarInfo) = 0x110.
 // ----------------------------------------------------------------------------
 struct CarInfo {
-    char     internalName[20];    // +0x00  folder name (e.g. "rcbandit")
-    char     displayName[64];     // +0x14  NAME keyword value
+    char     displayName[20];     // +0x00  NAME keyword value
+    char     internalName[64];    // +0x14  folder name (e.g. "rcbandit")
     char     tpageFilename[64];   // +0x54  TPAGE keyword
     char     tcarboxFilename[64]; // +0x94  TCARBOX keyword
     uint8_t  _pad_D4[4];          // +0xD4
