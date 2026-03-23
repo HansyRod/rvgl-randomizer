@@ -1,9 +1,13 @@
 #include "Randomizer.h"
 #include "Addresses.h"
 #include "RVGLStructs.h"
+#include "Carbox.h"
+#include "Image.h"
+#include "Logger.h"
 #include <windows.h>
 #include <string>
 #include <cstdint>
+#include <vector>
 
 // ============================================================================
 // Randomizer.cpp
