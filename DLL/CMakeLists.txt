@@ -34,6 +34,9 @@ add_library(randomizer SHARED
     # DebugUtils — debug tools
     DebugUtils/Logger.cpp        # OutputDebugStringA + file logging
     DebugUtils/CallLogger.cpp    # auto-generated passthrough hooks from map
+
+    # Image - Image manipulation logic that interacts with the stb libraries
+    Image/Image.cpp
 )
 
 target_include_directories(randomizer PRIVATE
@@ -44,6 +47,8 @@ target_include_directories(randomizer PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Game
     ${CMAKE_CURRENT_SOURCE_DIR}/Mods
     ${CMAKE_CURRENT_SOURCE_DIR}/DebugUtils
+    ${CMAKE_CURRENT_SOURCE_DIR}/Image
+    ${CMAKE_CURRENT_SOURCE_DIR}/Image/stb
     MinHook/include
 )
 
