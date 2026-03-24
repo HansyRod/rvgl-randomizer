@@ -19,9 +19,13 @@
 // Functions
 // ----------------------------------------------------------------------------
 
-// Car_LoadVanillaPool — loads the built-in car pool into memory.
-// Ghidra signature: bool __fastcall Car_LoadVanillaPool(void)
+// LoadVanillaCarPool — loads the built-in car pool into memory.
+// Ghidra signature: bool __fastcall LoadVanillaCarPool(void)
 constexpr uint32_t RVA_LOAD_VANILLA_CAR_POOL   = 0x0003F140;
+
+// LoadCustomCarPool — loads the custom car pool into memory.
+// Ghidra signature: void LoadCustomCarPool (void)
+constexpr uint32_t RVA_LOAD_CUSTOM_CAR_POOL = 0x0003fac0;
 
 // LoadTextureByName - receives a file path and loads a texture to a given slot id.
 constexpr uint32_t RVA_LOAD_TEXTURE_BY_NAME = 0x000962d0;

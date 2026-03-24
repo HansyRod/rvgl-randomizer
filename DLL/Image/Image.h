@@ -6,5 +6,6 @@
 namespace Randomizer {
 
     void GenerateAndSaveCarboxAtlas(const std::string& outputPath, const std::vector<CarboxSource>& cars);
+    void GenerateAndSaveSingleCarbox(const std::string& outputPath, const CarboxSource& car);
 
 }

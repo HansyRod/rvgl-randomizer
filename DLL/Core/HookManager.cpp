@@ -102,6 +102,13 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
+        AbsFromRva(RVA_LOAD_CUSTOM_CAR_POOL),
+        reinterpret_cast<void*>(Randomizer::Hook_LoadCustomCarPool),
+        reinterpret_cast<void**>(&Randomizer::Orig_LoadCustomCarPool),
+        "LoadVanillaCarPool"
+    );
+
+    HookManager::Add(
         AbsFromRva(RVA_LOAD_TEXTURE_BY_NAME),
         reinterpret_cast<void*>(Randomizer::Hook_LoadTextureByName),
         reinterpret_cast<void**>(&Randomizer::Orig_LoadTextureByName),
@@ -133,7 +140,7 @@ static void RegisterHooks() {
 
         // Car system
         // { 0x0003F140, "LoadVanillaCarPool"          },   // same as typed hook above — pick one or the other
-        { 0x0003FAC0, "LoadCustomCarPool"           },
+        // { 0x0003FAC0, "LoadCustomCarPool"           },
         { 0x000F03A0, "CreateCarEntity"             },
         { 0x000F0630, "DestroyCarEntity"            },
         { 0x0004CB60, "InitPlayerCar"               },

@@ -25,6 +25,7 @@ namespace Randomizer {
 // ----------------------------------------------------------------------------
 FnLoadVanillaCarPool  Orig_LoadVanillaCarPool  = nullptr;
 FnLoadTextureByName   Orig_LoadTextureByName   = nullptr;
+FnLoadCustomCarPool   Orig_LoadCustomCarPool   = nullptr;
 
 // ----------------------------------------------------------------------------
 // Car pool snapshot
@@ -64,25 +65,52 @@ bool Hook_LoadVanillaCarPool() {
 
 unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLevel, bool enableMips, int param_5, unsigned int flags) {
 
-    std::string customAtlasPath = "";
+    std::string customTexturePath = "";
     char* targetPath = path; // Default to the original path
     
-    int carboxNumber = GetCarboxNumberFromPath(path);
-    
-    // If it returned 1 through 5, it's a match
-    if (carboxNumber != 0) {
+    // --- SLOT 142: SINGLE CUSTOM CARBOX ---
+    if (slotID == 142) {
+        std::string pathStr(path);
+        const std::string prefix = "cars/misc/custom_carbox_";
+        size_t prefixPos = pathStr.find(prefix);
         
-        std::vector<CarboxSource> randomGrid = GetGridSourcesForCarbox(carboxNumber, s_carPool.data());
-
-        // GetGridSourcesForCarbox returns empty if there are no changes
-        if (!randomGrid.empty()) {
+        // Is this one of our injected dummy paths?
+        if (prefixPos != std::string::npos) {
+            size_t startIdx = prefixPos + prefix.length();
+            size_t endIdx = pathStr.find(".bmp", startIdx);
             
-            // Generate the stitched file to disk
-            customAtlasPath = "cars/misc/carbox_random_" + std::to_string(carboxNumber) + ".bmp";
-            GenerateAndSaveCarboxAtlas(customAtlasPath, randomGrid);
+            if (endIdx != std::string::npos) {
+                std::string internalName = pathStr.substr(startIdx, endIdx - startIdx);
+                
+                // Fetch the source (which will route back to its vanilla 84x84 cell)
+                CarboxSource src = GetVanillaCarboxSource(internalName);
+                
+                customTexturePath = pathStr; // Keep the same path for the temp file
+                GenerateAndSaveSingleCarbox(customTexturePath, src);
+                
+                targetPath = const_cast<char*>(customTexturePath.c_str());
+            }
+        }
+    }
+    // --- SLOTS 143-147: VANILLA GRID CARBOXES ---
+    else if (slotID >= 143 && slotID <= 147) {
+        int carboxNumber = GetCarboxNumberFromPath(path);
+        
+        // If it returned 1 through 5, it's a match
+        if (carboxNumber != 0) {
+            
+            std::vector<CarboxSource> randomGrid = GetGridSourcesForCarbox(carboxNumber, s_carPool.data());
 
-            // Point our targetPath to the newly generated file instead of overwriting memory
-            targetPath = const_cast<char*>(customAtlasPath.c_str());
+            // GetGridSourcesForCarbox returns empty if there are no changes
+            if (!randomGrid.empty()) {
+                
+                // Generate the stitched file to disk
+                customTexturePath = "cars/misc/carbox_random_" + std::to_string(carboxNumber) + ".bmp";
+                GenerateAndSaveCarboxAtlas(customTexturePath, randomGrid);
+
+                // Point our targetPath to the newly generated file instead of overwriting memory
+                targetPath = const_cast<char*>(customTexturePath.c_str());
+            }
         }
     }
 
@@ -91,11 +119,40 @@ unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLeve
     // Call the original texture loader
     unsigned long long returnValue = Orig_LoadTextureByName(targetPath, slotID, maxMipLevel, enableMips, param_5, flags);
 
-    if (customAtlasPath != "") {
+    if (customTexturePath != "") {
         // delete random carbox bmp
-        std::remove(customAtlasPath.c_str());
+        std::remove(customTexturePath.c_str());
     }
     return returnValue;
+}
+
+
+void Hook_LoadCustomCarPool() {
+    // Let RVGL load the custom cars from disk into memory first
+    Orig_LoadCustomCarPool();
+
+    CarInfo* customPool = *reinterpret_cast<CarInfo**>(AbsFromRva(RVA_CAR_TABLE));
+    int customCount     = *reinterpret_cast<int*>(AbsFromRva(RVA_CAR_COUNT));
+
+    // Check if any cars were added to the car table
+    if (customPool != nullptr && customCount > s_carCount) {
+        // Iterate only over the custom cars
+        for (int i = s_carCount; i < customCount; ++i) {
+            CarInfo* car = &customPool[i];
+            
+            // If the car lacks a TCARBOX property
+            if (car->tcarboxFilename[0] == '\0') {
+                // Generate a unique dummy path we can intercept later
+                std::string dummyPath = "cars/misc/custom_carbox_" + std::string(car->internalName) + ".bmp";
+                strncpy_s(car->tcarboxFilename, 64, dummyPath.c_str(), _TRUNCATE);
+            }
+            
+            // Append to our persistent snapshot so GetGridSourcesForCarbox can find it
+            s_carPool.push_back(*car); 
+        }
+    }
+
+    return;
 }
 
 

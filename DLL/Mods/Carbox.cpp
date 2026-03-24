@@ -96,6 +96,35 @@ CarboxSource GetCarboxSource(CarInfo* car) {
     return src;
 }
 
+CarboxSource GetVanillaCarboxSource(const std::string& internalName) {
+    CarboxSource src;
+
+    // Search through the 5 vanilla carboxes (9 slots each)
+    for (int gridIndex = 0; gridIndex < 5; ++gridIndex) {
+        for (int i = 0; i < 9; ++i) {
+            // Check if the slot isn't empty and matches our target name
+            if (carboxGridNames[gridIndex][i] != nullptr && 
+                internalName == carboxGridNames[gridIndex][i]) {
+                
+                src.filepath = "cars/misc/carbox" + std::to_string(gridIndex + 1) + ".bmp";
+                src.isFromGrid = true;
+                src.sourceGridX = i % 3;
+                src.sourceGridY = i / 3;
+                
+                return src;
+            }
+        }
+    }
+
+    // If not found in the vanilla grid, it defaults to a standalone car texture
+    src.filepath = "cars/" + internalName + "/carbox.bmp";
+    src.isFromGrid = false;
+    src.sourceGridX = 0;
+    src.sourceGridY = 0;
+
+    return src;
+}
+
 std::vector<CarboxSource> GetGridSourcesForCarbox(int carboxNumber, CarInfo* carPool) {
     std::vector<CarboxSource> sources;
     sources.reserve(9);
