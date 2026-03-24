@@ -105,7 +105,14 @@ static void RegisterHooks() {
         AbsFromRva(RVA_LOAD_CUSTOM_CAR_POOL),
         reinterpret_cast<void*>(Randomizer::Hook_LoadCustomCarPool),
         reinterpret_cast<void**>(&Randomizer::Orig_LoadCustomCarPool),
-        "LoadVanillaCarPool"
+        "LoadCustomCarPool"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_SYNC_CAR_INFO_FROM_PHYSICS),
+        reinterpret_cast<void*>(Randomizer::Hook_SyncCarInfoFromPhysics),
+        reinterpret_cast<void**>(&Randomizer::Orig_SyncCarInfoFromPhysics),
+        "SyncCarInfoFromPhysics"
     );
 
     HookManager::Add(

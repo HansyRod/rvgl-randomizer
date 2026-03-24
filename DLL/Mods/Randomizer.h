@@ -1,4 +1,5 @@
 #pragma once
+#include "RVGLStructs.h"
 
 // ============================================================================
 // Randomizer
@@ -19,6 +20,10 @@ namespace Randomizer {
     using FnLoadVanillaCarPool  = bool(*)();
     using FnLoadCustomCarPool   = void(*)();
     using FnLoadTextureByName   = unsigned long long(*)(char* path, int slotID, int maxMipLevel, bool enableMips, int param_5, unsigned int flags);
+    using FnLoadVanillaCarPool      = bool(*)();
+    using FnLoadCustomCarPool       = void(*)();
+    using FnLoadTextureByName       = unsigned long long(*)(char* path, int slotID, int maxMipLevel, bool enableMips, int param_5, unsigned int flags);
+    using FnSyncCarInfoFromPhysics  = void(*)(int carIndex, CarPhysicsData *physData);
 
     // ------------------------------------------------------------------------
     // Original function pointers.
@@ -29,6 +34,10 @@ namespace Randomizer {
     extern FnLoadVanillaCarPool  Orig_LoadVanillaCarPool;
     extern FnLoadCustomCarPool   Orig_LoadCustomCarPool;
     extern FnLoadTextureByName   Orig_LoadTextureByName;
+    extern FnLoadVanillaCarPool     Orig_LoadVanillaCarPool;
+    extern FnLoadCustomCarPool      Orig_LoadCustomCarPool;
+    extern FnLoadTextureByName      Orig_LoadTextureByName;
+    extern FnSyncCarInfoFromPhysics Orig_SyncCarInfoFromPhysics;
 
     // ------------------------------------------------------------------------
     // Detour functions — registered in HookManager.cpp → RegisterHooks().
@@ -36,5 +45,8 @@ namespace Randomizer {
     bool Hook_LoadVanillaCarPool();
     void Hook_LoadCustomCarPool();
     unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLevel, bool enableMips, int param_5, unsigned int flags);
+    void Hook_SyncCarInfoFromPhysics(int carIndex, CarPhysicsData *physData);
 
+    // Utils functions
+    void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData);
 } // namespace Randomizer

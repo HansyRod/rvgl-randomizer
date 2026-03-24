@@ -38,6 +38,9 @@ add_library(randomizer SHARED
 
     # Image - Image manipulation logic that interacts with the stb libraries
     Image/Image.cpp
+
+    # Game - Game data or other utils
+    Game/GameUtils.cpp
 )
 
 target_include_directories(randomizer PRIVATE

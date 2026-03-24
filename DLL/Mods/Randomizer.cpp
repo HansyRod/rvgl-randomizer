@@ -2,6 +2,7 @@
 #include "Addresses.h"
 #include "RVGLStructs.h"
 #include "Carbox.h"
+#include "GameUtils.h"
 #include "Image.h"
 #include "Logger.h"
 #include <windows.h>
@@ -23,9 +24,10 @@ namespace Randomizer {
 // Original function pointers
 // MinHook writes the trampoline addresses into these during InstallAll().
 // ----------------------------------------------------------------------------
-FnLoadVanillaCarPool  Orig_LoadVanillaCarPool  = nullptr;
-FnLoadTextureByName   Orig_LoadTextureByName   = nullptr;
-FnLoadCustomCarPool   Orig_LoadCustomCarPool   = nullptr;
+FnLoadVanillaCarPool     Orig_LoadVanillaCarPool     = nullptr;
+FnLoadTextureByName      Orig_LoadTextureByName      = nullptr;
+FnLoadCustomCarPool      Orig_LoadCustomCarPool      = nullptr;
+FnSyncCarInfoFromPhysics Orig_SyncCarInfoFromPhysics = nullptr;
 
 // ----------------------------------------------------------------------------
 // Car pool snapshot
@@ -140,13 +142,8 @@ void Hook_LoadCustomCarPool() {
         for (int i = s_carCount; i < customCount; ++i) {
             CarInfo* car = &customPool[i];
             
-            // If the car lacks a TCARBOX property
-            if (car->tcarboxFilename[0] == '\0') {
-                // Generate a unique dummy path we can intercept later
-                std::string dummyPath = "cars/misc/custom_carbox_" + std::string(car->internalName) + ".bmp";
-                strncpy_s(car->tcarboxFilename, 64, dummyPath.c_str(), _TRUNCATE);
-            }
-            
+            ApplyCarMods(i, car, nullptr);
+
             // Append to our persistent snapshot so GetGridSourcesForCarbox can find it
             s_carPool.push_back(*car); 
         }
@@ -155,5 +152,42 @@ void Hook_LoadCustomCarPool() {
     return;
 }
 
+
+void Hook_SyncCarInfoFromPhysics(int carIndex, CarPhysicsData *physData) {
+
+    if (carIndex >= 49) {
+        CarInfo* carPool = s_carPool.data();
+        CarInfo* car = &carPool[carIndex];
+
+        ApplyCarMods(carIndex, car, physData);
+    }
+
+    Orig_SyncCarInfoFromPhysics(carIndex, physData);
+
+}
+
+void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
+
+    // Apply these only to cars in custom pool
+    if (carIndex >= 49) {
+        // If the car lacks a TCARBOX property
+        if (car->tcarboxFilename[0] == '\0' || (physData != nullptr && physData->tcarboxFilename[0] == '\0')) {
+            // Generate a unique dummy path we can intercept later
+            std::string dummyPath = "cars/misc/custom_carbox_" + std::string(car->internalName) + ".bmp";
+            strncpy_s(car->tcarboxFilename, 64, dummyPath.c_str(), _TRUNCATE);
+            if (physData != nullptr) {
+                strncpy_s(physData->tcarboxFilename, 64, dummyPath.c_str(), _TRUNCATE);
+            }
+        }
+
+        // If the car is stock/dc and has statistics disabled, enable them
+        if (IsStockCar(car->internalName)) {
+            car->statisticsEnabled = true;
+            if (physData != nullptr) {
+                physData->statistics = true;
+            }
+        }
+    }
+}
 
 } // namespace Randomizer
