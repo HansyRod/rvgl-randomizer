@@ -17,9 +17,6 @@ namespace Randomizer {
     // Ghidra signatures (x64, __fastcall is noise and is dropped):
     //   LoadVanillaCarPool:  bool ()
     // ------------------------------------------------------------------------
-    using FnLoadVanillaCarPool  = bool(*)();
-    using FnLoadCustomCarPool   = void(*)();
-    using FnLoadTextureByName   = unsigned long long(*)(char* path, int slotID, int maxMipLevel, bool enableMips, int param_5, unsigned int flags);
     using FnLoadVanillaCarPool      = bool(*)();
     using FnLoadCustomCarPool       = void(*)();
     using FnLoadTextureByName       = unsigned long long(*)(char* path, int slotID, int maxMipLevel, bool enableMips, int param_5, unsigned int flags);
@@ -31,9 +28,6 @@ namespace Randomizer {
     // MinHook writes the trampoline addresses into these during InstallAll().
     // Call these from inside the detours to invoke the real RVGL functions.
     // ------------------------------------------------------------------------
-    extern FnLoadVanillaCarPool  Orig_LoadVanillaCarPool;
-    extern FnLoadCustomCarPool   Orig_LoadCustomCarPool;
-    extern FnLoadTextureByName   Orig_LoadTextureByName;
     extern FnLoadVanillaCarPool     Orig_LoadVanillaCarPool;
     extern FnLoadCustomCarPool      Orig_LoadCustomCarPool;
     extern FnLoadTextureByName      Orig_LoadTextureByName;
