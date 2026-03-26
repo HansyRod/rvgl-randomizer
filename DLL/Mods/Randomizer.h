@@ -21,6 +21,8 @@ namespace Randomizer {
     using FnLoadCustomCarPool       = void(*)();
     using FnLoadTextureByName       = unsigned long long(*)(char* path, int slotID, int maxMipLevel, bool enableMips, int param_5, unsigned int flags);
     using FnSyncCarInfoFromPhysics  = void(*)(int carIndex, CarPhysicsData *physData);
+    using FnLoadVanillaTracks       = void(*)();
+    using FnLoadCustomTracks        = void(*)();
 
     // ------------------------------------------------------------------------
     // Original function pointers.
@@ -32,6 +34,8 @@ namespace Randomizer {
     extern FnLoadCustomCarPool      Orig_LoadCustomCarPool;
     extern FnLoadTextureByName      Orig_LoadTextureByName;
     extern FnSyncCarInfoFromPhysics Orig_SyncCarInfoFromPhysics;
+    extern FnLoadVanillaTracks      Orig_LoadVanillaTracks;
+    extern FnLoadCustomTracks       Orig_LoadCustomTracks;
 
     // ------------------------------------------------------------------------
     // Detour functions — registered in HookManager.cpp → RegisterHooks().
@@ -40,6 +44,8 @@ namespace Randomizer {
     void Hook_LoadCustomCarPool();
     unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLevel, bool enableMips, int param_5, unsigned int flags);
     void Hook_SyncCarInfoFromPhysics(int carIndex, CarPhysicsData *physData);
+    void Hook_LoadVanillaTracks(void);
+    void Hook_LoadCustomTracks(void);
 
     // Utils functions
     void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData);

@@ -78,6 +78,23 @@ static const char* k_TestCarPaths[49] = {
     "cars/jg2fulonx"
 };
 
+static const char* k_TestTrackNames[14] = {
+    "venice",
+    "roof",
+    "ship1",
+    "toylite",
+    "garden1",
+    "nhood2",
+    "toy2",
+    "market1",
+    "wild_west2",
+    "muse1",
+    "muse2",
+    "ship2",
+    "nhood1",
+    "wild_west1"
+};
+
 // Persistent storage for the patched pointer table.
 // The pointers in g_VanillaCarPaths must remain valid after the hook returns,
 // so these are static rather than stack-allocated.
@@ -100,6 +117,8 @@ FnLoadVanillaCarPool     Orig_LoadVanillaCarPool     = nullptr;
 FnLoadTextureByName      Orig_LoadTextureByName      = nullptr;
 FnLoadCustomCarPool      Orig_LoadCustomCarPool      = nullptr;
 FnSyncCarInfoFromPhysics Orig_SyncCarInfoFromPhysics = nullptr;
+FnLoadVanillaTracks      Orig_LoadVanillaTracks      = nullptr;
+FnLoadCustomTracks       Orig_LoadCustomTracks       = nullptr;
 
 // ----------------------------------------------------------------------------
 // Car pool snapshot
@@ -107,6 +126,16 @@ FnSyncCarInfoFromPhysics Orig_SyncCarInfoFromPhysics = nullptr;
 // ----------------------------------------------------------------------------
 static std::vector<CarInfo> s_carPool;
 static int                  s_carCount = 0;
+
+// ----------------------------------------------------------------------------
+// Track pool snapshot
+// 
+// ----------------------------------------------------------------------------
+static TrackInfo trackInfoBackup[14] = {};
+static std::vector<TrackInfo> s_vanillaTrackPool;
+static std::vector<TrackInfo> s_customTrackPool;
+static int s_trackCount = 0;
+
 
 // ============================================================================
 // Hook_LoadCars
@@ -273,6 +302,81 @@ void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
             }
         }
     }
+}
+
+
+void Hook_LoadVanillaTracks() {
+
+    TrackInfo* vanillaTracks = reinterpret_cast<TrackInfo*>(AbsFromRva(RVA_VANILLA_TRACKS_TABLE));
+    
+    // You can now access it like a standard array
+    for (int i = 0; i < 21; i++) {
+        TrackInfo* currentTrack = &vanillaTracks[i];
+
+        if (i < 14) {
+            // 1. Create a deep copy of the hardcoded data
+            trackInfoBackup[i] = *currentTrack;
+            // 2. Apply randomization    
+            strncpy_s(currentTrack->folderName, 16, k_TestTrackNames[i], _TRUNCATE);
+        }
+        else {
+            Logger::TimestampLogf("[LoadVanillaTracks] Track %d: %s", i+1, currentTrack->displayName);
+        }
+    }
+
+    Orig_LoadVanillaTracks();
+
+    // Get track count
+    s_trackCount = *reinterpret_cast<int*>(AbsFromRva(RVA_TRACK_COUNT));
+
+    // Copy references to vanilla tracks
+    s_vanillaTrackPool.clear();
+    if (vanillaTracks != nullptr && s_trackCount > 0) {
+        s_vanillaTrackPool.assign(vanillaTracks, vanillaTracks + s_trackCount);
+    }
+
+    // Apply missing hardcoded data
+    for (int i = 0; i < 14; i++) {
+        TrackInfo* currentTrack = &vanillaTracks[i];
+        Logger::TimestampLogf("[LoadVanillaTracks] Track %d: %s", i+1, currentTrack->displayName);
+        ApplyStockTrackData(currentTrack);
+    }
+}
+
+void Hook_LoadCustomTracks() {
+    Orig_LoadCustomTracks();
+
+    TrackInfo* customTracksPool = *reinterpret_cast<TrackInfo**>(AbsFromRva(RVA_CUSTOM_TRACKS_TABLE));
+    int trackCount = *reinterpret_cast<int*>(AbsFromRva(RVA_TRACK_COUNT));
+
+    for (int i = 21; i < trackCount; i++) {
+        TrackInfo* currentTrack = &customTracksPool[i-21];
+        Logger::TimestampLogf("[LoadCustomTracks] Track %d: %s", i+1, currentTrack->displayName);
+        ApplyStockTrackData(currentTrack);
+    }
+}
+
+
+void ApplyStockTrackData(TrackInfo* track) {
+
+    std::string folderName = track->folderName;
+    TrackInfo* backup = nullptr;
+
+    for (int j = 0; j < 14; j++) {
+        if (trackInfoBackup[j].folderName == folderName) {
+            backup = &trackInfoBackup[j];
+            break;
+        }
+    }
+
+    if (backup != nullptr) {
+        // Copy relevant data
+        track->challengeTime = backup->challengeTime;
+        track->challengeReverseTime = backup->challengeReverseTime;
+        track->trackLengthNormal = backup->trackLengthNormal;
+        track->trackLengthReverse = backup->trackLengthReverse;
+    }
+
 }
 
 } // namespace Randomizer

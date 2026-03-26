@@ -121,6 +121,22 @@ static void RegisterHooks() {
         reinterpret_cast<void**>(&Randomizer::Orig_LoadTextureByName),
         "LoadTextureByName"
     );
+
+    HookManager::Add(
+        AbsFromRva(RVA_LOAD_VANILLA_TRACKS),
+        reinterpret_cast<void*>(Randomizer::Hook_LoadVanillaTracks),
+        reinterpret_cast<void**>(&Randomizer::Orig_LoadVanillaTracks),
+        "LoadVanillaTracks"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_LOAD_CUSTOM_TRACKS),
+        reinterpret_cast<void*>(Randomizer::Hook_LoadCustomTracks),
+        reinterpret_cast<void**>(&Randomizer::Orig_LoadCustomTracks),
+        "LoadCustomTracks"
+    );
+
+    
     // Add further hooks here as the mod grows, e.g.:
     //
     // HookManager::Add(
