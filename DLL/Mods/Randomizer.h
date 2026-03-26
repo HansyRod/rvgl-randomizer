@@ -49,4 +49,5 @@ namespace Randomizer {
 
     // Utils functions
     void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData);
+    void ApplyStockTrackData(TrackInfo* track);
 } // namespace Randomizer
