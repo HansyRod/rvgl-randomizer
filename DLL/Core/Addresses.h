@@ -41,6 +41,14 @@ constexpr uint32_t RVA_SYNC_CAR_INFO_FROM_PHYSICS = 0x0003c330;
 // ParseParametersTxt - Parses the basic metadata when loading a car.
 constexpr uint32_t RVA_PARSE_PARAMETERS_TXT = 0x0003b6c0;
 
+// LoadVanillaTracks — loads the vanilla tracks into memory using the default folder paths.
+// Ghidra signature: void LoadVanillaTracks(void)
+constexpr uint32_t RVA_LOAD_VANILLA_TRACKS = 0x00052190;
+
+// LoadCustomTracks — scans the game folders and loads the custom tracks into memory.
+// Ghidra signature: void LoadCustomTracks(void)
+constexpr uint32_t RVA_LOAD_CUSTOM_TRACKS = 0x00052280;
+
 // ----------------------------------------------------------------------------
 // Globals
 // ----------------------------------------------------------------------------
@@ -57,6 +65,17 @@ constexpr uint32_t RVA_CAR_COUNT   = 0x002FAB58;
 // Each entry points to a null-terminated string in .rdata.
 // Override pointers before LoadVanillaCarPool to replace base cars.
 constexpr uint32_t RVA_VANILLA_CAR_PATHS = 0x002720a0;
+
+// Pointer to g_VanillaTrackArray (DAT_0065fe20).
+constexpr uint32_t RVA_VANILLA_TRACKS_TABLE   = 0x0025fe20;
+
+// Pointer to g_CustomTrackArray (DAT_00f3f9a0).
+constexpr uint32_t RVA_CUSTOM_TRACKS_TABLE   = 0x00b3f9a0;
+
+// Number of tracks currently in the track pool.
+// Includes both vanilla (21) and custom tracks.
+constexpr uint32_t RVA_TRACK_COUNT   = 0x002e34d0;
+
 
 // ----------------------------------------------------------------------------
 // AbsFromRva
