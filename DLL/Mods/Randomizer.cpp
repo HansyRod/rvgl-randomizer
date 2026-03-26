@@ -18,6 +18,78 @@
 // installed. See HookManager.cpp for installation.
 // ============================================================================
 
+namespace {
+
+// ============================================================================
+// Hardcoded car list for testing
+// Replace entries with whichever car folders you want to load.
+// Must be exactly 49 entries to fill the vanilla pool.
+// Every string must follow the "cars/<foldername>" format.
+// ============================================================================
+static const char* k_TestCarPaths[49] = {
+    "cars/rc",
+    "cars/albatrossgt",
+    "cars/phat",
+    "cars/rotor",
+    "cars/mud",
+    "cars/beatall",
+    "cars/volken",
+    "cars/tc6",
+    "cars/fd64lost",
+    "cars/candy",
+    "cars/gencar",
+    "cars/tc4",
+    "cars/mouse",
+    "cars/flag",
+    "cars/tc2",
+    "cars/r5",
+    "cars/tc5",
+    "cars/sgt",
+    "cars/tc3",
+    "cars/adeon",
+    "cars/fone",
+    "cars/tc1",
+    "cars/moss",
+    "cars/cougar",
+    "cars/sugo",
+    "cars/toyeca",
+    "cars/amw",
+    "cars/panga",
+    "cars/trolley",
+    "cars/wincar",
+    "cars/wincar2",
+    "cars/wincar3",
+    "cars/wincar4",
+    "cars/ufo",
+    "cars/q",
+    "cars/bigvolt",
+    "cars/bossvolt",
+    "cars/jg6rc",
+    "cars/tc12",
+    "cars/tc10",
+    "cars/tc8",
+    "cars/tc11",
+    "cars/tc9",
+    "cars/jg1jg7",
+    "cars/tc7",
+    "cars/jg3loco",
+    "cars/jg4snw35",
+    "cars/jg5purpxl",
+    "cars/jg2fulonx"
+};
+
+// Persistent storage for the patched pointer table.
+// The pointers in g_VanillaCarPaths must remain valid after the hook returns,
+// so these are static rather than stack-allocated.
+static const char* s_patchedPtrs[49];
+
+void InitHardcodedCarPaths() {
+    for (int i = 0; i < 49; i++)
+        s_patchedPtrs[i] = k_TestCarPaths[i];
+}
+
+} // anonymous namespace
+
 namespace Randomizer {
 
 // ----------------------------------------------------------------------------
@@ -44,6 +116,19 @@ static int                  s_carCount = 0;
 // then snapshot the pool pointer and count for use in Hook_BuildGrid.
 // ============================================================================
 bool Hook_LoadVanillaCarPool() {
+
+    InitHardcodedCarPaths();
+
+    const uintptr_t tableAddr = AbsFromRva(RVA_VANILLA_CAR_PATHS);
+    const SIZE_T    tableSize  = 49 * sizeof(const char*);
+    DWORD old;
+    // makes the pages writable, saves the original flags into `old`
+    VirtualProtect((void*)tableAddr, tableSize, PAGE_READWRITE, &old);
+    // now safe to write
+    memcpy((void*)tableAddr, s_patchedPtrs, tableSize);
+    // restores the original protection (read-only again)
+    VirtualProtect((void*)tableAddr, tableSize, old, &old);
+
     // Call the real LoadVanillaCarPool so RVGL loads its cars normally.
     const bool result = Orig_LoadVanillaCarPool();
 
