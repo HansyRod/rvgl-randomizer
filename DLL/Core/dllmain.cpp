@@ -1,6 +1,7 @@
 #include <windows.h>
 #include "HookManager.h"
 #include "Logger.h"
+#include "Randomizer.h"
 
 // ============================================================================
 // DllMain
@@ -24,6 +25,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
 
         Logger::Init();
         HookManager::InstallAll();
+        Randomizer::Initialize();
         break;
 
     case DLL_PROCESS_DETACH:

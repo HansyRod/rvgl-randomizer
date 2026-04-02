@@ -3,6 +3,7 @@
 #include "RVGLStructs.h"
 #include "Carbox.h"
 #include "GameUtils.h"
+#include "ConfigManager.h"
 #include "Image.h"
 #include "Logger.h"
 #include <windows.h>
@@ -109,6 +110,48 @@ void InitHardcodedCarPaths() {
 
 namespace Randomizer {
 
+// Global or class-member variable to hold the active configuration
+std::optional<ConfigData> g_ActiveConfig = std::nullopt;
+
+void Initialize() {
+    Logger::TimestampLogf("[Randomizer] Initializing Randomizer module...");
+
+    // 1. Attempt to load the configuration file
+    // Make sure the path matches where you place the test JSON relative to rvgl.exe
+    const std::string configPath = "randomizer_config.json"; 
+    
+    g_ActiveConfig = LoadConfiguration(configPath);
+
+    // 2. Verify successful load and output test data
+    if (g_ActiveConfig.has_value()) {
+        Logger::TimestampLogf("[Randomizer] Successfully loaded configuration!");
+        Logger::TimestampLogf("[Randomizer] Seed: %s", g_ActiveConfig->metadata.seed.c_str());
+        Logger::TimestampLogf("[Randomizer] Parsed %zu cars and %zu tracks.", 
+            g_ActiveConfig->cars.size(), 
+            g_ActiveConfig->tracks.size());
+        
+        // Example of accessing nested data
+        if (!g_ActiveConfig->cars.empty()) {
+            Logger::TimestampLogf("[Randomizer] First car folder: %s (Rating: %d)", 
+                g_ActiveConfig->cars[0].folder.c_str(), 
+                g_ActiveConfig->cars[0].rating);
+            
+            // Init s_patchedPtrs based on config
+            for (size_t i = 0; i < g_ActiveConfig->cars.size() && i < 49; ++i) {
+                std::string carPath = g_ActiveConfig->cars[i].folder;
+                if (!carPath._Starts_with("cars/")) {
+                    carPath = "cars/" + carPath; // Ensure the path has the correct prefix
+                }
+                g_ActiveConfig->cars[i].folder = carPath; // Update the folder in the config struct
+                s_patchedPtrs[i] = g_ActiveConfig->cars[i].folder.c_str();
+            }
+        }
+    } else {
+        Logger::TimestampLogf("[Randomizer] Failed to load or parse %s. Mod will remain inactive.", configPath.c_str());
+        // Depending on architecture, you might want to disable further hooks here
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Original function pointers
 // MinHook writes the trampoline addresses into these during InstallAll().
@@ -146,10 +189,17 @@ static int s_trackCount = 0;
 // ============================================================================
 bool Hook_LoadVanillaCarPool() {
 
-    InitHardcodedCarPaths();
+    size_t initialCarCount = 49; // Vanilla RVGL has 49 cars in the pool, so we expect this many to be loaded before our mods apply.
+    if (g_ActiveConfig.has_value() && !g_ActiveConfig->cars.empty()) {
+        initialCarCount = g_ActiveConfig->cars.size();
+        Logger::TimestampLogf("[Randomizer] Expecting %d cars based on config.", initialCarCount);
+    } else {
+        Logger::TimestampLogf("[Randomizer] No cars specified in config, defaulting to vanilla count of 49.");
+        InitHardcodedCarPaths();
+    }
 
     const uintptr_t tableAddr = AbsFromRva(RVA_VANILLA_CAR_PATHS);
-    const SIZE_T    tableSize  = 49 * sizeof(const char*);
+    const SIZE_T    tableSize  = initialCarCount * sizeof(const char*);
     DWORD old;
     // makes the pages writable, saves the original flags into `old`
     VirtualProtect((void*)tableAddr, tableSize, PAGE_READWRITE, &old);
@@ -173,7 +223,13 @@ bool Hook_LoadVanillaCarPool() {
         s_carPool.assign(rawPool, rawPool + s_carCount);
     }
 
-    OutputDebugStringA(("[Randomizer] Car pool snapshot — "
+    CarInfo* carPool = s_carPool.data();
+    for (int i = 0; i < s_carCount; ++i) {
+        CarInfo* car = &carPool[i];
+        ApplyCarMods(i, car, nullptr);
+    }
+
+    Logger::TimestampLogf(("[Randomizer] Car pool snapshot — "
                         + std::to_string(s_carCount) + " cars\n").c_str());
 
     return result;
@@ -282,12 +338,14 @@ void Hook_SyncCarInfoFromPhysics(int carIndex, CarPhysicsData *physData) {
 
 void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
 
+    std::string carName = car->internalName;
+
     // Apply these only to cars in custom pool
     if (carIndex >= 49) {
         // If the car lacks a TCARBOX property
         if (car->tcarboxFilename[0] == '\0' || (physData != nullptr && physData->tcarboxFilename[0] == '\0')) {
             // Generate a unique dummy path we can intercept later
-            std::string dummyPath = "cars/misc/custom_carbox_" + std::string(car->internalName) + ".bmp";
+            std::string dummyPath = "cars/misc/custom_carbox_" + std::string(carName) + ".bmp";
             strncpy_s(car->tcarboxFilename, 64, dummyPath.c_str(), _TRUNCATE);
             if (physData != nullptr) {
                 strncpy_s(physData->tcarboxFilename, 64, dummyPath.c_str(), _TRUNCATE);
@@ -295,13 +353,32 @@ void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
         }
 
         // If the car is stock/dc and has statistics disabled, enable them
-        if (IsStockCar(car->internalName)) {
+        if (IsStockCar(carName)) {
             car->statisticsEnabled = true;
             if (physData != nullptr) {
                 physData->statistics = true;
             }
         }
     }
+
+    if (g_ActiveConfig.has_value()) {
+        int carConfigSize = g_ActiveConfig->cars.size();
+        if (carIndex < carConfigSize) {
+            RandomizedCar& carConfig = g_ActiveConfig->cars[carIndex];
+            
+            car->rating = carConfig.rating;
+            car->obtainCondition = carConfig.obtain;
+            // car->selectableByPlayer = carConfig.selectable_player;
+            // car->selectableByCPU = carConfig.selectable_cpu;
+
+            if (physData != nullptr) {
+                physData->starRating = carConfig.rating;
+                physData->obtainCondition = carConfig.obtain;
+                // Note: PhysData doesn't have selectable flags, so we won't apply those there
+            }
+        }
+    }
+
 }
 
 

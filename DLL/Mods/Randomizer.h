@@ -48,6 +48,7 @@ namespace Randomizer {
     void Hook_LoadCustomTracks(void);
 
     // Utils functions
+    void Initialize();
     void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData);
     void ApplyStockTrackData(TrackInfo* track);
 } // namespace Randomizer
