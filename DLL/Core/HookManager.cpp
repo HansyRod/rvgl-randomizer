@@ -150,6 +150,15 @@ static void RegisterHooks() {
         "LoadCustomCups"
     );
 
+    HookManager::Add(
+        AbsFromRva(RVA_UPDATE_CAR_SELECTABILITY),
+        reinterpret_cast<void*>(Randomizer::Hook_UpdateCarSelectability),
+        reinterpret_cast<void**>(&Randomizer::Orig_UpdateCarSelectability),
+        "UpdateCarSelectability"
+    );
+
+    
+
     
     /* HookManager::Add(
         AbsFromRva(RVA_PARSE_PARAMETERS_TXT),

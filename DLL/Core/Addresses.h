@@ -57,6 +57,10 @@ constexpr uint32_t RVA_LOAD_VANILLA_CUPS = 0x0004bae0;
 // Ghidra signature: void LoadCustomCups(void)
 constexpr uint32_t RVA_LOAD_CUSTOM_CUPS = 0x0004bb80;
 
+// UpdateCarSelectability - Based on the obtainCondition of each car,
+// manipulates the "selectableByPlayer" flag.
+constexpr uint32_t RVA_UPDATE_CAR_SELECTABILITY = 0x0003bdf0;
+
 // ----------------------------------------------------------------------------
 // Globals
 // ----------------------------------------------------------------------------

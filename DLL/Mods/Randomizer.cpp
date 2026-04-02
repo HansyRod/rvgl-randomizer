@@ -164,6 +164,7 @@ FnLoadVanillaTracks      Orig_LoadVanillaTracks      = nullptr;
 FnLoadCustomTracks       Orig_LoadCustomTracks       = nullptr;
 FnLoadVanillaCups        Orig_LoadVanillaCups        = nullptr;
 FnLoadCustomCups         Orig_LoadCustomCups         = nullptr;
+FnUpdateCarSelectability Orig_UpdateCarSelectability = nullptr;
 
 // ----------------------------------------------------------------------------
 // Car pool snapshot
@@ -465,6 +466,30 @@ void Hook_LoadVanillaCups() {
 
 void Hook_LoadCustomCups() {
     Orig_LoadCustomCups();
+}
+
+void Hook_UpdateCarSelectability() {
+
+    // Inside your hook function:
+    CarInfo* rawPool = *reinterpret_cast<CarInfo**>(AbsFromRva(RVA_CAR_TABLE));
+    int32_t carCount = *reinterpret_cast<int32_t*>(AbsFromRva(RVA_CAR_COUNT));
+
+    // Guard against accessing the pool before it is allocated by the game
+    if (rawPool != nullptr && carCount > 0) {
+        for (int32_t i = 0; i < carCount; ++i) {
+            CarInfo& currentCar = rawPool[i];
+            
+            // Reapply rating and obtain condition to make sure
+            // UpdateCarSelectability runs based on the randomized data
+            ApplyCarMods(i, &currentCar, nullptr);
+
+            // Example: Read or modify the selectableByPlayer boolean
+            // if (currentCar.selectableByPlayer) { ... }
+        }
+    }
+
+    Orig_UpdateCarSelectability();
+
 }
 
 

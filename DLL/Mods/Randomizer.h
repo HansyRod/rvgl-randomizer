@@ -25,6 +25,7 @@ namespace Randomizer {
     using FnLoadCustomTracks        = void(*)();
     using FnLoadVanillaCups         = void(*)();
     using FnLoadCustomCups          = void(*)();
+    using FnUpdateCarSelectability  = void(*)();
 
     // ------------------------------------------------------------------------
     // Original function pointers.
@@ -40,6 +41,7 @@ namespace Randomizer {
     extern FnLoadCustomTracks       Orig_LoadCustomTracks;
     extern FnLoadVanillaCups        Orig_LoadVanillaCups;
     extern FnLoadCustomCups         Orig_LoadCustomCups;
+    extern FnUpdateCarSelectability Orig_UpdateCarSelectability;
 
     // ------------------------------------------------------------------------
     // Detour functions — registered in HookManager.cpp → RegisterHooks().
@@ -52,6 +54,7 @@ namespace Randomizer {
     void Hook_LoadCustomTracks();
     void Hook_LoadVanillaCups();
     void Hook_LoadCustomCups();
+    void Hook_UpdateCarSelectability();
 
     // Utils functions
     void Initialize();
