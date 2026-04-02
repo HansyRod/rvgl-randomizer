@@ -1,6 +1,24 @@
 cmake_minimum_required(VERSION 3.20)
 
 # ============================================================================
+# nlohmann_json — content fetched from the public repository
+#                 and linked into the mod DLL.
+# ============================================================================
+
+# 1. Include the FetchContent module
+include(FetchContent)
+
+# 2. Declare the dependency using the minimal release tarball
+FetchContent_Declare(
+    nlohmann_json
+    URL "https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz"
+    DOWNLOAD_EXTRACT_TIMESTAMP true
+)
+
+# 3. Make the targets available
+FetchContent_MakeAvailable(nlohmann_json)
+
+# ============================================================================
 # MinHook — compiled as a static library and linked into the mod DLL.
 # ============================================================================
 add_library(MinHook STATIC
@@ -41,6 +59,9 @@ add_library(randomizer SHARED
 
     # Game - Game data or other utils
     Game/GameUtils.cpp
+
+    #Config - Handles loading the JSON configuration with the randomization data
+    Config/ConfigManager.cpp
 )
 
 target_include_directories(randomizer PRIVATE
@@ -53,12 +74,14 @@ target_include_directories(randomizer PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/DebugUtils
     ${CMAKE_CURRENT_SOURCE_DIR}/Image
     ${CMAKE_CURRENT_SOURCE_DIR}/Image/stb
+    ${CMAKE_CURRENT_SOURCE_DIR}/Config
     MinHook/include
 )
 
 target_link_libraries(randomizer PRIVATE
     MinHook
     kernel32
+    nlohmann_json::nlohmann_json
 )
 
 set_target_properties(randomizer PROPERTIES OUTPUT_NAME "randomizer")

@@ -16,6 +16,24 @@
 
 #pragma pack(push, 1)
 
+enum CarObtain : int32_t {
+    NONE = -1,       // Can't be unlocked other than with cheats
+    UNLOCKED = 0,    // Unlocked from the start
+    CUP = 1,         // Unlocked by winning a championship cup
+    TIME_TRIAL = 2,  // Unlocked by beating all challenge times on a tier
+    PRACTICE = 3,    // Unlocked by finding all practice stars on a tier
+    RACES = 4,       // Unlocked by winning all single races on a tier
+};
+
+enum CarRating : int32_t {
+    ROOKIE = 0,
+    AMATEUR = 1,
+    ADVANCED = 2,
+    SEMI_PRO = 3,
+    PRO = 4,
+    SUPER_PRO = 5
+};
+
 // ----------------------------------------------------------------------------
 // CarInfo (272 bytes / 0x110)
 //
@@ -35,8 +53,8 @@ struct CarInfo {
     bool     selectableByCPU;     // +0xE6  CPUSELECTABLE keyword
     bool     statisticsEnabled;   // +0xE7  STATISTICS keyword
     int32_t  carClass;            // +0xE8  CLASS keyword (0–4)
-    int32_t  starRating;          // +0xEC  RATING keyword
-    int32_t  obtainCondition;     // +0xF0  OBTAIN keyword
+    CarRating rating;             // +0xEC  RATING keyword
+    CarObtain obtainCondition;    // +0xF0  OBTAIN keyword
     float    topSpeedStat;        // +0xF4  TOPEND keyword
     float    accelerationStat;    // +0xF8  ACC keyword
     float    weightValue;         // +0xFC  WEIGHT keyword
