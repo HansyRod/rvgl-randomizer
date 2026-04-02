@@ -106,6 +106,47 @@ struct TrackInfo {
 };
 static_assert(sizeof(TrackInfo) == 0x78, "TrackInfo size mismatch");
 
+struct CupStage {
+    int trackID;           // 0x00
+    int numLaps;           // 0x04 (Ghidra: puVar9 + 0x98)
+    bool isReverse;		   // 0x08 
+    bool isMirror;
+    char pad[2];      	   // 0x0A (Padding to 12 bytes)
+};
+static_assert(sizeof(CupStage) == 0x0C, "CupStage size mismatch");
+
+struct CupProfile {
+    char displayName[32]; // 0x00
+    char internalName[64];  // 0x20 (Ghidra: puVar9 + 0x20)
+    
+    int unlockTier;        // 0x60 (0=Bronze, 1=Silver, etc.)
+    int difficultyRating;  // 0x64 (Ghidra: puVar9 + 100)
+    int numCars;           // 0x68
+    int numTries;           // 0x6C
+    int perRaceRequiredPlace; // 0x70
+    int overallRequiredPlace; // 0x74
+    int numStages;         // 0x78
+    
+    // Class Restrictions (Max number of AI allowed from each class)
+    int maxRookie;         // 0x7C
+    int maxAmateur;        // 0x80
+    int maxAdvanced;       // 0x84
+    int maxSemiPro;        // 0x88
+    int maxPro;            // 0x8C
+    int maxSpecial;        // 0x90
+    
+    CupStage stages[16];   // 0x94 (16 races * 12 bytes = 192 bytes)
+    
+    // Points awarded based on race finish position (1st through 16th)
+    int pointsTable[16];   // 0x154 (16 positions * 4 bytes = 64 bytes)
+    
+    bool isUnlocked;       // 0x194 (Ghidra: puVar9[0x194])
+    bool isCHTModified;    // 0x195
+    char pad195[2];        // 0x196
+};
+static_assert(sizeof(CupProfile) == 0x198, "CupProfile size mismatch");
+
+
 // Reconstructed UV structure starting at offset 0x38 in the carbox object.
 struct CarboxUV {
     uint16_t unknown;
