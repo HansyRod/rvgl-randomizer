@@ -119,13 +119,13 @@ struct CupProfile {
     char displayName[32]; // 0x00
     char internalName[64];  // 0x20 (Ghidra: puVar9 + 0x20)
     
-    int unlockTier;        // 0x60 (0=Bronze, 1=Silver, etc.)
-    int difficultyRating;  // 0x64 (Ghidra: puVar9 + 100)
-    int numCars;           // 0x68
-    int numTries;           // 0x6C
+    Obtain obtainCondition;   // 0x60 
+    int difficultyRating;     // 0x64 (0=Bronze, 1=Silver, etc.)
+    int numCars;              // 0x68
+    int numTries;             // 0x6C
     int perRaceRequiredPlace; // 0x70
     int overallRequiredPlace; // 0x74
-    int numStages;         // 0x78
+    int numStages;            // 0x78
     
     // Class Restrictions (Max number of AI allowed from each class)
     int maxRookie;         // 0x7C
@@ -133,7 +133,7 @@ struct CupProfile {
     int maxAdvanced;       // 0x84
     int maxSemiPro;        // 0x88
     int maxPro;            // 0x8C
-    int maxSpecial;        // 0x90
+    int maxSuperPro;        // 0x90
     
     CupStage stages[16];   // 0x94 (16 races * 12 bytes = 192 bytes)
     
