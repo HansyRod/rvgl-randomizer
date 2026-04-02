@@ -303,6 +303,13 @@ unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLeve
 
 
 void Hook_LoadCustomCarPool() {
+
+    // If the config explicitly says not to load extra cars,
+    // skip calling the original function which loads them from disk.
+    if (g_ActiveConfig.has_value() && !g_ActiveConfig->global_options.load_extra_cars) {
+        return;
+    }
+
     // Let RVGL load the custom cars from disk into memory first
     Orig_LoadCustomCarPool();
 
@@ -424,6 +431,13 @@ void Hook_LoadVanillaTracks() {
 }
 
 void Hook_LoadCustomTracks() {
+
+    // If the config explicitly says not to load extra tracks,
+    // skip calling the original function which loads them from disk.
+    if (g_ActiveConfig.has_value() && !g_ActiveConfig->global_options.load_extra_tracks) {
+        return;
+    }
+
     Orig_LoadCustomTracks();
 
     TrackInfo* customTracksPool = *reinterpret_cast<TrackInfo**>(AbsFromRva(RVA_CUSTOM_TRACKS_TABLE));

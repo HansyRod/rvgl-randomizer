@@ -21,10 +21,11 @@ namespace Randomizer {
 
     // Represents the "global_options" block
     struct ConfigGlobalOptions {
-        bool load_extra_content;
-        bool force_mirror_mode;
+        bool load_extra_cars;
+        bool load_extra_tracks;
+        bool load_extra_cups;
     };
-    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConfigGlobalOptions, load_extra_content, force_mirror_mode)
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConfigGlobalOptions, load_extra_cars, load_extra_tracks, load_extra_cups)
 
     // Represents an entry in the "cars" array
     struct RandomizedCar {
