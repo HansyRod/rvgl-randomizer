@@ -200,6 +200,7 @@ static void RegisterHooks() {
         // { 0x0005a2b0, "InRaceGameLoop" },
         // { 0x001577f0, "FrontendGameLoop" },
         // { 0x00157400, "FUN_00557400_CallsCreateCarbox" },
+        // { 0x00154870, "DrawProgressTable" }, // called for each frame the progress table is on the screen
 
         // Car system
         // { 0x0003F140, "LoadVanillaCarPool"          },   // same as typed hook above — pick one or the other
@@ -242,7 +243,6 @@ static void RegisterHooks() {
         { 0x00006b40, "PrepareLevelLoad" },
         { 0x000f0890, "RegisterFinishTime" },
         { 0x00074bf0, "ResetProgressTable" },
-        { 0x00154870, "DrawProgressTable" },
 
 
         
