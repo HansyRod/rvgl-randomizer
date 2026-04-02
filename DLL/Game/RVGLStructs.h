@@ -16,7 +16,7 @@
 
 #pragma pack(push, 1)
 
-enum CarObtain : int32_t {
+enum Obtain : int32_t {
     NONE = -1,       // Can't be unlocked other than with cheats
     UNLOCKED = 0,    // Unlocked from the start
     CUP = 1,         // Unlocked by winning a championship cup
@@ -54,7 +54,7 @@ struct CarInfo {
     bool     statisticsEnabled;   // +0xE7  STATISTICS keyword
     int32_t  carClass;            // +0xE8  CLASS keyword (0–4)
     CarRating rating;             // +0xEC  RATING keyword
-    CarObtain obtainCondition;    // +0xF0  OBTAIN keyword
+    Obtain   obtainCondition;    // +0xF0  OBTAIN keyword
     float    topSpeedStat;        // +0xF4  TOPEND keyword
     float    accelerationStat;    // +0xF8  ACC keyword
     float    weightValue;         // +0xFC  WEIGHT keyword
@@ -97,7 +97,7 @@ struct TrackInfo {
     float              trackLengthReverse;       // +0x54
     TrackProgressFlags trackProgressFlags;       // +0x58
     TrackAvailFlags    trackAvailFlags;          // +0x5C
-    uint32_t           customUnlockType;         // +0x60
+    Obtain             obtainCondition;          // +0x60
     int32_t            difficultyRating;         // +0x64
     int32_t            gameType;                 // +0x68
     int32_t            challengeTime;            // +0x6C

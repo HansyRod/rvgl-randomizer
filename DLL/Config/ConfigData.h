@@ -31,7 +31,7 @@ namespace Randomizer {
     struct RandomizedCar {
         std::string folder;
         CarRating rating;
-        CarObtain obtain;
+        Obtain obtain;
         bool selectable_player;
         bool selectable_cpu;
     };
@@ -41,9 +41,9 @@ namespace Randomizer {
     struct RandomizedTrack {
         std::string folder;
         int difficulty;
-        int unlock_type;
+        Obtain obtain;
     };
-    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RandomizedTrack, folder, difficulty, unlock_type)
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RandomizedTrack, folder, difficulty, obtain)
 
     // The root structure containing all randomizer data
     struct ConfigData {
