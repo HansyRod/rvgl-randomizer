@@ -136,6 +136,20 @@ static void RegisterHooks() {
         "LoadCustomTracks"
     );
 
+    HookManager::Add(
+        AbsFromRva(RVA_LOAD_VANILLA_CUPS),
+        reinterpret_cast<void*>(Randomizer::Hook_LoadVanillaCups),
+        reinterpret_cast<void**>(&Randomizer::Orig_LoadVanillaCups),
+        "LoadVanillaCups"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_LOAD_CUSTOM_CUPS),
+        reinterpret_cast<void*>(Randomizer::Hook_LoadCustomCups),
+        reinterpret_cast<void**>(&Randomizer::Orig_LoadCustomCups),
+        "LoadCustomCups"
+    );
+
     
     // Add further hooks here as the mod grows, e.g.:
     //

@@ -49,6 +49,14 @@ constexpr uint32_t RVA_LOAD_VANILLA_TRACKS = 0x00052190;
 // Ghidra signature: void LoadCustomTracks(void)
 constexpr uint32_t RVA_LOAD_CUSTOM_TRACKS = 0x00052280;
 
+// LoadDefaultCups — loads the vanilla cups into memory using the default folder paths.
+// Ghidra signature: void LoadDefaultCups(void)
+constexpr uint32_t RVA_LOAD_VANILLA_CUPS = 0x0004bae0;
+
+// LoadCustomCups — scans the game folders and loads the custom cups into memory.
+// Ghidra signature: void LoadCustomCups(void)
+constexpr uint32_t RVA_LOAD_CUSTOM_CUPS = 0x0004bb80;
+
 // ----------------------------------------------------------------------------
 // Globals
 // ----------------------------------------------------------------------------

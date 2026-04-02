@@ -162,6 +162,8 @@ FnLoadCustomCarPool      Orig_LoadCustomCarPool      = nullptr;
 FnSyncCarInfoFromPhysics Orig_SyncCarInfoFromPhysics = nullptr;
 FnLoadVanillaTracks      Orig_LoadVanillaTracks      = nullptr;
 FnLoadCustomTracks       Orig_LoadCustomTracks       = nullptr;
+FnLoadVanillaCups        Orig_LoadVanillaCups        = nullptr;
+FnLoadCustomCups         Orig_LoadCustomCups         = nullptr;
 
 // ----------------------------------------------------------------------------
 // Car pool snapshot
@@ -455,5 +457,15 @@ void ApplyStockTrackData(TrackInfo* track) {
     }
 
 }
+
+
+void Hook_LoadVanillaCups() {
+    Orig_LoadVanillaCups();
+}
+
+void Hook_LoadCustomCups() {
+    Orig_LoadCustomCups();
+}
+
 
 } // namespace Randomizer
