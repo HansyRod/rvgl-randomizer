@@ -151,6 +151,20 @@ static void RegisterHooks() {
     );
 
     
+    /* HookManager::Add(
+        AbsFromRva(RVA_PARSE_PARAMETERS_TXT),
+        reinterpret_cast<void*>(Randomizer::Hook_ParseParametersTxt),
+        reinterpret_cast<void**>(&Randomizer::Orig_ParseParametersTxt),
+        "ParseParametersTxt"
+    ); */
+
+    /* HookManager::Add(
+        AbsFromRva(RVA_CREATE_CARBOX),
+        reinterpret_cast<void*>(Randomizer::Hook_CreateCarbox),
+        reinterpret_cast<void**>(&Randomizer::Orig_CreateCarbox),
+        "CreateCarbox"
+    );*/
+
     // Add further hooks here as the mod grows, e.g.:
     //
     // HookManager::Add(
@@ -174,6 +188,9 @@ static void RegisterHooks() {
     CallLogger::RegisterAll({
         // Game loop
         // { 0x00001610, "FrameUpdateDispatcher"       },
+        // { 0x0005a2b0, "InRaceGameLoop" },
+        // { 0x001577f0, "FrontendGameLoop" },
+        // { 0x00157400, "FUN_00557400_CallsCreateCarbox" },
 
         // Car system
         // { 0x0003F140, "LoadVanillaCarPool"          },   // same as typed hook above — pick one or the other
@@ -201,9 +218,25 @@ static void RegisterHooks() {
         // { 0x0004D0C0, "RecordGhostPosition"          },
 
         // Carboxes
+        { 0x001436a0, "LoadVanillaCarboxes" },
+        { 0x001570d0, "CreateCarbox" },
+        { 0x001599d0, "InitFrontendCarboxEntity" },
+        
+        //
         { 0x00143890, "Menu_InitializeFrontend" },
-        { 0x001424a0, "CarSelector_UpdateAnimationAndDraw" },
-        { 0x00141f80 , "RaceEndManager" }
+        { 0x00141180, "Gallery_InitDisplay" },
+        { 0x001437d0, "Gallery_CheckShouldActivate" },
+        { 0x0013f810, "Gallery_SetupCamera" },
+        { 0x00141f80, "UnknownFnNotRaceEndManager" },
+        { 0x000753c0, "Profile_LoadAndReset" },
+        { 0x0004b800, "Cup_OnStageFinished" },
+        { 0x00006b40, "PrepareLevelLoad" },
+        { 0x000f0890, "RegisterFinishTime" },
+        { 0x00074bf0, "ResetProgressTable" },
+        { 0x00154870, "DrawProgressTable" },
+
+
+        
     });
 }
 
