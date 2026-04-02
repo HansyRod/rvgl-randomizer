@@ -25,58 +25,17 @@ namespace {
 // Hardcoded car list for testing
 // Replace entries with whichever car folders you want to load.
 // Must be exactly 49 entries to fill the vanilla pool.
-// Every string must follow the "cars/<foldername>" format.
+// InitHardcodedCarPaths adds the "cars/" prefix to each string if it's missing.
 // ============================================================================
-static const char* k_TestCarPaths[49] = {
-    "cars/rc",
-    "cars/albatrossgt",
-    "cars/phat",
-    "cars/rotor",
-    "cars/mud",
-    "cars/beatall",
-    "cars/volken",
-    "cars/tc6",
-    "cars/fd64lost",
-    "cars/candy",
-    "cars/gencar",
-    "cars/tc4",
-    "cars/mouse",
-    "cars/flag",
-    "cars/tc2",
-    "cars/r5",
-    "cars/tc5",
-    "cars/sgt",
-    "cars/tc3",
-    "cars/adeon",
-    "cars/fone",
-    "cars/tc1",
-    "cars/moss",
-    "cars/cougar",
-    "cars/sugo",
-    "cars/toyeca",
-    "cars/amw",
-    "cars/panga",
-    "cars/trolley",
-    "cars/wincar",
-    "cars/wincar2",
-    "cars/wincar3",
-    "cars/wincar4",
-    "cars/ufo",
-    "cars/q",
-    "cars/bigvolt",
-    "cars/bossvolt",
-    "cars/jg6rc",
-    "cars/tc12",
-    "cars/tc10",
-    "cars/tc8",
-    "cars/tc11",
-    "cars/tc9",
-    "cars/jg1jg7",
-    "cars/tc7",
-    "cars/jg3loco",
-    "cars/jg4snw35",
-    "cars/jg5purpxl",
-    "cars/jg2fulonx"
+static const char* defaultCars[49] = {
+    "rc",  "mite",  "phat",   "moss",   "mud",    "beatall", "volken",
+    "tc6", "dino",  "candy",  "gencar", "tc4",    "mouse",   "flag",
+    "tc2", "r5",    "tc5",    "sgt",    "tc3",    "adeon",   "fone",
+    "tc1", "rotor", "cougar", "sugo",   "toyeca", "amw",     "panga",
+
+    "trolley", "wincar",   "wincar2", "wincar3", "wincar4",  "ufo",       "q",
+    "bigvolt", "bossvolt", "jg6rc",   "tc12",    "tc10",     "tc8",       "tc11",
+    "tc9",     "jg1jg7",   "tc7",     "jg3loco", "jg4snw35", "jg5purpxl", "jg2fulonx"
 };
 
 static const char* k_TestTrackNames[14] = {
@@ -102,8 +61,13 @@ static const char* k_TestTrackNames[14] = {
 static const char* s_patchedPtrs[49];
 
 void InitHardcodedCarPaths() {
-    for (int i = 0; i < 49; i++)
-        s_patchedPtrs[i] = k_TestCarPaths[i];
+    for (int i = 0; i < 49; i++) {
+        std::string carPath = defaultCars[i];
+        if (!carPath._Starts_with("cars/")) {
+            carPath = "cars/" + carPath; // Ensure the path has the correct prefix
+        }
+        s_patchedPtrs[i] = carPath.c_str();
+    }
 }
 
 } // anonymous namespace
