@@ -403,8 +403,18 @@ void Hook_LoadVanillaTracks() {
         if (i < 14) {
             // 1. Create a deep copy of the hardcoded data
             trackInfoBackup[i] = *currentTrack;
-            // 2. Apply randomization    
-            strncpy_s(currentTrack->folderName, 16, k_TestTrackNames[i], _TRUNCATE);
+            
+            std::string folderName = currentTrack->folderName;
+
+            // 2. Apply randomization
+            if (g_ActiveConfig.has_value() && i < g_ActiveConfig->tracks.size()) {
+
+                folderName = g_ActiveConfig->tracks[i].folder;
+            }
+            else {
+                folderName = k_TestTrackNames[i];
+            }
+            strncpy_s(currentTrack->folderName, 16, folderName.c_str(), _TRUNCATE);
         }
         else {
             Logger::TimestampLogf("[LoadVanillaTracks] Track %d: %s", i+1, currentTrack->displayName);
@@ -422,11 +432,18 @@ void Hook_LoadVanillaTracks() {
         s_vanillaTrackPool.assign(vanillaTracks, vanillaTracks + s_trackCount);
     }
 
-    // Apply missing hardcoded data
     for (int i = 0; i < 14; i++) {
         TrackInfo* currentTrack = &vanillaTracks[i];
         Logger::TimestampLogf("[LoadVanillaTracks] Track %d: %s", i+1, currentTrack->displayName);
+        
+        // Apply missing hardcoded data
         ApplyStockTrackData(currentTrack);
+
+        // Apply difficulty rating from config
+        if (g_ActiveConfig.has_value() && i < g_ActiveConfig->tracks.size()) {
+            currentTrack->difficultyRating = g_ActiveConfig->tracks[i].difficulty;
+            currentTrack->obtainCondition = g_ActiveConfig->tracks[i].obtain;
+        }
     }
 }
 
