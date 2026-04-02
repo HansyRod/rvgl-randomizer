@@ -88,6 +88,15 @@ constexpr uint32_t RVA_CUSTOM_TRACKS_TABLE   = 0x00b3f9a0;
 // Includes both vanilla (21) and custom tracks.
 constexpr uint32_t RVA_TRACK_COUNT   = 0x002e34d0;
 
+// Pointer to the CupProfile array - with DC data.
+// Index 0 is the Bronze Cup, index 1 is the Silver Cup, etc.
+constexpr uint32_t RVA_DC_CUP_ARRAY = 0x0025ee38;
+
+// Pointer to the CupProfile array - with vanilla (non-DC) data.
+// First entry of the array is empty, index 1 is the Bronze Cup, etc.
+constexpr uint32_t RVA_VANILLA_CUP_ARRAY = 0x0025f4a0;
+
+
 
 // ----------------------------------------------------------------------------
 // AbsFromRva
