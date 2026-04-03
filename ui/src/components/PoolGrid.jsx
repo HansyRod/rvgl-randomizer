@@ -4,7 +4,7 @@ import { getImageSrc } from "../utils/helpers";
 
 export default function PoolGrid({ items, rootPath, activeTab, ratingFilter }) {
   if (!items || items.length === 0) {
-    return <p style={{opacity: 0.5, fontStyle: 'italic', fontSize: '0.9rem'}}>Empty or loading...</p>;
+    return <p style={{ opacity: 0.5, fontStyle: 'italic', fontSize: '0.9rem' }}>Empty or loading...</p>;
   }
 
   // Filter out invalid items and system cars
@@ -12,11 +12,12 @@ export default function PoolGrid({ items, rootPath, activeTab, ratingFilter }) {
     if (!item.hasValidFile) return false;
     if (activeTab === "cars" && item.isSystemCar) return false;
     if (activeTab === "cars" && ratingFilter !== "All" && item.rating.toString() !== ratingFilter) return false;
+    if (activeTab === "tracks" && item.trackType !== 0) return false;
     return true;
   });
 
   if (validItems.length === 0) {
-    return <p style={{opacity: 0.5, fontStyle: 'italic', fontSize: '0.9rem'}}>No matching {activeTab}...</p>;
+    return <p style={{ opacity: 0.5, fontStyle: 'italic', fontSize: '0.9rem' }}>No matching {activeTab}...</p>;
   }
 
   return (
@@ -26,7 +27,7 @@ export default function PoolGrid({ items, rootPath, activeTab, ratingFilter }) {
           <CardImage src={getImageSrc(item, rootPath, activeTab)} alt={item.name} />
           <div className="card-body">
             <h3 className="card-title" title={item.name}>{item.name}</h3>
-            
+
             {activeTab === "cars" ? (
               <>
                 <div className="card-subtitle">
@@ -39,9 +40,13 @@ export default function PoolGrid({ items, rootPath, activeTab, ratingFilter }) {
             ) : (
               <>
                 <div className="card-subtitle">
-                  <span className="badge">Diff: {TRACK_DIFFICULTIES[item.difficulty] || "Unknown"}</span>
-                  {item.hasReversed && <span className="badge badge-obtain">Reverse</span>}
+                  <span className="badge">Difficulty: {TRACK_DIFFICULTIES[item.difficulty] || "Unknown"}</span>
                 </div>
+                {item.hasReversed && (
+                  <div className="card-subtitle">
+                    <span className="badge badge-obtain">Has Reverse Version</span>
+                  </div>
+                )}
               </>
             )}
           </div>

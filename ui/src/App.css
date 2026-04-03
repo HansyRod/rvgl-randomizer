@@ -281,7 +281,7 @@ footer {
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .card {
@@ -319,7 +319,7 @@ footer {
 }
 
 .card-body {
-  padding: 1rem;
+  padding: 0.5rem;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -328,7 +328,7 @@ footer {
 
 .card-title {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: bold;
   color: var(--text-primary);
   white-space: nowrap;

@@ -249,7 +249,25 @@ fn scan_cars_folder_sync(folder_path: &Path) -> Vec<Car> {
         }
     }
 
-    cars.sort_by(|a, b| a.rating.cmp(&b.rating).then(a.name.cmp(&b.name)));
+    let stock_cars_order = [
+        "RC Bandit", "Dust Mite", "Phat Slug", "Col. Moss", "Harvester", "Dr. Grudge", 
+        "Volken Turbo", "Sprinter XL", "RC San", "Candy Pebbles", "Genghis Kar", "Aquasonic", 
+        "Mouse", "Evil Weasel", "Panga TC", "R6 Turbo", "NY 54", "Bertha Ballistics", 
+        "Pest Control", "Adeon", "Pole Poz", "Zipper", "Rotor", "Cougar", "Humma", 
+        "Toyeca", "AMW", "Panga"
+    ];
+
+    cars.sort_by(|a, b| {
+        let a_idx = stock_cars_order.iter().position(|&c| c.eq_ignore_ascii_case(&a.name));
+        let b_idx = stock_cars_order.iter().position(|&c| c.eq_ignore_ascii_case(&b.name));
+
+        match (a_idx, b_idx) {
+            (Some(ai), Some(bi)) => ai.cmp(&bi),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => a.rating.cmp(&b.rating).then(a.name.to_lowercase().cmp(&b.name.to_lowercase())),
+        }
+    });
     cars
 }
 
@@ -326,6 +344,24 @@ fn scan_levels_folder_sync(folder_path: &Path) -> Vec<Track> {
                         }
                     };
 
+                    match folder_name.to_lowercase().as_str() {
+                        "nhood1" => { name = "Toys in the Hood 1".to_string(); difficulty = 1; },
+                        "market2" => { name = "Supermarket 2".to_string(); difficulty = 1; },
+                        "muse2" => { name = "Museum 2".to_string(); difficulty = 1; },
+                        "garden1" => { name = "Botanical Garden".to_string(); difficulty = 1; },
+                        "roof" => { name = "Rooftops".to_string(); difficulty = 2; },
+                        "toylite" => { name = "Toy World 1".to_string(); difficulty = 2; },
+                        "wild_west1" => { name = "Ghost Town 1".to_string(); difficulty = 2; },
+                        "toy2" => { name = "Toy World 2".to_string(); difficulty = 2; },
+                        "nhood2" => { name = "Toys in the Hood 2".to_string(); difficulty = 3; },
+                        "ship1" => { name = "Toytanic 1".to_string(); difficulty = 3; },
+                        "muse1" => { name = "Museum 1".to_string(); difficulty = 3; },
+                        "market1" => { name = "Supermarket 1".to_string(); difficulty = 4; },
+                        "wild_west2" => { name = "Ghost Town 2".to_string(); difficulty = 4; },
+                        "ship2" => { name = "Toytanic 2".to_string(); difficulty = 4; },
+                        _ => {}
+                    }
+
                     tracks.push(Track {
                         folder_name,
                         name,
@@ -339,7 +375,22 @@ fn scan_levels_folder_sync(folder_path: &Path) -> Vec<Track> {
         }
     }
 
-    tracks.sort_by(|a, b| a.name.cmp(&b.name));
+    let stock_tracks_order = [
+        "nhood1", "market2", "muse2", "garden1", "roof", "toylite", "wild_west1",
+        "toy2", "nhood2", "ship1", "muse1", "market1", "wild_west2", "ship2"
+    ];
+
+    tracks.sort_by(|a, b| {
+        let a_idx = stock_tracks_order.iter().position(|&t| t.eq_ignore_ascii_case(&a.folder_name));
+        let b_idx = stock_tracks_order.iter().position(|&t| t.eq_ignore_ascii_case(&b.folder_name));
+
+        match (a_idx, b_idx) {
+            (Some(ai), Some(bi)) => ai.cmp(&bi),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+        }
+    });
     tracks
 }
 
