@@ -105,24 +105,54 @@ export default function App() {
             >
               Tracks
             </button>
+            <button 
+              className={`tab ${activeTab === 'debug' ? 'active' : ''}`}
+              onClick={() => setActiveTab('debug')}
+            >
+              Debug
+            </button>
           </div>
         )}
       </header>
 
       {scanResult && (
         <div className="dashboard">
-          {scanResult.installType === "launcher" && (
-             <Sidebar 
-               packs={scanResult.contentPacks} 
-               activeTab={activeTab} 
-               onTogglePack={togglePack} 
-             />
+          {activeTab === 'debug' ? (
+            <div style={{ flex: 1, padding: "1.5rem", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
+              <textarea 
+                readOnly 
+                value={JSON.stringify(scanResult, null, 2)}
+                style={{ 
+                  flex: 1, 
+                  width: "100%", 
+                  borderRadius: "8px", 
+                  fontFamily: "monospace", 
+                  padding: "1rem", 
+                  backgroundColor: "var(--bg-secondary)", 
+                  color: "var(--text-primary)", 
+                  border: "1px solid var(--border-color)",
+                  outline: "none",
+                  resize: "none",
+                  boxSizing: "border-box"
+                }}
+              />
+            </div>
+          ) : (
+            <>
+              {scanResult.installType === "launcher" && (
+                 <Sidebar 
+                   packs={scanResult.contentPacks} 
+                   activeTab={activeTab} 
+                   onTogglePack={togglePack} 
+                 />
+              )}
+              <MainContent 
+                 scanResult={scanResult} 
+                 activeTab={activeTab} 
+                 installPath={installPath}
+              />
+            </>
           )}
-          <MainContent 
-             scanResult={scanResult} 
-             activeTab={activeTab} 
-             installPath={installPath}
-          />
         </div>
       )}
 
