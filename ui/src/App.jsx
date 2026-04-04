@@ -106,7 +106,7 @@ export default function App() {
     try {
       const result = await invoke("launch_game", {
         rvglExePath: installPath,
-        extraArgs: "",
+        extraArgs: "-window -nouserskins -nodemo -nointro -nopause",
       });
       setLaunchStatus({ ok: true, msg: `Launched (PID ${result.pid})` });
     } catch (err) {
