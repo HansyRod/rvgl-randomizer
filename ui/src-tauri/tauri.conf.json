@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.rod.rvgl-randomizer-ui",
   "build": {
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "npm run build:dll && npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "npm run build:all",
     "frontendDist": "../dist"
   },
   "app": {
@@ -34,6 +34,7 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": ["resources/randomizer.dll"]
   }
 }
