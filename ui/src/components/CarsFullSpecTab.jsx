@@ -113,31 +113,24 @@ export default function CarsFullSpecTab({ scanResult, specState, setSpecState })
 
   // Initialize or handle preset
   const applyPreset = (preset) => {
-    const newState = {};
-    const allIds = [...STOCK_CARS, ...DC_CARS];
-    
-    if (preset === "Full Random") {
-      allIds.forEach(id => {
-        newState[id] = {
-          sourcePool: "Full Random",
-          sourceRating: "Random",
-          sourceObtain: "Random",
-          attrRating: "Random",
-          attrObtain: "Random"
-        };
-      });
-    } else if (preset === "Original Content") {
-      allIds.forEach(id => {
-        const carExists = carByFolder[id];
-        newState[id] = {
-          sourcePool: carExists ? id : "Full Random",
-          sourceRating: "Random",
-          sourceObtain: "Random",
-          attrRating: "Unchanged",
-          attrObtain: "Unchanged"
-        };
-      });
-    }
+    const newState = {
+      stockCars: STOCK_CARS.map(id => ({
+        id,
+        sourcePool: preset === "Original Content" ? (carByFolder[id] ? id : "Full Random") : "Full Random",
+        sourceRating: "Random",
+        sourceObtain: "Random",
+        attrRating: preset === "Original Content" ? "Unchanged" : "Random",
+        attrObtain: preset === "Original Content" ? "Unchanged" : "Random"
+      })),
+      dcCars: DC_CARS.map(id => ({
+        id,
+        sourcePool: preset === "Original Content" ? (carByFolder[id] ? id : "Full Random") : "Full Random",
+        sourceRating: "Random",
+        sourceObtain: "Random",
+        attrRating: preset === "Original Content" ? "Unchanged" : "Random",
+        attrObtain: preset === "Original Content" ? "Unchanged" : "Random"
+      }))
+    };
     setSpecState(newState);
   };
 
@@ -147,13 +140,17 @@ export default function CarsFullSpecTab({ scanResult, specState, setSpecState })
     }
   }, [specState]);
 
-  if (!specState) return null;
+  if (!specState || !specState.stockCars || !specState.dcCars) return null;
 
-  const updateRow = (id, updates) => {
-    setSpecState(prev => ({
-      ...prev,
-      [id]: { ...prev[id], ...updates }
-    }));
+  const updateRow = (category, index, updates) => {
+    setSpecState(prev => {
+      const newCategory = [...prev[category]];
+      newCategory[index] = { ...newCategory[index], ...updates };
+      return {
+        ...prev,
+        [category]: newCategory
+      };
+    });
   };
 
   const getValidRatingsForPool = (poolVal) => {
@@ -190,10 +187,11 @@ export default function CarsFullSpecTab({ scanResult, specState, setSpecState })
     return obtains;
   };
 
-  const renderRow = (id) => {
-    const rowState = specState[id];
+  const renderRow = (category, index) => {
+    const rowState = specState[category][index];
     if (!rowState) return null;
 
+    const id = rowState.id;
     const isSpecificCar = carByFolder[rowState.sourcePool] !== undefined;
     const specificCar = isSpecificCar ? carByFolder[rowState.sourcePool] : null;
 
@@ -211,7 +209,7 @@ export default function CarsFullSpecTab({ scanResult, specState, setSpecState })
           <div className="field-group">
             <select 
               value={rowState.sourcePool} 
-              onChange={e => updateRow(id, { sourcePool: e.target.value })}
+              onChange={e => updateRow(category, index, { sourcePool: e.target.value })}
             >
               {[...new Set(sourcePoolOptions.map(o => o.group))].map(group => (
                 <optgroup label={group} key={group}>
@@ -225,7 +223,7 @@ export default function CarsFullSpecTab({ scanResult, specState, setSpecState })
           <div className="field-group">
             <select 
               value={isSpecificCar ? specificCar.rating.toString() : rowState.sourceRating} 
-              onChange={e => updateRow(id, { sourceRating: e.target.value })}
+              onChange={e => updateRow(category, index, { sourceRating: e.target.value })}
               disabled={isSpecificCar}
             >
               {isSpecificCar ? (
@@ -246,7 +244,7 @@ export default function CarsFullSpecTab({ scanResult, specState, setSpecState })
           <div className="field-group">
             <select 
               value={isSpecificCar ? specificCar.obtainMethod.toString() : rowState.sourceObtain} 
-              onChange={e => updateRow(id, { sourceObtain: e.target.value })}
+              onChange={e => updateRow(category, index, { sourceObtain: e.target.value })}
               disabled={isSpecificCar}
             >
               {isSpecificCar ? (
@@ -269,7 +267,7 @@ export default function CarsFullSpecTab({ scanResult, specState, setSpecState })
           <div className="field-group">
             <select 
               value={rowState.attrRating} 
-              onChange={e => updateRow(id, { attrRating: e.target.value })}
+              onChange={e => updateRow(category, index, { attrRating: e.target.value })}
             >
               {ATTR_RATINGS_LIST.map(opt => (
                 <option key={opt.val} value={opt.val}>{opt.label}</option>
@@ -279,7 +277,7 @@ export default function CarsFullSpecTab({ scanResult, specState, setSpecState })
           <div className="field-group">
             <select 
               value={rowState.attrObtain} 
-              onChange={e => updateRow(id, { attrObtain: e.target.value })}
+              onChange={e => updateRow(category, index, { attrObtain: e.target.value })}
             >
               {ATTR_OBTAINS_LIST.map(opt => (
                 <option key={opt.val} value={opt.val}>{opt.label}</option>
@@ -323,7 +321,7 @@ export default function CarsFullSpecTab({ scanResult, specState, setSpecState })
               </div>
             </div>
           </div>
-          {STOCK_CARS.map(id => renderRow(id))}
+          {specState.stockCars.map((_, index) => renderRow("stockCars", index))}
         </div>
       </div>
 
@@ -348,7 +346,7 @@ export default function CarsFullSpecTab({ scanResult, specState, setSpecState })
               </div>
             </div>
           </div>
-          {DC_CARS.map(id => renderRow(id))}
+          {specState.dcCars.map((_, index) => renderRow("dcCars", index))}
         </div>
       </div>
     </div>
