@@ -7,7 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "cmake:configure":  "cmake -S .. -B ../build -A x64",
+    "cmake:build":      "cmake --build ../build --config Release --target randomizer",
+    "cmake:build:dbg":  "cmake --build ../build --config Debug   --target randomizer",
+    "copy:dll":         "cmake -E copy ../build/DLL/Release/randomizer.dll src-tauri/resources/randomizer.dll",
+    "copy:dll:dbg":     "cmake -E copy ../build/DLL/Debug/randomizer.dll   src-tauri/resources/randomizer.dll",
+    "build:dll":        "npm run cmake:configure && npm run cmake:build:dbg && npm run copy:dll:dbg",
+    "build:dll:release":"npm run cmake:configure && npm run cmake:build     && npm run copy:dll",
+    "build:all":        "npm run build:dll:release && npm run build"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

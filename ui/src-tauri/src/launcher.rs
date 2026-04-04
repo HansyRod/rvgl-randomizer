@@ -10,7 +10,7 @@
 use serde::Serialize;
 use std::ffi::CString;
 use std::path::Path;
-use tauri::Manager;
+use tauri::{Manager, path::BaseDirectory};
 
 use windows::Win32::{
     Foundation::CloseHandle,
@@ -93,7 +93,7 @@ unsafe fn inject_dll(
         0,
         thread_fn,
         Some(remote_mem),
-        THREAD_CREATION_FLAGS(0),
+        0,
         None,
     )
     .map_err(|e| format!("CreateRemoteThread failed: {e}"))?;
@@ -128,11 +128,19 @@ pub fn launch_game(
     extra_args: String,
 ) -> Result<LaunchResult, String> {
     // --- Resolve randomizer.dll from the Tauri resource directory ---
-    let dll_path = app_handle
+    let mut dll_path = app_handle
         .path()
-        .resource_dir()
-        .map_err(|e| format!("Cannot resolve resource dir: {e}"))?
-        .join("randomizer.dll");
+        .resolve("resources/randomizer.dll", BaseDirectory::Resource)
+        .map_err(|e| format!("Cannot resolve resource: {e}"))?;
+
+    // Fallback for development: if not found in the resolved resource dir,
+    // check the source resources folder relative to the manifest directory.
+    if !dll_path.exists() && cfg!(debug_assertions) {
+        let source_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("resources").join("randomizer.dll");
+        if source_path.exists() {
+            dll_path = source_path;
+        }
+    }
 
     if !dll_path.exists() {
         return Err(format!(
@@ -172,7 +180,7 @@ pub fn launch_game(
         // Start RVGL suspended so we can inject before any game code runs.
         CreateProcessA(
             PCSTR(exe_cstr.as_ptr().cast()),
-            PSTR(cmd_bytes.as_mut_ptr()),
+            Some(PSTR(cmd_bytes.as_mut_ptr())),
             None,
             None,
             false,

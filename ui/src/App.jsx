@@ -17,6 +17,8 @@ export default function App() {
   const [isFetchingPack, setIsFetchingPack] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateStatus, setGenerateStatus] = useState(null); // { ok: bool, msg: string }
+  const [isLaunching, setIsLaunching]   = useState(false);
+  const [launchStatus, setLaunchStatus] = useState(null); // { ok, msg }
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -97,6 +99,23 @@ export default function App() {
     }
   }
 
+  async function handleLaunch() {
+    if (!installPath) return;
+    setIsLaunching(true);
+    setLaunchStatus(null);
+    try {
+      const result = await invoke("launch_game", {
+        rvglExePath: installPath,
+        extraArgs: "",
+      });
+      setLaunchStatus({ ok: true, msg: `Launched (PID ${result.pid})` });
+    } catch (err) {
+      setLaunchStatus({ ok: false, msg: String(err) });
+    } finally {
+      setIsLaunching(false);
+    }
+  }
+
   return (
     <div className="container">
       {isFetchingPack && <div className="loading-overlay">Loading Assets...</div>}
@@ -117,8 +136,8 @@ export default function App() {
             </div>
           </div>
           <div className="header-actions">
-            {scanResult && carsSpecState && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.3rem" }}>
+            <div className="button-group">
+              {scanResult && carsSpecState && (
                 <button
                   className="primary"
                   onClick={handleGenerate}
@@ -127,17 +146,33 @@ export default function App() {
                 >
                   {isGenerating ? "Generating…" : "⚡ Generate"}
                 </button>
-                {generateStatus && (
-                  <span style={{
-                    fontSize: "0.75rem",
-                    fontFamily: "monospace",
-                    color: generateStatus.ok ? "var(--text-primary)" : "var(--error-color, #c0392b)"
-                  }}>
-                    {generateStatus.ok ? "✓" : "✗"} {generateStatus.msg}
-                  </span>
-                )}
-              </div>
-            )}
+              )}
+              {installPath && (
+                <button
+                  onClick={handleLaunch}
+                  disabled={isLaunching}
+                  style={{ padding: "0.35rem 1rem", fontSize: "0.85rem" }}
+                >
+                  {isLaunching ? "Launching…" : "▶ Launch RVGL"}
+                </button>
+              )}
+            </div>
+            <div className="status-area">
+              {generateStatus && (
+                <span className="status-item" style={{
+                  color: generateStatus.ok ? "var(--text-primary)" : "var(--error-color, #c0392b)"
+                }}>
+                  {generateStatus.ok ? "✓" : "✗"} {generateStatus.msg}
+                </span>
+              )}
+              {launchStatus && (
+                <span className="status-item" style={{
+                  color: launchStatus.ok ? "var(--text-primary)" : "var(--error-color, #c0392b)"
+                }}>
+                  {launchStatus.ok ? "✓" : "✗"} {launchStatus.msg}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         {scanResult && (
