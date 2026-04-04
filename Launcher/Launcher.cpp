@@ -115,6 +115,10 @@ LaunchResult Launch(const LaunchConfig& config) {
     if (config.modDllPath.empty())
         return { false, "modDllPath is empty.", 0 };
 
+    if (!config.configPath.empty()) {
+        SetEnvironmentVariableA("RVGL_RANDOMIZER_CONFIG", config.configPath.c_str());
+    }
+
     // --- Start RVGL suspended so no game code runs before we inject ---
 
     STARTUPINFOA        si{};

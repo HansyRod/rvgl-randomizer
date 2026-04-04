@@ -33,11 +33,16 @@ int main(int argc, char* argv[]) {
     config.rvglExePath = argv[1];
     config.modDllPath  = GetExecutableDir() + "\\randomizer.dll";
     config.extraArgs   = (argc >= 3) ? argv[2] : "";
+    config.configPath = (argc >= 4) ? argv[3] : "";
 
     std::cout << "[TestLauncher] RVGL : " << config.rvglExePath << "\n";
     std::cout << "[TestLauncher] DLL  : " << config.modDllPath  << "\n";
-    if (!config.extraArgs.empty())
-        std::cout << "[TestLauncher] Args : " << config.extraArgs << "\n";
+    if (!config.extraArgs.empty()) {
+      std::cout << "[TestLauncher] Args : " << config.extraArgs << "\n";
+    }
+    if (!config.configPath.empty()) {
+      std::cout << "[TestLauncher] Config : " << config.configPath << "\n";
+    }
 
     const LaunchResult result = Launcher::Launch(config);
 

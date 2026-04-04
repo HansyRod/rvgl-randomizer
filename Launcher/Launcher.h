@@ -13,6 +13,7 @@ struct LaunchConfig {
     std::string rvglExePath;   // Absolute path to rvgl.exe
     std::string modDllPath;    // Absolute path to randomizer.dll
     std::string extraArgs;     // Optional extra CLI args (e.g. "-window 1920 1080")
+    std::string configPath;  // Optional path to randomized JSON
 };
 
 struct LaunchResult {
