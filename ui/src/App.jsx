@@ -11,6 +11,7 @@ export default function App() {
   const [scanResult, setScanResult] = useState(null);
   const [activeTab, setActiveTab] = useState("cars");
   const [carsSpecState, setCarsSpecState] = useState(null);
+  const [debugView, setDebugView] = useState("scanResult");
   const [theme, setTheme] = useState("dark");
   const [isScanning, setIsScanning] = useState(false);
   const [isFetchingPack, setIsFetchingPack] = useState(false);
@@ -85,12 +86,12 @@ export default function App() {
                 </span>
               )}
               <p style={{ margin: 0 }}>{installPath || "No installation selected. Browse to rvgl.exe to begin."}</p>
+              <button className="primary" style={{ padding: "0.25rem 0.75rem", fontSize: "0.75rem" }} onClick={handleScanSetup}>
+                {isScanning ? "Scanning..." : "Browse RVGL"}
+              </button>
             </div>
           </div>
           <div className="header-actions">
-            <button className="primary" onClick={handleScanSetup}>
-              {isScanning ? "Scanning..." : "Browse RVGL"}
-            </button>
           </div>
         </div>
         {scanResult && (
@@ -126,10 +127,17 @@ export default function App() {
       {scanResult && (
         <div className="dashboard">
           {activeTab === 'debug' ? (
-            <div style={{ flex: 1, padding: "1.5rem", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
+            <div style={{ flex: 1, padding: "1.5rem", display: "flex", flexDirection: "column", boxSizing: "border-box", gap: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <label style={{ fontWeight: "bold" }}>View State:</label>
+                <select value={debugView} onChange={(e) => setDebugView(e.target.value)} style={{ width: "auto", minWidth: "200px" }}>
+                  <option value="scanResult">scanResult</option>
+                  <option value="carsSpecState">carsSpecState</option>
+                </select>
+              </div>
               <textarea 
                 readOnly 
-                value={JSON.stringify(scanResult, null, 2)}
+                value={JSON.stringify(debugView === "scanResult" ? scanResult : carsSpecState, null, 2)}
                 style={{ 
                   flex: 1, 
                   width: "100%", 
