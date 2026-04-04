@@ -3,12 +3,14 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import Sidebar from "./components/Sidebar";
 import MainContent from "./components/MainContent";
+import CarsFullSpecTab from "./components/CarsFullSpecTab";
 import "./App.css";
 
 export default function App() {
   const [installPath, setInstallPath] = useState("");
   const [scanResult, setScanResult] = useState(null);
   const [activeTab, setActiveTab] = useState("cars");
+  const [carsSpecState, setCarsSpecState] = useState(null);
   const [theme, setTheme] = useState("dark");
   const [isScanning, setIsScanning] = useState(false);
   const [isFetchingPack, setIsFetchingPack] = useState(false);
@@ -106,6 +108,12 @@ export default function App() {
               Tracks
             </button>
             <button 
+              className={`tab ${activeTab === 'cars-full-spec' ? 'active' : ''}`}
+              onClick={() => setActiveTab('cars-full-spec')}
+            >
+              Cars Full Spec
+            </button>
+            <button 
               className={`tab ${activeTab === 'debug' ? 'active' : ''}`}
               onClick={() => setActiveTab('debug')}
             >
@@ -137,6 +145,14 @@ export default function App() {
                 }}
               />
             </div>
+          ) : activeTab === 'cars-full-spec' ? (
+             <div style={{ flex: 1, overflowY: "auto" }}>
+               <CarsFullSpecTab 
+                 scanResult={scanResult} 
+                 specState={carsSpecState} 
+                 setSpecState={setCarsSpecState} 
+               />
+             </div>
           ) : (
             <>
               {scanResult.installType === "launcher" && (

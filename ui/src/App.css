@@ -93,6 +93,40 @@ input[type="text"] {
   flex: 1;
 }
 
+select {
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  border-radius: 6px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  outline: none;
+  font-family: inherit;
+  font-size: 0.85rem;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%23888888" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position-x: calc(100% - 0.5rem);
+  background-position-y: center;
+}
+
+select:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 header {
   padding: 1rem 1.5rem;
   background-color: var(--bg-secondary);
@@ -127,12 +161,7 @@ header {
 }
 
 .theme-selector select {
-  padding: 0.4rem 0.8rem;
-  border-radius: 6px;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  outline: none;
+  padding: 0.4rem 2rem 0.4rem 0.8rem;
 }
 
 /* Footer layout */
@@ -257,14 +286,7 @@ footer {
   font-size: 0.85rem;
 }
 
-.pool-header select {
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  background-color: var(--bg-secondary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  outline: none;
-}
+
 
 .pool-section {
   margin-bottom: 2.5rem;

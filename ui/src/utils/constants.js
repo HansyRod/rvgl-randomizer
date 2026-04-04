@@ -11,12 +11,12 @@ export const CAR_RATINGS = {
 
 export const OBTAIN_METHODS = {
   [-2]: "Unknown",
-  [-1]: "None",
-  0: "Unlocked",
-  1: "Cup",
+  [-1]: "Cheat Only",
+  0: "Starting Car",
+  1: "Championship",
   2: "Time Trial",
   3: "Practice",
-  4: "Races"
+  4: "Single Race"
 };
 
 export const TRACK_DIFFICULTIES = {

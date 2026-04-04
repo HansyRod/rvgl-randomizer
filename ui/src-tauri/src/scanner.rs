@@ -10,6 +10,14 @@ pub enum InstallType {
     Launcher,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum Pool {
+    Stock,
+    Dc,
+    Custom,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanResult {
@@ -42,6 +50,7 @@ pub struct Car {
     pub is_system_car: bool,
     pub has_valid_file: bool,
     pub carbox_filename: Option<String>,
+    pub pool: Pool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -203,7 +212,8 @@ fn scan_cars_folder_sync(folder_path: &Path) -> Vec<Car> {
                     };
 
                     if has_valid_file {
-                        if let Ok(contents) = fs::read_to_string(&params_path) {
+                        if let Ok(bytes) = fs::read(&params_path) {
+                            let contents = String::from_utf8_lossy(&bytes);
                             for raw_line in contents.lines() {
                                 let trimmed_full = raw_line.trim();
 
@@ -235,6 +245,12 @@ fn scan_cars_folder_sync(folder_path: &Path) -> Vec<Car> {
                         }
                     }
 
+                    let pool = match folder_name.to_lowercase().as_str() {
+                        "rc" | "mite" | "phat" | "moss" | "mud" | "beatall" | "volken" | "tc6" | "dino" | "candy" | "gencar" | "tc4" | "mouse" | "flag" | "tc2" | "r5" | "tc5" | "sgt" | "tc3" | "adeon" | "fone" | "tc1" | "rotor" | "cougar" | "sugo" | "toyeca" | "amw" | "panga" => Pool::Stock,
+                        "bigvolt" | "bossvolt" | "jg6rc" | "tc12" | "tc10" | "tc8" | "tc11" | "tc9" | "jg1jg7" | "tc7" | "jg3loco" | "jg4snw35" | "jg5purpxl" | "jg2fulonx" => Pool::Dc,
+                        _ => Pool::Custom,
+                    };
+
                     cars.push(Car {
                         folder_name,
                         name,
@@ -243,6 +259,7 @@ fn scan_cars_folder_sync(folder_path: &Path) -> Vec<Car> {
                         is_system_car,
                         has_valid_file,
                         carbox_filename,
+                        pool,
                     });
                 }
             }
@@ -295,7 +312,8 @@ fn scan_levels_folder_sync(folder_path: &Path) -> Vec<Track> {
                     let mut difficulty = 0;
 
                     if has_valid_file {
-                        if let Ok(contents) = fs::read_to_string(&inf_path) {
+                        if let Ok(bytes) = fs::read(&inf_path) {
+                            let contents = String::from_utf8_lossy(&bytes);
                             for raw_line in contents.lines() {
                                 let line = raw_line.split(';').next().unwrap_or("").trim();
                                 if line.is_empty() {
