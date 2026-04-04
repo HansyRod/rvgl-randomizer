@@ -1,9 +1,15 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, confirm } from "@tauri-apps/plugin-dialog";
 import Sidebar from "./components/Sidebar";
 import MainContent from "./components/MainContent";
 import CarsFullSpecTab from "./components/CarsFullSpecTab";
+
+// NEW TAB IMPORTS
+import PacksTab from "./components/PacksTab";
+import GenerationTab from "./components/GenerationTab";
+import LaunchTab from "./components/LaunchTab";
+
 import "./App.css";
 
 export default function App() {
@@ -11,18 +17,48 @@ export default function App() {
   const [scanResult, setScanResult] = useState(null);
   const [activeTab, setActiveTab] = useState("cars");
   const [carsSpecState, setCarsSpecState] = useState(null);
+  
+  // New State variables for Phase 2/3
+  const [generatedFilePath, setGeneratedFilePath] = useState("");
+  const [instanceName, setInstanceName] = useState("randomized-instance"); // NEW: Lifted state with new default
+  const [extraArgs, setExtraArgs] = useState("");
+  const [extraPacks, setExtraPacks] = useState([]);
+  const [isAppLoading, setIsAppLoading] = useState(true);
+
   const [debugView, setDebugView] = useState("scanResult");
   const [theme, setTheme] = useState("dark");
   const [isScanning, setIsScanning] = useState(false);
   const [isFetchingPack, setIsFetchingPack] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generateStatus, setGenerateStatus] = useState(null); // { ok: bool, msg: string }
-  const [isLaunching, setIsLaunching]   = useState(false);
-  const [launchStatus, setLaunchStatus] = useState(null); // { ok, msg }
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
+
+  // LOAD CACHE ON MOUNT
+  useEffect(() => {
+    const initCache = async () => {
+      try {
+        const cache = await invoke("load_cache");
+        if (cache.installPath) setInstallPath(cache.installPath);
+        if (cache.scanResult) setScanResult(cache.scanResult);
+        if (cache.extraArgs) setExtraArgs(cache.extraArgs);
+      } catch (error) {
+        console.error("Failed to load cache:", error);
+      } finally {
+        setIsAppLoading(false);
+      }
+    };
+    initCache();
+  }, []);
+
+  // SAVE CACHE ON CHANGE
+  useEffect(() => {
+    if (isAppLoading) return;
+    invoke("save_cache", {
+      data: { installPath, scanResult, extraArgs }
+    }).catch(console.error);
+  }, [installPath, scanResult, extraArgs, isAppLoading]);
+
 
   async function handleScanSetup() {
     const selected = await open({
@@ -46,10 +82,25 @@ export default function App() {
     }
   }
 
+  async function handleClearData() {
+    const confirmed = await confirm("Are you sure you want to clear the app cache?", {
+      title: "Clear Data",
+      kind: "warning",
+    });
+
+    if (confirmed) {
+      await invoke("clear_cache");
+      setInstallPath("");
+      setScanResult(null);
+      setGeneratedFilePath("");
+      setExtraArgs("");
+      setExtraPacks([]);
+      setActiveTab("cars");
+    }
+  }
+
   async function togglePack(packIndex) {
     if (!scanResult) return;
-    
-    // Copy state properly
     const newResult = JSON.parse(JSON.stringify(scanResult));
     const pack = newResult.contentPacks[packIndex];
     
@@ -72,48 +123,11 @@ export default function App() {
         finally { setIsFetchingPack(false); }
       }
     }
-
     setScanResult(newResult);
   }
 
-  async function handleGenerate() {
-    if (!scanResult || !carsSpecState) return;
-
-    // Derive the output path: same directory as rvgl.exe, file named result.json
-    const exeDir = installPath.replace(/[\\/][^\\/]+$/, "");
-    const outputPath = exeDir + "\\result.json";
-
-    setIsGenerating(true);
-    setGenerateStatus(null);
-    try {
-      const msg = await invoke("generate_result", {
-        scanResult,
-        specState: carsSpecState,
-        outputPath,
-      });
-      setGenerateStatus({ ok: true, msg });
-    } catch (err) {
-      setGenerateStatus({ ok: false, msg: String(err) });
-    } finally {
-      setIsGenerating(false);
-    }
-  }
-
-  async function handleLaunch() {
-    if (!installPath) return;
-    setIsLaunching(true);
-    setLaunchStatus(null);
-    try {
-      const result = await invoke("launch_game", {
-        rvglExePath: installPath,
-        extraArgs: "-window -nouserskins -nodemo -nointro -nopause",
-      });
-      setLaunchStatus({ ok: true, msg: `Launched (PID ${result.pid})` });
-    } catch (err) {
-      setLaunchStatus({ ok: false, msg: String(err) });
-    } finally {
-      setIsLaunching(false);
-    }
+  if (isAppLoading) {
+    return <div className="container"><div className="loading-overlay">Initializing...</div></div>;
   }
 
   return (
@@ -126,80 +140,52 @@ export default function App() {
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem" }}>
               {scanResult && (
                 <span className="badge" style={{ padding: "0.3rem 0.5rem", fontSize: "0.75rem", backgroundColor: "var(--accent)" }}>
-                  [{scanResult.installType === "launcher" ? "RVGL Launcher Install" : "Classic Install"}]
+                  [{scanResult.installType === "launcher" ? "Launcher Install" : "Classic Install"}]
                 </span>
               )}
               <p style={{ margin: 0 }}>{installPath || "No installation selected. Browse to rvgl.exe to begin."}</p>
+              
               <button className="primary" style={{ padding: "0.25rem 0.75rem", fontSize: "0.75rem" }} onClick={handleScanSetup}>
                 {isScanning ? "Scanning..." : "Browse RVGL"}
               </button>
-            </div>
-          </div>
-          <div className="header-actions">
-            <div className="button-group">
-              {scanResult && carsSpecState && (
-                <button
-                  className="primary"
-                  onClick={handleGenerate}
-                  disabled={isGenerating}
-                  style={{ padding: "0.35rem 1rem", fontSize: "0.85rem" }}
-                >
-                  {isGenerating ? "Generating…" : "⚡ Generate"}
-                </button>
-              )}
+
               {installPath && (
-                <button
-                  onClick={handleLaunch}
-                  disabled={isLaunching}
-                  style={{ padding: "0.35rem 1rem", fontSize: "0.85rem" }}
-                >
-                  {isLaunching ? "Launching…" : "▶ Launch RVGL"}
-                </button>
-              )}
-            </div>
-            <div className="status-area">
-              {generateStatus && (
-                <span className="status-item" style={{
-                  color: generateStatus.ok ? "var(--text-primary)" : "var(--error-color, #c0392b)"
-                }}>
-                  {generateStatus.ok ? "✓" : "✗"} {generateStatus.msg}
-                </span>
-              )}
-              {launchStatus && (
-                <span className="status-item" style={{
-                  color: launchStatus.ok ? "var(--text-primary)" : "var(--error-color, #c0392b)"
-                }}>
-                  {launchStatus.ok ? "✓" : "✗"} {launchStatus.msg}
-                </span>
+                <>
+                  <button onClick={() => invoke("scan_install", { executablePath: installPath }).then(setScanResult)} style={{ padding: "0.25rem 0.75rem", fontSize: "0.75rem" }}>
+                    ↺ Refresh
+                  </button>
+                  <button onClick={handleClearData} style={{ padding: "0.25rem 0.75rem", fontSize: "0.75rem", backgroundColor: "#7a2626", color: "white" }}>
+                    Clear Cache
+                  </button>
+                </>
               )}
             </div>
           </div>
         </div>
+        
         {scanResult && (
           <div className="tabs">
-            <button 
-              className={`tab ${activeTab === 'cars' ? 'active' : ''}`}
-              onClick={() => setActiveTab('cars')}
-            >
+            <button className={`tab ${activeTab === 'cars' ? 'active' : ''}`} onClick={() => setActiveTab('cars')}>
               Cars
             </button>
-            <button 
-              className={`tab ${activeTab === 'tracks' ? 'active' : ''}`}
-              onClick={() => setActiveTab('tracks')}
-            >
+            <button className={`tab ${activeTab === 'tracks' ? 'active' : ''}`} onClick={() => setActiveTab('tracks')}>
               Tracks
             </button>
-            <button 
-              className={`tab ${activeTab === 'cars-full-spec' ? 'active' : ''}`}
-              onClick={() => setActiveTab('cars-full-spec')}
-            >
+            <button className={`tab ${activeTab === 'cars-full-spec' ? 'active' : ''}`} onClick={() => setActiveTab('cars-full-spec')}>
               Cars Full Spec
             </button>
-            <button 
-              className={`tab ${activeTab === 'debug' ? 'active' : ''}`}
-              onClick={() => setActiveTab('debug')}
-            >
-              Debug
+            
+            {scanResult.installType === 'launcher' && (
+              <button className={`tab ${activeTab === 'packs' ? 'active' : ''}`} onClick={() => setActiveTab('packs')}>
+                Launch Packs
+              </button>
+            )}
+
+            <button className={`tab ${activeTab === 'generation' ? 'active' : ''}`} onClick={() => setActiveTab('generation')}>
+              Randomize
+            </button>
+            <button className={`tab ${activeTab === 'launch' ? 'active' : ''}`} onClick={() => setActiveTab('launch')}>
+              Launch
             </button>
           </div>
         )}
@@ -207,48 +193,17 @@ export default function App() {
 
       {scanResult && (
         <div className="dashboard">
-          {activeTab === 'debug' ? (
-            <div style={{ flex: 1, padding: "1.5rem", display: "flex", flexDirection: "column", boxSizing: "border-box", gap: "1rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                <label style={{ fontWeight: "bold" }}>View State:</label>
-                <select value={debugView} onChange={(e) => setDebugView(e.target.value)} style={{ width: "auto", minWidth: "200px" }}>
-                  <option value="scanResult">scanResult</option>
-                  <option value="carsSpecState">carsSpecState</option>
-                </select>
-              </div>
-              <textarea 
-                readOnly 
-                value={JSON.stringify(debugView === "scanResult" ? scanResult : carsSpecState, null, 2)}
-                style={{ 
-                  flex: 1, 
-                  width: "100%", 
-                  borderRadius: "8px", 
-                  fontFamily: "monospace", 
-                  padding: "1rem", 
-                  backgroundColor: "var(--bg-secondary)", 
-                  color: "var(--text-primary)", 
-                  border: "1px solid var(--border-color)",
-                  outline: "none",
-                  resize: "none",
-                  boxSizing: "border-box"
-                }}
-              />
-            </div>
-          ) : activeTab === 'cars-full-spec' ? (
-             <div style={{ flex: 1, overflowY: "auto" }}>
-               <CarsFullSpecTab
-                 scanResult={scanResult}
-                 specState={carsSpecState}
-                 setSpecState={setCarsSpecState}
-               />
-             </div>
-          ) : (
+          
+          {/* ORIGINAL BROWSING TABS */}
+          {(activeTab === 'cars' || activeTab === 'tracks') && (
             <>
               {scanResult.installType === "launcher" && (
                  <Sidebar 
                    packs={scanResult.contentPacks} 
                    activeTab={activeTab} 
                    onTogglePack={togglePack} 
+                   setScanResult={setScanResult}
+                   scanResult={scanResult}
                  />
               )}
               <MainContent 
@@ -258,6 +213,54 @@ export default function App() {
               />
             </>
           )}
+
+          {activeTab === 'cars-full-spec' && (
+             <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
+               <CarsFullSpecTab
+                 scanResult={scanResult}
+                 specState={carsSpecState}
+                 setSpecState={setCarsSpecState}
+               />
+             </div>
+          )}
+
+          {/* NEW ROUTING TABS */}
+          {activeTab === 'packs' && scanResult.installType === 'launcher' && (
+            <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
+              <PacksTab 
+                scanResult={scanResult} 
+                extraPacks={extraPacks} 
+                setExtraPacks={setExtraPacks} 
+              />
+            </div>
+          )}
+
+          {activeTab === 'generation' && (
+             <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
+               <GenerationTab 
+                 scanResult={scanResult}
+                 specState={carsSpecState}
+                 generatedFilePath={generatedFilePath}
+                 setGeneratedFilePath={setGeneratedFilePath}
+                 instanceName={instanceName}
+                 setInstanceName={setInstanceName}
+               />
+             </div>
+          )}
+
+          {activeTab === 'launch' && (
+             <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
+               <LaunchTab 
+                 installPath={installPath}
+                 scanResult={scanResult}
+                 generatedFilePath={generatedFilePath}
+                 extraArgs={extraArgs}
+                 setExtraArgs={setExtraArgs}
+                 extraPacks={extraPacks}
+               />
+             </div>
+          )}
+
         </div>
       )}
 

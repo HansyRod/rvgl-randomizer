@@ -2,7 +2,7 @@ use crate::scanner::{Car, Pool, ScanResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
+use tauri::Manager; // Add this to your imports at the top if not present
 
 // ============================================================================
 // Input types — mirror the JS carsSpecState shape
@@ -53,11 +53,12 @@ pub struct ConfigGlobalOptions {
 }
 
 #[derive(Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
 pub struct ConfigData {
     pub metadata: ConfigMetadata,
     pub global_options: ConfigGlobalOptions,
+    #[serde(rename = "stockCars")]
     pub stock_cars: Vec<RandomizedCar>,
+    #[serde(rename = "dcCars")]
     pub dc_cars: Vec<RandomizedCar>,
     pub tracks: Vec<serde_json::Value>,
     pub cups: Vec<serde_json::Value>,
@@ -326,9 +327,10 @@ fn build_randomized_car(car: &Car, spec: &CarSpec, rng: &mut Rng) -> RandomizedC
 
 #[tauri::command]
 pub fn generate_result(
+    app_handle: tauri::AppHandle,
     scan_result: ScanResult,
     spec_state: CarsSpecState,
-    output_path: String,
+    file_name: String,
 ) -> Result<String, String> {
     let mut rng = Rng::new();
 
@@ -370,7 +372,7 @@ pub fn generate_result(
     // 4. Build the output structure
     let config = ConfigData {
         metadata: ConfigMetadata {
-            seed: "alpha-test-88".to_string(),
+            seed: "alpha-test-88".to_string(), // In the future, we can hook this up to the RNG
             version: "1.0.0".to_string(),
         },
         global_options: ConfigGlobalOptions {
@@ -388,17 +390,25 @@ pub fn generate_result(
     let json = serde_json::to_string_pretty(&config)
         .map_err(|e| format!("JSON serialization error: {}", e))?;
 
-    // 6. Write to the specified output path
-    let out_path = Path::new(&output_path);
-    if let Some(parent) = out_path.parent() {
-        if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("Could not create output directory: {}", e))?;
-        }
+    // 6. Resolve Output Path
+    let mut out_path = app_handle
+        .path()
+        .app_local_data_dir()
+        .map_err(|e| format!("Could not determine local data dir: {}", e))?;
+    
+    out_path.push("generated");
+    
+    if !out_path.exists() {
+        fs::create_dir_all(&out_path).map_err(|e| format!("Could not create output directory: {}", e))?;
     }
 
-    fs::write(out_path, &json)
+    let safe_name = if file_name.ends_with(".json") { file_name } else { format!("{}.json", file_name) };
+    out_path.push(safe_name);
+
+    // 7. Write to file
+    fs::write(&out_path, &json)
         .map_err(|e| format!("Could not write result.json: {}", e))?;
 
-    Ok(format!("Generated successfully → {}", output_path))
+    // Return the absolute path so the frontend can store it for launching
+    Ok(out_path.to_string_lossy().to_string())
 }

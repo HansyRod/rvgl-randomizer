@@ -10,7 +10,7 @@
 use serde::Serialize;
 use std::ffi::CString;
 use std::path::Path;
-use tauri::{Manager, path::BaseDirectory};
+use tauri::{Manager};
 
 use windows::Win32::{
     Foundation::CloseHandle,
@@ -126,11 +126,14 @@ pub fn launch_game(
     app_handle: tauri::AppHandle,
     rvgl_exe_path: String,
     extra_args: String,
+    config_path: String,               
+    packlist: Option<Vec<String>>,
 ) -> Result<LaunchResult, String> {
+
     // --- Resolve randomizer.dll from the Tauri resource directory ---
     let mut dll_path = app_handle
         .path()
-        .resolve("resources/randomizer.dll", BaseDirectory::Resource)
+        .resolve("resources/randomizer.dll", tauri::path::BaseDirectory::Resource)
         .map_err(|e| format!("Cannot resolve resource: {e}"))?;
 
     // Fallback for development: if not found in the resolved resource dir,
@@ -152,17 +155,76 @@ pub fn launch_game(
 
     let dll_path_str = dll_path.to_string_lossy().into_owned();
 
-    // --- Build CreateProcessA arguments ---
+    // --- Build working directory ---
     let working_dir = Path::new(&rvgl_exe_path)
         .parent()
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_else(|| ".".to_string());
 
-    // CreateProcessA may modify lpCommandLine, so it must be a mutable buffer.
-    let cmd_line = if extra_args.is_empty() {
+    // --- Extract <generatedname> from the config_path ---
+    // e.g., "C:\...\rainbow-road.json" -> "rainbow-road"
+    let generated_name = Path::new(&config_path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("randomizer");
+
+    // --- Handle Launcher-mode args (basepath, prefpath, packlist) ---
+    //
+    // Launcher install directory structure:
+    //   <basepath>/              ← great-grandparent of rvgl.exe
+    //     packs/                 ← grandparent of rvgl.exe; packlist files go here
+    //       <platform>/
+    //         rvgl.exe
+    //     save/                  ← prefpath
+    //
+    // Argument order: -basepath → -prefpath → -packlist → user extra_args → -profile
+    let mut launcher_args: Vec<String> = Vec::new();
+
+    if let Some(packs) = packlist {
+        // packs_dir  = grandparent of rvgl.exe  (e.g. C:\Games\RVGL\packs)
+        // basepath   = parent of packs_dir       (e.g. C:\Games\RVGL)
+        let exe_path = Path::new(&rvgl_exe_path);
+        let packs_dir = exe_path
+            .parent()
+            .and_then(|p| p.parent())
+            .ok_or("Could not resolve 'packs' directory for Launcher install.")?;
+
+        let basepath = packs_dir
+            .parent()
+            .ok_or("Could not resolve base path for Launcher install (packs dir has no parent).")?;
+
+        let prefpath = basepath.join("save");
+
+        // Write the packlist file into the packs directory.
+        let packlist_filename = format!("rvgl-randomizer-{}.txt", generated_name);
+        let packlist_path = packs_dir.join(&packlist_filename);
+        std::fs::write(&packlist_path, packs.join("\n"))
+            .map_err(|e| format!("Failed to write packlist {}: {}", packlist_filename, e))?;
+
+        launcher_args.push(format!("-basepath \"{}\"", basepath.display()));
+        launcher_args.push(format!("-prefpath \"{}\"", prefpath.display()));
+        launcher_args.push(format!("-packlist rvgl-randomizer-{}", generated_name));
+    }
+
+    // Append any user-supplied extra args after the launcher-specific ones.
+    if !extra_args.is_empty() {
+        launcher_args.push(extra_args);
+    }
+
+    // Always append -profile last.
+    launcher_args.push(format!("-profile {}", generated_name));
+
+    let final_args = launcher_args.join(" ");
+
+    // --- NEW: Set Environment Variable ---
+    // Child processes spawned by CreateProcessA inherit the parent's environment.
+    std::env::set_var("RVGL_RANDOMIZER_CONFIG", &config_path);
+
+    // --- Build CreateProcessA arguments ---
+    let cmd_line = if final_args.is_empty() {
         format!("\"{}\"", rvgl_exe_path)
     } else {
-        format!("\"{}\" {}", rvgl_exe_path, extra_args)
+        format!("\"{}\" {}", rvgl_exe_path, final_args)
     };
 
     let exe_cstr =

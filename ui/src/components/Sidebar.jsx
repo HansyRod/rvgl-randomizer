@@ -1,4 +1,6 @@
-export default function Sidebar({ packs, activeTab, onTogglePack }) {
+import { invoke } from "@tauri-apps/api/core";
+
+export default function Sidebar({ packs, activeTab, onTogglePack, setScanResult, scanResult }) {
   // Filter packs that actually have content for the current tab
   const validPacks = packs.map((pack, i) => ({pack, originalIndex: i})).filter(
     p => activeTab === "cars" ? p.pack.hasCars : p.pack.hasTracks
@@ -7,15 +9,46 @@ export default function Sidebar({ packs, activeTab, onTogglePack }) {
   const selectedPacks = validPacks.filter(({pack}) => activeTab === "cars" ? pack.useCars : pack.useTracks);
   const unselectedPacks = validPacks.filter(({pack}) => activeTab === "cars" ? !pack.useCars : !pack.useTracks);
 
+  const handleRefreshPack = async (e, pack, originalIndex) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // You will need to implement `scan_pack_folder` in Rust to return a single updated ContentPack
+    try {
+      console.log("Refreshing pack:", pack.name);
+      // const updatedPack = await invoke("scan_pack_folder", { folderPath: pack.absolutePath });
+      // const newResult = JSON.parse(JSON.stringify(scanResult));
+      // newResult.contentPacks[originalIndex] = updatedPack;
+      // setScanResult(newResult);
+      alert("Refresh single pack coming soon! Needs Rust backend command.");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const renderPackItem = ({pack, originalIndex}) => (
-    <label key={pack.name} className="pack-item">
-      <input 
-        type="checkbox" 
-        checked={activeTab === "cars" ? pack.useCars : pack.useTracks}
-        onChange={() => onTogglePack(originalIndex)}
-      />
-      <span style={{flex: 1, textOverflow: 'ellipsis', overflow: 'hidden'}}>{pack.name}</span>
-    </label>
+    <div key={pack.name} className="pack-item" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <label style={{ display: "flex", alignItems: "center", flex: 1, overflow: "hidden" }}>
+        <input 
+          type="checkbox" 
+          checked={activeTab === "cars" ? pack.useCars : pack.useTracks}
+          onChange={() => onTogglePack(originalIndex)}
+        />
+        <span style={{ marginLeft: "6px", textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: "nowrap" }}>
+          {pack.name}
+        </span>
+      </label>
+      
+      {((activeTab === "cars" && pack.useCars) || (activeTab === "tracks" && pack.useTracks)) && (
+        <button 
+          onClick={(e) => handleRefreshPack(e, pack, originalIndex)}
+          title="Refresh pack contents"
+          style={{ background: "transparent", border: "none", cursor: "pointer", padding: "0 4px", color: "var(--text-secondary)" }}
+        >
+          ↻
+        </button>
+      )}
+    </div>
   );
 
   return (
