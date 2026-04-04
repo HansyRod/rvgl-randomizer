@@ -72,10 +72,11 @@ namespace Randomizer {
     struct ConfigData {
         ConfigMetadata metadata;
         ConfigGlobalOptions global_options;
-        std::vector<RandomizedCar> cars;
+        std::vector<RandomizedCar> stockCars;
+        std::vector<RandomizedCar> dcCars;
         std::vector<RandomizedTrack> tracks;
         std::vector<RandomizedCup> cups;
     };
-    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConfigData, metadata, global_options, cars, tracks, cups)
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConfigData, metadata, global_options, stockCars, dcCars, tracks, cups)
 
 } // namespace Randomizer

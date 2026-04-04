@@ -60,13 +60,29 @@ static const char* k_TestTrackNames[14] = {
 // so these are static rather than stack-allocated.
 static const char* s_patchedPtrs[49];
 
-void InitHardcodedCarPaths() {
-    for (int i = 0; i < 49; i++) {
-        std::string carPath = defaultCars[i];
-        if (!carPath._Starts_with("cars/")) {
-            carPath = "cars/" + carPath; // Ensure the path has the correct prefix
-        }
-        s_patchedPtrs[i] = carPath.c_str();
+void InitHardcodedCarPath(int index) {
+    std::string carPath = defaultCars[index];
+    if (!carPath._Starts_with("cars/")) {
+        carPath = "cars/" + carPath; // Ensure the path has the correct prefix
+    }
+    s_patchedPtrs[index] = carPath.c_str();
+}
+
+void InitStockCarPaths() {
+    for (int i = 0; i < 28; i++) {
+        InitHardcodedCarPath(i);
+    }
+}
+
+void InitDCCarPaths() {
+    for (int i = 35; i < 49; i++) {
+        InitHardcodedCarPath(i);
+    }
+}
+
+void InitSpecialCarPaths() {
+    for (int i = 28; i < 35; i++) {
+        InitHardcodedCarPath(i);
     }
 }
 
@@ -90,25 +106,34 @@ void Initialize() {
     if (g_ActiveConfig.has_value()) {
         Logger::TimestampLogf("[Randomizer] Successfully loaded configuration!");
         Logger::TimestampLogf("[Randomizer] Seed: %s", g_ActiveConfig->metadata.seed.c_str());
-        Logger::TimestampLogf("[Randomizer] Parsed %zu cars and %zu tracks.", 
-            g_ActiveConfig->cars.size(), 
+        Logger::TimestampLogf("[Randomizer] Parsed %zu stock cars, %zu DC cars, and %zu tracks.", 
+            g_ActiveConfig->stockCars.size(), 
+            g_ActiveConfig->dcCars.size(), 
             g_ActiveConfig->tracks.size());
         
         // Example of accessing nested data
-        if (!g_ActiveConfig->cars.empty()) {
-            Logger::TimestampLogf("[Randomizer] First car folder: %s (Rating: %d)", 
-                g_ActiveConfig->cars[0].folder.c_str(), 
-                g_ActiveConfig->cars[0].rating);
+        if (!g_ActiveConfig->stockCars.empty()) {
+            Logger::TimestampLogf("[Randomizer] First stock car folder: %s (Rating: %d)", 
+                g_ActiveConfig->stockCars[0].folder.c_str(), 
+                g_ActiveConfig->stockCars[0].rating);
+        }
             
-            // Init s_patchedPtrs based on config
-            for (size_t i = 0; i < g_ActiveConfig->cars.size() && i < 49; ++i) {
-                std::string carPath = g_ActiveConfig->cars[i].folder;
-                if (!carPath._Starts_with("cars/")) {
-                    carPath = "cars/" + carPath; // Ensure the path has the correct prefix
-                }
-                g_ActiveConfig->cars[i].folder = carPath; // Update the folder in the config struct
-                s_patchedPtrs[i] = g_ActiveConfig->cars[i].folder.c_str();
+        // Init s_patchedPtrs based on config
+        for (size_t i = 0; i < g_ActiveConfig->stockCars.size() && i <= 27; ++i) {
+            std::string carPath = g_ActiveConfig->stockCars[i].folder;
+            if (!carPath._Starts_with("cars/")) {
+                carPath = "cars/" + carPath; // Ensure the path has the correct prefix
             }
+            g_ActiveConfig->stockCars[i].folder = carPath; // Update the folder in the config struct
+            s_patchedPtrs[i] = g_ActiveConfig->stockCars[i].folder.c_str();
+        }
+        for (size_t i = 0; i < g_ActiveConfig->dcCars.size() && i <= 13; ++i) {
+            std::string carPath = g_ActiveConfig->dcCars[i].folder;
+            if (!carPath._Starts_with("cars/")) {
+                carPath = "cars/" + carPath; // Ensure the path has the correct prefix
+            }
+            g_ActiveConfig->dcCars[i].folder = carPath; // Update the folder in the config struct
+            s_patchedPtrs[35 + i] = g_ActiveConfig->dcCars[i].folder.c_str();
         }
     } else {
         Logger::TimestampLogf("[Randomizer] Failed to load or parse %s. Mod will remain inactive.", configPath.c_str());
@@ -157,12 +182,24 @@ static int s_trackCount = 0;
 bool Hook_LoadVanillaCarPool() {
 
     size_t initialCarCount = 49; // Vanilla RVGL has 49 cars in the pool, so we expect this many to be loaded before our mods apply.
-    if (g_ActiveConfig.has_value() && !g_ActiveConfig->cars.empty()) {
-        initialCarCount = g_ActiveConfig->cars.size();
-        Logger::TimestampLogf("[Randomizer] Expecting %d cars based on config.", initialCarCount);
-    } else {
-        Logger::TimestampLogf("[Randomizer] No cars specified in config, defaulting to vanilla count of 49.");
-        InitHardcodedCarPaths();
+
+    if (g_ActiveConfig.has_value() && !g_ActiveConfig->stockCars.empty()) {
+        Logger::TimestampLogf("[Randomizer] Using initialized stock cars from config.");
+    }
+    else {
+        Logger::TimestampLogf("[Randomizer] No stock cars specified in config, defaulting to hardcoded paths for first 28 cars.");
+        InitStockCarPaths();
+    }
+
+    Logger::TimestampLogf("[Randomizer] Initializing special car paths for cars 28-34.");
+    InitSpecialCarPaths();
+
+    if (g_ActiveConfig.has_value() && !g_ActiveConfig->dcCars.empty()) {
+        Logger::TimestampLogf("[Randomizer] Using initialized DC cars from config.");
+    }
+    else {
+        Logger::TimestampLogf("[Randomizer] No DC cars specified in config, defaulting to hardcoded paths for last 14 cars.");
+        InitDCCarPaths();
     }
 
     const uintptr_t tableAddr = AbsFromRva(RVA_VANILLA_CAR_PATHS);
@@ -336,9 +373,20 @@ void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
     }
 
     if (g_ActiveConfig.has_value()) {
-        int carConfigSize = g_ActiveConfig->cars.size();
-        if (carIndex < carConfigSize) {
-            RandomizedCar& carConfig = g_ActiveConfig->cars[carIndex];
+        RandomizedCar* carConfigPtr = nullptr;
+        if (carIndex >= 0 && carIndex <= 27) {
+            if (carIndex < g_ActiveConfig->stockCars.size()) {
+                carConfigPtr = &g_ActiveConfig->stockCars[carIndex];
+            }
+        } else if (carIndex >= 35 && carIndex <= 48) {
+            int dcIndex = carIndex - 35;
+            if (dcIndex < g_ActiveConfig->dcCars.size()) {
+                carConfigPtr = &g_ActiveConfig->dcCars[dcIndex];
+            }
+        }
+
+        if (carConfigPtr != nullptr) {
+            RandomizedCar& carConfig = *carConfigPtr;
             
             car->rating = carConfig.rating;
             car->obtainCondition = carConfig.obtain;
