@@ -15,6 +15,8 @@ export default function App() {
   const [theme, setTheme] = useState("dark");
   const [isScanning, setIsScanning] = useState(false);
   const [isFetchingPack, setIsFetchingPack] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateStatus, setGenerateStatus] = useState(null); // { ok: bool, msg: string }
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -72,6 +74,29 @@ export default function App() {
     setScanResult(newResult);
   }
 
+  async function handleGenerate() {
+    if (!scanResult || !carsSpecState) return;
+
+    // Derive the output path: same directory as rvgl.exe, file named result.json
+    const exeDir = installPath.replace(/[\\/][^\\/]+$/, "");
+    const outputPath = exeDir + "\\result.json";
+
+    setIsGenerating(true);
+    setGenerateStatus(null);
+    try {
+      const msg = await invoke("generate_result", {
+        scanResult,
+        specState: carsSpecState,
+        outputPath,
+      });
+      setGenerateStatus({ ok: true, msg });
+    } catch (err) {
+      setGenerateStatus({ ok: false, msg: String(err) });
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
   return (
     <div className="container">
       {isFetchingPack && <div className="loading-overlay">Loading Assets...</div>}
@@ -92,6 +117,27 @@ export default function App() {
             </div>
           </div>
           <div className="header-actions">
+            {scanResult && carsSpecState && (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.3rem" }}>
+                <button
+                  className="primary"
+                  onClick={handleGenerate}
+                  disabled={isGenerating}
+                  style={{ padding: "0.35rem 1rem", fontSize: "0.85rem" }}
+                >
+                  {isGenerating ? "Generating…" : "⚡ Generate"}
+                </button>
+                {generateStatus && (
+                  <span style={{
+                    fontSize: "0.75rem",
+                    fontFamily: "monospace",
+                    color: generateStatus.ok ? "var(--text-primary)" : "var(--error-color, #c0392b)"
+                  }}>
+                    {generateStatus.ok ? "✓" : "✗"} {generateStatus.msg}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
         {scanResult && (
@@ -155,10 +201,10 @@ export default function App() {
             </div>
           ) : activeTab === 'cars-full-spec' ? (
              <div style={{ flex: 1, overflowY: "auto" }}>
-               <CarsFullSpecTab 
-                 scanResult={scanResult} 
-                 specState={carsSpecState} 
-                 setSpecState={setCarsSpecState} 
+               <CarsFullSpecTab
+                 scanResult={scanResult}
+                 specState={carsSpecState}
+                 setSpecState={setCarsSpecState}
                />
              </div>
           ) : (

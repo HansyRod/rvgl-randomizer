@@ -1,4 +1,5 @@
 pub mod scanner;
+pub mod randomizer;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -15,7 +16,8 @@ pub fn run() {
             greet,
             scanner::scan_install,
             scanner::scan_cars_folder,
-            scanner::scan_levels_folder
+            scanner::scan_levels_folder,
+            randomizer::generate_result
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
