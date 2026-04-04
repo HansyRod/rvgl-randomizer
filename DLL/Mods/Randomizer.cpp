@@ -98,9 +98,10 @@ void Initialize() {
 
     // 1. Attempt to load the configuration file
     // Make sure the path matches where you place the test JSON relative to rvgl.exe
-    const std::string configPath = "randomizer_config.json"; 
+    // Replaced by environment variable passed from the Rust module
+    //const std::string configPath = "randomizer_config.json"; 
     
-    g_ActiveConfig = LoadConfiguration(configPath);
+    g_ActiveConfig = LoadConfiguration();
 
     // 2. Verify successful load and output test data
     if (g_ActiveConfig.has_value()) {
@@ -136,7 +137,7 @@ void Initialize() {
             s_patchedPtrs[35 + i] = g_ActiveConfig->dcCars[i].folder.c_str();
         }
     } else {
-        Logger::TimestampLogf("[Randomizer] Failed to load or parse %s. Mod will remain inactive.", configPath.c_str());
+        Logger::TimestampLogf("[Randomizer] Failed to load or parse configuration. Mod will remain inactive.");
         // Depending on architecture, you might want to disable further hooks here
     }
 }

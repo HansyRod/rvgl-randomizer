@@ -1,11 +1,12 @@
 #pragma once
 
-#include <string>
-#include <optional>
 #include "ConfigData.h"
+#include <optional>
+#include <string>
+
 
 namespace Randomizer {
 
-    std::optional<ConfigData> LoadConfiguration(const std::string& filepath);
+std::optional<ConfigData> LoadConfiguration();
 
 } // namespace Randomizer
