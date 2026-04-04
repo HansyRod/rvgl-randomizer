@@ -23,7 +23,7 @@ use windows::Win32::{
         Threading::{
             CreateProcessA, CreateRemoteThread, GetExitCodeThread, ResumeThread, TerminateProcess,
             WaitForSingleObject, CREATE_SUSPENDED, INFINITE, LPTHREAD_START_ROUTINE,
-            PROCESS_INFORMATION, STARTUPINFOA, THREAD_CREATION_FLAGS,
+            PROCESS_INFORMATION, STARTUPINFOA,
         },
     },
 };
@@ -71,7 +71,7 @@ unsafe fn inject_dll(
         None,
     );
     if write_result.is_err() {
-        VirtualFreeEx(process, remote_mem, 0, MEM_RELEASE);
+        let _ = VirtualFreeEx(process, remote_mem, 0, MEM_RELEASE);
         return Err("WriteProcessMemory failed — cannot write DLL path.".into());
     }
 
@@ -105,7 +105,7 @@ unsafe fn inject_dll(
     let _ = GetExitCodeThread(remote_thread, &mut exit_code);
 
     CloseHandle(remote_thread).ok();
-    VirtualFreeEx(process, remote_mem, 0, MEM_RELEASE);
+    let _ = VirtualFreeEx(process, remote_mem, 0, MEM_RELEASE);
 
     // LoadLibraryA returns the HMODULE (non-zero) on success.
     if exit_code == 0 {
