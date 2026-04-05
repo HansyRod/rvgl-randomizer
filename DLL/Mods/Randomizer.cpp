@@ -38,22 +38,15 @@ static const char* defaultCars[49] = {
     "tc9",     "jg1jg7",   "tc7",     "jg3loco", "jg4snw35", "jg5purpxl", "jg2fulonx"
 };
 
-static const char* k_TestTrackNames[14] = {
-    "venice",
-    "roof",
-    "ship1",
-    "toylite",
-    "garden1",
-    "nhood2",
-    "toy2",
-    "market1",
-    "wild_west2",
-    "muse1",
-    "muse2",
-    "ship2",
-    "nhood1",
-    "wild_west1"
+static const char* defaultTracks[14] = {
+    "nhood1",  "market2",    "muse2",      "garden1",
+    "roof",    "toylite",    "wild_west1", "toy2",
+    "nhood2",  "ship1",      "muse1",
+    "market1", "wild_west2", "ship2"
 };
+
+// 1. Add a backing array to guarantee the memory lifetime of the strings
+static std::string s_patchedStrings[49];
 
 // Persistent storage for the patched pointer table.
 // The pointers in g_VanillaCarPaths must remain valid after the hook returns,
@@ -62,10 +55,18 @@ static const char* s_patchedPtrs[49];
 
 void InitHardcodedCarPath(int index) {
     std::string carPath = defaultCars[index];
-    if (!carPath._Starts_with("cars/")) {
+
+    // Note: Using standard .find() == 0 is safer and more portable across compilers 
+    // than the MSVC-specific _Starts_with implementation.
+    if (carPath.find("cars/") != 0) { 
         carPath = "cars/" + carPath; // Ensure the path has the correct prefix
     }
-    s_patchedPtrs[index] = carPath.c_str();
+    
+    // 2. Assign the generated string to the static backing array
+    s_patchedStrings[index] = carPath;
+    
+    // 3. Point the raw char array to the safely stored string
+    s_patchedPtrs[index] = s_patchedStrings[index].c_str();
 }
 
 void InitStockCarPaths() {
@@ -436,7 +437,7 @@ void Hook_LoadVanillaTracks() {
                 folderName = g_ActiveConfig->tracks[i].folder;
             }
             else {
-                folderName = k_TestTrackNames[i];
+                folderName = defaultTracks[i];
             }
             strncpy_s(currentTrack->folderName, 16, folderName.c_str(), _TRUNCATE);
         }
