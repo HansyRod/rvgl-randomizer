@@ -1,7 +1,12 @@
 #include "RVGLStructs.h"
 #include "Carbox.h"
+#include "Logger.h"
+#include <windows.h>
 #include <vector>
 #include <cstring>
+#include <shellapi.h>
+#include <fstream>
+#include "FileUtils.h"
 
 namespace {
 
@@ -61,6 +66,8 @@ static const int carboxGridIndexes[5][9] = {
   }
 };
 
+static std::string g_CarboxAbsPath = "";
+
 }
 
 namespace Randomizer {
@@ -85,7 +92,7 @@ CarboxSource GetCarboxSource(CarInfo* car) {
     for (int gridIndex = 0; gridIndex < 5; ++gridIndex) {
         for (int cellIndex = 0; cellIndex < 9; ++cellIndex) {
             if (internalName == carboxGridNames[gridIndex][cellIndex]) {
-                src.filepath = "cars/misc/carbox" + std::to_string(gridIndex + 1) + ".bmp";
+                src.filepath = GetCarboxAbsoluteFolderPath() + "\\carbox" + std::to_string(gridIndex + 1) + ".bmp";
                 src.sourceGridX = cellIndex % 3;
                 src.sourceGridY = cellIndex / 3;
                 return src;
@@ -106,7 +113,7 @@ CarboxSource GetVanillaCarboxSource(const std::string& internalName) {
             if (carboxGridNames[gridIndex][i] != nullptr && 
                 internalName == carboxGridNames[gridIndex][i]) {
                 
-                src.filepath = "cars/misc/carbox" + std::to_string(gridIndex + 1) + ".bmp";
+                src.filepath = GetCarboxAbsoluteFolderPath() + "\\carbox" + std::to_string(gridIndex + 1) + ".bmp";
                 src.isFromGrid = true;
                 src.sourceGridX = i % 3;
                 src.sourceGridY = i / 3;
@@ -197,6 +204,31 @@ int GetCarboxNumberFromPath(const char* path) {
     }
     
     return 0;
+}
+
+std::string GetCarboxAbsoluteFolderPath() {
+    
+    if (!g_CarboxAbsPath.empty()) return g_CarboxAbsPath;
+
+    std::string carbox1RelativePath = "cars\\misc\\carbox1.bmp";
+
+    // Use the generic utility to find the highest priority pack containing carbox1.bmp
+    std::string carbox1Path = GetAbsoluteFilePath(carbox1RelativePath);
+    
+    // If the utility resolved an absolute path (i.e., it didn't just return the relative string)
+    if (carbox1Path != carbox1RelativePath) { 
+        
+        // Strip the filename to isolate the directory
+        size_t slash = carbox1Path.find_last_of("\\/");
+        if (slash != std::string::npos) {
+            g_CarboxAbsPath = carbox1Path.substr(0, slash);
+            Logger::TimestampLogf("[GetCarboxAbsoluteFolderPath] CarsMiscPath resolved to: %s", g_CarboxAbsPath.c_str());
+            return g_CarboxAbsPath;
+        }
+    }
+
+    Logger::TimestampLogf("[GetCarboxAbsoluteFolderPath] WARNING: Could not locate cars/misc with carboxes on disk.");
+    return "";
 }
 
 }

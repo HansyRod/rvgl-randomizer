@@ -17,5 +17,6 @@ CarboxSource GetCarboxSource(int carIdx, CarInfo* carPool);
 CarboxSource GetVanillaCarboxSource(const std::string& internalName);
 std::vector<CarboxSource> GetGridSourcesForCarbox(int carboxNumber, CarInfo* carPool);
 int GetCarboxNumberFromPath(const char* path);
+std::string GetCarboxAbsoluteFolderPath();
 
 }

@@ -10,6 +10,8 @@
 #include <cstdint>
 #include <algorithm> // Required for std::clamp
 #include "Carbox.h"
+#include "FileUtils.h"
+#include "Logger.h"
 
 namespace Randomizer {
 
@@ -30,9 +32,14 @@ void GenerateAndSaveCarboxAtlas(const std::string& outputPath, const std::vector
         if (car.filepath.empty()) continue;
 
         int srcW, srcH, srcChannels;
-        uint8_t* img = stbi_load(car.filepath.c_str(), &srcW, &srcH, &srcChannels, channels);
+        std::string absoluteImgPath = GetAbsoluteFilePath(car.filepath);
+
+        uint8_t* img = stbi_load(absoluteImgPath.c_str(), &srcW, &srcH, &srcChannels, channels);
         
-        if (!img) continue; 
+        if (!img) {
+            Logger::TimestampLogf("[GenerateAndSaveCarboxAtlas] ERROR: stbi_load failed to find or parse carbox image at: %s", absoluteImgPath.c_str());
+            continue;
+        }
 
         // This will hold our final 340x340 image for this cell, regardless of the source
         std::vector<uint8_t> resizedImg(cellSizeCustom * cellSizeCustom * channels);
@@ -113,9 +120,14 @@ void GenerateAndSaveSingleCarbox(const std::string& outputPath, const CarboxSour
     const int channels = 4;
     
     int srcW, srcH, srcChannels;
-    uint8_t* img = stbi_load(car.filepath.c_str(), &srcW, &srcH, &srcChannels, channels);
+    std::string absoluteImgPath = GetAbsoluteFilePath(car.filepath);
+
+    uint8_t* img = stbi_load(absoluteImgPath.c_str(), &srcW, &srcH, &srcChannels, channels);
     
-    if (!img) return;
+    if (!img) {
+        Logger::TimestampLogf("[GenerateAndSaveSingleCarbox] ERROR: stbi_load failed to find or parse carbox image at: %s", absoluteImgPath.c_str());
+        return;
+    }
 
     std::vector<uint8_t> resizedImg(targetSize * targetSize * channels, 0);
 

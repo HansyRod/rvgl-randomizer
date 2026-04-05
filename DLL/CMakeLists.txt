@@ -62,6 +62,10 @@ add_library(randomizer SHARED
 
     #Config - Handles loading the JSON configuration with the randomization data
     Config/ConfigManager.cpp
+
+    #File - Handles loading files from the mod folder and packlist overrides
+    File/FileUtils.cpp
+
 )
 
 target_include_directories(randomizer PRIVATE
@@ -75,6 +79,7 @@ target_include_directories(randomizer PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Image
     ${CMAKE_CURRENT_SOURCE_DIR}/Image/stb
     ${CMAKE_CURRENT_SOURCE_DIR}/Config
+    ${CMAKE_CURRENT_SOURCE_DIR}/File
     MinHook/include
 )
 

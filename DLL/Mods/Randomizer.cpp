@@ -243,6 +243,7 @@ bool Hook_LoadVanillaCarPool() {
 unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLevel, bool enableMips, int param_5, unsigned int flags) {
 
     std::string customTexturePath = "";
+    std::string vfsPath = "";
     char* targetPath = path; // Default to the original path
     
     // --- SLOT 142: SINGLE CUSTOM CARBOX ---
@@ -261,11 +262,13 @@ unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLeve
                 
                 // Fetch the source (which will route back to its vanilla 84x84 cell)
                 CarboxSource src = GetVanillaCarboxSource(internalName);
-                
-                customTexturePath = pathStr; // Keep the same path for the temp file
+
+                // Absolute path for writing the generated carbox, which we'll delete after loading
+                std::string customTexturePath = GetCarboxAbsoluteFolderPath() + "\\custom_carbox_" + internalName + ".bmp";
                 GenerateAndSaveSingleCarbox(customTexturePath, src);
-                
-                targetPath = const_cast<char*>(customTexturePath.c_str());
+
+                // keep original VFS path for the engine
+                targetPath = path;
             }
         }
     }
@@ -281,12 +284,20 @@ unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLeve
             // GetGridSourcesForCarbox returns empty if there are no changes
             if (!randomGrid.empty()) {
                 
+                std::string filename = "carbox_random_" + std::to_string(carboxNumber) + ".bmp";
+
+                // Write to the correct pack directory using an absolute path
+                customTexturePath = GetCarboxAbsoluteFolderPath() + "\\" + filename;
+
                 // Generate the stitched file to disk
-                customTexturePath = "cars/misc/carbox_random_" + std::to_string(carboxNumber) + ".bmp";
                 GenerateAndSaveCarboxAtlas(customTexturePath, randomGrid);
 
+                Logger::TimestampLogf("[LoadTextureByName] Atlas carbox %d written to: %s", carboxNumber, customTexturePath);
+
                 // Point our targetPath to the newly generated file instead of overwriting memory
-                targetPath = const_cast<char*>(customTexturePath.c_str());
+                // Redirect the engine to the VFS-relative path so it finds the file
+                vfsPath = "cars/misc/" + filename;
+                targetPath = const_cast<char*>(vfsPath.c_str());
             }
         }
     }
@@ -297,7 +308,7 @@ unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLeve
     unsigned long long returnValue = Orig_LoadTextureByName(targetPath, slotID, maxMipLevel, enableMips, param_5, flags);
 
     if (customTexturePath != "") {
-        // delete random carbox bmp
+        // delete random carbox bmp - absolute path given
         std::remove(customTexturePath.c_str());
     }
     return returnValue;
