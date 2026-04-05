@@ -22,8 +22,8 @@ export default function LaunchTab({
       const selectedContentPacks = scanResult.contentPacks
         .filter(p => p.useCars || p.useTracks)
         .map(p => p.name);
-      
-      packlist = [...autoPacks, ...selectedContentPacks, ...extraPacks];
+
+      packlist = [...selectedContentPacks, ...extraPacks, ...autoPacks];
     }
 
     try {

@@ -94,7 +94,7 @@ pub fn scan_install(executable_path: String) -> Option<ScanResult> {
             if let Ok(entries) = fs::read_dir(packs_path) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if path.is_dir() {
+                    if path.is_dir() && path.file_name().and_then(|n| n.to_str()).unwrap().to_ascii_lowercase() != "rvgl_assets" {
                         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                             let cars_path = path.join("cars");
                             let levels_path = path.join("levels");
