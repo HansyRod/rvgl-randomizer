@@ -3,7 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { open, confirm } from "@tauri-apps/plugin-dialog";
 import Sidebar from "./components/Sidebar";
 import MainContent from "./components/MainContent";
-import CarsFullSpecTab from "./components/CarsFullSpecTab";
+import StockCarsFullSpecTab from "./components/StockCarsFullSpecTab";
+import DcCarsFullSpecTab from "./components/DcCarsFullSpecTab";
 
 // NEW TAB IMPORTS
 import PacksTab from "./components/PacksTab";
@@ -171,8 +172,11 @@ export default function App() {
             <button className={`tab ${activeTab === 'tracks' ? 'active' : ''}`} onClick={() => setActiveTab('tracks')}>
               Tracks
             </button>
-            <button className={`tab ${activeTab === 'cars-full-spec' ? 'active' : ''}`} onClick={() => setActiveTab('cars-full-spec')}>
-              Cars Full Spec
+            <button className={`tab ${activeTab === 'stock-cars-spec' ? 'active' : ''}`} onClick={() => setActiveTab('stock-cars-spec')}>
+              Stock Cars Spec
+            </button>
+            <button className={`tab ${activeTab === 'dc-cars-spec' ? 'active' : ''}`} onClick={() => setActiveTab('dc-cars-spec')}>
+              DC Cars Spec
             </button>
             
             {scanResult.installType === 'launcher' && (
@@ -214,14 +218,24 @@ export default function App() {
             </>
           )}
 
-          {activeTab === 'cars-full-spec' && (
-             <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
-               <CarsFullSpecTab
-                 scanResult={scanResult}
-                 specState={carsSpecState}
-                 setSpecState={setCarsSpecState}
-               />
-             </div>
+          {activeTab === 'stock-cars-spec' && (
+            <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
+              <StockCarsFullSpecTab
+                scanResult={scanResult}
+                specState={carsSpecState}
+                setSpecState={setCarsSpecState}
+              />
+            </div>
+          )}
+
+          {activeTab === 'dc-cars-spec' && (
+            <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
+              <DcCarsFullSpecTab
+                scanResult={scanResult}
+                specState={carsSpecState}
+                setSpecState={setCarsSpecState}
+              />
+            </div>
           )}
 
           {/* NEW ROUTING TABS */}

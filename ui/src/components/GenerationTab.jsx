@@ -28,9 +28,16 @@ export default function GenerationTab({
     setMessage("Generating...");
 
     try {
+      // Intercept and strip arrays if the user unchecked them
+      const filteredSpecState = {
+        ...specState,
+        stockCars: specState.includeStockCars === false ? [] : specState.stockCars,
+        dcCars: specState.includeDcCars === false ? [] : specState.dcCars
+      };
+
       const outPath = await invoke("generate_result", {
         scanResult,
-        specState, 
+        specState: filteredSpecState,
         fileName: instanceName.trim()
       });
       
