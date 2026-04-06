@@ -39,6 +39,7 @@ export default function GenerationTab({
       const outPath = await invoke("generate_result", {
         scanResult,
         specState: filteredSpecState,
+        carOptions: carOptions ?? null,
         fileName: instanceName.trim()
       });
       
