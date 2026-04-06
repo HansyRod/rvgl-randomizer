@@ -5,6 +5,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 export default function GenerationTab({ 
   scanResult, 
   specState, 
+  carOptions,
   generatedFilePath, 
   setGeneratedFilePath,
   instanceName,

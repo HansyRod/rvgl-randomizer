@@ -5,6 +5,7 @@ import Sidebar from "./components/Sidebar";
 import MainContent from "./components/MainContent";
 import StockCarsFullSpecTab from "./components/StockCarsFullSpecTab";
 import DcCarsFullSpecTab from "./components/DcCarsFullSpecTab";
+import CarOptionsTab from "./components/CarOptionsTab";
 
 // NEW TAB IMPORTS
 import PacksTab from "./components/PacksTab";
@@ -13,11 +14,22 @@ import LaunchTab from "./components/LaunchTab";
 
 import "./App.css";
 
+export const DEFAULT_CAR_OPTIONS = {
+  unlockMode: "random",       // "random" | "unchanged" | "baseGame"
+  enableStartingCars: false,
+  numStartingCars: 0,
+  startingCarsPool: "Full Random",
+  startingCarsRating: "Random",
+  includeCheatOnly: false,
+  includeStuntArena: false,
+};
+
 export default function App() {
   const [installPath, setInstallPath] = useState("");
   const [scanResult, setScanResult] = useState(null);
   const [activeTab, setActiveTab] = useState("cars");
   const [carsSpecState, setCarsSpecState] = useState(null);
+  const [carOptions, setCarOptions] = useState(DEFAULT_CAR_OPTIONS);
   
   // New State variables for Phase 2/3
   const [generatedFilePath, setGeneratedFilePath] = useState("");
@@ -43,6 +55,7 @@ export default function App() {
         if (cache.installPath) setInstallPath(cache.installPath);
         if (cache.scanResult) setScanResult(cache.scanResult);
         if (cache.extraArgs) setExtraArgs(cache.extraArgs);
+        if (cache.carOptions) setCarOptions({ ...DEFAULT_CAR_OPTIONS, ...cache.carOptions });
       } catch (error) {
         console.error("Failed to load cache:", error);
       } finally {
@@ -56,9 +69,9 @@ export default function App() {
   useEffect(() => {
     if (isAppLoading) return;
     invoke("save_cache", {
-      data: { installPath, scanResult, extraArgs }
+      data: { installPath, scanResult, extraArgs, carOptions }
     }).catch(console.error);
-  }, [installPath, scanResult, extraArgs, isAppLoading]);
+  }, [installPath, scanResult, extraArgs, carOptions, isAppLoading]);
 
 
   async function handleScanSetup() {
@@ -95,6 +108,7 @@ export default function App() {
       setScanResult(null);
       setGeneratedFilePath("");
       setExtraArgs("");
+      setCarOptions(DEFAULT_CAR_OPTIONS);
       setExtraPacks([]);
       setActiveTab("cars");
     }
@@ -172,6 +186,9 @@ export default function App() {
             <button className={`tab ${activeTab === 'tracks' ? 'active' : ''}`} onClick={() => setActiveTab('tracks')}>
               Tracks
             </button>
+            <button className={`tab ${activeTab === 'car-options' ? 'active' : ''}`} onClick={() => setActiveTab('car-options')}>
+              Car Options
+            </button>
             <button className={`tab ${activeTab === 'stock-cars-spec' ? 'active' : ''}`} onClick={() => setActiveTab('stock-cars-spec')}>
               Stock Cars Spec
             </button>
@@ -218,12 +235,25 @@ export default function App() {
             </>
           )}
 
+          {activeTab === 'car-options' && (
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              <CarOptionsTab
+                scanResult={scanResult}
+                specState={carsSpecState}
+                setSpecState={setCarsSpecState}
+                carOptions={carOptions}
+                setCarOptions={setCarOptions}
+              />
+            </div>
+          )}
+
           {activeTab === 'stock-cars-spec' && (
             <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
               <StockCarsFullSpecTab
                 scanResult={scanResult}
                 specState={carsSpecState}
                 setSpecState={setCarsSpecState}
+                carOptions={carOptions}
               />
             </div>
           )}
@@ -234,6 +264,7 @@ export default function App() {
                 scanResult={scanResult}
                 specState={carsSpecState}
                 setSpecState={setCarsSpecState}
+                carOptions={carOptions}
               />
             </div>
           )}

@@ -1,0 +1,175 @@
+.car-options-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1.5rem;
+  max-width: 820px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* ── Sections ── */
+.co-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.co-section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.co-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+/* ── Mode cards (3-col grid) ── */
+.co-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.co-mode-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.9rem 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  height: auto;
+}
+
+.co-mode-card:hover {
+  border-color: var(--accent);
+}
+
+.co-mode-card.selected {
+  border-color: var(--accent);
+  background: var(--tab-active-bg);
+}
+
+.co-mode-label {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+}
+
+.co-mode-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  font-weight: 400;
+}
+
+/* ── Checkboxes ── */
+.co-checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.co-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.co-checkbox-row input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.co-tag {
+  display: inline-block;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  background: var(--border-color);
+  font-size: 0.74rem;
+  font-family: monospace;
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+
+/* ── Field rows ── */
+.co-field-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.co-field-label {
+  font-weight: 500;
+  font-size: 0.88rem;
+  min-width: 190px;
+  color: var(--text-primary);
+}
+
+.co-number-input {
+  width: 80px;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.co-hint {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* ── Sub-panel for starting-car pool settings ── */
+.co-sub-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.co-sub-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+/* ── Apply row ── */
+.co-apply-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.co-apply-btn {
+  padding: 0.55rem 2rem;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}

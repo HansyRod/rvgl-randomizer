@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import CarsSpecSection from "./CarsSpecSection";
 import { STOCK_CARS, DC_CARS } from "../utils/constants";
 
-export default function StockCarsFullSpecTab({ scanResult, specState, setSpecState }) {
+export default function StockCarsFullSpecTab({ scanResult, specState, setSpecState, carOptions  }) {
   useEffect(() => {
     if (!specState) {
       setSpecState({
@@ -29,6 +29,7 @@ export default function StockCarsFullSpecTab({ scanResult, specState, setSpecSta
       scanResult={scanResult}
       specState={specState}
       setSpecState={setSpecState}
+      carOptions={carOptions}
     />
   );
 }

@@ -12,7 +12,8 @@ export default function CarsSpecSection({
   defaultCarsList,
   scanResult,
   specState,
-  setSpecState
+  setSpecState,
+  carOptions
 }) {
   const [presetSelection, setPresetSelection] = useState("Full Random");
 
@@ -61,17 +62,31 @@ export default function CarsSpecSection({
   const isEnabled = specState[includeKey] !== false;
 
   const applyPreset = (preset) => {
-    setSpecState(prev => ({
-      ...prev,
-      [categoryKey]: defaultCarsList.map(id => ({
-        id,
-        sourcePool: preset === "Original Content" ? (carByFolder[id] ? id : "Full Random") : "Full Random",
-        sourceRating: "Random",
-        sourceObtain: "Random",
-        attrRating: preset === "Original Content" ? "Unchanged" : "Random",
-        attrObtain: preset === "Original Content" ? "Unchanged" : "Random"
-      }))
-    }));
+    setSpecState(prev => {
+      const currentList = prev[categoryKey] || [];
+
+      return {
+        ...prev,
+        [categoryKey]: defaultCarsList.map((id, index) => {
+          const currentCar = currentList[index] || {};
+          const isBaseGame = carOptions?.unlockMode === "baseGame";
+          const isUnchanged = carOptions?.unlockMode === "unchanged";
+
+          return {
+            id,
+            sourcePool: preset === "Original Content" ? (carByFolder[id] ? id : "Full Random") : "Full Random",
+            sourceRating: "Random",
+            sourceObtain: "Random",
+            attrRating: isBaseGame 
+              ? (currentCar.attrRating ?? "Random")
+              : (preset === "Original Content" ? "Unchanged" : "Random"),
+            attrObtain: (isBaseGame || isUnchanged)
+              ? (currentCar.attrObtain ?? "Random")
+              : (preset === "Original Content" ? "Unchanged" : "Random")
+          };
+        })
+      };
+    });
   };
 
   const updateRow = (index, updates) => {
@@ -165,14 +180,16 @@ export default function CarsSpecSection({
         </div>
         <div className="specs-horizontal">
           <div className="field-group">
-            <select value={rowState.attrRating} onChange={e => updateRow(index, { attrRating: e.target.value })}>
+            <select value={rowState.attrRating} onChange={e => updateRow(index, { attrRating: e.target.value })}
+              disabled={carOptions?.unlockMode === "baseGame"}>
               {ATTR_RATINGS_LIST.map(opt => (
                 <option key={opt.val} value={opt.val}>{opt.label}</option>
               ))}
             </select>
           </div>
           <div className="field-group">
-            <select value={rowState.attrObtain} onChange={e => updateRow(index, { attrObtain: e.target.value })}>
+            <select value={rowState.attrObtain} onChange={e => updateRow(index, { attrObtain: e.target.value })}
+              disabled={carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "baseGame"} >
               {ATTR_OBTAINS_LIST.map(opt => (
                 <option key={opt.val} value={opt.val}>{opt.label}</option>
               ))}
@@ -185,6 +202,29 @@ export default function CarsSpecSection({
 
   return (
     <div>
+
+      {carOptions?.unlockMode === "unchanged" && (
+        <div style={{
+          padding: "0.5rem 1rem", marginBottom: "1rem", borderRadius: "6px",
+          border: "1px solid var(--accent)", background: "var(--tab-active-bg)",
+          fontSize: "0.82rem", color: "var(--text-secondary)",
+        }}>
+          🔒 <strong>Obtain column is locked</strong> — Car Options is set to <em>Unchanged</em>.
+          Switch to a different mode in the Car Options tab to re-enable it.
+        </div>
+      )}
+
+      {carOptions?.unlockMode === "baseGame" && (
+        <div style={{
+          padding: "0.5rem 1rem", marginBottom: "1rem", borderRadius: "6px",
+          border: "1px solid var(--accent)", background: "var(--tab-active-bg)",
+          fontSize: "0.82rem", color: "var(--text-secondary)",
+        }}>
+          🔒 <strong>Attributes are locked</strong> — Car Options is set to <em>Base Game Distribution</em>.
+          The Rating and Obtain columns follow fixed rules for each slot.
+        </div>
+      )}
+
       <div style={{ marginBottom: "1rem" }}>
         <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: "bold", fontSize: "1.1rem" }}>
           <input

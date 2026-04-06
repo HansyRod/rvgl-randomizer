@@ -26,6 +26,29 @@ pub struct CarsSpecState {
     pub dc_cars: Vec<CarSpec>,
 }
 
+/// High-level options from the Car Options tab.
+/// All fields are optional so older JSON payloads remain compatible.
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CarOptionsInput {
+    #[serde(default = "default_unlock_mode")]
+    pub unlock_mode: String,
+    #[serde(default)]
+    pub num_starting_cars: usize,
+    #[serde(default = "default_pool")]
+    pub starting_cars_pool: String,
+    #[serde(default = "default_random")]
+    pub starting_cars_rating: String,
+    #[serde(default)]
+    pub include_cheat_only: bool,
+    #[serde(default)]
+    pub include_stunt_arena: bool,
+}
+
+fn default_unlock_mode() -> String { "random".to_string() }
+fn default_pool()        -> String { "Full Random".to_string() }
+fn default_random()      -> String { "Random".to_string() }
+
 // ============================================================================
 // Output types — match ConfigData / ConfigManager.cpp field names exactly
 // ============================================================================
@@ -174,51 +197,39 @@ fn candidate_set<'a>(
             .collect()
     };
 
+    // specific car — skip further filters
+    let is_specific = !spec.source_pool.is_empty()
+        && spec.source_pool != "Full Random"
+        && spec.source_pool != "Stock"
+        && spec.source_pool != "DC"
+        && spec.source_pool != "Custom"
+        && !spec.source_pool.starts_with("Pack:");
+
     // --- Step 2: Rating filter (only when pool is not a specific car) ---
-    let rating_filtered: Vec<&Car> =
-        if spec.source_pool.is_empty()
-            || spec.source_pool == "Full Random"
-            || spec.source_pool == "Stock"
-            || spec.source_pool == "DC"
-            || spec.source_pool == "Custom"
-            || spec.source_pool.starts_with("Pack:")
-        {
-            if spec.source_rating == "Random" {
-                pool_filtered
-            } else if let Ok(r) = spec.source_rating.parse::<i32>() {
-                pool_filtered.into_iter().filter(|c| c.rating == r).collect()
-            } else {
-                pool_filtered
-            }
-        } else {
-            pool_filtered // specific car — skip further filters
-        };
+    let rating_filtered: Vec<&Car> = if is_specific {
+        pool_filtered
+    } else if spec.source_rating == "Random" {
+        pool_filtered
+    } else if let Ok(r) = spec.source_rating.parse::<i32>() {
+        pool_filtered.into_iter().filter(|c| c.rating == r).collect()
+    } else {
+        pool_filtered
+    };
 
     // --- Step 3: Obtain filter ---
-    if spec.source_pool.is_empty()
-        || spec.source_pool == "Full Random"
-        || spec.source_pool == "Stock"
-        || spec.source_pool == "DC"
-        || spec.source_pool == "Custom"
-        || spec.source_pool.starts_with("Pack:")
-    {
-        if spec.source_obtain == "Random" {
-            rating_filtered
-        } else if let Ok(o) = spec.source_obtain.parse::<i32>() {
-            rating_filtered
-                .into_iter()
-                .filter(|c| c.obtain_method == o)
-                .collect()
-        } else {
-            rating_filtered
-        }
+    if is_specific {
+        rating_filtered
+    } else if spec.source_obtain == "Random" {
+        rating_filtered
+    } else if let Ok(o) = spec.source_obtain.parse::<i32>() {
+        rating_filtered.into_iter().filter(|c| c.obtain_method == o).collect()
     } else {
         rating_filtered
     }
 }
 
 // ============================================================================
-// Core randomizer
+// Core slot resolver (fewest-candidates-first)
 // ============================================================================
 
 struct SlotWork<'a> {
@@ -303,19 +314,32 @@ fn resolve_rating(attr: &str, scanned: i32, rng: &mut Rng) -> i32 {
     }
 }
 
-fn resolve_obtain(attr: &str, scanned: i32, rng: &mut Rng) -> i32 {
+/// Resolve the obtain (unlock) method for a slot.
+/// When attr == "Random", the pool of allowed values is built from `car_options`.
+fn resolve_obtain(attr: &str, scanned: i32, rng: &mut Rng, car_options: &CarOptionsInput) -> i32 {
     match attr {
         "Unchanged" => scanned,
-        "Random" => rng.next_i32(0, 4),
+        "Random" => {
+            // Standard methods are always available
+            let mut allowed: Vec<i32> = vec![0, 1, 2, 3, 4];
+            if car_options.include_cheat_only {
+                allowed.push(-1);
+            }
+            if car_options.include_stunt_arena {
+                allowed.push(5);
+            }
+            let idx = rng.next_usize(allowed.len());
+            allowed[idx]
+        }
         other => other.parse::<i32>().unwrap_or(scanned),
     }
 }
 
-fn build_randomized_car(car: &Car, spec: &CarSpec, rng: &mut Rng) -> RandomizedCar {
+fn build_randomized_car(car: &Car, spec: &CarSpec, rng: &mut Rng, car_options: &CarOptionsInput) -> RandomizedCar {
     RandomizedCar {
         folder: car.folder_name.clone(),
         rating: resolve_rating(&spec.attr_rating, car.rating, rng),
-        obtain: resolve_obtain(&spec.attr_obtain, car.obtain_method, rng),
+        obtain:           resolve_obtain(&spec.attr_obtain, car.obtain_method, rng, car_options),
         selectable_player: true,
         selectable_cpu: true,
     }
@@ -330,13 +354,22 @@ pub fn generate_result(
     app_handle: tauri::AppHandle,
     scan_result: ScanResult,
     spec_state: CarsSpecState,
+    car_options: Option<CarOptionsInput>,
     file_name: String,
 ) -> Result<String, String> {
     let mut rng = Rng::new();
 
-    // 1. Collect valid cars
-    let all_cars = collect_available_cars(&scan_result);
+    // Use provided options or fall back to safe defaults
+    let opts = car_options.unwrap_or_else(|| CarOptionsInput {
+        unlock_mode:          default_unlock_mode(),
+        num_starting_cars:    0,
+        starting_cars_pool:   default_pool(),
+        starting_cars_rating: default_random(),
+        include_cheat_only:   false,
+        include_stunt_arena:  false,
+    });
 
+    let all_cars = collect_available_cars(&scan_result);
     if all_cars.is_empty() {
         return Err("No valid cars found in scan result. Cannot generate.".to_string());
     }
@@ -356,7 +389,7 @@ pub fn generate_result(
         .iter()
         .enumerate()
         .filter_map(|(i, spec)| {
-            stock_resolved[i].map(|car| build_randomized_car(car, spec, &mut rng))
+            stock_resolved[i].map(|car| build_randomized_car(car, spec, &mut rng, &opts))
         })
         .collect();
 
@@ -365,7 +398,7 @@ pub fn generate_result(
         .iter()
         .enumerate()
         .filter_map(|(i, spec)| {
-            dc_resolved[i].map(|car| build_randomized_car(car, spec, &mut rng))
+            dc_resolved[i].map(|car| build_randomized_car(car, spec, &mut rng, &opts))
         })
         .collect();
 
