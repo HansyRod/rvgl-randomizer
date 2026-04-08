@@ -70,7 +70,10 @@ const SpecRow = memo(({
   sourcePoolOptionsJSX, 
   poolValidOptions,
   carOptions,
-  onOpenSearch
+  onOpenSearch,
+  lockStartingPool,
+  lockStartingRating,
+  lockStartingObtain
 }) => {
   if (!rowState) return null;
 
@@ -101,6 +104,7 @@ const SpecRow = memo(({
                 updateRow(index, { sourcePool: val });
               }
             }}
+            disabled={lockStartingPool}
           >
             {sourcePoolOptionsJSX}
             {!isGeneralPool && (
@@ -117,7 +121,7 @@ const SpecRow = memo(({
           <select 
             value={isSpecificCar ? specificCar.rating.toString() : rowState.sourceRating} 
             onChange={e => updateRow(index, { sourceRating: e.target.value })} 
-            disabled={isSpecificCar}
+            disabled={isSpecificCar || lockStartingRating}
           >
             {isSpecificCar ? (
               <option value={specificCar.rating.toString()}>{CAR_RATINGS[specificCar.rating] || "Unknown"}</option>
@@ -159,7 +163,7 @@ const SpecRow = memo(({
         </div>
         <div className="field-group">
           <select value={rowState.attrObtain} onChange={e => updateRow(index, { attrObtain: e.target.value })}
-            disabled={carOptions?.unlockMode === "baseGame" || carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomRatings"} >
+            disabled={lockStartingObtain || carOptions?.unlockMode === "baseGame" || carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomRatings"} >
             {ATTR_OBTAINS_LIST.map(opt => (
               <option key={opt.val} value={opt.val}>{opt.label}</option>
             ))}
@@ -262,6 +266,12 @@ export default function CarsSpecSection({
   }, [availableCars, activePacks, scanResult]);
 
   const isEnabled = specState[includeKey] !== false;
+  const startingCarsActive =
+    categoryKey === "stockCars" &&
+    carOptions?.enableStartingCars &&
+    (carOptions?.unlockMode === "random" || carOptions?.unlockMode === "randomUnlock") &&
+    (carOptions?.numStartingCars || 0) > 0;
+  const startingCount = startingCarsActive ? (carOptions?.numStartingCars || 0) : 0;
 
   const applyPreset = (preset) => {
     setSpecState(prev => {
@@ -273,11 +283,22 @@ export default function CarsSpecSection({
           const currentCar = currentList[index] || {};
           const isBaseGame = carOptions?.unlockMode === "baseGame";
           const isUnchanged = carOptions?.unlockMode === "unchanged";
+          const isStartingSlot =
+            categoryKey === "stockCars" &&
+            carOptions?.enableStartingCars &&
+            (carOptions?.numStartingCars || 0) > 0 &&
+            index < (carOptions?.numStartingCars || 0);
+          const preserveStartingPool = isStartingSlot && !!carOptions?.enableStartingCarsPool;
+          const preserveStartingRating = isStartingSlot && !!carOptions?.enableStartingCarsRating;
 
           return {
             id,
-            sourcePool: preset === "Original Content" ? (carByFolder[id] ? id : "Full Random") : "Full Random",
-            sourceRating: "Random",
+            sourcePool: preserveStartingPool
+              ? (currentCar.sourcePool ?? carOptions?.startingCarsPool ?? "Full Random")
+              : (preset === "Original Content" ? (carByFolder[id] ? id : "Full Random") : "Full Random"),
+            sourceRating: preserveStartingRating
+              ? (currentCar.sourceRating ?? carOptions?.startingCarsRating ?? "Random")
+              : "Random",
             sourceObtain: "Random",
             attrRating: isBaseGame 
               ? (currentCar.attrRating ?? "Random")
@@ -325,6 +346,11 @@ export default function CarsSpecSection({
           🔒 <strong>Attributes are locked</strong> — Car Options is set to <em>Base Game Distribution</em>.
         </div>
       )}
+      {categoryKey === "stockCars" && carOptions?.enableStartingCars && (carOptions?.numStartingCars || 0) > 0 && (
+        <div className="section-lock-info">
+          🔒 <strong>Starting Car Configuration is active</strong> — first <em>{carOptions.numStartingCars}</em> stock slots have locked obtain (Starting Car){carOptions?.enableStartingCarsPool ? ", pool locked by Car Options" : ""}{carOptions?.enableStartingCarsRating ? ", rating locked by Car Options" : ""}.
+        </div>
+      )}
 
       <div style={{ marginBottom: "1rem" }}>
         <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: "bold", fontSize: "1.1rem" }}>
@@ -370,6 +396,10 @@ export default function CarsSpecSection({
               </div>
             </div>
             {specState[categoryKey].map((row, index) => (
+              // Starting car locks only apply to stock slots in the configured range.
+              (() => {
+                const isStartingSlot = startingCount > 0 && index < startingCount;
+                return (
               <SpecRow
                 key={row.id}
                 index={index}
@@ -380,7 +410,12 @@ export default function CarsSpecSection({
                 poolValidOptions={poolValidOptions}
                 carOptions={carOptions}
                 onOpenSearch={setSearchModalRow}
+                lockStartingPool={isStartingSlot && !!carOptions?.enableStartingCarsPool}
+                lockStartingRating={isStartingSlot && !!carOptions?.enableStartingCarsRating}
+                lockStartingObtain={isStartingSlot}
               />
+                );
+              })()
             ))}
           </div>
         </div>

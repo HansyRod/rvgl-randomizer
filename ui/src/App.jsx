@@ -21,7 +21,9 @@ export const DEFAULT_CAR_OPTIONS = {
   unlockMode: "random",       // "random" | "unchanged" | "baseGame" | "randomRatings" | "randomUnlock"
   enableStartingCars: false,
   numStartingCars: 0,
+  enableStartingCarsPool: false,
   startingCarsPool: "Full Random",
+  enableStartingCarsRating: false,
   startingCarsRating: "Random",
   includeCheatOnly: false,
   includeStuntArena: false,

@@ -62,8 +62,12 @@ pub struct CarOptionsInput {
     pub unlock_mode: String,
     #[serde(default)]
     pub num_starting_cars: usize,
+    #[serde(default = "default_false")]
+    pub enable_starting_cars_pool: bool,
     #[serde(default = "default_pool")]
     pub starting_cars_pool: String,
+    #[serde(default = "default_false")]
+    pub enable_starting_cars_rating: bool,
     #[serde(default = "default_random")]
     pub starting_cars_rating: String,
     #[serde(default)]
@@ -97,6 +101,7 @@ fn default_unlock_mode() -> String { "random".to_string() }
 fn default_track_unlock_mode() -> String { "random".to_string() }
 fn default_pool()        -> String { "Full Random".to_string() }
 fn default_random()      -> String { "Random".to_string() }
+fn default_false()       -> bool   { false }
 fn default_true()        -> bool   { true }
 
 // ============================================================================
@@ -703,7 +708,9 @@ pub fn generate_result(
     let opts = car_options.unwrap_or_else(|| CarOptionsInput {
         unlock_mode:          default_unlock_mode(),
         num_starting_cars:    0,
+        enable_starting_cars_pool: default_false(),
         starting_cars_pool:   default_pool(),
+        enable_starting_cars_rating: default_false(),
         starting_cars_rating: default_random(),
         include_cheat_only:   false,
         include_stunt_arena:  false,

@@ -138,13 +138,21 @@ export default function CarOptionsTab({
     unlockMode,
     enableStartingCars,
     numStartingCars,
+    enableStartingCarsPool,
     startingCarsPool,
+    enableStartingCarsRating,
     startingCarsRating,
     includeCheatOnly,
     includeStuntArena,
   } = carOptions;
 
   const set = (key, value) => setCarOptions(prev => ({ ...prev, [key]: value }));
+
+  useEffect(() => {
+    if (enableStartingCars && numStartingCars < 1) {
+      set("numStartingCars", 1);
+    }
+  }, [enableStartingCars, numStartingCars]);
 
   // Immediate sync logic
   useEffect(() => {
@@ -189,8 +197,12 @@ export default function CarOptionsTab({
         // Starting-car overrides (only in modes that allow randomizing unlock)
         const canRandomUnlock = (unlockMode === "random" || unlockMode === "randomUnlock");
         if (canRandomUnlock && enableStartingCars && numStartingCars > 0 && i < numStartingCars) {
-          out.sourcePool    = startingCarsPool;
-          out.sourceRating  = startingCarsRating;
+          if (enableStartingCarsPool) {
+            out.sourcePool = startingCarsPool;
+          }
+          if (enableStartingCarsRating) {
+            out.sourceRating = startingCarsRating;
+          }
           out.attrObtain    = "0"; // Force "Starting Car"
           
           // If startingCarsRating is NOT "Random", we should align the pool filter in the backend.
@@ -198,7 +210,7 @@ export default function CarOptionsTab({
           // User said: "If a rating is chosen there, it should follow that rating, 
           // and what that means in case the ratings are not random, 
           // is limiting the car pool to only accept cars of the correct rating."
-          if (startingCarsRating !== "Random") {
+          if (enableStartingCarsRating && startingCarsRating !== "Random") {
              // In randomRatings/random mode, we might want to force the final rating too? 
              // Logic: If user specifically picked a rating for starting car pool, 
              // they probably want them to be that rating.
@@ -496,7 +508,13 @@ export default function CarOptionsTab({
               <input
                 type="checkbox"
                 checked={enableStartingCars}
-                onChange={e => set("enableStartingCars", e.target.checked)}
+                onChange={e => {
+                  const checked = e.target.checked;
+                  set("enableStartingCars", checked);
+                  if (checked && numStartingCars < 1) {
+                    set("numStartingCars", 1);
+                  }
+                }}
               />
               <span>Enable custom starting car configuration</span>
             </label>
@@ -504,25 +522,34 @@ export default function CarOptionsTab({
 
           {enableStartingCars && (
             <div className="co-sub-panel">
-              <div className="co-field-row">
-                <label className="co-field-label">Number of starting cars</label>
+              <div className="co-starting-grid-row">
+                <label className="co-field-label co-starting-grid-label">Number of starting cars</label>
                 <input
                   type="number"
-                  min={0}
+                  min={1}
                   max={42}
                   value={numStartingCars}
                   onChange={e =>
-                    set("numStartingCars", Math.max(0, Math.min(42, parseInt(e.target.value) || 0)))
+                    set("numStartingCars", Math.max(1, Math.min(42, parseInt(e.target.value) || 1)))
                   }
-                  className="co-number-input"
+                  className="co-number-input co-starting-stepper"
                 />
               </div>
 
-              <div className="co-field-row" style={{ marginTop: "1rem" }}>
-                <label className="co-field-label">Starting cars eligibility pool</label>
+              <div className="co-starting-grid-row">
+                <label className="co-checkbox-row co-starting-grid-label">
+                  <input
+                    type="checkbox"
+                    checked={enableStartingCarsPool}
+                    onChange={e => set("enableStartingCarsPool", e.target.checked)}
+                  />
+                  <span>Starting Cars: Set Source Pool</span>
+                </label>
                 <select
                   value={startingCarsPool}
                   onChange={e => set("startingCarsPool", e.target.value)}
+                  disabled={!enableStartingCarsPool}
+                  className="co-starting-select"
                 >
                   {[...new Set(sourcePoolOptions.map(o => o.group))].map(group => (
                     <optgroup label={group} key={group}>
@@ -534,11 +561,20 @@ export default function CarOptionsTab({
                 </select>
               </div>
 
-              <div className="co-field-row">
-                <label className="co-field-label">Minimum car rating</label>
+              <div className="co-starting-grid-row">
+                <label className="co-checkbox-row co-starting-grid-label">
+                  <input
+                    type="checkbox"
+                    checked={enableStartingCarsRating}
+                    onChange={e => set("enableStartingCarsRating", e.target.checked)}
+                  />
+                  <span>Starting Cars: Set Rating</span>
+                </label>
                 <select
                   value={startingCarsRating}
                   onChange={e => set("startingCarsRating", e.target.value)}
+                  disabled={!enableStartingCarsRating}
+                  className="co-starting-select"
                 >
                   {RATINGS_LIST.map(o => (
                     <option key={o.val} value={o.val}>{o.label}</option>

@@ -233,6 +233,34 @@
   background: var(--bg-secondary);
 }
 
+.co-sub-panel .co-field-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.co-starting-grid-row {
+  display: grid;
+  grid-template-columns: 260px auto;
+  align-items: center;
+  justify-content: start;
+  gap: 0.4rem;
+}
+
+.co-starting-grid-label {
+  margin: 0;
+}
+
+.co-starting-stepper {
+  width: 50px;
+}
+
+.co-starting-select {
+  width: 220px;
+  max-width: 100%;
+}
+
 .co-sub-title {
   font-size: 0.9rem;
   font-weight: 600;
