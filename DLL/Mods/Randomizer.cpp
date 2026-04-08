@@ -375,13 +375,13 @@ void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
                 strncpy_s(physData->tcarboxFilename, 64, dummyPath.c_str(), _TRUNCATE);
             }
         }
+    }
 
-        // If the car is stock/dc and has statistics disabled, enable them
-        if (IsStockCar(carName)) {
-            car->statisticsEnabled = true;
-            if (physData != nullptr) {
-                physData->statistics = true;
-            }
+    // If the car is stock/dc and has statistics disabled, enable them
+    if (IsStockCar(carName)) {
+        car->statisticsEnabled = true;
+        if (physData != nullptr) {
+            physData->statistics = true;
         }
     }
 
