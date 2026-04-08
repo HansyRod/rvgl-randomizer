@@ -13,6 +13,120 @@ function makeDefaultSpec(ids) {
   }));
 }
 
+const RATING_IDS = ["0", "1", "2", "3", "4", "5"];
+
+function isNumericRating(v) {
+  return RATING_IDS.includes(String(v));
+}
+
+function getIncludedSlots(specState) {
+  if (!specState) return 0;
+  const stock = specState.includeStockCars === false ? 0 : (specState.stockCars?.length ?? STOCK_CARS.length);
+  const dc = specState.includeDcCars === false ? 0 : (specState.dcCars?.length ?? DC_CARS.length);
+  return stock + dc;
+}
+
+function countFixedRatings(specState, key) {
+  const out = { "0": 0, "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
+  if (!specState) return out;
+
+  const applyRows = (rows = []) => {
+    for (const row of rows) {
+      const val = row?.[key];
+      if (isNumericRating(val)) out[String(val)] += 1;
+    }
+  };
+
+  if (specState.includeStockCars !== false) applyRows(specState.stockCars);
+  if (specState.includeDcCars !== false) applyRows(specState.dcCars);
+  return out;
+}
+
+function normalizeDistributionMap(distMap, fixedCounts, totalSlots) {
+  const normalized = {};
+
+  for (const rid of RATING_IDS) {
+    const src = distMap?.[rid] ?? { enabled: false, min: 0, max: 42 };
+    let min = Math.max(0, Number(src.min) || 0);
+    min = Math.max(min, fixedCounts[rid] || 0);
+    let max = Math.max(0, Number(src.max) || 0);
+    if (max < min) max = min;
+    normalized[rid] = { enabled: !!src.enabled, min, max };
+  }
+
+  // Keep sum(min) within available slots by reducing only above fixed floors.
+  // Disabled rows should not consume budget unless the spec enforces fixed picks.
+  const minConstrainedRatings = RATING_IDS.filter(
+    rid => normalized[rid].enabled || (fixedCounts[rid] || 0) > 0
+  );
+  let minSum = minConstrainedRatings.reduce((s, rid) => s + normalized[rid].min, 0);
+  if (minSum > totalSlots) {
+    let overflow = minSum - totalSlots;
+    const reducible = [...minConstrainedRatings].sort(
+      (a, b) =>
+        (normalized[b].min - (fixedCounts[b] || 0)) -
+        (normalized[a].min - (fixedCounts[a] || 0))
+    );
+    for (const rid of reducible) {
+      if (overflow <= 0) break;
+      const floor = fixedCounts[rid] || 0;
+      const canDrop = Math.max(0, normalized[rid].min - floor);
+      const drop = Math.min(canDrop, overflow);
+      normalized[rid].min -= drop;
+      if (normalized[rid].max < normalized[rid].min) normalized[rid].max = normalized[rid].min;
+      overflow -= drop;
+    }
+  }
+
+  // If all ratings are enabled, max-sum must be able to cover all slots.
+  const allEnabled = RATING_IDS.every(rid => normalized[rid].enabled);
+  if (allEnabled) {
+    let maxSum = RATING_IDS.reduce((s, rid) => s + normalized[rid].max, 0);
+    if (maxSum < totalSlots) {
+      let missing = totalSlots - maxSum;
+      for (const rid of RATING_IDS) {
+        if (missing <= 0) break;
+        normalized[rid].max += missing;
+        missing = 0;
+      }
+    }
+  }
+
+  return normalized;
+}
+
+function resetFixedRatingsToRandom(specState, key, rid, keepCount) {
+  if (!specState) return specState;
+
+  const clone = {
+    ...specState,
+    stockCars: [...(specState.stockCars || [])],
+    dcCars: [...(specState.dcCars || [])],
+  };
+
+  // Prefer preserving earlier slots; revert from the end.
+  const buckets = [];
+  if (clone.includeDcCars !== false) {
+    for (let i = clone.dcCars.length - 1; i >= 0; i -= 1) {
+      if (String(clone.dcCars[i]?.[key]) === rid) buckets.push({ cat: "dcCars", i });
+    }
+  }
+  if (clone.includeStockCars !== false) {
+    for (let i = clone.stockCars.length - 1; i >= 0; i -= 1) {
+      if (String(clone.stockCars[i]?.[key]) === rid) buckets.push({ cat: "stockCars", i });
+    }
+  }
+
+  let toReset = Math.max(0, buckets.length - keepCount);
+  for (const b of buckets) {
+    if (toReset <= 0) break;
+    clone[b.cat][b.i] = { ...clone[b.cat][b.i], [key]: "Random" };
+    toReset -= 1;
+  }
+
+  return clone;
+}
+
 export default function CarOptionsTab({ 
   scanResult, 
   specState, 
@@ -134,6 +248,27 @@ export default function CarOptionsTab({
     setSpecState({ stockCars: newStockCars, dcCars: newDcCars });
   }, [carOptions]); // Sync whenever options change
 
+  // Keep distribution maps valid and aligned with fixed ratings from spec tabs.
+  useEffect(() => {
+    if (!specState) return;
+    const totalSlots = getIncludedSlots(specState);
+    const sourceFixed = countFixedRatings(specState, "sourceRating");
+    const attrFixed = countFixedRatings(specState, "attrRating");
+
+    const nextPool = normalizeDistributionMap(carOptions.poolRatingDistributions, sourceFixed, totalSlots);
+    const nextAttr = normalizeDistributionMap(carOptions.attrRatingDistributions, attrFixed, totalSlots);
+
+    const poolChanged = JSON.stringify(nextPool) !== JSON.stringify(carOptions.poolRatingDistributions);
+    const attrChanged = JSON.stringify(nextAttr) !== JSON.stringify(carOptions.attrRatingDistributions);
+    if (poolChanged || attrChanged) {
+      setCarOptions(prev => ({
+        ...prev,
+        poolRatingDistributions: poolChanged ? nextPool : prev.poolRatingDistributions,
+        attrRatingDistributions: attrChanged ? nextAttr : prev.attrRatingDistributions,
+      }));
+    }
+  }, [specState, carOptions.poolRatingDistributions, carOptions.attrRatingDistributions, setCarOptions]);
+
   const availableCars = useMemo(() => {
     if (!scanResult) return [];
     let cars = [];
@@ -212,13 +347,42 @@ export default function CarOptionsTab({
 
   const updateDist = (type, ratingId, field, value) => {
     const key = type === "pool" ? "poolRatingDistributions" : "attrRatingDistributions";
-    setCarOptions(prev => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        [ratingId]: { ...prev[key][ratingId], [field]: value }
+    const specKey = type === "pool" ? "sourceRating" : "attrRating";
+    const rid = String(ratingId);
+    const normalizedValue = field === "enabled"
+      ? !!value
+      : Math.max(0, Number(value) || 0);
+
+    // If user lowers "min" below fixed amount from spec tabs, release extras back to Random.
+    if (field === "min" && specState && isNumericRating(rid)) {
+      const fixed = countFixedRatings(specState, specKey)[rid] || 0;
+      if (normalizedValue < fixed) {
+        const nextSpec = resetFixedRatingsToRandom(specState, specKey, rid, normalizedValue);
+        setSpecState(nextSpec);
       }
-    }));
+    }
+
+    setCarOptions(prev => {
+      const current = prev[key]?.[rid] ?? { enabled: false, min: 0, max: 42 };
+      const nextEntry = { ...current, [field]: normalizedValue };
+
+      // Symmetric behavior with min/max coupling:
+      // - raising min above max lowers max (handled by normalizer)
+      // - lowering max below min should lower min immediately.
+      if (field === "max" && nextEntry.max < nextEntry.min) {
+        nextEntry.min = nextEntry.max;
+      }
+
+      const rawMap = {
+        ...prev[key],
+        [rid]: nextEntry
+      };
+      const basisSpec = specState;
+      const totalSlots = getIncludedSlots(basisSpec);
+      const fixed = countFixedRatings(basisSpec, specKey);
+      const normalized = normalizeDistributionMap(rawMap, fixed, totalSlots);
+      return { ...prev, [key]: normalized };
+    });
   };
 
   const showAllowedMethods = (unlockMode === "random" || unlockMode === "randomUnlock");

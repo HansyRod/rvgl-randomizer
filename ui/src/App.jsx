@@ -302,6 +302,7 @@ export default function App() {
                <GenerationTab 
                  scanResult={scanResult}
                  specState={carsSpecState}
+                 carOptions={carOptions}
                  generatedFilePath={generatedFilePath}
                  setGeneratedFilePath={setGeneratedFilePath}
                  instanceName={instanceName}

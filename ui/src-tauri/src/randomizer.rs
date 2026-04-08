@@ -26,6 +26,14 @@ pub struct CarsSpecState {
     pub dc_cars: Vec<CarSpec>,
 }
 
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RatingDist {
+    pub enabled: bool,
+    pub min: usize,
+    pub max: usize,
+}
+
 /// High-level options from the Car Options tab.
 /// All fields are optional so older JSON payloads remain compatible.
 #[derive(Deserialize, Debug, Clone)]
@@ -43,11 +51,18 @@ pub struct CarOptionsInput {
     pub include_cheat_only: bool,
     #[serde(default)]
     pub include_stunt_arena: bool,
+    #[serde(default = "default_true")]
+    pub include_super_pro: bool,
+    #[serde(default)]
+    pub pool_rating_distributions: std::collections::HashMap<String, RatingDist>,
+    #[serde(default)]
+    pub attr_rating_distributions: std::collections::HashMap<String, RatingDist>,
 }
 
 fn default_unlock_mode() -> String { "random".to_string() }
 fn default_pool()        -> String { "Full Random".to_string() }
 fn default_random()      -> String { "Random".to_string() }
+fn default_true()        -> bool   { true }
 
 // ============================================================================
 // Output types — match ConfigData / ConfigManager.cpp field names exactly
@@ -120,6 +135,14 @@ impl Rng {
         let range = (hi - lo + 1) as usize;
         lo + self.next_usize(range) as i32
     }
+
+    /// Shuffles a vector in place
+    fn shuffle<T>(&mut self, data: &mut [T]) {
+        for i in (1..data.len()).rev() {
+            let j = self.next_usize(i + 1);
+            data.swap(i, j);
+        }
+    }
 }
 
 // ============================================================================
@@ -154,6 +177,15 @@ fn collect_available_cars(scan: &ScanResult) -> Vec<Car> {
         }
     }
     out
+}
+
+fn is_specific_car_pool(pool: &str) -> bool {
+    !pool.is_empty()
+        && pool != "Full Random"
+        && pool != "Stock"
+        && pool != "DC"
+        && pool != "Custom"
+        && !pool.starts_with("Pack:")
 }
 
 /// For a given CarSpec, return the subset of `all_cars` that satisfies the
@@ -198,12 +230,7 @@ fn candidate_set<'a>(
     };
 
     // specific car — skip further filters
-    let is_specific = !spec.source_pool.is_empty()
-        && spec.source_pool != "Full Random"
-        && spec.source_pool != "Stock"
-        && spec.source_pool != "DC"
-        && spec.source_pool != "Custom"
-        && !spec.source_pool.starts_with("Pack:");
+    let is_specific = is_specific_car_pool(&spec.source_pool);
 
     // --- Step 2: Rating filter (only when pool is not a specific car) ---
     let rating_filtered: Vec<&Car> = if is_specific {
@@ -228,33 +255,45 @@ fn candidate_set<'a>(
     }
 }
 
+/// Build candidates using only source_pool (ignores rating/obtain filters).
+fn candidate_set_pool_only<'a>(
+    spec: &CarSpec,
+    all_cars: &'a [Car],
+    scan: &ScanResult,
+) -> Vec<&'a Car> {
+    let mut pool_only = spec.clone();
+    pool_only.source_rating = "Random".to_string();
+    pool_only.source_obtain = "Random".to_string();
+    candidate_set(&pool_only, all_cars, scan)
+}
+
 // ============================================================================
 // Core slot resolver (fewest-candidates-first)
 // ============================================================================
 
-struct SlotWork<'a> {
+struct SlotWork {
     category: &'static str, // "stock" | "dc"
     index: usize,
-    spec: &'a CarSpec,
+    spec: CarSpec, // We'll use a modified spec with resolved ratings
 }
 
-fn resolve_car_list<'a>(
-    specs_stock: &'a [CarSpec],
-    specs_dc: &'a [CarSpec],
-    all_cars: &'a [Car],
+fn resolve_car_list(
+    specs_stock: &[CarSpec],
+    specs_dc: &[CarSpec],
+    all_cars: &[Car],
     scan: &ScanResult,
     rng: &mut Rng,
-) -> (Vec<Option<&'a Car>>, Vec<Option<&'a Car>>) {
-    // Build work items with candidate counts
-    let mut work: Vec<(SlotWork<'a>, usize)> = Vec::new();
+) -> (Vec<Option<Car>>, Vec<Option<Car>>) {
+    // Build work items with current candidate counts
+    let mut work: Vec<(SlotWork, usize)> = Vec::new();
 
     for (i, spec) in specs_stock.iter().enumerate() {
         let count = candidate_set(spec, all_cars, scan).len();
-        work.push((SlotWork { category: "stock", index: i, spec }, count));
+        work.push((SlotWork { category: "stock", index: i, spec: spec.clone() }, count));
     }
     for (i, spec) in specs_dc.iter().enumerate() {
         let count = candidate_set(spec, all_cars, scan).len();
-        work.push((SlotWork { category: "dc", index: i, spec }, count));
+        work.push((SlotWork { category: "dc", index: i, spec: spec.clone() }, count));
     }
 
     // Sort: fewest candidates first, stable (keeps original order within same count)
@@ -262,33 +301,38 @@ fn resolve_car_list<'a>(
 
     // Resolve slots
     let mut used_folders: HashSet<String> = HashSet::new();
-    let mut stock_results: Vec<Option<&Car>> = vec![None; specs_stock.len()];
-    let mut dc_results: Vec<Option<&Car>> = vec![None; specs_dc.len()];
+    let mut stock_results: Vec<Option<Car>> = vec![None; specs_stock.len()];
+    let mut dc_results: Vec<Option<Car>> = vec![None; specs_dc.len()];
 
     for (slot, _) in &work {
-        let candidates = candidate_set(slot.spec, all_cars, scan);
-
+        let candidates = candidate_set(&slot.spec, all_cars, scan);
         // Prefer unused cars
         let unused: Vec<&&Car> = candidates.iter().filter(|c| !used_folders.contains(&c.folder_name)).collect();
 
-        let chosen: Option<&Car> = if !unused.is_empty() {
+        let chosen: Option<Car> = if !unused.is_empty() {
             let idx = rng.next_usize(unused.len());
-            Some(unused[idx])
+            Some((*unused[idx]).clone())
         } else if !candidates.is_empty() {
             // Fallback: allow duplicate
             let idx = rng.next_usize(candidates.len());
-            Some(candidates[idx])
+            Some((*candidates[idx]).clone())
         } else {
-            // No candidates at all — pick from entire pool as last resort
-            if !all_cars.is_empty() {
+            // No candidates after full filter set:
+            // 1) relax rating/obtain but keep source pool constraints.
+            // 2) if still empty, pick from all cars as last resort.
+            let relaxed = candidate_set_pool_only(&slot.spec, all_cars, scan);
+            if !relaxed.is_empty() {
+                let idx = rng.next_usize(relaxed.len());
+                Some((*relaxed[idx]).clone())
+            } else if !all_cars.is_empty() {
                 let idx = rng.next_usize(all_cars.len());
-                Some(&all_cars[idx])
+                Some(all_cars[idx].clone())
             } else {
                 None
             }
         };
 
-        if let Some(car) = chosen {
+        if let Some(car) = &chosen {
             used_folders.insert(car.folder_name.clone());
         }
 
@@ -306,10 +350,13 @@ fn resolve_car_list<'a>(
 // Attribute resolution
 // ============================================================================
 
-fn resolve_rating(attr: &str, scanned: i32, rng: &mut Rng) -> i32 {
+fn resolve_rating(attr: &str, scanned: i32, rng: &mut Rng, include_super_pro: bool) -> i32 {
     match attr {
         "Unchanged" => scanned,
-        "Random" => rng.next_i32(0, 5),
+        "Random" => {
+            let max_r = if include_super_pro { 5 } else { 4 };
+            rng.next_i32(0, max_r)
+        }
         other => other.parse::<i32>().unwrap_or(scanned),
     }
 }
@@ -338,11 +385,113 @@ fn resolve_obtain(attr: &str, scanned: i32, rng: &mut Rng, car_options: &CarOpti
 fn build_randomized_car(car: &Car, spec: &CarSpec, rng: &mut Rng, car_options: &CarOptionsInput) -> RandomizedCar {
     RandomizedCar {
         folder: car.folder_name.clone(),
-        rating: resolve_rating(&spec.attr_rating, car.rating, rng),
-        obtain:           resolve_obtain(&spec.attr_obtain, car.obtain_method, rng, car_options),
+        rating: resolve_rating(&spec.attr_rating, car.rating, rng, car_options.include_super_pro),
+        obtain: resolve_obtain(&spec.attr_obtain, car.obtain_method, rng, car_options),
         selectable_player: true,
         selectable_cpu: true,
     }
+}
+
+// ============================================================================
+// Global Distribution Allocator
+// ============================================================================
+
+fn allocate_ratings(
+    count: usize,
+    distributions: &std::collections::HashMap<String, RatingDist>,
+    include_super_pro: bool,
+    rng: &mut Rng,
+) -> Vec<i32> {
+    let mut result = Vec::with_capacity(count);
+    if count == 0 { return result; }
+
+    // Enabled rows are treated as the explicit allowed set.
+    // If nothing is enabled, fall back to the default full range (0..4 or 0..5).
+    let mut enabled_indices: Vec<usize> = (0..=5)
+        .filter(|&i| distributions.get(&i.to_string()).map(|d| d.enabled).unwrap_or(false))
+        .collect();
+    if !include_super_pro {
+        enabled_indices.retain(|&i| i != 5);
+    }
+
+    let has_explicit_enabled = !enabled_indices.is_empty();
+    let allowed_indices: Vec<usize> = if has_explicit_enabled {
+        enabled_indices
+    } else {
+        let mut base: Vec<usize> = (0..=5).collect();
+        if !include_super_pro {
+            base.retain(|&i| i != 5);
+        }
+        base
+    };
+
+    if allowed_indices.is_empty() {
+        return result;
+    }
+
+    let mut remaining = count;
+    let mut counts = vec![0; 6]; // 0..5
+
+    // 1. Assign minimums
+    for &i in &allowed_indices {
+        if let Some(dist) = distributions.get(&i.to_string()) {
+            let max_cap = dist.max;
+            let m = dist.min.min(max_cap).min(remaining);
+            counts[i] = m;
+            remaining -= m;
+        }
+    }
+
+    // 2. Distribute remaining
+    if remaining > 0 {
+        // Simple random distribution respecting max
+        while remaining > 0 {
+            // Filter to only those that can still accept more
+            let candidates: Vec<usize> = allowed_indices
+                .iter()
+                .cloned()
+                .filter(|&i| {
+                    if has_explicit_enabled {
+                        let dist = distributions.get(&i.to_string());
+                        if let Some(d) = dist {
+                            return counts[i] < d.max;
+                        }
+                        return false;
+                    }
+                    if let Some(d) = distributions.get(&i.to_string()) {
+                        if d.enabled {
+                            return counts[i] < d.max;
+                        }
+                    }
+                    true
+                })
+                .collect();
+
+            if candidates.is_empty() { break; } // Safety break
+
+            let idx = candidates[rng.next_usize(candidates.len())];
+            counts[idx] += 1;
+            remaining -= 1;
+        }
+    }
+
+    // 3. Build the flat list
+    for (i, &c) in counts.iter().enumerate() {
+        for _ in 0..c {
+            result.push(i as i32);
+        }
+    }
+    
+    // 4. If we still have slots left (e.g. explicit maxes too low), keep choices
+    // inside the already-allowed rating set.
+    while result.len() < count {
+        let ridx = rng.next_usize(allowed_indices.len());
+        let r = allowed_indices[ridx] as i32;
+        result.push(r);
+    }
+
+    rng.shuffle(&mut result);
+    result
 }
 
 // ============================================================================
@@ -367,6 +516,9 @@ pub fn generate_result(
         starting_cars_rating: default_random(),
         include_cheat_only:   false,
         include_stunt_arena:  false,
+        include_super_pro:    default_true(),
+        pool_rating_distributions: std::collections::HashMap::new(),
+        attr_rating_distributions: std::collections::HashMap::new(),
     });
 
     let all_cars = collect_available_cars(&scan_result);
@@ -374,33 +526,102 @@ pub fn generate_result(
         return Err("No valid cars found in scan result. Cannot generate.".to_string());
     }
 
+    // 1. Prepare specs with resolved pool distributions
+    let mut final_specs_stock = spec_state.stock_cars.clone();
+    let mut final_specs_dc = spec_state.dc_cars.clone();
+
+    // Identify slots that need a random pool rating.
+    // Distribution constraints are global across stock + DC.
+    let flexible_stock_indices: Vec<usize> = final_specs_stock.iter().enumerate()
+        .filter(|(_, s)| s.source_rating == "Random" && !is_specific_car_pool(&s.source_pool))
+        .map(|(i, _)| i).collect();
+    let flexible_dc_indices: Vec<usize> = final_specs_dc.iter().enumerate()
+        .filter(|(_, s)| s.source_rating == "Random" && !is_specific_car_pool(&s.source_pool))
+        .map(|(i, _)| i).collect();
+
+    // Allocate source ratings (Pool Distribution) globally.
+    let total_flexible = flexible_stock_indices.len() + flexible_dc_indices.len();
+    let pool_ratings_all = allocate_ratings(
+        total_flexible,
+        &opts.pool_rating_distributions,
+        opts.include_super_pro,
+        &mut rng,
+    );
+
+    let mut pr_iter = pool_ratings_all.into_iter();
+    for i in &flexible_stock_indices {
+        if let Some(r) = pr_iter.next() {
+            final_specs_stock[*i].source_rating = r.to_string();
+        }
+    }
+    for i in &flexible_dc_indices {
+        if let Some(r) = pr_iter.next() {
+            final_specs_dc[*i].source_rating = r.to_string();
+        }
+    }
+
     // 2. Resolve car list (constrained slots first)
     let (stock_resolved, dc_resolved) = resolve_car_list(
-        &spec_state.stock_cars,
-        &spec_state.dc_cars,
+        &final_specs_stock,
+        &final_specs_dc,
         &all_cars,
         &scan_result,
         &mut rng,
     );
 
-    // 3. Populate attributes for each resolved car
-    let stock_cars: Vec<RandomizedCar> = spec_state
-        .stock_cars
-        .iter()
-        .enumerate()
-        .filter_map(|(i, spec)| {
-            stock_resolved[i].map(|car| build_randomized_car(car, spec, &mut rng, &opts))
-        })
-        .collect();
+    // 3. Resolve attribute distributions
 
-    let dc_cars: Vec<RandomizedCar> = spec_state
-        .dc_cars
-        .iter()
-        .enumerate()
-        .filter_map(|(i, spec)| {
-            dc_resolved[i].map(|car| build_randomized_car(car, spec, &mut rng, &opts))
-        })
-        .collect();
+    // We need to resolve attr ratings globally for those marked "Random"
+    let random_attr_stock_indices: Vec<usize> = final_specs_stock.iter().enumerate()
+        .filter(|(_, s)| s.attr_rating == "Random").map(|(i, _)| i).collect();
+    let random_attr_dc_indices: Vec<usize> = final_specs_dc.iter().enumerate()
+        .filter(|(_, s)| s.attr_rating == "Random").map(|(i, _)| i).collect();
+
+    // Attribute rating distributions are also global across stock + DC.
+    let total_random_attr = random_attr_stock_indices.len() + random_attr_dc_indices.len();
+    let allocated_attr_all = allocate_ratings(
+        total_random_attr,
+        &opts.attr_rating_distributions,
+        opts.include_super_pro,
+        &mut rng,
+    );
+
+    let mut ar_iter = allocated_attr_all.into_iter();
+    let mut attr_stock_map: std::collections::HashMap<usize, i32> = std::collections::HashMap::new();
+    for i in &random_attr_stock_indices {
+        if let Some(r) = ar_iter.next() {
+            attr_stock_map.insert(*i, r);
+        }
+    }
+    let mut attr_dc_map: std::collections::HashMap<usize, i32> = std::collections::HashMap::new();
+    for i in &random_attr_dc_indices {
+        if let Some(r) = ar_iter.next() {
+            attr_dc_map.insert(*i, r);
+        }
+    }
+
+    // Build the final RandomizedCar list
+    let mut stock_cars = Vec::new();
+    for i in 0..final_specs_stock.len() {
+        if let Some(car) = &stock_resolved[i] {
+            let mut spec = final_specs_stock[i].clone();
+            if let Some(&r) = attr_stock_map.get(&i) {
+                spec.attr_rating = r.to_string();
+            }
+            stock_cars.push(build_randomized_car(car, &spec, &mut rng, &opts));
+        }
+    }
+
+    let mut dc_cars = Vec::new();
+    for i in 0..final_specs_dc.len() {
+        if let Some(car) = &dc_resolved[i] {
+            let mut spec = final_specs_dc[i].clone();
+            if let Some(&r) = attr_dc_map.get(&i) {
+                spec.attr_rating = r.to_string();
+            }
+            dc_cars.push(build_randomized_car(car, &spec, &mut rng, &opts));
+        }
+    }
 
     // 4. Build the output structure
     let config = ConfigData {
