@@ -6,6 +6,8 @@ export default function GenerationTab({
   scanResult, 
   specState, 
   carOptions,
+  trackSpecState,
+  trackOptions,
   generatedFilePath, 
   setGeneratedFilePath,
   instanceName,
@@ -20,8 +22,8 @@ export default function GenerationTab({
       return;
     }
 
-    if (!scanResult || !specState) {
-      setMessage("Missing scan result or car configuration.");
+    if (!scanResult || !specState || !trackSpecState) {
+      setMessage("Missing scan result or randomization configuration.");
       return;
     }
 
@@ -35,11 +37,17 @@ export default function GenerationTab({
         stockCars: specState.includeStockCars === false ? [] : specState.stockCars,
         dcCars: specState.includeDcCars === false ? [] : specState.dcCars
       };
+      const filteredTrackSpecState = {
+        ...trackSpecState,
+        tracks: trackSpecState.includeTracks === false ? [] : trackSpecState.tracks
+      };
 
       const outPath = await invoke("generate_result", {
         scanResult,
         specState: filteredSpecState,
         carOptions: carOptions ?? null,
+        trackSpecState: filteredTrackSpecState,
+        trackOptions: trackOptions ?? null,
         fileName: instanceName.trim()
       });
       

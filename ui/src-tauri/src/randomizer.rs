@@ -1,4 +1,4 @@
-use crate::scanner::{Car, Pool, ScanResult};
+use crate::scanner::{Car, Pool, ScanResult, Track};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
@@ -24,6 +24,25 @@ pub struct CarSpec {
 pub struct CarsSpecState {
     pub stock_cars: Vec<CarSpec>,
     pub dc_cars: Vec<CarSpec>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TrackSpec {
+    pub id: String,
+    pub source_pool: String,       // "Full Random", "Stock", "Custom", "Pack:X", or folder
+    pub source_difficulty: String, // "Random" or "1".."4"
+    pub attr_difficulty: String,   // "Random", "Unchanged", or "1".."4"
+    pub attr_obtain: String,       // "Random" or "-1".."5"
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TrackSpecState {
+    #[serde(default = "default_true")]
+    pub include_tracks: bool,
+    #[serde(default)]
+    pub tracks: Vec<TrackSpec>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -59,7 +78,23 @@ pub struct CarOptionsInput {
     pub attr_rating_distributions: std::collections::HashMap<String, RatingDist>,
 }
 
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TrackOptionsInput {
+    #[serde(default = "default_track_unlock_mode")]
+    pub unlock_mode: String, // random | randomUnlock | randomDifficulty | unchanged | baseGame
+    #[serde(default = "default_true")]
+    pub enable_random_obtain_methods: bool,
+    #[serde(default)]
+    pub include_cheat_only: bool,
+    #[serde(default)]
+    pub include_unlocked_by_default: bool,
+    #[serde(default)]
+    pub include_stunt_arena: bool,
+}
+
 fn default_unlock_mode() -> String { "random".to_string() }
+fn default_track_unlock_mode() -> String { "random".to_string() }
 fn default_pool()        -> String { "Full Random".to_string() }
 fn default_random()      -> String { "Random".to_string() }
 fn default_true()        -> bool   { true }
@@ -75,6 +110,13 @@ pub struct RandomizedCar {
     pub obtain: i32,
     pub selectable_player: bool,
     pub selectable_cpu: bool,
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct RandomizedTrack {
+    pub folder: String,
+    pub difficulty: i32,
+    pub obtain: i32,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -98,7 +140,7 @@ pub struct ConfigData {
     pub stock_cars: Vec<RandomizedCar>,
     #[serde(rename = "dcCars")]
     pub dc_cars: Vec<RandomizedCar>,
-    pub tracks: Vec<serde_json::Value>,
+    pub tracks: Vec<RandomizedTrack>,
     pub cups: Vec<serde_json::Value>,
 }
 
@@ -177,6 +219,153 @@ fn collect_available_cars(scan: &ScanResult) -> Vec<Car> {
         }
     }
     out
+}
+
+fn is_stock_track_folder(folder: &str) -> bool {
+    matches!(
+        folder.to_ascii_lowercase().as_str(),
+        "nhood1" | "market2" | "muse2" | "garden1" | "roof" | "toylite" | "wild_west1" |
+        "toy2" | "nhood2" | "ship1" | "muse1" | "market1" | "wild_west2" | "ship2"
+    )
+}
+
+fn collect_available_tracks(scan: &ScanResult) -> Vec<Track> {
+    let mut out = Vec::new();
+    match &scan.install_type {
+        crate::scanner::InstallType::Classic => {
+            if let Some(tracks) = &scan.tracks {
+                for t in tracks {
+                    if t.has_valid_file && t.track_type == 0 {
+                        out.push(t.clone());
+                    }
+                }
+            }
+        }
+        crate::scanner::InstallType::Launcher => {
+            if let Some(packs) = &scan.content_packs {
+                for pack in packs {
+                    if pack.use_tracks {
+                        for t in &pack.tracks {
+                            if t.has_valid_file && t.track_type == 0 {
+                                out.push(t.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+fn track_candidate_set<'a>(spec: &TrackSpec, all_tracks: &'a [Track], scan: &ScanResult) -> Vec<&'a Track> {
+    let pool_filtered: Vec<&Track> = if spec.source_pool == "Full Random" {
+        all_tracks.iter().collect()
+    } else if spec.source_pool == "Stock" {
+        all_tracks.iter().filter(|t| is_stock_track_folder(&t.folder_name)).collect()
+    } else if spec.source_pool == "Custom" {
+        all_tracks.iter().filter(|t| !is_stock_track_folder(&t.folder_name)).collect()
+    } else if spec.source_pool.starts_with("Pack:") {
+        let pack_name = &spec.source_pool["Pack:".len()..];
+        if let Some(packs) = &scan.content_packs {
+            if let Some(pack) = packs.iter().find(|p| p.name == pack_name) {
+                let folders: HashSet<&str> = pack.tracks.iter().map(|t| t.folder_name.as_str()).collect();
+                all_tracks.iter().filter(|t| folders.contains(t.folder_name.as_str())).collect()
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
+        }
+    } else {
+        all_tracks
+            .iter()
+            .filter(|t| t.folder_name.eq_ignore_ascii_case(&spec.source_pool))
+            .collect()
+    };
+
+    let is_specific =
+        spec.source_pool != "Full Random" &&
+        spec.source_pool != "Stock" &&
+        spec.source_pool != "Custom" &&
+        !spec.source_pool.starts_with("Pack:");
+
+    if is_specific || spec.source_difficulty == "Random" {
+        pool_filtered
+    } else if let Ok(d) = spec.source_difficulty.parse::<i32>() {
+        pool_filtered.into_iter().filter(|t| t.difficulty == d).collect()
+    } else {
+        pool_filtered
+    }
+}
+
+fn resolve_track_list(
+    specs: &[TrackSpec],
+    all_tracks: &[Track],
+    scan: &ScanResult,
+    rng: &mut Rng,
+) -> Vec<Option<Track>> {
+    let mut indexed: Vec<(usize, usize)> = specs.iter().enumerate()
+        .map(|(i, s)| (i, track_candidate_set(s, all_tracks, scan).len()))
+        .collect();
+    indexed.sort_by_key(|(_, count)| *count);
+
+    let mut used: HashSet<String> = HashSet::new();
+    let mut out = vec![None; specs.len()];
+
+    for (idx, _) in indexed {
+        let candidates = track_candidate_set(&specs[idx], all_tracks, scan);
+        let unused: Vec<&&Track> = candidates.iter().filter(|t| !used.contains(&t.folder_name)).collect();
+        let chosen = if !unused.is_empty() {
+            let i = rng.next_usize(unused.len());
+            Some((*unused[i]).clone())
+        } else if !candidates.is_empty() {
+            let i = rng.next_usize(candidates.len());
+            Some((*candidates[i]).clone())
+        } else if !all_tracks.is_empty() {
+            let i = rng.next_usize(all_tracks.len());
+            Some(all_tracks[i].clone())
+        } else {
+            None
+        };
+        if let Some(track) = &chosen {
+            used.insert(track.folder_name.clone());
+        }
+        out[idx] = chosen;
+    }
+    out
+}
+
+fn resolve_track_difficulty(attr: &str, scanned: i32, slot_index: usize, mode: &str, rng: &mut Rng) -> i32 {
+    if mode == "baseGame" {
+        if slot_index < 4 { 1 } else if slot_index < 8 { 2 } else if slot_index < 11 { 3 } else { 4 }
+    } else if mode == "randomUnlock" || mode == "unchanged" {
+        scanned
+    } else {
+        match attr {
+            "Unchanged" => scanned,
+            "Random" => rng.next_i32(1, 4),
+            other => other.parse::<i32>().unwrap_or(scanned),
+        }
+    }
+}
+
+fn resolve_track_obtain(attr: &str, mode: &str, opts: &TrackOptionsInput, rng: &mut Rng) -> i32 {
+    if mode == "randomDifficulty" || mode == "unchanged" || mode == "baseGame" {
+        1
+    } else if attr == "Random" {
+        if !opts.enable_random_obtain_methods {
+            return 1;
+        }
+        let mut allowed = vec![1, 2, 3, 4];
+        if opts.include_cheat_only { allowed.push(-1); }
+        if opts.include_unlocked_by_default { allowed.push(0); }
+        if opts.include_stunt_arena { allowed.push(5); }
+        let i = rng.next_usize(allowed.len());
+        allowed[i]
+    } else {
+        attr.parse::<i32>().unwrap_or(1)
+    }
 }
 
 fn is_specific_car_pool(pool: &str) -> bool {
@@ -504,6 +693,8 @@ pub fn generate_result(
     scan_result: ScanResult,
     spec_state: CarsSpecState,
     car_options: Option<CarOptionsInput>,
+    track_spec_state: TrackSpecState,
+    track_options: Option<TrackOptionsInput>,
     file_name: String,
 ) -> Result<String, String> {
     let mut rng = Rng::new();
@@ -519,6 +710,13 @@ pub fn generate_result(
         include_super_pro:    default_true(),
         pool_rating_distributions: std::collections::HashMap::new(),
         attr_rating_distributions: std::collections::HashMap::new(),
+    });
+    let track_opts = track_options.unwrap_or_else(|| TrackOptionsInput {
+        unlock_mode: default_track_unlock_mode(),
+        enable_random_obtain_methods: true,
+        include_cheat_only: false,
+        include_unlocked_by_default: false,
+        include_stunt_arena: false,
     });
 
     let all_cars = collect_available_cars(&scan_result);
@@ -623,6 +821,33 @@ pub fn generate_result(
         }
     }
 
+    let mut tracks = Vec::new();
+    if track_spec_state.include_tracks && !track_spec_state.tracks.is_empty() {
+        let all_tracks = collect_available_tracks(&scan_result);
+        let resolved_tracks = resolve_track_list(&track_spec_state.tracks, &all_tracks, &scan_result, &mut rng);
+        for i in 0..track_spec_state.tracks.len() {
+            if let Some(track) = &resolved_tracks[i] {
+                let spec = &track_spec_state.tracks[i];
+                tracks.push(RandomizedTrack {
+                    folder: track.folder_name.clone(),
+                    difficulty: resolve_track_difficulty(
+                        &spec.attr_difficulty,
+                        track.difficulty,
+                        i,
+                        &track_opts.unlock_mode,
+                        &mut rng,
+                    ),
+                    obtain: resolve_track_obtain(
+                        &spec.attr_obtain,
+                        &track_opts.unlock_mode,
+                        &track_opts,
+                        &mut rng,
+                    ),
+                });
+            }
+        }
+    }
+
     // 4. Build the output structure
     let config = ConfigData {
         metadata: ConfigMetadata {
@@ -636,7 +861,7 @@ pub fn generate_result(
         },
         stock_cars,
         dc_cars,
-        tracks: vec![],
+        tracks,
         cups: vec![],
     };
 
