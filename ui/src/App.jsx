@@ -15,13 +15,30 @@ import LaunchTab from "./components/LaunchTab";
 import "./App.css";
 
 export const DEFAULT_CAR_OPTIONS = {
-  unlockMode: "random",       // "random" | "unchanged" | "baseGame"
+  unlockMode: "random",       // "random" | "unchanged" | "baseGame" | "randomRatings" | "randomUnlock"
   enableStartingCars: false,
   numStartingCars: 0,
   startingCarsPool: "Full Random",
   startingCarsRating: "Random",
   includeCheatOnly: false,
   includeStuntArena: false,
+  includeSuperPro: true,
+  poolRatingDistributions: {
+    "0": { enabled: false, min: 0, max: 42 },
+    "1": { enabled: false, min: 0, max: 42 },
+    "2": { enabled: false, min: 0, max: 42 },
+    "3": { enabled: false, min: 0, max: 42 },
+    "4": { enabled: false, min: 0, max: 42 },
+    "5": { enabled: false, min: 0, max: 42 },
+  },
+  attrRatingDistributions: {
+    "0": { enabled: false, min: 0, max: 42 },
+    "1": { enabled: false, min: 0, max: 42 },
+    "2": { enabled: false, min: 0, max: 42 },
+    "3": { enabled: false, min: 0, max: 42 },
+    "4": { enabled: false, min: 0, max: 42 },
+    "5": { enabled: false, min: 0, max: 42 },
+  },
 };
 
 export default function App() {

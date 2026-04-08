@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import "./CarOptionsTab.css";
-import { STOCK_CARS, DC_CARS, RATINGS_LIST } from "../utils/constants";
+import { STOCK_CARS, DC_CARS, RATINGS_LIST, CAR_RATINGS } from "../utils/constants";
 
 function makeDefaultSpec(ids) {
   return ids.map(id => ({
@@ -59,18 +59,39 @@ export default function CarOptionsTab({
           else out.attrObtain = "4"; // Single Race
         }
       } else {
-        // Full Random
-        out.attrObtain = "Random";
-        out.attrRating = "Random";
+        // random, randomRatings, randomUnlock
+        if (unlockMode === "random") {
+          out.attrObtain = "Random";
+          out.attrRating = "Random";
+        } else if (unlockMode === "randomRatings") {
+          out.attrObtain = "Unchanged";
+          out.attrRating = "Random";
+        } else {
+          // randomUnlock
+          out.attrObtain = "Random";
+          out.attrRating = "Unchanged";
+        }
 
-        // Starting-car overrides (only in Full Random)
-        if (enableStartingCars && numStartingCars > 0 && i < numStartingCars) {
-          out.sourcePool   = startingCarsPool;
-          out.sourceRating = startingCarsRating;
-          out.attrObtain   = "0"; // Force "Starting Car"
-          out.attrRating   = "0"; // Force "Rookie" for starting cars? 
-          // User said: "resists the remaining slots so they cannot be assigned Starting Car or the Rookie class."
-          // But I'll stick to the "Forces first N to have Starting Car" rule.
+        // Starting-car overrides (only in modes that allow randomizing unlock)
+        const canRandomUnlock = (unlockMode === "random" || unlockMode === "randomUnlock");
+        if (canRandomUnlock && enableStartingCars && numStartingCars > 0 && i < numStartingCars) {
+          out.sourcePool    = startingCarsPool;
+          out.sourceRating  = startingCarsRating;
+          out.attrObtain    = "0"; // Force "Starting Car"
+          
+          // If startingCarsRating is NOT "Random", we should align the pool filter in the backend.
+          // But should we also force the final rating? 
+          // User said: "If a rating is chosen there, it should follow that rating, 
+          // and what that means in case the ratings are not random, 
+          // is limiting the car pool to only accept cars of the correct rating."
+          if (startingCarsRating !== "Random") {
+             // In randomRatings/random mode, we might want to force the final rating too? 
+             // Logic: If user specifically picked a rating for starting car pool, 
+             // they probably want them to be that rating.
+             if (unlockMode === "random" || unlockMode === "randomRatings") {
+                out.attrRating = startingCarsRating;
+             }
+          }
         }
       }
 
@@ -96,8 +117,16 @@ export default function CarOptionsTab({
           out.attrRating = String(groupIdx + 1); // 2-4:1, 5-7:2, 8-10:3, 11-13:4
         }
       } else {
-        out.attrObtain = "Random";
-        out.attrRating = "Random";
+        if (unlockMode === "random") {
+          out.attrObtain = "Random";
+          out.attrRating = "Random";
+        } else if (unlockMode === "randomRatings") {
+          out.attrObtain = "Unchanged";
+          out.attrRating = "Random";
+        } else {
+          out.attrObtain = "Random";
+          out.attrRating = "Unchanged";
+        }
       }
       return out;
     });
@@ -139,28 +168,71 @@ export default function CarOptionsTab({
     {
       id: "random",
       label: "Full Random",
-      desc: "Each car slot's unlock method is chosen randomly from the allowed pool.",
+      desc: "Both car ratings and unlock methods are chosen randomly.",
+    },
+    {
+      id: "randomRatings",
+      label: "Random Ratings",
+      desc: "Car ratings are random, but unlock criteria stay unchanged.",
+    },
+    {
+      id: "randomUnlock",
+      label: "Random Unlock Criteria",
+      desc: "Unlock criteria are random, but ratings stay unchanged.",
     },
     {
       id: "unchanged",
       label: "Unchanged",
-      desc: "Unlock conditions stay exactly as scanned. The Obtain column in Cars Full Spec is locked.",
+      desc: "All car attributes stay exactly as scanned.",
     },
     {
       id: "baseGame",
       label: "Base Game Distribution",
-      desc: "Stock and DC slots follow specific fixed rules for Rating and Obtain. Spec columns will be locked.",
+      desc: "Follows RVGL's original fixed rules for Rating and Obtain.",
     },
   ];
+
+  const handleSuperProToggle = (val) => {
+    setCarOptions(prev => {
+      const next = { ...prev, includeSuperPro: val };
+      if (!val) {
+        // Force Super Pro to 0 and enabled for both
+        next.poolRatingDistributions = {
+          ...prev.poolRatingDistributions,
+          "5": { enabled: true, min: 0, max: 0 }
+        };
+        next.attrRatingDistributions = {
+          ...prev.attrRatingDistributions,
+          "5": { enabled: true, min: 0, max: 0 }
+        };
+      }
+      return next;
+    });
+  };
+
+  const updateDist = (type, ratingId, field, value) => {
+    const key = type === "pool" ? "poolRatingDistributions" : "attrRatingDistributions";
+    setCarOptions(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        [ratingId]: { ...prev[key][ratingId], [field]: value }
+      }
+    }));
+  };
+
+  const showAllowedMethods = (unlockMode === "random" || unlockMode === "randomUnlock");
+  const showStartingCars = (unlockMode === "random" || unlockMode === "randomUnlock");
+  const showRatingOptions = (unlockMode === "random" || unlockMode === "randomRatings");
 
   return (
     <div className="car-options-tab">
 
-      {/* ── Section 1 · Unlock Mode ── */}
+      {/* ── Section 1 · Car Randomization Mode ── */}
       <section className="co-section">
-        <h2 className="co-section-title">Car Unlock Randomization</h2>
+        <h2 className="co-section-title">Car Randomization</h2>
         <p className="co-desc">
-          Controls how the <em>Obtain</em> (unlock condition) attribute is assigned to each car slot.
+          Controls how car ratings and unlock conditions are assigned.
         </p>
         <div className="co-mode-grid">
           {UNLOCK_MODES.map(mode => (
@@ -176,8 +248,8 @@ export default function CarOptionsTab({
         </div>
       </section>
 
-      {/* ── Section 2 · Allowed Methods (only when Random) ── */}
-      {unlockMode === "random" && (
+      {/* ── Section 2 · Allowed Methods ── */}
+      {showAllowedMethods && (
         <section className="co-section">
           <h2 className="co-section-title">Allowed Unlock Methods</h2>
           <p className="co-desc">
@@ -213,8 +285,42 @@ export default function CarOptionsTab({
         </section>
       )}
 
-      {/* ── Section 3 · Starting Cars (only when Random) ── */}
-      {unlockMode === "random" && (
+      {/* ── Section 3 · Rating Options ── */}
+      {showRatingOptions && (
+        <section className="co-section">
+          <h2 className="co-section-title">Rating Options</h2>
+          <div className="co-checkbox-group" style={{ marginBottom: "1.5rem" }}>
+            <label className="co-checkbox-row">
+              <input
+                type="checkbox"
+                checked={carOptions.includeSuperPro}
+                onChange={e => handleSuperProToggle(e.target.checked)}
+              />
+              <span>Include <strong>Super Pro</strong> rating in randomization</span>
+            </label>
+          </div>
+
+          <div className="co-dist-grid">
+             <RatingDistTable 
+                title="Car Pool Rating Distribution" 
+                desc="Enforce how many cars are picked based on their original rating."
+                data={carOptions.poolRatingDistributions}
+                onChange={(rid, f, v) => updateDist("pool", rid, f, v)}
+                includeSuperPro={carOptions.includeSuperPro}
+             />
+             <RatingDistTable 
+                title="Target Rating Distribution" 
+                desc="Enforce how many slots are assigned each final rating."
+                data={carOptions.attrRatingDistributions}
+                onChange={(rid, f, v) => updateDist("attr", rid, f, v)}
+                includeSuperPro={carOptions.includeSuperPro}
+             />
+          </div>
+        </section>
+      )}
+
+      {/* ── Section 4 · Starting Cars ── */}
+      {showStartingCars && (
         <section className="co-section">
           <h2 className="co-section-title">Starting Car Configuration</h2>
           <p className="co-desc">
@@ -239,10 +345,10 @@ export default function CarOptionsTab({
                 <input
                   type="number"
                   min={0}
-                  max={28}
+                  max={42}
                   value={numStartingCars}
                   onChange={e =>
-                    set("numStartingCars", Math.max(0, Math.min(28, parseInt(e.target.value) || 0)))
+                    set("numStartingCars", Math.max(0, Math.min(42, parseInt(e.target.value) || 0)))
                   }
                   className="co-number-input"
                 />
@@ -279,6 +385,66 @@ export default function CarOptionsTab({
           )}
         </section>
       )}
+    </div>
+  );
+}
+
+function RatingDistTable({ title, desc, data, onChange, includeSuperPro }) {
+  const ratings = ["0", "1", "2", "3", "4", "5"];
+  
+  return (
+    <div className="co-dist-table-box">
+      <h3>{title}</h3>
+      <p className="co-tiny-desc">{desc}</p>
+      <table className="co-dist-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Rating</th>
+            <th>Min</th>
+            <th>Max</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ratings.map(rid => {
+            const isSuperPro = rid === "5";
+            const locked = isSuperPro && !includeSuperPro;
+            const dist = data[rid];
+
+            return (
+              <tr key={rid} className={locked ? "locked-row" : ""}>
+                <td>
+                  <input 
+                    type="checkbox" 
+                    checked={dist.enabled} 
+                    disabled={locked}
+                    onChange={e => onChange(rid, "enabled", e.target.checked)}
+                  />
+                </td>
+                <td className="rating-label">{CAR_RATINGS[rid]}</td>
+                <td>
+                  <input 
+                    type="number" 
+                    min={0} max={42} 
+                    value={dist.min} 
+                    disabled={locked || !dist.enabled}
+                    onChange={e => onChange(rid, "min", parseInt(e.target.value) || 0)}
+                  />
+                </td>
+                <td>
+                  <input 
+                    type="number" 
+                    min={0} max={42} 
+                    value={dist.max} 
+                    disabled={locked || !dist.enabled}
+                    onChange={e => onChange(rid, "max", parseInt(e.target.value) || 0)}
+                  />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

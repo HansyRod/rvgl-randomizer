@@ -151,7 +151,7 @@ const SpecRow = memo(({
       <div className="specs-horizontal">
         <div className="field-group">
           <select value={rowState.attrRating} onChange={e => updateRow(index, { attrRating: e.target.value })}
-            disabled={carOptions?.unlockMode === "baseGame"}>
+            disabled={carOptions?.unlockMode === "baseGame" || carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomUnlock"}>
             {ATTR_RATINGS_LIST.map(opt => (
               <option key={opt.val} value={opt.val}>{opt.label}</option>
             ))}
@@ -159,7 +159,7 @@ const SpecRow = memo(({
         </div>
         <div className="field-group">
           <select value={rowState.attrObtain} onChange={e => updateRow(index, { attrObtain: e.target.value })}
-            disabled={carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "baseGame"} >
+            disabled={carOptions?.unlockMode === "baseGame" || carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomRatings"} >
             {ATTR_OBTAINS_LIST.map(opt => (
               <option key={opt.val} value={opt.val}>{opt.label}</option>
             ))}
@@ -308,9 +308,15 @@ export default function CarsSpecSection({
         availableCars={availableCars}
       />
       
-      {carOptions?.unlockMode === "unchanged" && (
+      {(carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomUnlock") && (
         <div className="section-lock-info">
-          🔒 <strong>Obtain column is locked</strong> — Car Options is set to <em>Unchanged</em>.
+          🔒 <strong>Rating column is locked</strong> — Car Options is set to <em>{carOptions.unlockMode === "unchanged" ? "Unchanged" : "Random Unlock Criteria"}</em>.
+        </div>
+      )}
+
+      {(carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomRatings") && (
+        <div className="section-lock-info">
+          🔒 <strong>Obtain column is locked</strong> — Car Options is set to <em>{carOptions.unlockMode === "unchanged" ? "Unchanged" : "Random Ratings"}</em>.
         </div>
       )}
 
