@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
+import { open, confirm } from '@tauri-apps/plugin-dialog';
 
 export default function GenerationTab({ 
   scanResult, 
@@ -11,7 +11,10 @@ export default function GenerationTab({
   generatedFilePath, 
   setGeneratedFilePath,
   instanceName,
-  setInstanceName 
+  setInstanceName,
+  profileName,
+  setProfileName,
+  installPath
 }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState("");
@@ -22,12 +25,40 @@ export default function GenerationTab({
       return;
     }
 
+    if (!profileName.trim()) {
+      setMessage("Please enter a valid profile name.");
+      return;
+    }
+
     if (!scanResult || !specState || !trackSpecState) {
       setMessage("Missing scan result or randomization configuration.");
       return;
     }
 
     setIsGenerating(true);
+    setMessage("Checking profile...");
+
+    try {
+      const exists = await invoke("check_profile_exists", { 
+        executablePath: installPath, 
+        profileName: profileName.trim() 
+      });
+
+      if (exists) {
+        const proceed = await confirm(
+          "This profile name is already being used in this RVGL installation. Creating a randomization with the same profile may lead to conflicting data.\n\nDo you want to proceed anyway?",
+          { title: "Profile Exists", kind: "warning" }
+        );
+        if (!proceed) {
+          setIsGenerating(false);
+          setMessage("Generation aborted.");
+          return;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
     setMessage("Generating...");
 
     try {
@@ -48,7 +79,8 @@ export default function GenerationTab({
         carOptions: carOptions ?? null,
         trackSpecState: filteredTrackSpecState,
         trackOptions: trackOptions ?? null,
-        fileName: instanceName.trim()
+        fileName: instanceName.trim(),
+        profileName: profileName.trim()
       });
       
       setGeneratedFilePath(outPath);
@@ -69,9 +101,19 @@ export default function GenerationTab({
     
     if (file) {
       setGeneratedFilePath(file);
-      // Optional: Auto-fill the instance name input with the loaded file's name
+      // Auto-fill the instance name input with the loaded file's name
       const loadedName = file.split(/[\\/]/).pop().replace('.json', '');
       setInstanceName(loadedName);
+      
+      try {
+        const configData = await invoke("read_config_file", { filePath: file });
+        if (configData && configData.metadata && configData.metadata.profileName) {
+          setProfileName(configData.metadata.profileName);
+        }
+      } catch (err) {
+        console.error("Failed to read profile name from config:", err);
+      }
+
       setMessage(`Loaded existing file: ${file.split(/[\\/]/).pop()}`);
     }
   };
@@ -95,7 +137,26 @@ export default function GenerationTab({
             />
             <span style={{ color: "var(--text-secondary)" }}>.json</span>
           </div>
-          <small style={{ color: "var(--text-secondary)" }}>This name will also be used for your game profile and packlist.</small>
+          <small style={{ color: "var(--text-secondary)" }}>This name will be used for your generated configuration file.</small>
+        </div>
+
+        <div className="control-group" style={{ marginTop: "1rem" }}>
+          <label style={{ fontWeight: "bold" }}>Profile Name:</label>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <input 
+              type="text" 
+              value={profileName} 
+              onChange={(e) => {
+                if (e.target.value.length <= 15) {
+                  setProfileName(e.target.value);
+                }
+              }}
+              placeholder="e.g. player1"
+              maxLength={15}
+              style={{ flex: 1, padding: "0.5rem" }}
+            />
+          </div>
+          <small style={{ color: "var(--text-secondary)" }}>Maximum 15 characters. This name will be used for your game profile and packlist.</small>
         </div>
 
         <div className="action-row">

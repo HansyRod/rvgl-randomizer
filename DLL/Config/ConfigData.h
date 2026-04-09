@@ -15,9 +15,25 @@ namespace Randomizer {
     struct ConfigMetadata {
         std::string seed;
         std::string version;
+        std::optional<std::string> profileName;
     };
-    // Macro to auto-generate from_json/to_json
-    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConfigMetadata, seed, version)
+
+    inline void to_json(json& j, const ConfigMetadata& p) {
+        j = json{{"seed", p.seed}, {"version", p.version}};
+        if (p.profileName.has_value()) {
+            j["profileName"] = p.profileName.value();
+        }
+    }
+
+    inline void from_json(const json& j, ConfigMetadata& p) {
+        j.at("seed").get_to(p.seed);
+        j.at("version").get_to(p.version);
+        if (j.contains("profileName") && !j.at("profileName").is_null()) {
+            p.profileName = j.at("profileName").get<std::string>();
+        } else {
+            p.profileName = std::nullopt;
+        }
+    }
 
     // Represents the "global_options" block
     struct ConfigGlobalOptions {

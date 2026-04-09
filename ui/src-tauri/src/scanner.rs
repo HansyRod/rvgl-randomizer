@@ -175,6 +175,58 @@ pub fn scan_levels_folder(folder_path: String) -> Vec<Track> {
     scan_levels_folder_sync(Path::new(&folder_path))
 }
 
+#[tauri::command]
+pub fn check_profile_exists(executable_path: String, profile_name: String) -> bool {
+    let exe_path = Path::new(&executable_path);
+    if !exe_path.exists() {
+        return false;
+    }
+    let rvgl_root = match exe_path.parent() {
+        Some(p) => p,
+        None => return false,
+    };
+
+    let mut is_launcher = false;
+    let mut launcher_root = None;
+
+    if let Some(grandparent) = rvgl_root.parent() {
+        if let Some(grandparent_name) = grandparent.file_name() {
+            if grandparent_name.to_ascii_lowercase() == "packs" {
+                is_launcher = true;
+                launcher_root = grandparent.parent();
+            }
+        }
+    }
+
+    let profiles_dir = if is_launcher {
+        if let Some(lr) = launcher_root {
+            lr.join("save").join("profiles")
+        } else {
+            return false;
+        }
+    } else {
+        rvgl_root.join("profiles")
+    };
+
+    if !profiles_dir.is_dir() {
+        return false;
+    }
+
+    if let Ok(entries) = fs::read_dir(profiles_dir) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if name.eq_ignore_ascii_case(&profile_name) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    false
+}
+
 fn scan_cars_folder_sync(folder_path: &Path) -> Vec<Car> {
     let mut cars = Vec::new();
     let system_cars = [

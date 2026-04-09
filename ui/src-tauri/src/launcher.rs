@@ -128,6 +128,7 @@ pub fn launch_game(
     extra_args: String,
     config_path: String,               
     packlist: Option<Vec<String>>,
+    profile_name: String,
 ) -> Result<LaunchResult, String> {
 
     // --- Resolve randomizer.dll from the Tauri resource directory ---
@@ -161,12 +162,7 @@ pub fn launch_game(
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_else(|| ".".to_string());
 
-    // --- Extract <generatedname> from the config_path ---
-    // e.g., "C:\...\rainbow-road.json" -> "rainbow-road"
-    let generated_name = Path::new(&config_path)
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("randomizer");
+
 
     // --- Handle Launcher-mode args (basepath, prefpath, packlist) ---
     //
@@ -196,14 +192,14 @@ pub fn launch_game(
         let prefpath = basepath.join("save");
 
         // Write the packlist file into the packs directory.
-        let packlist_filename = format!("rvgl-randomizer-{}.txt", generated_name);
+        let packlist_filename = format!("rvgl-randomizer-{}.txt", profile_name);
         let packlist_path = packs_dir.join(&packlist_filename);
         std::fs::write(&packlist_path, packs.join("\n"))
             .map_err(|e| format!("Failed to write packlist {}: {}", packlist_filename, e))?;
 
         launcher_args.push(format!("-basepath \"{}\"", basepath.display()));
         launcher_args.push(format!("-prefpath \"{}\"", prefpath.display()));
-        launcher_args.push(format!("-packlist rvgl-randomizer-{}", generated_name));
+        launcher_args.push(format!("-packlist rvgl-randomizer-{}", profile_name));
     }
 
     // Append any user-supplied extra args after the launcher-specific ones.
@@ -212,7 +208,7 @@ pub fn launch_game(
     }
 
     // Always append -profile last.
-    launcher_args.push(format!("-profile {}", generated_name));
+    launcher_args.push(format!("-profile {}", profile_name));
 
     let final_args = launcher_args.join(" ");
 

@@ -8,7 +8,7 @@ import DcCarsFullSpecTab from "./components/DcCarsFullSpecTab";
 import CarOptionsTab from "./components/CarOptionsTab";
 import TrackOptionsTab from "./components/TrackOptionsTab";
 import TrackSpecTab from "./components/TrackSpecTab";
-import { STOCK_TRACKS } from "./utils/constants";
+import { STOCK_CARS, DC_CARS, STOCK_TRACKS } from "./utils/constants";
 
 // NEW TAB IMPORTS
 import PacksTab from "./components/PacksTab";
@@ -64,11 +64,25 @@ function makeDefaultTrackSpec(ids) {
   }));
 }
 
+function makeDefaultCarsSpec(ids) {
+  return ids.map(id => ({
+    id,
+    sourcePool: "Full Random",
+    sourceRating: "Random",
+    sourceObtain: "Random",
+    attrRating: "Random",
+    attrObtain: "Random",
+  }));
+}
+
 export default function App() {
   const [installPath, setInstallPath] = useState("");
   const [scanResult, setScanResult] = useState(null);
   const [activeTab, setActiveTab] = useState("cars");
-  const [carsSpecState, setCarsSpecState] = useState(null);
+  const [carsSpecState, setCarsSpecState] = useState({
+    stockCars: makeDefaultCarsSpec(STOCK_CARS),
+    dcCars: makeDefaultCarsSpec(DC_CARS)
+  });
   const [carOptions, setCarOptions] = useState(DEFAULT_CAR_OPTIONS);
   const [trackSpecState, setTrackSpecState] = useState({
     includeTracks: true,
@@ -79,6 +93,7 @@ export default function App() {
   // New State variables for Phase 2/3
   const [generatedFilePath, setGeneratedFilePath] = useState("");
   const [instanceName, setInstanceName] = useState("randomized-instance"); // NEW: Lifted state with new default
+  const [profileName, setProfileName] = useState("player1");
   const [extraArgs, setExtraArgs] = useState("");
   const [extraPacks, setExtraPacks] = useState([]);
   const [isAppLoading, setIsAppLoading] = useState(true);
@@ -103,8 +118,13 @@ export default function App() {
         if (cache.carOptions) setCarOptions({ ...DEFAULT_CAR_OPTIONS, ...cache.carOptions });
         if (cache.trackOptions) setTrackOptions({ ...DEFAULT_TRACK_OPTIONS, ...cache.trackOptions });
         if (cache.trackSpecState) setTrackSpecState(cache.trackSpecState);
+        if (cache.carsSpecState) setCarsSpecState(cache.carsSpecState);
         if (cache.generatedFilePath) setGeneratedFilePath(cache.generatedFilePath);
         if (cache.instanceName) setInstanceName(cache.instanceName);
+        if (cache.profileName) setProfileName(cache.profileName);
+        if (cache.activeTab) setActiveTab(cache.activeTab);
+        if (cache.extraPacks) setExtraPacks(cache.extraPacks);
+        if (cache.theme) setTheme(cache.theme);
       } catch (error) {
         console.error("Failed to load cache:", error);
       } finally {
@@ -118,9 +138,13 @@ export default function App() {
   useEffect(() => {
     if (isAppLoading) return;
     invoke("save_cache", {
-      data: { installPath, scanResult, extraArgs, carOptions, trackOptions, trackSpecState, generatedFilePath, instanceName }
+      data: { 
+        installPath, scanResult, extraArgs, carOptions, trackOptions, 
+        trackSpecState, carsSpecState, generatedFilePath, instanceName, profileName,
+        activeTab, extraPacks, theme
+      }
     }).catch(console.error);
-  }, [installPath, scanResult, extraArgs, carOptions, trackOptions, trackSpecState, generatedFilePath, instanceName, isAppLoading]);
+  }, [installPath, scanResult, extraArgs, carOptions, trackOptions, trackSpecState, carsSpecState, generatedFilePath, instanceName, profileName, activeTab, extraPacks, theme, isAppLoading]);
 
 
   async function handleScanSetup() {
@@ -157,6 +181,7 @@ export default function App() {
       setScanResult(null);
       setGeneratedFilePath("");
       setInstanceName("randomized-instance");
+      setProfileName("player1");
       setExtraArgs("");
       setCarOptions(DEFAULT_CAR_OPTIONS);
       setTrackOptions(DEFAULT_TRACK_OPTIONS);
@@ -164,8 +189,13 @@ export default function App() {
         includeTracks: true,
         tracks: makeDefaultTrackSpec(STOCK_TRACKS),
       });
+      setCarsSpecState({
+        stockCars: makeDefaultCarsSpec(STOCK_CARS),
+        dcCars: makeDefaultCarsSpec(DC_CARS)
+      });
       setExtraPacks([]);
       setActiveTab("cars");
+      setTheme("dark");
     }
   }
 
@@ -375,6 +405,9 @@ export default function App() {
                  setGeneratedFilePath={setGeneratedFilePath}
                  instanceName={instanceName}
                  setInstanceName={setInstanceName}
+                 profileName={profileName}
+                 setProfileName={setProfileName}
+                 installPath={installPath}
                />
              </div>
           )}
@@ -388,6 +421,7 @@ export default function App() {
                  extraArgs={extraArgs}
                  setExtraArgs={setExtraArgs}
                  extraPacks={extraPacks}
+                 profileName={profileName}
                />
              </div>
           )}

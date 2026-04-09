@@ -7,7 +7,8 @@ export default function LaunchTab({
   generatedFilePath, 
   extraArgs, 
   setExtraArgs,
-  extraPacks 
+  extraPacks,
+  profileName
 }) {
   const [launchStatus, setLaunchStatus] = useState("");
   const [isLaunching, setIsLaunching] = useState(false);
@@ -31,7 +32,8 @@ export default function LaunchTab({
         rvglExePath: installPath,
         extraArgs: extraArgs,
         configPath: generatedFilePath,
-        packlist: packlist
+        packlist: packlist,
+        profileName: profileName
       });
       
       setLaunchStatus(`Game running! Process ID: ${result.pid}`);

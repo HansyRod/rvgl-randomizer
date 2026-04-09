@@ -128,6 +128,8 @@ pub struct RandomizedTrack {
 pub struct ConfigMetadata {
     pub seed: String,
     pub version: String,
+    #[serde(rename = "profileName", skip_serializing_if = "Option::is_none")]
+    pub profile_name: Option<String>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -701,6 +703,7 @@ pub fn generate_result(
     track_spec_state: TrackSpecState,
     track_options: Option<TrackOptionsInput>,
     file_name: String,
+    profile_name: String,
 ) -> Result<String, String> {
     let mut rng = Rng::new();
 
@@ -860,6 +863,7 @@ pub fn generate_result(
         metadata: ConfigMetadata {
             seed: "alpha-test-88".to_string(), // In the future, we can hook this up to the RNG
             version: "1.0.0".to_string(),
+            profile_name: Some(profile_name),
         },
         global_options: ConfigGlobalOptions {
             load_extra_cars: false,
