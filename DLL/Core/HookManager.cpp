@@ -157,9 +157,26 @@ static void RegisterHooks() {
         "UpdateCarSelectability"
     );
 
-    
+    HookManager::Add(
+        AbsFromRva(RVA_GET_PROFILE_INDEX),
+        reinterpret_cast<void*>(Randomizer::Hook_GetProfileIndex),
+        reinterpret_cast<void**>(&Randomizer::Orig_GetProfileIndex),
+        "GetProfileIndex"
+    );
 
-    
+    HookManager::Add(
+        AbsFromRva(RVA_PROFILE_CREATE_OR_LOAD),
+        reinterpret_cast<void*>(Randomizer::Hook_Profile_CreateOrLoad),
+        reinterpret_cast<void**>(&Randomizer::Orig_Profile_CreateOrLoad),
+        "Profile_CreateOrLoad"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_PROFILE_LOAD_AND_RESET),
+        reinterpret_cast<void*>(Randomizer::Hook_Profile_LoadAndReset),
+        reinterpret_cast<void**>(&Randomizer::Orig_Profile_LoadAndReset),
+        "Profile_LoadAndReset"
+    );
     /* HookManager::Add(
         AbsFromRva(RVA_PARSE_PARAMETERS_TXT),
         reinterpret_cast<void*>(Randomizer::Hook_ParseParametersTxt),
@@ -238,7 +255,7 @@ static void RegisterHooks() {
         { 0x001437d0, "Gallery_CheckShouldActivate" },
         { 0x0013f810, "Gallery_SetupCamera" },
         { 0x00141f80, "UnknownFnNotRaceEndManager" },
-        { 0x000753c0, "Profile_LoadAndReset" },
+        // { 0x000753c0, "Profile_LoadAndReset" },
         { 0x0004b800, "Cup_OnStageFinished" },
         { 0x00006b40, "PrepareLevelLoad" },
         { 0x000f0890, "RegisterFinishTime" },

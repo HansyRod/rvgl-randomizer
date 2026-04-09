@@ -26,6 +26,9 @@ namespace Randomizer {
     using FnLoadVanillaCups         = void(*)();
     using FnLoadCustomCups          = void(*)();
     using FnUpdateCarSelectability  = void(*)();
+    using FnGetProfileIndex         = int(*)(char* profileName);
+    using FnProfile_CreateOrLoad    = bool(*)(char* displayName);
+    using FnProfile_LoadAndReset    = void(*)(char* profileName);
 
     // ------------------------------------------------------------------------
     // Original function pointers.
@@ -42,6 +45,9 @@ namespace Randomizer {
     extern FnLoadVanillaCups        Orig_LoadVanillaCups;
     extern FnLoadCustomCups         Orig_LoadCustomCups;
     extern FnUpdateCarSelectability Orig_UpdateCarSelectability;
+    extern FnGetProfileIndex        Orig_GetProfileIndex;
+    extern FnProfile_CreateOrLoad   Orig_Profile_CreateOrLoad;
+    extern FnProfile_LoadAndReset   Orig_Profile_LoadAndReset;
 
     // ------------------------------------------------------------------------
     // Detour functions — registered in HookManager.cpp → RegisterHooks().
@@ -55,6 +61,9 @@ namespace Randomizer {
     void Hook_LoadVanillaCups();
     void Hook_LoadCustomCups();
     void Hook_UpdateCarSelectability();
+    int Hook_GetProfileIndex(char* profileName);
+    bool Hook_Profile_CreateOrLoad(char* displayName);
+    void Hook_Profile_LoadAndReset(char* profileName);
 
     // Utils functions
     void Initialize();

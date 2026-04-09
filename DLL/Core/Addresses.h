@@ -61,6 +61,15 @@ constexpr uint32_t RVA_LOAD_CUSTOM_CUPS = 0x0004bb80;
 // manipulates the "selectableByPlayer" flag.
 constexpr uint32_t RVA_UPDATE_CAR_SELECTABILITY = 0x0003bdf0;
 
+// GetProfileIndex - Returns the index of the profile by name.
+constexpr uint32_t RVA_GET_PROFILE_INDEX = 0x00074890;
+
+// Profile_CreateOrLoad - Creates or loads a profile by display name.
+constexpr uint32_t RVA_PROFILE_CREATE_OR_LOAD = 0x00075500;
+
+// Profile_LoadAndReset - Loads a profile and resets state.
+constexpr uint32_t RVA_PROFILE_LOAD_AND_RESET = 0x000753c0;
+
 // ----------------------------------------------------------------------------
 // Globals
 // ----------------------------------------------------------------------------
