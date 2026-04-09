@@ -103,6 +103,8 @@ export default function App() {
         if (cache.carOptions) setCarOptions({ ...DEFAULT_CAR_OPTIONS, ...cache.carOptions });
         if (cache.trackOptions) setTrackOptions({ ...DEFAULT_TRACK_OPTIONS, ...cache.trackOptions });
         if (cache.trackSpecState) setTrackSpecState(cache.trackSpecState);
+        if (cache.generatedFilePath) setGeneratedFilePath(cache.generatedFilePath);
+        if (cache.instanceName) setInstanceName(cache.instanceName);
       } catch (error) {
         console.error("Failed to load cache:", error);
       } finally {
@@ -116,9 +118,9 @@ export default function App() {
   useEffect(() => {
     if (isAppLoading) return;
     invoke("save_cache", {
-      data: { installPath, scanResult, extraArgs, carOptions, trackOptions, trackSpecState }
+      data: { installPath, scanResult, extraArgs, carOptions, trackOptions, trackSpecState, generatedFilePath, instanceName }
     }).catch(console.error);
-  }, [installPath, scanResult, extraArgs, carOptions, trackOptions, trackSpecState, isAppLoading]);
+  }, [installPath, scanResult, extraArgs, carOptions, trackOptions, trackSpecState, generatedFilePath, instanceName, isAppLoading]);
 
 
   async function handleScanSetup() {
@@ -154,6 +156,7 @@ export default function App() {
       setInstallPath("");
       setScanResult(null);
       setGeneratedFilePath("");
+      setInstanceName("randomized-instance");
       setExtraArgs("");
       setCarOptions(DEFAULT_CAR_OPTIONS);
       setTrackOptions(DEFAULT_TRACK_OPTIONS);
