@@ -1,6 +1,16 @@
-import React from 'react';
+import { useAppContext } from "../AppProvider";
 
-function PacksTab({ scanResult, extraPacks, setExtraPacks }) {
+function PacksTab() {
+
+  const { state, updateCategoryCtx } = useAppContext();
+
+  // Destructure categories
+  const { install, launch } = state;
+  
+  // Destructure individual variables
+  const { scanResult } = install;
+  const { extraPacks } = launch;
+
   const allPacks = scanResult?.contentPacks || [];
 
   const autoPacks = ["rvgl_win64", "rvgl_assets"];
@@ -17,11 +27,10 @@ function PacksTab({ scanResult, extraPacks, setExtraPacks }) {
   );
 
   const toggleExtraPack = (packName) => {
-    if (extraPacks.includes(packName)) {
-      setExtraPacks(extraPacks.filter(p => p !== packName));
-    } else {
-      setExtraPacks([...extraPacks, packName]);
-    }
+    const newPackList = extraPacks.includes(packName)
+      ? extraPacks.filter(p => p !== packName)
+      : [...extraPacks, packName];
+    updateCategoryCtx("launch", { extraPacks: newPackList });
   };
 
   return (

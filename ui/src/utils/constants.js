@@ -130,3 +130,61 @@ export const TRACK_OBTAINS_LIST = [
   { val: "4", label: "Single Race" },
   { val: "5", label: "Stunt Arena" }
 ];
+
+export const DEFAULT_CAR_OPTIONS = {
+  unlockMode: "random",       // "random" | "unchanged" | "baseGame" | "randomRatings" | "randomUnlock"
+  enableStartingCars: false,
+  numStartingCars: 0,
+  enableStartingCarsPool: false,
+  startingCarsPool: "Full Random",
+  enableStartingCarsRating: false,
+  startingCarsRating: "Random",
+  includeCheatOnly: false,
+  includeStuntArena: false,
+  includeSuperPro: true,
+  poolRatingDistributions: {
+    "0": { enabled: false, min: 0, max: 42 },
+    "1": { enabled: false, min: 0, max: 42 },
+    "2": { enabled: false, min: 0, max: 42 },
+    "3": { enabled: false, min: 0, max: 42 },
+    "4": { enabled: false, min: 0, max: 42 },
+    "5": { enabled: false, min: 0, max: 42 },
+  },
+  attrRatingDistributions: {
+    "0": { enabled: false, min: 0, max: 42 },
+    "1": { enabled: false, min: 0, max: 42 },
+    "2": { enabled: false, min: 0, max: 42 },
+    "3": { enabled: false, min: 0, max: 42 },
+    "4": { enabled: false, min: 0, max: 42 },
+    "5": { enabled: false, min: 0, max: 42 },
+  },
+};
+
+export const DEFAULT_TRACK_OPTIONS = {
+  unlockMode: "random", // random | randomUnlock | randomDifficulty | unchanged | baseGame
+  enableRandomObtainMethods: true,
+  includeCheatOnly: false,
+  includeUnlockedByDefault: false,
+  includeStuntArena: false,
+};
+
+export function makeDefaultTrackSpec(ids) {
+  return ids.map(id => ({
+    id,
+    sourcePool: "Full Random",
+    sourceDifficulty: "Random",
+    attrDifficulty: "Random",
+    attrObtain: "Random",
+  }));
+}
+
+export function makeDefaultCarsSpec(ids) {
+  return ids.map(id => ({
+    id,
+    sourcePool: "Full Random",
+    sourceRating: "Random",
+    sourceObtain: "Random",
+    attrRating: "Random",
+    attrObtain: "Random",
+  }));
+}

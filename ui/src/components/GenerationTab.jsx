@@ -1,21 +1,20 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open, confirm } from '@tauri-apps/plugin-dialog';
+import { useAppContext } from '../AppProvider';
 
-export default function GenerationTab({ 
-  scanResult, 
-  specState, 
-  carOptions,
-  trackSpecState,
-  trackOptions,
-  generatedFilePath, 
-  setGeneratedFilePath,
-  instanceName,
-  setInstanceName,
-  profileName,
-  setProfileName,
-  installPath
-}) {
+export default function GenerationTab() {
+
+  const { state, updateCategoryCtx } = useAppContext();
+
+  // Destructure categories
+  const { install, randomizer, output } = state;
+  
+  // Destructure individual variables
+  const { installPath, scanResult } = install;
+  const { carOptions, trackOptions, carsSpecState, trackSpecState, cupSpecState } = randomizer;
+  const { generatedFilePath, instanceName, profileName } = output;
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -30,7 +29,7 @@ export default function GenerationTab({
       return;
     }
 
-    if (!scanResult || !specState || !trackSpecState) {
+    if (!scanResult || !carsSpecState || !trackSpecState) {
       setMessage("Missing scan result or randomization configuration.");
       return;
     }
@@ -64,9 +63,9 @@ export default function GenerationTab({
     try {
       // Intercept and strip arrays if the user unchecked them
       const filteredSpecState = {
-        ...specState,
-        stockCars: specState.includeStockCars === false ? [] : specState.stockCars,
-        dcCars: specState.includeDcCars === false ? [] : specState.dcCars
+        ...carsSpecState,
+        stockCars: carsSpecState.includeStockCars === false ? [] : carsSpecState.stockCars,
+        dcCars: carsSpecState.includeDcCars === false ? [] : carsSpecState.dcCars
       };
       const filteredTrackSpecState = {
         ...trackSpecState,
@@ -75,15 +74,16 @@ export default function GenerationTab({
 
       const outPath = await invoke("generate_result", {
         scanResult,
-        specState: filteredSpecState,
+        carsSpecState: filteredSpecState,
         carOptions: carOptions ?? null,
         trackSpecState: filteredTrackSpecState,
         trackOptions: trackOptions ?? null,
+        cupSpecState: cupSpecState ?? null,
         fileName: instanceName.trim(),
         profileName: profileName.trim()
       });
       
-      setGeneratedFilePath(outPath);
+      updateCategoryCtx("output", { generatedFilePath: outPath });
       setMessage(`Successfully generated: ${outPath.split(/[\\/]/).pop()}`);
     } catch (error) {
       console.error(error);
@@ -100,19 +100,25 @@ export default function GenerationTab({
     });
     
     if (file) {
-      setGeneratedFilePath(file);
+
       // Auto-fill the instance name input with the loaded file's name
       const loadedName = file.split(/[\\/]/).pop().replace('.json', '');
-      setInstanceName(loadedName);
-      
+
+      const newOutputState = {
+        generatedFilePath: file,
+        instanceName: loadedName
+      };
+
       try {
         const configData = await invoke("read_config_file", { filePath: file });
-        if (configData && configData.metadata && configData.metadata.profileName) {
-          setProfileName(configData.metadata.profileName);
+        if (configData?.metadata?.profileName) {
+          newOutputState.profileName = configData.metadata.profileName;
         }
       } catch (err) {
         console.error("Failed to read profile name from config:", err);
       }
+
+      updateCategoryCtx("output", newOutputState);
 
       setMessage(`Loaded existing file: ${file.split(/[\\/]/).pop()}`);
     }
@@ -131,7 +137,7 @@ export default function GenerationTab({
             <input 
               type="text" 
               value={instanceName} 
-              onChange={(e) => setInstanceName(e.target.value)}
+              onChange={(e) => updateCategoryCtx("output", { instanceName: e.target.value })}
               placeholder="e.g. my-random-seed"
               style={{ flex: 1, padding: "0.5rem" }}
             />
@@ -148,7 +154,7 @@ export default function GenerationTab({
               value={profileName} 
               onChange={(e) => {
                 if (e.target.value.length <= 15) {
-                  setProfileName(e.target.value);
+                  updateCategoryCtx("output", { profileName: e.target.value });
                 }
               }}
               placeholder="e.g. player1"
@@ -163,7 +169,7 @@ export default function GenerationTab({
           <button 
             className="primary" 
             onClick={handleGenerate} 
-            disabled={isGenerating || !specState}
+            disabled={isGenerating || !carsSpecState}
             style={{ padding: "0.5rem 1.5rem", fontSize: "1rem" }}
           >
             {isGenerating ? "Generating..." : "⚡ Generate Instance"}

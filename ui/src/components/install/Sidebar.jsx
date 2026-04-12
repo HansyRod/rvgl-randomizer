@@ -1,6 +1,61 @@
 import { invoke } from "@tauri-apps/api/core";
+import { useAppContext } from "../../AppProvider";
 
-export default function Sidebar({ packs, activeTab, onTogglePack, setScanResult, scanResult }) {
+export default function Sidebar() {
+
+  const context = useAppContext();
+
+  // Destructure categories
+  const { state: { app, install } } = context;
+  
+  // Destructure individual variables
+  const { activeTab } = app;
+  const { scanResult: { contentPacks: packs } } = install;
+
+  const togglePack = async (packIndex, context) => {
+    const { state, updateCategoryCtx } = context;
+    const { install, app } = state;
+    const { scanResult } = install;
+    const { activeTab } = app;
+
+    if (!scanResult) {
+      return;
+    }
+    const newResult = structuredClone(scanResult);
+    const pack = newResult.contentPacks[packIndex];
+
+    if (activeTab === "cars") {
+      pack.useCars = !pack.useCars;
+      if (pack.useCars && pack.cars.length === 0 && pack.hasCars) {
+        updateCategoryCtx("app", { isFetchingPack: true });
+        try {
+          pack.cars = await invoke("scan_cars_folder", { folderPath: `${pack.absolutePath}\\cars` });
+        }
+        catch(e) {
+          console.error(e);
+        }
+        finally {
+          updateCategoryCtx("app", { isFetchingPack: false });
+        }
+      }
+    } else {
+      pack.useTracks = !pack.useTracks;
+      if (pack.useTracks && pack.tracks.length === 0 && pack.hasTracks) {
+        updateCategoryCtx("app", { isFetchingPack: true });
+        try {
+          pack.tracks = await invoke("scan_levels_folder", { folderPath: `${pack.absolutePath}\\levels` });
+        } 
+        catch(e) {
+          console.error(e);
+        }
+        finally {
+          updateCategoryCtx("app", { isFetchingPack: false });
+        }
+      }
+    }
+    updateCategoryCtx("install", { scanResult: newResult });
+  }
+
   // Filter packs that actually have content for the current tab
   const validPacks = packs.map((pack, i) => ({pack, originalIndex: i})).filter(
     p => activeTab === "cars" ? p.pack.hasCars : p.pack.hasTracks
@@ -32,7 +87,7 @@ export default function Sidebar({ packs, activeTab, onTogglePack, setScanResult,
         <input 
           type="checkbox" 
           checked={activeTab === "cars" ? pack.useCars : pack.useTracks}
-          onChange={() => onTogglePack(originalIndex)}
+          onChange={() => togglePack(originalIndex, context)}
         />
         <span style={{ marginLeft: "6px", textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: "nowrap" }}>
           {pack.name}

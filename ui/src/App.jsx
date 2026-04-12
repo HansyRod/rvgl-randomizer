@@ -1,107 +1,48 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { open, confirm } from "@tauri-apps/plugin-dialog";
-import Sidebar from "./components/Sidebar";
-import MainContent from "./components/MainContent";
-import StockCarsFullSpecTab from "./components/StockCarsFullSpecTab";
-import DcCarsFullSpecTab from "./components/DcCarsFullSpecTab";
-import CarOptionsTab from "./components/CarOptionsTab";
-import TrackOptionsTab from "./components/TrackOptionsTab";
-import TrackSpecTab from "./components/TrackSpecTab";
-import { STOCK_CARS, DC_CARS, STOCK_TRACKS } from "./utils/constants";
+import { confirm } from "@tauri-apps/plugin-dialog";
 
-// NEW TAB IMPORTS
+import { useAppContext } from "./AppProvider";
+
+import "./App.css";
+
+// Install components
+import ScanSetup from "./components/install/ScanSetup";
+import CarsTab from "./components/install/CarsTab";
+import TracksTab from "./components/install/TracksTab";
+
+// Car Options components
+import CarOptionsTab from "./components/carOptions/CarOptionsTab";
+
+// Car Spec components
+import StockCarsFullSpecTab from "./components/carSpec/StockCarsFullSpecTab";
+import DcCarsFullSpecTab from "./components/carSpec/DcCarsFullSpecTab";
+
+// Track Options components
+import TrackOptionsTab from "./components/trackOptions/TrackOptionsTab";
+import TrackSpecTab from "./components/trackOptions/TrackSpecTab";
+
+// Cup Spec components
+import CupSpecTab from "./components/cupSpec/CupSpecTab";
+
+// Other tabs
 import PacksTab from "./components/PacksTab";
 import GenerationTab from "./components/GenerationTab";
 import LaunchTab from "./components/LaunchTab";
 
-import "./App.css";
-
-export const DEFAULT_CAR_OPTIONS = {
-  unlockMode: "random",       // "random" | "unchanged" | "baseGame" | "randomRatings" | "randomUnlock"
-  enableStartingCars: false,
-  numStartingCars: 0,
-  enableStartingCarsPool: false,
-  startingCarsPool: "Full Random",
-  enableStartingCarsRating: false,
-  startingCarsRating: "Random",
-  includeCheatOnly: false,
-  includeStuntArena: false,
-  includeSuperPro: true,
-  poolRatingDistributions: {
-    "0": { enabled: false, min: 0, max: 42 },
-    "1": { enabled: false, min: 0, max: 42 },
-    "2": { enabled: false, min: 0, max: 42 },
-    "3": { enabled: false, min: 0, max: 42 },
-    "4": { enabled: false, min: 0, max: 42 },
-    "5": { enabled: false, min: 0, max: 42 },
-  },
-  attrRatingDistributions: {
-    "0": { enabled: false, min: 0, max: 42 },
-    "1": { enabled: false, min: 0, max: 42 },
-    "2": { enabled: false, min: 0, max: 42 },
-    "3": { enabled: false, min: 0, max: 42 },
-    "4": { enabled: false, min: 0, max: 42 },
-    "5": { enabled: false, min: 0, max: 42 },
-  },
-};
-
-export const DEFAULT_TRACK_OPTIONS = {
-  unlockMode: "random", // random | randomUnlock | randomDifficulty | unchanged | baseGame
-  enableRandomObtainMethods: true,
-  includeCheatOnly: false,
-  includeUnlockedByDefault: false,
-  includeStuntArena: false,
-};
-
-function makeDefaultTrackSpec(ids) {
-  return ids.map(id => ({
-    id,
-    sourcePool: "Full Random",
-    sourceDifficulty: "Random",
-    attrDifficulty: "Random",
-    attrObtain: "Random",
-  }));
-}
-
-function makeDefaultCarsSpec(ids) {
-  return ids.map(id => ({
-    id,
-    sourcePool: "Full Random",
-    sourceRating: "Random",
-    sourceObtain: "Random",
-    attrRating: "Random",
-    attrObtain: "Random",
-  }));
-}
 
 export default function App() {
-  const [installPath, setInstallPath] = useState("");
-  const [scanResult, setScanResult] = useState(null);
-  const [activeTab, setActiveTab] = useState("cars");
-  const [carsSpecState, setCarsSpecState] = useState({
-    stockCars: makeDefaultCarsSpec(STOCK_CARS),
-    dcCars: makeDefaultCarsSpec(DC_CARS)
-  });
-  const [carOptions, setCarOptions] = useState(DEFAULT_CAR_OPTIONS);
-  const [trackSpecState, setTrackSpecState] = useState({
-    includeTracks: true,
-    tracks: makeDefaultTrackSpec(STOCK_TRACKS),
-  });
-  const [trackOptions, setTrackOptions] = useState(DEFAULT_TRACK_OPTIONS);
-  
-  // New State variables for Phase 2/3
-  const [generatedFilePath, setGeneratedFilePath] = useState("");
-  const [instanceName, setInstanceName] = useState("randomized-instance"); // NEW: Lifted state with new default
-  const [profileName, setProfileName] = useState("player1");
-  const [extraArgs, setExtraArgs] = useState("");
-  const [extraPacks, setExtraPacks] = useState([]);
-  const [isAppLoading, setIsAppLoading] = useState(true);
 
-  const [debugView, setDebugView] = useState("scanResult");
-  const [theme, setTheme] = useState("dark");
-  const [isScanning, setIsScanning] = useState(false);
-  const [isFetchingPack, setIsFetchingPack] = useState(false);
+  const { state, resetContext, updateContext, updateCategoryCtx } = useAppContext();
+
+  // Destructure categories
+  const { app, install } = state;
+  
+  // Destructure individual variables
+  const { isLoading, theme, activeTab, isFetchingPack } = app;
+  const { scanResult } = install;
+
+  // const [debugView, setDebugView] = useState("scanResult");
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -112,23 +53,11 @@ export default function App() {
     const initCache = async () => {
       try {
         const cache = await invoke("load_cache");
-        if (cache.installPath) setInstallPath(cache.installPath);
-        if (cache.scanResult) setScanResult(cache.scanResult);
-        if (cache.extraArgs) setExtraArgs(cache.extraArgs);
-        if (cache.carOptions) setCarOptions({ ...DEFAULT_CAR_OPTIONS, ...cache.carOptions });
-        if (cache.trackOptions) setTrackOptions({ ...DEFAULT_TRACK_OPTIONS, ...cache.trackOptions });
-        if (cache.trackSpecState) setTrackSpecState(cache.trackSpecState);
-        if (cache.carsSpecState) setCarsSpecState(cache.carsSpecState);
-        if (cache.generatedFilePath) setGeneratedFilePath(cache.generatedFilePath);
-        if (cache.instanceName) setInstanceName(cache.instanceName);
-        if (cache.profileName) setProfileName(cache.profileName);
-        if (cache.activeTab) setActiveTab(cache.activeTab);
-        if (cache.extraPacks) setExtraPacks(cache.extraPacks);
-        if (cache.theme) setTheme(cache.theme);
+        updateContext(cache);
       } catch (error) {
         console.error("Failed to load cache:", error);
       } finally {
-        setIsAppLoading(false);
+        updateCategoryCtx("app", { isLoading: false });
       }
     };
     initCache();
@@ -136,38 +65,10 @@ export default function App() {
 
   // SAVE CACHE ON CHANGE
   useEffect(() => {
-    if (isAppLoading) return;
-    invoke("save_cache", {
-      data: { 
-        installPath, scanResult, extraArgs, carOptions, trackOptions, 
-        trackSpecState, carsSpecState, generatedFilePath, instanceName, profileName,
-        activeTab, extraPacks, theme
-      }
-    }).catch(console.error);
-  }, [installPath, scanResult, extraArgs, carOptions, trackOptions, trackSpecState, carsSpecState, generatedFilePath, instanceName, profileName, activeTab, extraPacks, theme, isAppLoading]);
+    if (isLoading) return;
+    invoke("save_cache", { data: state }).catch(console.error);
+  }, [state, isLoading]);
 
-
-  async function handleScanSetup() {
-    const selected = await open({
-      multiple: false,
-      directory: false,
-      filters: [{ name: 'Executable', extensions: ['exe', ''] }]
-    });
-
-    if (selected) {
-      const path = selected.path || selected;
-      setInstallPath(path);
-      setIsScanning(true);
-      try {
-        const result = await invoke("scan_install", { executablePath: path });
-        setScanResult(result);
-      } catch (err) {
-        console.error("Error scanning:", err);
-      } finally {
-        setIsScanning(false);
-      }
-    }
-  }
 
   async function handleClearData() {
     const confirmed = await confirm("Are you sure you want to clear the app cache?", {
@@ -177,56 +78,16 @@ export default function App() {
 
     if (confirmed) {
       await invoke("clear_cache");
-      setInstallPath("");
-      setScanResult(null);
-      setGeneratedFilePath("");
-      setInstanceName("randomized-instance");
-      setProfileName("player1");
-      setExtraArgs("");
-      setCarOptions(DEFAULT_CAR_OPTIONS);
-      setTrackOptions(DEFAULT_TRACK_OPTIONS);
-      setTrackSpecState({
-        includeTracks: true,
-        tracks: makeDefaultTrackSpec(STOCK_TRACKS),
-      });
-      setCarsSpecState({
-        stockCars: makeDefaultCarsSpec(STOCK_CARS),
-        dcCars: makeDefaultCarsSpec(DC_CARS)
-      });
-      setExtraPacks([]);
-      setActiveTab("cars");
-      setTheme("dark");
+      resetContext();
+      updateCategoryCtx("app", { isLoading: false });
     }
   }
 
-  async function togglePack(packIndex) {
-    if (!scanResult) return;
-    const newResult = JSON.parse(JSON.stringify(scanResult));
-    const pack = newResult.contentPacks[packIndex];
-    
-    if (activeTab === "cars") {
-      pack.useCars = !pack.useCars;
-      if (pack.useCars && pack.cars.length === 0 && pack.hasCars) {
-        setIsFetchingPack(true);
-        try {
-          pack.cars = await invoke("scan_cars_folder", { folderPath: `${pack.absolutePath}\\cars` });
-        } catch(e) { console.error(e); }
-        finally { setIsFetchingPack(false); }
-      }
-    } else {
-      pack.useTracks = !pack.useTracks;
-      if (pack.useTracks && pack.tracks.length === 0 && pack.hasTracks) {
-        setIsFetchingPack(true);
-        try {
-          pack.tracks = await invoke("scan_levels_folder", { folderPath: `${pack.absolutePath}\\levels` });
-        } catch(e) { console.error(e); }
-        finally { setIsFetchingPack(false); }
-      }
-    }
-    setScanResult(newResult);
-  }
+  const setActiveTab = (tab) => {
+    updateCategoryCtx("app", { activeTab: tab });
+  };
 
-  if (isAppLoading) {
+  if (isLoading) {
     return <div className="container"><div className="loading-overlay">Initializing...</div></div>;
   }
 
@@ -237,29 +98,7 @@ export default function App() {
         <div className="header-top">
           <div className="header-title-area">
             <h1>RVGL Randomizer</h1>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem" }}>
-              {scanResult && (
-                <span className="badge" style={{ padding: "0.3rem 0.5rem", fontSize: "0.75rem", backgroundColor: "var(--accent)" }}>
-                  [{scanResult.installType === "launcher" ? "Launcher Install" : "Classic Install"}]
-                </span>
-              )}
-              <p style={{ margin: 0 }}>{installPath || "No installation selected. Browse to rvgl.exe to begin."}</p>
-              
-              <button className="primary" style={{ padding: "0.25rem 0.75rem", fontSize: "0.75rem" }} onClick={handleScanSetup}>
-                {isScanning ? "Scanning..." : "Browse RVGL"}
-              </button>
-
-              {installPath && (
-                <>
-                  <button onClick={() => invoke("scan_install", { executablePath: installPath }).then(setScanResult)} style={{ padding: "0.25rem 0.75rem", fontSize: "0.75rem" }}>
-                    ↺ Refresh
-                  </button>
-                  <button onClick={handleClearData} style={{ padding: "0.25rem 0.75rem", fontSize: "0.75rem", backgroundColor: "#7a2626", color: "white" }}>
-                    Clear Cache
-                  </button>
-                </>
-              )}
-            </div>
+            <ScanSetup />
           </div>
         </div>
         
@@ -286,13 +125,14 @@ export default function App() {
             <button className={`tab ${activeTab === 'track-spec' ? 'active' : ''}`} onClick={() => setActiveTab('track-spec')}>
               Track Spec
             </button>
-            
+            <button className={`tab ${activeTab === 'cup-spec' ? 'active' : ''}`} onClick={() => setActiveTab('cup-spec')}>
+              Cup Spec
+            </button>            
             {scanResult.installType === 'launcher' && (
               <button className={`tab ${activeTab === 'packs' ? 'active' : ''}`} onClick={() => setActiveTab('packs')}>
                 Launch Packs
               </button>
             )}
-
             <button className={`tab ${activeTab === 'generation' ? 'active' : ''}`} onClick={() => setActiveTab('generation')}>
               Randomize
             </button>
@@ -305,124 +145,62 @@ export default function App() {
 
       {scanResult && (
         <div className="dashboard">
-          
           {/* ORIGINAL BROWSING TABS */}
-          {(activeTab === 'cars' || activeTab === 'tracks') && (
-            <>
-              {scanResult.installType === "launcher" && (
-                 <Sidebar 
-                   packs={scanResult.contentPacks} 
-                   activeTab={activeTab} 
-                   onTogglePack={togglePack} 
-                   setScanResult={setScanResult}
-                   scanResult={scanResult}
-                 />
-              )}
-              <MainContent 
-                 scanResult={scanResult} 
-                 activeTab={activeTab} 
-                 installPath={installPath}
-              />
-            </>
-          )}
+          { activeTab === 'cars' && <CarsTab />}
+          { activeTab === 'tracks' && <TracksTab />}
 
           {activeTab === 'car-options' && (
             <div style={{ flex: 1, overflowY: "auto" }}>
-              <CarOptionsTab
-                scanResult={scanResult}
-                specState={carsSpecState}
-                setSpecState={setCarsSpecState}
-                carOptions={carOptions}
-                setCarOptions={setCarOptions}
-              />
+              <CarOptionsTab />
             </div>
           )}
 
           {activeTab === 'stock-cars-spec' && (
             <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
-              <StockCarsFullSpecTab
-                scanResult={scanResult}
-                specState={carsSpecState}
-                setSpecState={setCarsSpecState}
-                carOptions={carOptions}
-              />
+              <StockCarsFullSpecTab />
             </div>
           )}
 
           {activeTab === 'dc-cars-spec' && (
             <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
-              <DcCarsFullSpecTab
-                scanResult={scanResult}
-                specState={carsSpecState}
-                setSpecState={setCarsSpecState}
-                carOptions={carOptions}
-              />
+              <DcCarsFullSpecTab />
             </div>
           )}
 
           {activeTab === 'track-options' && (
             <div style={{ flex: 1, overflowY: "auto" }}>
-              <TrackOptionsTab
-                specState={trackSpecState}
-                setSpecState={setTrackSpecState}
-                trackOptions={trackOptions}
-                setTrackOptions={setTrackOptions}
-              />
+              <TrackOptionsTab />
             </div>
           )}
 
           {activeTab === 'track-spec' && (
             <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
-              <TrackSpecTab
-                scanResult={scanResult}
-                specState={trackSpecState}
-                setSpecState={setTrackSpecState}
-                trackOptions={trackOptions}
-              />
+              <TrackSpecTab />
+            </div>
+          )}
+
+          {activeTab === 'cup-spec' && (
+            <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
+              <CupSpecTab />
             </div>
           )}
 
           {/* NEW ROUTING TABS */}
           {activeTab === 'packs' && scanResult.installType === 'launcher' && (
             <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
-              <PacksTab 
-                scanResult={scanResult} 
-                extraPacks={extraPacks} 
-                setExtraPacks={setExtraPacks} 
-              />
+              <PacksTab />
             </div>
           )}
 
           {activeTab === 'generation' && (
              <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
-               <GenerationTab 
-                 scanResult={scanResult}
-                 specState={carsSpecState}
-                 carOptions={carOptions}
-                 trackSpecState={trackSpecState}
-                 trackOptions={trackOptions}
-                 generatedFilePath={generatedFilePath}
-                 setGeneratedFilePath={setGeneratedFilePath}
-                 instanceName={instanceName}
-                 setInstanceName={setInstanceName}
-                 profileName={profileName}
-                 setProfileName={setProfileName}
-                 installPath={installPath}
-               />
+               <GenerationTab />
              </div>
           )}
 
           {activeTab === 'launch' && (
              <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
-               <LaunchTab 
-                 installPath={installPath}
-                 scanResult={scanResult}
-                 generatedFilePath={generatedFilePath}
-                 extraArgs={extraArgs}
-                 setExtraArgs={setExtraArgs}
-                 extraPacks={extraPacks}
-                 profileName={profileName}
-               />
+               <LaunchTab />
              </div>
           )}
 
@@ -430,9 +208,12 @@ export default function App() {
       )}
 
       <footer>
+        <button onClick={handleClearData} style={{ padding: "0.25rem 0.75rem", fontSize: "0.75rem", backgroundColor: "#7a2626", color: "white" }}>
+          Clear Cache
+        </button>
         <div className="theme-selector">
           <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>Theme</label>
-          <select value={theme} onChange={e => setTheme(e.target.value)}>
+          <select value={theme} onChange={e => updateCategoryCtx("app", { theme: e.target.value })}>
             <option value="dark">Dark</option>
             <option value="light">Light</option>
             <option value="earthy">Earthy</option>

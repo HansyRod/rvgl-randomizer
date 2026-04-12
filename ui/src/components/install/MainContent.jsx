@@ -1,8 +1,15 @@
 import { useState } from "react";
 import PoolGrid from "./PoolGrid";
-import { CAR_RATINGS } from "../utils/constants";
+import { CAR_RATINGS } from "../../utils/constants";
+import { useAppContext } from "../../AppProvider";
 
-export default function MainContent({ scanResult, activeTab, installPath }) {
+export default function MainContent() {
+
+  const { state } = useAppContext();
+
+  // Destructure categories
+  const { app : { activeTab }, install : { installPath, scanResult } } = state;
+    
   const [ratingFilter, setRatingFilter] = useState("All");
 
   const filterUI = activeTab === "cars" && (

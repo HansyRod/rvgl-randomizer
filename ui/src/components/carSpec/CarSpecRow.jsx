@@ -1,0 +1,102 @@
+import { CAR_RATINGS, OBTAIN_METHODS, RATINGS_LIST, ATTR_RATINGS_LIST, OBTAINS_LIST, ATTR_OBTAINS_LIST } from "../../utils/constants";
+
+export default function CarSpecRow({index, rowState, updateRow, carByFolder, sourcePoolOptionsJSX, poolValidOptions, carOptions, onOpenSearch,
+  lockStartingPool, lockStartingRating, lockStartingObtain}) {
+  if (!rowState) return null;
+
+  const id = rowState.id;
+  const isGeneralPool = rowState.sourcePool === "Full Random" || 
+                        rowState.sourcePool === "Stock" || 
+                        rowState.sourcePool === "DC" || 
+                        rowState.sourcePool === "Custom" || 
+                        rowState.sourcePool.startsWith("Pack:");
+
+  const isSpecificCar = !isGeneralPool && carByFolder[rowState.sourcePool] !== undefined;
+  const specificCar = isSpecificCar ? carByFolder[rowState.sourcePool] : null;
+
+  const validOptions = isGeneralPool ? poolValidOptions[rowState.sourcePool] : null;
+
+  return (
+    <div className="spec-grid-row">
+      <div className="car-id">{id}</div>
+      <div className="specs-horizontal">
+        <div className="field-group">
+          <select 
+            value={rowState.sourcePool} 
+            onChange={e => {
+              const val = e.target.value;
+              if (val === "Specific Car") {
+                onOpenSearch(index);
+              } else {
+                updateRow(index, { sourcePool: val });
+              }
+            }}
+            disabled={lockStartingPool}
+          >
+            {sourcePoolOptionsJSX}
+            {!isGeneralPool && (
+              <optgroup label="Current Selection">
+                <option value={rowState.sourcePool}>
+                  {specificCar ? specificCar.name : rowState.sourcePool}
+                </option>
+              </optgroup>
+            )}
+            <option value="Specific Car">Specific Car...</option>
+          </select>
+        </div>
+        <div className="field-group">
+          <select 
+            value={isSpecificCar ? specificCar.rating.toString() : rowState.sourceRating} 
+            onChange={e => updateRow(index, { sourceRating: e.target.value })} 
+            disabled={isSpecificCar || lockStartingRating}
+          >
+            {isSpecificCar ? (
+              <option value={specificCar.rating.toString()}>{CAR_RATINGS[specificCar.rating] || "Unknown"}</option>
+            ) : (
+              RATINGS_LIST.map(opt => (
+                <option key={opt.val} value={opt.val} disabled={validOptions && !validOptions.ratings.has(opt.val)}>
+                  {opt.label}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+        <div className="field-group">
+          <select 
+            value={isSpecificCar ? specificCar.obtainMethod.toString() : rowState.sourceObtain} 
+            onChange={e => updateRow(index, { sourceObtain: e.target.value })} 
+            disabled={isSpecificCar}
+          >
+            {isSpecificCar ? (
+              <option value={specificCar.obtainMethod.toString()}>{OBTAIN_METHODS[specificCar.obtainMethod] || "Unknown"}</option>
+            ) : (
+              OBTAINS_LIST.map(opt => (
+                <option key={opt.val} value={opt.val} disabled={validOptions && !validOptions.obtains.has(opt.val)}>
+                  {opt.label}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+      </div>
+      <div className="specs-horizontal">
+        <div className="field-group">
+          <select value={rowState.attrRating} onChange={e => updateRow(index, { attrRating: e.target.value })}
+            disabled={carOptions?.unlockMode === "baseGame" || carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomUnlock"}>
+            {ATTR_RATINGS_LIST.map(opt => (
+              <option key={opt.val} value={opt.val}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="field-group">
+          <select value={rowState.attrObtain} onChange={e => updateRow(index, { attrObtain: e.target.value })}
+            disabled={lockStartingObtain || carOptions?.unlockMode === "baseGame" || carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomRatings"} >
+            {ATTR_OBTAINS_LIST.map(opt => (
+              <option key={opt.val} value={opt.val}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+};

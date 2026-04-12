@@ -1,0 +1,5 @@
+# Ignore third-party dependencies
+ui/node_modules/
+
+# Ignore Tauri build target folder and its contents
+ui/src-tauri/target/

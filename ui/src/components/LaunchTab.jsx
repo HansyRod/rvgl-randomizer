@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { useAppContext } from '../AppProvider';
 
-export default function LaunchTab({ 
-  installPath, 
-  scanResult, 
-  generatedFilePath, 
-  extraArgs, 
-  setExtraArgs,
-  extraPacks,
-  profileName
-}) {
+export default function LaunchTab() {
+
+  const { state, updateCategoryCtx } = useAppContext();
+
+  // Destructure categories
+  const { install, output, launch } = state;
+  
+  // Destructure individual variables
+  const { installPath, scanResult } = install;
+  const { generatedFilePath, profileName } = output;
+  const { extraArgs, extraPacks } = launch;
+
   const [launchStatus, setLaunchStatus] = useState("");
   const [isLaunching, setIsLaunching] = useState(false);
 
@@ -53,7 +57,7 @@ export default function LaunchTab({
           <input 
             type="text" 
             value={extraArgs} 
-            onChange={(e) => setExtraArgs(e.target.value)}
+            onChange={(e) => updateCategoryCtx("launch", { extraArgs: e.target.value })}
             placeholder="e.g. -window -nointro"
             style={{ padding: "0.5rem", width: "100%", boxSizing: "border-box" }}
           />

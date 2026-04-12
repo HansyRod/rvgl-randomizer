@@ -1,6 +1,6 @@
 import CardImage from "./CardImage";
-import { CAR_RATINGS, OBTAIN_METHODS, TRACK_DIFFICULTIES } from "../utils/constants";
-import { getImageSrc } from "../utils/helpers";
+import { CAR_RATINGS, OBTAIN_METHODS, TRACK_DIFFICULTIES } from "../../utils/constants";
+import { getImageSrc } from "../../utils/helpers";
 
 export default function PoolGrid({ items, rootPath, activeTab, ratingFilter }) {
   if (!items || items.length === 0) {
