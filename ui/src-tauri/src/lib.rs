@@ -24,7 +24,7 @@ pub fn run() {
             scanner::scan_cars_folder,
             scanner::scan_levels_folder,
             scanner::check_profile_exists,
-            randomizer::generate_result,
+            randomizer::commands::generate_result,
             launcher::launch_game,
             cache::load_cache,
             cache::save_cache,
