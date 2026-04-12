@@ -109,8 +109,8 @@ static_assert(sizeof(TrackInfo) == 0x78, "TrackInfo size mismatch");
 struct CupStage {
     int trackID;           // 0x00
     int numLaps;           // 0x04 (Ghidra: puVar9 + 0x98)
-    bool isReverse;		   // 0x08 
-    bool isMirror;
+    bool isMirror;		   // 0x08 
+    bool isReverse;
     char pad[2];      	   // 0x0A (Padding to 12 bytes)
 };
 static_assert(sizeof(CupStage) == 0x0C, "CupStage size mismatch");
