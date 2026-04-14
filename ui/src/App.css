@@ -9,6 +9,7 @@
   --text-secondary: #a0a0a0;
   --accent: #0047AB;
   --accent-hover: #005ce6;
+  --accent-text: #5b9aff; /* readable accent for text on dark backgrounds */
   --card-bg: rgba(255, 255, 255, 0.05);
   --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   --border-color: #333333;
@@ -22,6 +23,7 @@
   --text-secondary: #666666;
   --accent: #f97316;
   --accent-hover: #c2410c;
+  --accent-text: #f97316; /* orange is fine on light backgrounds */
   --card-bg: rgba(0, 0, 0, 0.03);
   --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   --border-color: #e5e5e5;
@@ -35,6 +37,7 @@
   --text-secondary: #a0978d;
   --accent: #00401A;
   --accent-hover: #002e12;
+  --accent-text: #3ecf8e; /* readable accent for text on dark earthy backgrounds */
   --card-bg: rgba(255, 255, 255, 0.03);
   --card-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   --border-color: #554433;
@@ -174,60 +177,7 @@ footer {
   align-items: center;
 }
 
-.header-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.25rem;
-}
 
-.button-group {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
-.status-area {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.2rem;
-  min-height: 1.1rem; /* Reserve space to prevent jump */
-}
-
-.status-item {
-  font-size: 0.75rem;
-  font-family: monospace;
-}
-
-/* Tabs */
-.tabs {
-  display: flex;
-  gap: 1rem;
-}
-
-.tab {
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: 0.5rem 1rem;
-  color: var(--text-secondary);
-  border-radius: 6px 6px 0 0;
-  font-size: 1rem;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-}
-
-.tab:hover {
-  color: var(--text-primary);
-  background-color: var(--tab-active-bg);
-}
-
-.tab.active {
-  color: #fff;
-  border-bottom-color: var(--accent);
-  background-color: var(--accent);
-}
 
 /* Layout */
 .dashboard {
@@ -419,29 +369,6 @@ footer {
   font-weight: bold;
 }
 
-.button-group-vertical {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.nav-divider {
-  border: 0;
-  height: 1px;
-  background: #444;
-  margin: 15px 0;
-}
-
-.danger-btn {
-  background-color: #7a2626;
-  color: white;
-}
-
-.danger-btn:hover {
-  background-color: #a33232;
-}
-
 /* --- New Tab Layout Styles --- */
 .tab-container {
   max-width: 800px;
@@ -519,4 +446,62 @@ footer {
   color: var(--text-secondary);
   font-style: italic;
   margin: 0;
+}
+
+
+
+/* ── Configure side navigation ────────────────────────────────────────────── */
+/* Append these rules to the existing App.css */
+
+.configure-sidenav {
+  width: 200px;
+  flex-shrink: 0;
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  padding: 1rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow-y: auto;
+}
+
+.configure-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 0.75rem;
+}
+
+.configure-nav-group-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.3rem 0.5rem 0.2rem;
+}
+
+.configure-nav-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.75rem;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.configure-nav-item:hover {
+  background-color: var(--tab-active-bg);
+  color: var(--text-primary);
+}
+
+.configure-nav-item.active {
+  background-color: var(--tab-active-bg);
+  color: var(--text-primary);
+  font-weight: 500;
 }

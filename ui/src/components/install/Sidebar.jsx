@@ -6,17 +6,13 @@ export default function Sidebar() {
   const context = useAppContext();
 
   // Destructure categories
-  const { state: { app, install } } = context;
+  const { state: { install }, updateCategoryCtx } = context;
   
   // Destructure individual variables
-  const { activeTab } = app;
-  const { scanResult: { contentPacks: packs } } = install;
+  const { scanResult, setupTab : activeTab } = install;
+  const { contentPacks: packs } = scanResult || {};
 
-  const togglePack = async (packIndex, context) => {
-    const { state, updateCategoryCtx } = context;
-    const { install, app } = state;
-    const { scanResult } = install;
-    const { activeTab } = app;
+  const togglePack = async (packIndex) => {
 
     if (!scanResult) {
       return;
@@ -87,7 +83,7 @@ export default function Sidebar() {
         <input 
           type="checkbox" 
           checked={activeTab === "cars" ? pack.useCars : pack.useTracks}
-          onChange={() => togglePack(originalIndex, context)}
+          onChange={() => togglePack(originalIndex)}
         />
         <span style={{ marginLeft: "6px", textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: "nowrap" }}>
           {pack.name}

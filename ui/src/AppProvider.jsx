@@ -5,13 +5,14 @@ const DEFAULT_STATE = {
   app: {
     isLoading: true,
     theme: "dark",
-    activeTab: "cars",
+    activeTab: "setup", // Wizard step: "setup" | "configure" | "generate" | "play"
     isScanning: false,
     isFetchingPack: false,
   },
   install: {
     installPath: "",
     scanResult: null,
+    setupTab: "Install", // Setup sub-tab: "Install" | "Cars" | "Tracks"
   },
   randomizer: {
     carOptions: DEFAULT_CAR_OPTIONS,
@@ -27,6 +28,7 @@ const DEFAULT_STATE = {
       tracks: makeDefaultTrackSpec(STOCK_TRACKS)
     },
     cupSpecState: makeDefaultCupSpecState(),
+    configureTab: "car-options", // Configure sub-tab: "car-options" | "stock-cars-spec" | "dc-cars-spec" | "track-options" | "track-spec" | "cup-spec"
   },
   output: {
     generatedFilePath: "",

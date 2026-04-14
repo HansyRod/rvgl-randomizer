@@ -1,0 +1,87 @@
+.step-navigator {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  background-color: var(--bg-secondary);
+}
+
+.step-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.8rem 1.25rem;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border-color);
+  border-radius: 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+  position: relative;
+}
+
+.step-nav-item:last-child {
+  border-right: none;
+}
+
+.step-nav-item:hover {
+  background-color: var(--tab-active-bg);
+}
+
+.step-nav-item.active {
+  color: var(--text-primary);
+  background-color: var(--tab-active-bg);
+  box-shadow: inset 0 2px 0 0 var(--accent);
+}
+
+.step-nav-item.done {
+  color: var(--text-secondary);
+}
+
+.step-nav-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+.step-nav-num {
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.step-nav-item.active .step-nav-num {
+  color: var(--accent-text);
+}
+
+.step-nav-item.done .step-nav-num {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.step-nav-label {
+  line-height: 1;
+}
+
+.step-nav-item.active .step-nav-label {
+  color: var(--accent-text);
+}
+
+.step-nav-check {
+  font-size: 0.7rem;
+  color: #1D9E75;
+  margin-left: auto;
+}
+
+.step-nav-desc {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+  padding-left: 1.05rem; /* align with label */
+  padding-top: 0.125rem;
+}
