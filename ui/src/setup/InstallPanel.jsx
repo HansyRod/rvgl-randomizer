@@ -8,9 +8,9 @@ import "./SetupView.css";
 
 export default function InstallPanel({ onContinue }) {
   const { state, updateCategoryCtx } = useAppContext();
-  const { app, install } = state;
+  const { app, setup } = state;
   const { isScanning } = app;
-  const { installPath, scanResult } = install;
+  const { installPath, scanResult } = setup;
 
   async function handleBrowse() {
     const selected = await open({
@@ -20,11 +20,11 @@ export default function InstallPanel({ onContinue }) {
     });
     if (!selected) return;
     const path = selected.path || selected;
-    updateCategoryCtx("install", { installPath: path, scanResult: null });
+    updateCategoryCtx("setup", { installPath: path, scanResult: null });
     updateCategoryCtx("app", { isScanning: true });
     try {
       const result = await invoke("scan_install", { executablePath: path });
-      updateCategoryCtx("install", { scanResult: result });
+      updateCategoryCtx("setup", { scanResult: result });
     } catch (err) {
       console.error("Error scanning:", err);
     } finally {
@@ -37,7 +37,7 @@ export default function InstallPanel({ onContinue }) {
     updateCategoryCtx("app", { isScanning: true });
     try {
       const result = await invoke("scan_install", { executablePath: installPath });
-      updateCategoryCtx("install", { scanResult: result });
+      updateCategoryCtx("setup", { scanResult: result });
     } catch (err) {
       console.error("Error refreshing:", err);
     } finally {

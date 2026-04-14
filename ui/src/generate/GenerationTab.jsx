@@ -8,12 +8,12 @@ export default function GenerationTab() {
   const { state, updateCategoryCtx } = useAppContext();
 
   // Destructure categories
-  const { install, randomizer, output } = state;
+  const { setup, configure, generate } = state;
   
   // Destructure individual variables
-  const { installPath, scanResult } = install;
-  const { carOptions, trackOptions, carsSpecState, trackSpecState, cupSpecState } = randomizer;
-  const { generatedFilePath, instanceName, profileName } = output;
+  const { installPath, scanResult } = setup;
+  const { carOptions, trackOptions, carsSpecState, trackSpecState, cupSpecState } = configure;
+  const { generatedFilePath, instanceName, profileName } = generate;
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState("");
@@ -83,7 +83,7 @@ export default function GenerationTab() {
         profileName: profileName.trim()
       });
       
-      updateCategoryCtx("output", { generatedFilePath: outPath });
+      updateCategoryCtx("generate", { generatedFilePath: outPath });
       setMessage(`Successfully generated: ${outPath.split(/[\\/]/).pop()}`);
     } catch (error) {
       console.error(error);
@@ -104,7 +104,7 @@ export default function GenerationTab() {
       // Auto-fill the instance name input with the loaded file's name
       const loadedName = file.split(/[\\/]/).pop().replace('.json', '');
 
-      const newOutputState = {
+      const newGenerateState = {
         generatedFilePath: file,
         instanceName: loadedName
       };
@@ -112,13 +112,13 @@ export default function GenerationTab() {
       try {
         const configData = await invoke("read_config_file", { filePath: file });
         if (configData?.metadata?.profileName) {
-          newOutputState.profileName = configData.metadata.profileName;
+          newGenerateState.profileName = configData.metadata.profileName;
         }
       } catch (err) {
         console.error("Failed to read profile name from config:", err);
       }
 
-      updateCategoryCtx("output", newOutputState);
+      updateCategoryCtx("generate", newGenerateState);
 
       setMessage(`Loaded existing file: ${file.split(/[\\/]/).pop()}`);
     }
@@ -137,7 +137,7 @@ export default function GenerationTab() {
             <input 
               type="text" 
               value={instanceName} 
-              onChange={(e) => updateCategoryCtx("output", { instanceName: e.target.value })}
+              onChange={(e) => updateCategoryCtx("generate", { instanceName: e.target.value })}
               placeholder="e.g. my-random-seed"
               style={{ flex: 1, padding: "0.5rem" }}
             />
@@ -154,7 +154,7 @@ export default function GenerationTab() {
               value={profileName} 
               onChange={(e) => {
                 if (e.target.value.length <= 15) {
-                  updateCategoryCtx("output", { profileName: e.target.value });
+                  updateCategoryCtx("generate", { profileName: e.target.value });
                 }
               }}
               placeholder="e.g. player1"

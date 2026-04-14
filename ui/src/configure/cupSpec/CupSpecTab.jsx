@@ -445,14 +445,14 @@ export default function CupSpecTab() {
   const { state, updateCategoryCtx } = useAppContext();
 
   // Destructure categories
-  const { install, randomizer } = state;
+  const { setup, configure } = state;
   
   // Destructure individual variables
-  const { scanResult } = install;
-  const { trackSpecState, cupSpecState } = randomizer;
+  const { scanResult } = setup;
+  const { trackSpecState, cupSpecState } = configure;
 
   const set = useCallback((key, val) => {
-    updateCategoryCtx("randomizer", { cupSpecState: { ...cupSpecState, [key]: val } });
+    updateCategoryCtx("configure", { cupSpecState: { ...cupSpecState, [key]: val } });
   }, [cupSpecState, updateCategoryCtx]);
 
   const updateCup = useCallback((cupIndex, updates) => {
@@ -461,7 +461,7 @@ export default function CupSpecTab() {
       c.index === cupIndex ? { ...c, ...updates } : c
     );
 
-    updateCategoryCtx("randomizer", { cupSpecState: { ...cupSpecState, cups: cups } });
+    updateCategoryCtx("configure", { cupSpecState: { ...cupSpecState, cups: cups } });
 
   }, [cupSpecState, updateCategoryCtx]);
 

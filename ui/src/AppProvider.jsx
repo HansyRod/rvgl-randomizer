@@ -5,16 +5,16 @@ const DEFAULT_STATE = {
   app: {
     isLoading: true,
     theme: "dark",
-    activeTab: "setup", // Wizard step: "setup" | "configure" | "generate" | "play"
+    activeStep: "setup", // Wizard step: "setup" | "configure" | "generate" | "play"
     isScanning: false,
     isFetchingPack: false,
   },
-  install: {
+  setup: {
     installPath: "",
     scanResult: null,
     setupTab: "Install", // Setup sub-tab: "Install" | "Cars" | "Tracks"
   },
-  randomizer: {
+  configure: {
     carOptions: DEFAULT_CAR_OPTIONS,
     trackOptions: DEFAULT_TRACK_OPTIONS,
     carsSpecState: {
@@ -30,12 +30,12 @@ const DEFAULT_STATE = {
     cupSpecState: makeDefaultCupSpecState(),
     configureTab: "car-options", // Configure sub-tab: "car-options" | "stock-cars-spec" | "dc-cars-spec" | "track-options" | "track-spec" | "cup-spec"
   },
-  output: {
+  generate: {
     generatedFilePath: "",
     instanceName: "randomized-instance",
     profileName: "player1",
   },
-  launch: {
+  play: {
     extraArgs: "",
     extraPacks: [],
   }

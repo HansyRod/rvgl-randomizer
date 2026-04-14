@@ -14,14 +14,14 @@ const SETUP_TABS = [
 
 export default function SetupView() {
   const { state, updateCategoryCtx } = useAppContext();
-  const { install } = state;
-  const activeTab = install?.setupTab ?? "install";
+  const { setup } = state;
+  const activeTab = setup?.setupTab ?? "install";
 
   function setTab(tab) {
-    updateCategoryCtx("install", { setupTab: tab });
+    updateCategoryCtx("setup", { setupTab: tab });
   }
 
-  const { install: { scanResult } } = state;
+  const { setup: { scanResult } } = state;
   const hasInstall = !!scanResult;
 
   return (

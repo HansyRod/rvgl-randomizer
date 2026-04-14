@@ -10,10 +10,10 @@ export default function CarOptionsTab() {
   const { state, updateCategoryCtx } = useAppContext();
 
   // Destructure categories
-  const { randomizer } = state;
+  const { configure } = state;
   
   // Destructure individual variables
-  const { carOptions, carsSpecState : specState } = randomizer;
+  const { carOptions, carsSpecState : specState } = configure;
   
   const {
     unlockMode,
@@ -21,7 +21,7 @@ export default function CarOptionsTab() {
     includeStuntArena,
   } = carOptions;
 
-  const set = (key, value) => updateCategoryCtx("randomizer", { carOptions: { ...carOptions, [key]: value } });
+  const set = (key, value) => updateCategoryCtx("configure", { carOptions: { ...carOptions, [key]: value } });
 
   const UNLOCK_MODES = [
     {
@@ -120,7 +120,7 @@ export default function CarOptionsTab() {
 
     const newCarsSpecState = { stockCars: newStockCars, dcCars: newDcCars };
     const newCarOptions = { ...carOptions, unlockMode: modeId };
-    updateCategoryCtx("randomizer", { carsSpecState: newCarsSpecState, carOptions: newCarOptions });
+    updateCategoryCtx("configure", { carsSpecState: newCarsSpecState, carOptions: newCarOptions });
   };
 
   const showAllowedMethods = (unlockMode === "random" || unlockMode === "randomUnlock");

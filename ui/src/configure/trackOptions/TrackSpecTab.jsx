@@ -12,11 +12,11 @@ export default function TrackSpecTab() {
   const { state, updateCategoryCtx } = useAppContext();
 
   // Destructure categories
-  const { install, randomizer } = state;
+  const { setup, configure } = state;
   
   // Destructure individual variables
-  const { scanResult } = install;
-  const { trackOptions, trackSpecState : specState } = randomizer;
+  const { scanResult } = setup;
+  const { trackOptions, trackSpecState : specState } = configure;
 
   const [presetSelection, setPresetSelection] = useState("Full Random");
   const [searchModalRow, setSearchModalRow] = useState(null);
@@ -74,7 +74,7 @@ export default function TrackSpecTab() {
     const tracks = [...(specState?.tracks || [])];
     tracks[index] = { ...tracks[index], ...updates };
 
-    updateCategoryCtx("randomizer", {
+    updateCategoryCtx("configure", {
       trackSpecState: {
         ...specState, 
         tracks: tracks
@@ -99,7 +99,7 @@ export default function TrackSpecTab() {
       };
     });
 
-    updateCategoryCtx("randomizer", {
+    updateCategoryCtx("configure", {
       trackSpecState: {
         ...specState, 
         tracks: rows
@@ -137,7 +137,7 @@ export default function TrackSpecTab() {
           <input
             type="checkbox"
             checked={isEnabled}
-            onChange={e => updateCategoryCtx("randomizer", { trackSpecState: { ...specState, includeTracks: e.target.checked } })}
+            onChange={e => updateCategoryCtx("configure", { trackSpecState: { ...specState, includeTracks: e.target.checked } })}
             style={{ width: "1.2rem", height: "1.2rem" }}
           />
           Include Tracks in Randomization

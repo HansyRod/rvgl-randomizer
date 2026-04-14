@@ -7,7 +7,7 @@ export default function CarRatingsConfig() {
   const { state, updateCategoryCtx } = useAppContext();
 
   // Destructure categories
-  const { randomizer: { carOptions, carsSpecState } } = state;
+  const { configure: { carOptions, carsSpecState } } = state;
   
   const { includeSuperPro, poolRatingDistributions, attrRatingDistributions } = carOptions;
 
@@ -25,7 +25,7 @@ export default function CarRatingsConfig() {
       };
     }
 
-    updateCategoryCtx("randomizer", { carOptions: next });
+    updateCategoryCtx("configure", { carOptions: next });
   };
   
   const updateDist = (type, ratingId, field, value) => {
@@ -65,7 +65,7 @@ export default function CarRatingsConfig() {
     const normalized = normalizeDistributionMap(rawMap, fixedCarCountByRating, totalSlots);
     const nextCarOptions = { ...carOptions, [ratingTable]: normalized };
 
-    updateCategoryCtx("randomizer", { carOptions: nextCarOptions, carsSpecState: nextSpec });
+    updateCategoryCtx("configure", { carOptions: nextCarOptions, carsSpecState: nextSpec });
   };
 
   return (

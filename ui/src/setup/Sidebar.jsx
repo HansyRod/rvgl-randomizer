@@ -6,10 +6,10 @@ export default function Sidebar() {
   const context = useAppContext();
 
   // Destructure categories
-  const { state: { install }, updateCategoryCtx } = context;
+  const { state: { setup }, updateCategoryCtx } = context;
   
   // Destructure individual variables
-  const { scanResult, setupTab : activeTab } = install;
+  const { scanResult, setupTab : activeTab } = setup;
   const { contentPacks: packs } = scanResult || {};
 
   const togglePack = async (packIndex) => {
@@ -49,7 +49,7 @@ export default function Sidebar() {
         }
       }
     }
-    updateCategoryCtx("install", { scanResult: newResult });
+    updateCategoryCtx("setup", { scanResult: newResult });
   }
 
   // Filter packs that actually have content for the current tab

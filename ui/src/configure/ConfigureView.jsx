@@ -19,11 +19,11 @@ const CONFIGURE_TABS = [
 
 export default function ConfigureView() {
   const { state, updateCategoryCtx } = useAppContext();
-  const { randomizer } = state;
-  const activeTab = randomizer?.configureTab ?? "car-options";
+  const { configure } = state;
+  const activeTab = configure?.configureTab ?? "car-options";
 
   function setTab(id) {
-    updateCategoryCtx("randomizer", { configureTab: id });
+    updateCategoryCtx("configure", { configureTab: id });
   }
 
   const groups = [...new Set(CONFIGURE_TABS.map(t => t.group))];

@@ -12,11 +12,11 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
   const { state, updateCategoryCtx } = useAppContext();
 
   // Destructure categories
-  const { install, randomizer } = state;
+  const { setup, configure } = state;
   
   // Destructure individual variables
-  const { scanResult } = install;
-  const { carOptions, carsSpecState } = randomizer;
+  const { scanResult } = setup;
+  const { carOptions, carsSpecState } = configure;
   
   const [presetSelection, setPresetSelection] = useState("Full Random");
   const [searchModalRow, setSearchModalRow] = useState(null);
@@ -140,7 +140,7 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
       };
     });
 
-    updateCategoryCtx("randomizer", { carsSpecState: { ...carsSpecState, [categoryKey]: newList } });
+    updateCategoryCtx("configure", { carsSpecState: { ...carsSpecState, [categoryKey]: newList } });
   };
 
   const updateRow = useCallback((index, updates) => {
@@ -151,7 +151,7 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
       ...carsSpecState,
       [categoryKey]: newCategory,
     };
-    updateCategoryCtx("randomizer", { carsSpecState: nextState });
+    updateCategoryCtx("configure", { carsSpecState: nextState });
   }, [carsSpecState, categoryKey, updateCategoryCtx]);
 
   return (
@@ -191,7 +191,7 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
           <input
             type="checkbox"
             checked={isEnabled}
-            onChange={e => updateCategoryCtx("randomizer", { carsSpecState: { ...carsSpecState, [includeKey]: e.target.checked } })}
+            onChange={e => updateCategoryCtx("configure", { carsSpecState: { ...carsSpecState, [includeKey]: e.target.checked } })}
             style={{ width: "1.2rem", height: "1.2rem" }}
           />
           Include {title} in Randomization

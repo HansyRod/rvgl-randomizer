@@ -17,12 +17,12 @@ export default function TrackOptionsTab() {
   const { state, updateCategoryCtx } = useAppContext();
 
   // Destructure categories
-  const { randomizer } = state;
+  const { configure } = state;
   
   // Destructure individual variables
-  const { trackOptions, trackSpecState } = randomizer;
+  const { trackOptions, trackSpecState } = configure;
 
-  const set = (key, value) => updateCategoryCtx("randomizer", { trackOptions: { ...trackOptions, [key]: value } });
+  const set = (key, value) => updateCategoryCtx("configure", { trackOptions: { ...trackOptions, [key]: value } });
   
   const { unlockMode, enableRandomObtainMethods, includeCheatOnly, includeStuntArena, includeUnlockedByDefault } = trackOptions;
 
@@ -80,7 +80,7 @@ export default function TrackOptionsTab() {
       return out;
     });
 
-    updateCategoryCtx("randomizer", {
+    updateCategoryCtx("configure", {
       trackSpecState: {
         ...trackSpecState, 
         tracks: nextTracks

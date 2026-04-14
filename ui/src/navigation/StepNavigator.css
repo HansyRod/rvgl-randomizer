@@ -20,15 +20,25 @@
   color: var(--text-secondary);
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s;
+  transition: background 0.15s, opacity 0.15s;
   position: relative;
+}
+
+.step-nav-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .step-nav-item:last-child {
   border-right: none;
 }
 
-.step-nav-item:hover {
+.step-nav-item[disabled]:hover,
+.step-nav-item:disabled:hover {
+  background-color: transparent;
+}
+
+.step-nav-item:not(:disabled):hover {
   background-color: var(--tab-active-bg);
 }
 

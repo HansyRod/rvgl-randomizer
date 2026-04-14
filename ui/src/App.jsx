@@ -15,9 +15,9 @@ import GenerationTab from "./generate/GenerationTab";
 
 export default function App() {
   const { state, resetContext, updateContext, updateCategoryCtx } = useAppContext();
-  const { app, install } = state;
+  const { app, setup } = state;
   const { isLoading, theme, isFetchingPack } = app;
-  const activeStep = app?.activeTab ?? "setup";
+  const activeStep = app?.activeStep ?? "setup";
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -45,7 +45,7 @@ export default function App() {
   }, [state, isLoading]);
 
   function goToStep(stepId) {
-    updateCategoryCtx("app", { activeTab: stepId });
+    updateCategoryCtx("app", { activeStep: stepId });
   }
 
   async function handleClearData() {
@@ -122,7 +122,7 @@ export default function App() {
               ← Back
             </button>
           )}
-          {activeStep !== "play" && install.scanResult && (
+          {activeStep !== "play" && setup.scanResult && (
             <button
               className="btn-primary"
               onClick={() => {

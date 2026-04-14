@@ -7,7 +7,7 @@ export default function StartingCarConfig() {
   const { state, updateCategoryCtx } = useAppContext();
 
   // Destructure categories
-  const { randomizer: { carOptions }, install: { scanResult } } = state;
+  const { configure: { carOptions }, setup: { scanResult } } = state;
   
   const {
     enableStartingCars, numStartingCars,
@@ -15,7 +15,7 @@ export default function StartingCarConfig() {
     enableStartingCarsRating, startingCarsRating,
   } = carOptions;
 
-  const set = (key, value) => updateCategoryCtx("randomizer", { carOptions: { ...carOptions, [key]: value } });
+  const set = (key, value) => updateCategoryCtx("configure", { carOptions: { ...carOptions, [key]: value } });
 
   useEffect(() => {
     if (enableStartingCars && numStartingCars < 1) {

@@ -5,7 +5,7 @@ import PacksTab from "./PacksTab";
 
 export default function PlayView() {
   const { state } = useAppContext();
-  const { install: { scanResult } } = state;
+  const { setup: { scanResult } } = state;
   const isLauncher = scanResult?.installType === "launcher";
 
   return (

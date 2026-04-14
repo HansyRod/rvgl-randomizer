@@ -4,7 +4,7 @@ import { useAppContext } from "../AppProvider";
 
 export default function TracksTab() {
 
-  const { state : { install : { scanResult } } } = useAppContext();
+  const { state : { setup : { scanResult } } } = useAppContext();
   
   return (
     <>

@@ -5,11 +5,11 @@ function PacksTab() {
   const { state, updateCategoryCtx } = useAppContext();
 
   // Destructure categories
-  const { install, launch } = state;
+  const { setup, play } = state;
   
   // Destructure individual variables
-  const { scanResult } = install;
-  const { extraPacks } = launch;
+  const { scanResult } = setup;
+  const { extraPacks } = play;
 
   const allPacks = scanResult?.contentPacks || [];
 
@@ -30,7 +30,7 @@ function PacksTab() {
     const newPackList = extraPacks.includes(packName)
       ? extraPacks.filter(p => p !== packName)
       : [...extraPacks, packName];
-    updateCategoryCtx("launch", { extraPacks: newPackList });
+    updateCategoryCtx("play", { extraPacks: newPackList });
   };
 
   return (

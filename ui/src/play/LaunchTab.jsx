@@ -7,12 +7,12 @@ export default function LaunchTab() {
   const { state, updateCategoryCtx } = useAppContext();
 
   // Destructure categories
-  const { install, output, launch } = state;
+  const { setup, generate, play } = state;
   
   // Destructure individual variables
-  const { installPath, scanResult } = install;
-  const { generatedFilePath, profileName } = output;
-  const { extraArgs, extraPacks } = launch;
+  const { installPath, scanResult } = setup;
+  const { generatedFilePath, profileName } = generate;
+  const { extraArgs, extraPacks } = play;
 
   const [launchStatus, setLaunchStatus] = useState("");
   const [isLaunching, setIsLaunching] = useState(false);
@@ -57,7 +57,7 @@ export default function LaunchTab() {
           <input 
             type="text" 
             value={extraArgs} 
-            onChange={(e) => updateCategoryCtx("launch", { extraArgs: e.target.value })}
+            onChange={(e) => updateCategoryCtx("play", { extraArgs: e.target.value })}
             placeholder="e.g. -window -nointro"
             style={{ padding: "0.5rem", width: "100%", boxSizing: "border-box" }}
           />

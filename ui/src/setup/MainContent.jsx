@@ -8,7 +8,7 @@ export default function MainContent() {
   const { state } = useAppContext();
 
   // Destructure categories
-  const { install : { installPath, scanResult, setupTab : activeTab } } = state;
+  const { setup : { installPath, scanResult, setupTab : activeTab } } = state;
     
   const [ratingFilter, setRatingFilter] = useState("All");
 
