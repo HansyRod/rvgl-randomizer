@@ -87,6 +87,14 @@ button.primary:hover {
   border-color: var(--accent-hover);
 }
 
+input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
 input[type="text"] {
   border-radius: 6px;
   border: 1px solid var(--border-color);
@@ -221,12 +229,7 @@ footer {
   background-color: var(--border-color);
 }
 
-.pack-item input[type="checkbox"] {
-  accent-color: var(--accent);
-  width: 1.2rem;
-  height: 1.2rem;
-  cursor: pointer;
-}
+/* Checkbox size is set globally above */
 
 .main-content {
   flex: 1;

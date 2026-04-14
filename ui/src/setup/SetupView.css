@@ -236,9 +236,7 @@
   text-overflow: ellipsis;
 }
 
-.pack-label input[type="checkbox"] {
-  cursor: pointer;
-}
+
 
 .pack-chip {
   padding: 2px 8px;

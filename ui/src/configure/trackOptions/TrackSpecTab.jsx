@@ -138,7 +138,6 @@ export default function TrackSpecTab() {
             type="checkbox"
             checked={isEnabled}
             onChange={e => updateCategoryCtx("configure", { trackSpecState: { ...specState, includeTracks: e.target.checked } })}
-            style={{ width: "1.2rem", height: "1.2rem" }}
           />
           Include Tracks in Randomization
         </label>

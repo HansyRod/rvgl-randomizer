@@ -192,7 +192,6 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
             type="checkbox"
             checked={isEnabled}
             onChange={e => updateCategoryCtx("configure", { carsSpecState: { ...carsSpecState, [includeKey]: e.target.checked } })}
-            style={{ width: "1.2rem", height: "1.2rem" }}
           />
           Include {title} in Randomization
         </label>

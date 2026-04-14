@@ -173,10 +173,6 @@
 }
 
 .co-checkbox-row input[type="checkbox"] {
-  accent-color: var(--accent);
-  width: 1rem;
-  height: 1rem;
-  flex-shrink: 0;
   margin-top: 0.15rem;
 }
 
