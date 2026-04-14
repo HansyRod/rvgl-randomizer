@@ -11,6 +11,14 @@ export default function InstallPanel({ onContinue }) {
   const { app, setup } = state;
   const { isScanning } = app;
   const { installPath, scanResult } = setup;
+  const installHistory = setup.installHistory || [];
+
+  function updateHistory(path, installType) {
+    const history = Array.isArray(setup.installHistory) ? setup.installHistory : [];
+    const newHistory = history.filter(h => h.path !== path);
+    newHistory.unshift({ path, installType });
+    return newHistory.slice(0, 5);
+  }
 
   async function handleBrowse() {
     const selected = await open({
@@ -24,9 +32,25 @@ export default function InstallPanel({ onContinue }) {
     updateCategoryCtx("app", { isScanning: true });
     try {
       const result = await invoke("scan_install", { executablePath: path });
-      updateCategoryCtx("setup", { scanResult: result });
+      const history = updateHistory(path, result.installType);
+      updateCategoryCtx("setup", { scanResult: result, installHistory: history });
     } catch (err) {
       console.error("Error scanning:", err);
+    } finally {
+      updateCategoryCtx("app", { isScanning: false });
+    }
+  }
+
+  async function handleSwitch(historyPath) {
+    if (isScanning || historyPath === installPath) return;
+    updateCategoryCtx("setup", { installPath: historyPath, scanResult: null });
+    updateCategoryCtx("app", { isScanning: true });
+    try {
+      const result = await invoke("scan_install", { executablePath: historyPath });
+      const history = updateHistory(historyPath, result.installType);
+      updateCategoryCtx("setup", { scanResult: result, installHistory: history });
+    } catch (err) {
+      console.error("Error switching:", err);
     } finally {
       updateCategoryCtx("app", { isScanning: false });
     }
@@ -76,15 +100,40 @@ export default function InstallPanel({ onContinue }) {
       </div>
 
       {scanResult && (
-        <>
-          <div className="install-badges">
-            {isLauncher && <span className="install-badge badge-launcher">Launcher install</span>}
-            {isClassic  && <span className="install-badge badge-classic">Classic install</span>}
-            <span className="install-stat">{totalCars} cars found</span>
-            <span className="install-stat">{totalTracks} tracks found</span>
-          </div>
+        <div className="install-badges">
+          {isLauncher && <span className="install-badge badge-launcher">Launcher install</span>}
+          {isClassic  && <span className="install-badge badge-classic">Classic install</span>}
+          <span className="install-stat">{totalCars} cars found</span>
+          <span className="install-stat">{totalTracks} tracks found</span>
+        </div>
+      )}
 
-          {isLauncher && (
+      {(installHistory.filter(h => h.path !== installPath).length > 0 || (scanResult && isLauncher)) && (
+        <div className="setup-columns">
+          {installHistory.filter(h => h.path !== installPath).length > 0 && (
+            <div className="setup-section">
+              <h3 className="setup-section-title">Previous installations</h3>
+              <div className="install-history-list">
+                {installHistory.filter(h => h.path !== installPath).map((h, i) => (
+                  <div key={i} className="install-history-item">
+                    <div className="install-history-details">
+                      <span className="install-path-text" title={h.path}>{h.path}</span>
+                      <span className={`install-badge badge-${h.installType}`}>{h.installType} install</span>
+                    </div>
+                    <button 
+                      className="btn-secondary" 
+                      onClick={() => handleSwitch(h.path)}
+                      disabled={isScanning}
+                    >
+                      Switch
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {scanResult && isLauncher && (
             <div className="setup-section">
               <h3 className="setup-section-title">Content packs detected</h3>
               <p className="setup-hint">
@@ -103,13 +152,15 @@ export default function InstallPanel({ onContinue }) {
               </div>
             </div>
           )}
+        </div>
+      )}
 
-          <div className="setup-continue-row">
-            <button className="btn-primary" onClick={onContinue}>
-              Configure content →
-            </button>
-          </div>
-        </>
+      {scanResult && (
+        <div className="setup-continue-row">
+          <button className="btn-primary" onClick={onContinue}>
+            Configure content →
+          </button>
+        </div>
       )}
     </div>
   );
