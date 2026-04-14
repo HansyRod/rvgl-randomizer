@@ -5,13 +5,13 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 import { useAppContext } from "./AppProvider";
 import "./App.css";
 
-import StepNavigator from "./components/navigation/StepNavigator";
-import SetupView from "./components/setup/SetupView";
-import ConfigureView from "./components/ConfigureView";
-import PlayView from "./components/PlayView";
+import StepNavigator from "./navigation/StepNavigator";
+import SetupView from "./setup/SetupView";
+import ConfigureView from "./configure/ConfigureView";
+import PlayView from "./play/PlayView";
 
 // Generate + Play
-import GenerationTab from "./components/GenerationTab";
+import GenerationTab from "./generate/GenerationTab";
 
 export default function App() {
   const { state, resetContext, updateContext, updateCategoryCtx } = useAppContext();

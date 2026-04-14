@@ -1,7 +1,7 @@
 import { useState } from "react";
 import PoolGrid from "./PoolGrid";
-import { CAR_RATINGS } from "../../utils/constants";
-import { useAppContext } from "../../AppProvider";
+import { CAR_RATINGS } from "../utils/constants";
+import { useAppContext } from "../AppProvider";
 
 export default function MainContent() {
 

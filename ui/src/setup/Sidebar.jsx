@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useAppContext } from "../../AppProvider";
+import { useAppContext } from "../AppProvider";
 
 export default function Sidebar() {
 

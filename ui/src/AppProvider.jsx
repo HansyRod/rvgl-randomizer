@@ -1,6 +1,6 @@
 import { createContext, useContext, useState } from "react";
 import { DEFAULT_CAR_OPTIONS, DEFAULT_TRACK_OPTIONS, STOCK_CARS, DC_CARS, STOCK_TRACKS, makeDefaultCarsSpec, makeDefaultTrackSpec } from "./utils/constants";
-import { makeDefaultCupSpecState } from "./components/cupSpec/CupSpecTab";
+import { makeDefaultCupSpecState } from "./configure/cupSpec/CupSpecTab";
 const DEFAULT_STATE = {
   app: {
     isLoading: true,

@@ -1,6 +1,6 @@
-import { useAppContext } from "../../AppProvider";
-import CarsTab from "../install/CarsTab";
-import TracksTab from "../install/TracksTab";
+import { useAppContext } from "../AppProvider";
+import CarsTab from "./CarsTab";
+import TracksTab from "./TracksTab";
 import InstallPanel from "./InstallPanel";
 import "./SetupView.css";
 

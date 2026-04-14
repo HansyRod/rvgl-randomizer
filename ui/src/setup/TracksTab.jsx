@@ -1,6 +1,6 @@
 import Sidebar from "./Sidebar";
 import MainContent from "./MainContent";
-import { useAppContext } from "../../AppProvider";
+import { useAppContext } from "../AppProvider";
 
 export default function TracksTab() {
 

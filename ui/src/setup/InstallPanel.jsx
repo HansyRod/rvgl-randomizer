@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useAppContext } from "../../AppProvider";
+import { useAppContext } from "../AppProvider";
 import "./SetupView.css";
 
 // ── Install sub-tab ──────────────────────────────────────────────────────────
