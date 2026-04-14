@@ -46,6 +46,11 @@ export default function InstallPanel({ onContinue }) {
     }
   }
 
+  function handleRemoveHistory(pathToRemove) {
+    const newHistory = installHistory.filter(h => h.path !== pathToRemove);
+    updateCategoryCtx("setup", { installHistory: newHistory });
+  }
+
   async function handleSwitch(historyPath) {
     if (isScanning || historyPath === installPath) return;
     updateCategoryCtx("setup", { installPath: historyPath, scanResult: null });
@@ -95,11 +100,15 @@ export default function InstallPanel({ onContinue }) {
         <h3 className="setup-section-title">RVGL executable</h3>
         <div className="install-path-row">
           <span className="install-path-text">{installPath || "No installation selected"}</span>
-          <button onClick={handleBrowse} className="btn-primary" disabled={isScanning}>
+          <button onClick={handleBrowse} className="btn-primary btn-action-wide" disabled={isScanning}>
             {isScanning ? "Scanning…" : installPath ? "Change" : "Browse"}
           </button>
           {installPath && (
-            <button onClick={handleRefresh} className="btn-secondary" disabled={isScanning}>↺</button>
+            <button onClick={handleRefresh} className="btn-secondary btn-icon" disabled={isScanning} title="Refresh">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
           )}
         </div>
       </div>
@@ -125,13 +134,26 @@ export default function InstallPanel({ onContinue }) {
                       <span className="install-path-text" title={h.path}>{h.path}</span>
                       <span className={`install-badge badge-${h.installType}`}>{h.installType} install</span>
                     </div>
-                    <button 
-                      className="btn-secondary" 
-                      onClick={() => handleSwitch(h.path)}
-                      disabled={isScanning}
-                    >
-                      Switch
-                    </button>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button 
+                        className="btn-secondary btn-action-wide" 
+                        onClick={() => handleSwitch(h.path)}
+                        disabled={isScanning}
+                      >
+                        Switch
+                      </button>
+                      <button
+                        className="btn-secondary btn-icon"
+                        onClick={() => handleRemoveHistory(h.path)}
+                        disabled={isScanning}
+                        title="Remove from history"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

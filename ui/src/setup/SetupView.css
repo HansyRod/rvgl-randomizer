@@ -299,3 +299,18 @@
 .btn-secondary:hover {
   border-color: var(--accent);
 }
+
+.btn-action-wide {
+  min-width: 95px;
+  justify-content: center;
+  text-align: center;
+}
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
