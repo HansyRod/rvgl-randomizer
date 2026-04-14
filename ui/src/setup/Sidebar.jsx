@@ -1,5 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
 import { useAppContext } from "../AppProvider";
+import { handleTogglePack } from "./packHelpers";
 
 export default function Sidebar() {
 
@@ -12,45 +12,9 @@ export default function Sidebar() {
   const { scanResult, setupTab : activeTab } = setup;
   const { contentPacks: packs } = scanResult || {};
 
-  const togglePack = async (packIndex) => {
-
-    if (!scanResult) {
-      return;
-    }
-    const newResult = structuredClone(scanResult);
-    const pack = newResult.contentPacks[packIndex];
-
-    if (activeTab === "cars") {
-      pack.useCars = !pack.useCars;
-      if (pack.useCars && pack.cars.length === 0 && pack.hasCars) {
-        updateCategoryCtx("app", { isFetchingPack: true });
-        try {
-          pack.cars = await invoke("scan_cars_folder", { folderPath: `${pack.absolutePath}\\cars` });
-        }
-        catch(e) {
-          console.error(e);
-        }
-        finally {
-          updateCategoryCtx("app", { isFetchingPack: false });
-        }
-      }
-    } else {
-      pack.useTracks = !pack.useTracks;
-      if (pack.useTracks && pack.tracks.length === 0 && pack.hasTracks) {
-        updateCategoryCtx("app", { isFetchingPack: true });
-        try {
-          pack.tracks = await invoke("scan_levels_folder", { folderPath: `${pack.absolutePath}\\levels` });
-        } 
-        catch(e) {
-          console.error(e);
-        }
-        finally {
-          updateCategoryCtx("app", { isFetchingPack: false });
-        }
-      }
-    }
-    updateCategoryCtx("setup", { scanResult: newResult });
-  }
+  const togglePack = (packIndex) => {
+    handleTogglePack(packIndex, activeTab, scanResult, updateCategoryCtx);
+  };
 
   // Filter packs that actually have content for the current tab
   const validPacks = packs.map((pack, i) => ({pack, originalIndex: i})).filter(

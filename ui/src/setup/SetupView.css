@@ -202,7 +202,63 @@
   align-items: start;
 }
 
+.pack-list-box {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
 
+.pack-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.pack-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.pack-label {
+  display: flex;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  gap: 0.6rem;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pack-label input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.pack-chip {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.chip-active {
+  background-color: rgba(29, 158, 117, 0.15); /* matching badge-classic */
+  color: #1D9E75;
+  border: 1px solid rgba(29, 158, 117, 0.3);
+}
+
+.chip-inactive {
+  background-color: rgba(240, 160, 80, 0.12); /* nice subtle orange for unchecked */
+  color: #DDA250;
+  border: 1px solid rgba(240, 160, 80, 0.25);
+}
 
 /* ── Shared button styles ─────────────────────────────────────────────────── */
 .btn-primary {

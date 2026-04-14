@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useAppContext } from "../AppProvider";
+import { handleTogglePack } from "./packHelpers";
 import "./SetupView.css";
 
 // ── Install sub-tab ──────────────────────────────────────────────────────────
@@ -9,7 +10,7 @@ import "./SetupView.css";
 export default function InstallPanel({ onContinue }) {
   const { state, updateCategoryCtx } = useAppContext();
   const { app, setup } = state;
-  const { isScanning } = app;
+  const { isScanning, isFetchingPack } = app;
   const { installPath, scanResult } = setup;
   const installHistory = setup.installHistory || [];
 
@@ -19,6 +20,10 @@ export default function InstallPanel({ onContinue }) {
     newHistory.unshift({ path, installType });
     return newHistory.slice(0, 5);
   }
+
+  const togglePack = (packIndex, type) => {
+    handleTogglePack(packIndex, type, scanResult, updateCategoryCtx);
+  };
 
   async function handleBrowse() {
     const selected = await open({
@@ -132,26 +137,66 @@ export default function InstallPanel({ onContinue }) {
               </div>
             </div>
           )}
+        </div>
+      )}
 
-          {scanResult && isLauncher && (
-            <div className="setup-section">
-              <h3 className="setup-section-title">Content packs detected</h3>
-              <p className="setup-hint">
-                Visit the <strong>Cars</strong> and <strong>Tracks</strong> tabs to choose which packs contribute to your randomization pool.
-              </p>
-              <div className="pack-summary-grid">
-                {(scanResult.contentPacks || []).map(pack => (
-                  <div key={pack.name} className="pack-summary-card">
-                    <span className="pack-summary-name">{pack.name}</span>
-                    <span className="pack-summary-counts">
-                      {pack.hasCars && <span>{pack.cars.length || "?"} cars</span>}
-                      {pack.hasTracks && <span>{pack.tracks.length || "?"} tracks</span>}
-                    </span>
+      {scanResult && isLauncher && (
+        <div className="setup-columns pack-columns">
+          <div className="setup-section pack-list-box">
+            <h3 className="setup-section-title" style={{textTransform: "capitalize", fontSize: "0.95rem", color: "var(--text-primary)"}}>Cars</h3>
+            <p className="setup-hint">
+              Choose which packs contribute cars to the randomization pool.
+            </p>
+            <div className="pack-list">
+              {(scanResult.contentPacks || []).map((pack, i) => {
+                if (!pack.hasCars && !(pack.cars && pack.cars.length > 0)) return null;
+                return (
+                  <div key={`car-${pack.name}`} className="pack-list-item">
+                    <label className="pack-label">
+                      <input 
+                        type="checkbox" 
+                        checked={!!pack.useCars} 
+                        onChange={() => togglePack(i, "cars")}
+                        disabled={isScanning || isFetchingPack}
+                      />
+                      <span>{pack.name}</span>
+                    </label>
+                    {(pack.cars !== undefined && pack.cars.length > 0) && (
+                      <span className={`pack-chip ${pack.useCars ? "chip-active" : "chip-inactive"}`}>{pack.cars.length} cars</span>
+                    )}
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          )}
+          </div>
+
+          <div className="setup-section pack-list-box">
+            <h3 className="setup-section-title" style={{textTransform: "capitalize", fontSize: "0.95rem", color: "var(--text-primary)"}}>Tracks</h3>
+            <p className="setup-hint">
+              Choose which packs contribute tracks to the randomization pool.
+            </p>
+            <div className="pack-list">
+              {(scanResult.contentPacks || []).map((pack, i) => {
+                if (!pack.hasTracks && !(pack.tracks && pack.tracks.length > 0)) return null;
+                return (
+                  <div key={`track-${pack.name}`} className="pack-list-item">
+                    <label className="pack-label">
+                      <input 
+                        type="checkbox" 
+                        checked={!!pack.useTracks} 
+                        onChange={() => togglePack(i, "tracks")}
+                        disabled={isScanning || isFetchingPack}
+                      />
+                      <span>{pack.name}</span>
+                    </label>
+                    {(pack.tracks !== undefined && pack.tracks.length > 0) && (
+                      <span className={`pack-chip ${pack.useTracks ? "chip-active" : "chip-inactive"}`}>{pack.tracks.length} tracks</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
