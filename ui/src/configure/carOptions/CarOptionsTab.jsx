@@ -127,8 +127,40 @@ export default function CarOptionsTab() {
   const showStartingCars = (unlockMode !== "baseGame");
   const showRatingOptions = (unlockMode === "random" || unlockMode === "randomRatings");
 
+  const includeStockCars = specState?.includeStockCars !== false;
+  const includeDcCars    = specState?.includeDcCars    !== false;
+
+  const setInclude = (key, value) =>
+    updateCategoryCtx("configure", { carsSpecState: { ...specState, [key]: value } });
+
   return (
     <div className="car-options-tab">
+
+      {/* ── Section 0 · Scope ── */}
+      <section className="co-section">
+        <h2 className="co-section-title">Randomization Scope</h2>
+        <p className="co-desc">
+          Choose which car categories are included in the randomization.
+        </p>
+        <div className="co-checkbox-group">
+          <label className="co-checkbox-row">
+            <input
+              type="checkbox"
+              checked={includeStockCars}
+              onChange={e => setInclude("includeStockCars", e.target.checked)}
+            />
+            <span>Randomize <strong>Stock Cars</strong></span>
+          </label>
+          <label className="co-checkbox-row">
+            <input
+              type="checkbox"
+              checked={includeDcCars}
+              onChange={e => setInclude("includeDcCars", e.target.checked)}
+            />
+            <span>Randomize <strong>DC Cars</strong></span>
+          </label>
+        </div>
+      </section>
 
       {/* ── Section 1 · Car Randomization Mode ── */}
       <section className="co-section">

@@ -125,6 +125,34 @@ export function resetFixedRatingsToRandom(specState, key, rid, keepCount) {
   return clone;
 }
 
+export const getRatingByMode = (modeId) => {
+  // Switch statement for handling ratings
+  switch (modeId) {
+    case "random":
+    case "randomRatings":
+      return "Random";
+    case "unchanged":
+    case "randomUnlock":
+      return "Unchanged";
+    default:
+      return "";
+  }
+}
+
+export const getObtainByMode = (modeId) => {
+  // Switch statement for handling obtain
+  switch (modeId) {
+    case "random":
+    case "randomUnlock":
+      return "Random";
+    case "unchanged":
+    case "randomRatings":
+      return "Unchanged";
+    default:
+      return "";
+  }
+}
+
 export const applyModeRules = (car, index, modeId, carOpts) => {
   const out = { ...car };
 
@@ -132,32 +160,14 @@ export const applyModeRules = (car, index, modeId, carOpts) => {
     return out; // Base Game Distribution is handled separately
   }
   
-  // Switch statement for handling ratings
-  switch (modeId) {
-    case "random":
-    case "randomRatings":
-      out.attrRating = "Random";
-      break;
-    case "unchanged":
-    case "randomUnlock":
-      out.attrRating = "Unchanged";
-      break;
-    default:
-      break;
+  const rating = getRatingByMode(modeId);
+  if (rating) {
+    out.attrRating = rating;
   }
 
-  // Switch statement for handling obtain
-  switch (modeId) {
-    case "random":
-    case "randomUnlock":
-      out.attrObtain = "Random";
-      break;
-    case "unchanged":
-    case "randomRatings":
-      out.attrObtain = "Unchanged";
-      break;
-    default:
-      break;
+  const obtain = getObtainByMode(modeId);
+  if (obtain) {
+    out.attrObtain = obtain;
   }
 
   // Starting-car overrides

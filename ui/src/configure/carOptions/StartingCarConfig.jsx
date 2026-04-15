@@ -83,6 +83,9 @@ export default function StartingCarConfig() {
             <input type="number" min={1} max={42} value={numStartingCars} className="co-number-input co-starting-stepper"
               onChange={e => set("numStartingCars", Math.max(1, Math.min(42, parseInt(e.target.value) || 1))) } />
           </div>
+          <div className="co-starting-grid-row">
+            <p className="co-desc">Limit the source pool for starting cars:</p>
+          </div>
 
           <div className="co-starting-grid-row">
             <label className="co-checkbox-row co-starting-grid-label">

@@ -508,3 +508,15 @@ footer {
   color: var(--text-primary);
   font-weight: 500;
 }
+
+.configure-nav-item.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+.configure-nav-item.disabled:hover {
+  background: transparent;
+  color: var(--text-secondary);
+}

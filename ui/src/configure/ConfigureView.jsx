@@ -9,18 +9,22 @@ import TrackSpecTab from "./trackOptions/TrackSpecTab";
 import CupSpecTab from "./cupSpec/CupSpecTab";
 
 const CONFIGURE_TABS = [
-  { id: "car-options",      label: "Car options",   group: "Cars" },
-  { id: "stock-cars-spec",  label: "Stock spec",    group: "Cars" },
-  { id: "dc-cars-spec",     label: "DC spec",       group: "Cars" },
-  { id: "track-options",    label: "Track options", group: "Tracks" },
-  { id: "track-spec",       label: "Track spec",    group: "Tracks" },
-  { id: "cup-spec",         label: "Cup spec",      group: "Cups" },
+  { id: "car-options",      label: "Car options",            group: "Cars",   disabledKey: null },
+  { id: "stock-cars-spec",  label: "Stock specification",    group: "Cars",   disabledKey: "includeStockCars" },
+  { id: "dc-cars-spec",     label: "DC specification",       group: "Cars",   disabledKey: "includeDcCars" },
+  { id: "track-options",    label: "Track options",          group: "Tracks", disabledKey: null },
+  { id: "track-spec",       label: "Track specification",    group: "Tracks", disabledKey: null },
+  { id: "cup-spec",         label: "Cup specification",      group: "Cups",   disabledKey: null },
 ];
 
 export default function ConfigureView() {
   const { state, updateCategoryCtx } = useAppContext();
   const { configure } = state;
   const activeTab = configure?.configureTab ?? "car-options";
+  const carsSpecState = configure?.carsSpecState;
+
+  const includeStockCars = carsSpecState?.includeStockCars !== false;
+  const includeDcCars    = carsSpecState?.includeDcCars    !== false;
 
   function setTab(id) {
     updateCategoryCtx("configure", { configureTab: id });
@@ -35,15 +39,22 @@ export default function ConfigureView() {
         {groups.map(group => (
           <div key={group} className="configure-nav-group">
             <span className="configure-nav-group-label">{group}</span>
-            {CONFIGURE_TABS.filter(t => t.group === group).map(tab => (
-              <button
-                key={tab.id}
-                className={`configure-nav-item ${activeTab === tab.id ? "active" : ""}`}
-                onClick={() => setTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
+            {CONFIGURE_TABS.filter(t => t.group === group).map(tab => {
+              const isDisabled = tab.disabledKey === "includeStockCars" ? !includeStockCars
+                               : tab.disabledKey === "includeDcCars"    ? !includeDcCars
+                               : false;
+              return (
+                <button
+                  key={tab.id}
+                  className={`configure-nav-item ${activeTab === tab.id ? "active" : ""} ${isDisabled ? "disabled" : ""}`}
+                  onClick={() => !isDisabled && setTab(tab.id)}
+                  disabled={isDisabled}
+                  title={isDisabled ? "Disabled — toggle in Car Options" : undefined}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         ))}
       </nav>
