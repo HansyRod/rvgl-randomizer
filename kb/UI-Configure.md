@@ -12,6 +12,7 @@
 
 1. [Architecture Overview](#1-architecture-overview)
 2. [Car Options Tab](#2-car-options-tab)
+   - 2.0 [Randomization Scope](#20-randomization-scope)
    - 2.1 [Car Randomization Mode](#21-car-randomization-mode)
    - 2.2 [Allowed Unlock Methods](#22-allowed-unlock-methods)
    - 2.3 [Rating Options](#23-rating-options)
@@ -51,7 +52,7 @@ state.configure
 ├── carOptions          CarOptionsInput     (Car Options tab)
 ├── carsSpecState
 │   ├── includeStockCars  bool
-│   ├── includeD̈cCars    bool
+│   ├── includeDcCars    bool
 │   ├── stockCars[]       CarSpec[28]        (Stock Cars Spec tab)
 │   └── dcCars[]          CarSpec[14]        (DC Cars Spec tab)
 ├── trackOptions        TrackOptionsInput   (Track Options tab)
@@ -70,6 +71,19 @@ the DLL reads at game startup via `RVGL_RANDOMIZER_CONFIG`.
 ## 2. Car Options Tab
 
 File: `ui/src/configure/carOptions/CarOptionsTab.jsx`
+
+### 2.0 Randomization Scope
+
+Rendered as the first section of the Car Options tab. Two checkboxes control which
+car categories participate in randomization:
+
+| Checkbox | State key | Default | Effect |
+|---|---|---|---|
+| Randomize Stock Cars | `includeStockCars` | `true` | When unchecked, the **Stock specification** tab is disabled and `stockCars` is passed as `[]` to Rust |
+| Randomize DC Cars | `includeDcCars` | `true` | When unchecked, the **DC specification** tab is disabled and `dcCars` is passed as `[]` to Rust |
+
+Both flags are stored in `carsSpecState` and read by `ConfigureView.jsx` to
+disable the corresponding sidebar navigation items.
 
 ### 2.1 Car Randomization Mode
 
@@ -210,12 +224,6 @@ Section component: `ui/src/configure/carSpec/CarsSpecSection.jsx`
 Renders 28 rows, one for each stock car slot (index 0–27). The slot ID displayed
 is the car's folder name from `STOCK_CARS` constant (e.g. `rc`, `mite`, …).
 
-**Include Stock Cars in Randomization** (`includeStockCars`) — when unchecked:
-
-- The rows are visually greyed out and non-interactive.
-- On generation, `stockCars` is passed as an empty array `[]` to Rust, so no
-  stock car output is produced.
-
 **Presets** — apply a batch transformation to all rows:
 
 | Preset | sourcePool | sourceDifficulty | attrRating | attrObtain |
@@ -291,9 +299,9 @@ The following locks grey out columns and prevent user edits:
 | `unlockMode === "unchanged"` or `"randomUnlock"` | attrRating |
 | `unlockMode === "unchanged"` or `"randomRatings"` | attrObtain |
 | `unlockMode === "baseGame"` | Both attrRating and attrObtain |
-| Slot is in Starting Car range AND `enableStartingCarsPool` | sourcePool |
-| Slot is in Starting Car range AND `enableStartingCarsRating` | sourceRating |
-| Slot is in Starting Car range | attrObtain (forced to Starting Car) |
+| Slot is in Starting Car range AND `enableStartingCarsPool` AND `unlockMode` is `random` or `randomUnlock` | sourcePool |
+| Slot is in Starting Car range AND `enableStartingCarsRating` AND `unlockMode` is `random` or `randomUnlock` | sourceRating |
+| Slot is in Starting Car range AND `unlockMode` is `random` or `randomUnlock` | attrObtain (forced to Starting Car) |
 | Pool is a specific car folder | sourceRating, sourceObtain |
 
 ---

@@ -3,7 +3,7 @@ import { STOCK_CARS, DC_CARS } from "../../utils/constants";
 import { useAppContext } from "../../AppProvider";
 import StartingCarConfig from "./StartingCarConfig";
 import CarRatingsConfig from "./CarRatingsConfig";
-import { applyModeRules, makeDefaultSpec } from "./CarOptionsUtils";
+import { applyModeRules, makeDefaultSpec, alignDistributionsWithSpec } from "./CarOptionsUtils";
 
 export default function CarOptionsTab() {
 
@@ -13,7 +13,7 @@ export default function CarOptionsTab() {
   const { configure } = state;
   
   // Destructure individual variables
-  const { carOptions, carsSpecState : specState } = configure;
+  const { carOptions, carsSpecState } = configure;
   
   const {
     unlockMode,
@@ -54,7 +54,7 @@ export default function CarOptionsTab() {
   const handleModeSelect = (modeId) => {
 
     // Auto-initialise FullSpec state if the user hasn't been there yet
-    const base = specState ?? {
+    const base = carsSpecState ?? {
       stockCars: makeDefaultSpec(STOCK_CARS),
       dcCars:    makeDefaultSpec(DC_CARS),
     };
@@ -127,11 +127,21 @@ export default function CarOptionsTab() {
   const showStartingCars = (unlockMode !== "baseGame");
   const showRatingOptions = (unlockMode === "random" || unlockMode === "randomRatings");
 
-  const includeStockCars = specState?.includeStockCars !== false;
-  const includeDcCars    = specState?.includeDcCars    !== false;
+  const includeStockCars = carsSpecState?.includeStockCars !== false;
+  const includeDcCars    = carsSpecState?.includeDcCars    !== false;
+  const noneSelected = !includeStockCars && !includeDcCars;
+
+  const handleInclude = (key, value) => {
+    const newCarsSpecState = { ...carsSpecState, [key]: value };
+    const aligned = alignDistributionsWithSpec(carOptions, newCarsSpecState);
+    updateCategoryCtx("configure", {
+      carsSpecState: newCarsSpecState,
+      carOptions: aligned,
+    });
+  };
 
   const setInclude = (key, value) =>
-    updateCategoryCtx("configure", { carsSpecState: { ...specState, [key]: value } });
+    updateCategoryCtx("configure", { carsSpecState: { ...carsSpecState, [key]: value } });
 
   return (
     <div className="car-options-tab">
@@ -147,7 +157,7 @@ export default function CarOptionsTab() {
             <input
               type="checkbox"
               checked={includeStockCars}
-              onChange={e => setInclude("includeStockCars", e.target.checked)}
+              onChange={e => handleInclude("includeStockCars", e.target.checked)}
             />
             <span>Randomize <strong>Stock Cars</strong></span>
           </label>
@@ -155,12 +165,14 @@ export default function CarOptionsTab() {
             <input
               type="checkbox"
               checked={includeDcCars}
-              onChange={e => setInclude("includeDcCars", e.target.checked)}
+              onChange={e => handleInclude("includeDcCars", e.target.checked)}
             />
             <span>Randomize <strong>DC Cars</strong></span>
           </label>
         </div>
       </section>
+
+      {!noneSelected && (<>
 
       {/* ── Section 1 · Car Randomization Mode ── */}
       <section className="co-section">
@@ -224,6 +236,7 @@ export default function CarOptionsTab() {
 
       { /* ── Section 4 · Starting Cars ── */ }
       { showStartingCars && <StartingCarConfig /> }
+      </>)}
     </div>
   );
 }
