@@ -408,6 +408,8 @@ fn scan_levels_folder_sync(folder_path: &Path) -> Vec<Track> {
                                 2
                             } else if lower_folder == "frontend" {
                                 3
+                            } else if lower_folder == "intro" {
+                                4  
                             } else {
                                 0 // default race
                             }
