@@ -43,7 +43,7 @@ export default function SetupView() {
         })}
       </div>
 
-      {activeTab === "install" && <InstallPanel onContinue={() => { setTab("cars"); }} />}
+      {activeTab === "install" && <InstallPanel />}
       {activeTab === "cars"    && <div className="pool-panel"><CarsTab /></div>}
       {activeTab === "tracks"  && <div className="pool-panel"><TracksTab /></div>}
     </div>

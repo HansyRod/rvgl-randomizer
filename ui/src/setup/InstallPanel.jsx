@@ -7,7 +7,7 @@ import "./SetupView.css";
 
 // ── Install sub-tab ──────────────────────────────────────────────────────────
 
-export default function InstallPanel({ onContinue }) {
+export default function InstallPanel() {
   const { state, updateCategoryCtx } = useAppContext();
   const { app, setup } = state;
   const { isScanning, isFetchingPack } = app;
@@ -219,14 +219,6 @@ export default function InstallPanel({ onContinue }) {
               })}
             </div>
           </div>
-        </div>
-      )}
-
-      {scanResult && (
-        <div className="setup-continue-row">
-          <button className="btn-primary" onClick={onContinue}>
-            Configure content →
-          </button>
         </div>
       )}
     </div>
