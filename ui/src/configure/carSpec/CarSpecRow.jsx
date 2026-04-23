@@ -16,6 +16,13 @@ export default function CarSpecRow({index, rowState, updateRow, carByFolder, sou
 
   const validOptions = isGeneralPool ? poolValidOptions[rowState.sourcePool] : null;
 
+  // Disabled checks for each input
+  const disableSourcePool = lockStartingPool;
+  const disableSourceRating = isSpecificCar || lockStartingRating;
+  const disableSourceObtain = isSpecificCar || (lockStartingObtain && (carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomRatings"));
+  const disableAttrRating = carOptions?.unlockMode === "baseGame" || carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomUnlock";
+  const disableAttrObtain = lockStartingObtain || carOptions?.unlockMode === "baseGame" || carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomRatings";
+
   return (
     <div className="spec-grid-row">
       <div className="car-id">{id}</div>
@@ -31,7 +38,7 @@ export default function CarSpecRow({index, rowState, updateRow, carByFolder, sou
                 updateRow(index, { sourcePool: val });
               }
             }}
-            disabled={lockStartingPool}
+            disabled={disableSourcePool}
           >
             {sourcePoolOptionsJSX}
             {!isGeneralPool && (
@@ -48,7 +55,7 @@ export default function CarSpecRow({index, rowState, updateRow, carByFolder, sou
           <select 
             value={isSpecificCar ? specificCar.rating.toString() : rowState.sourceRating} 
             onChange={e => updateRow(index, { sourceRating: e.target.value })} 
-            disabled={isSpecificCar || lockStartingRating}
+            disabled={disableSourceRating}
           >
             {isSpecificCar ? (
               <option value={specificCar.rating.toString()}>{CAR_RATINGS[specificCar.rating] || "Unknown"}</option>
@@ -65,7 +72,7 @@ export default function CarSpecRow({index, rowState, updateRow, carByFolder, sou
           <select 
             value={isSpecificCar ? specificCar.obtainMethod.toString() : rowState.sourceObtain} 
             onChange={e => updateRow(index, { sourceObtain: e.target.value })} 
-            disabled={isSpecificCar}
+            disabled={disableSourceObtain}
           >
             {isSpecificCar ? (
               <option value={specificCar.obtainMethod.toString()}>{OBTAIN_METHODS[specificCar.obtainMethod] || "Unknown"}</option>
@@ -82,7 +89,7 @@ export default function CarSpecRow({index, rowState, updateRow, carByFolder, sou
       <div className="specs-horizontal">
         <div className="field-group">
           <select value={rowState.attrRating} onChange={e => updateRow(index, { attrRating: e.target.value })}
-            disabled={carOptions?.unlockMode === "baseGame" || carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomUnlock"}>
+            disabled={disableAttrRating}>
             {ATTR_RATINGS_LIST.map(opt => (
               <option key={opt.val} value={opt.val}>{opt.label}</option>
             ))}
@@ -90,7 +97,7 @@ export default function CarSpecRow({index, rowState, updateRow, carByFolder, sou
         </div>
         <div className="field-group">
           <select value={rowState.attrObtain} onChange={e => updateRow(index, { attrObtain: e.target.value })}
-            disabled={lockStartingObtain || carOptions?.unlockMode === "baseGame" || carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomRatings"} >
+            disabled={disableAttrObtain} >
             {ATTR_OBTAINS_LIST.map(opt => (
               <option key={opt.val} value={opt.val}>{opt.label}</option>
             ))}
