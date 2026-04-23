@@ -103,7 +103,7 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
   const startingCarsActive =
     categoryKey === "stockCars" &&
     carOptions?.enableStartingCars &&
-    (carOptions?.unlockMode === "random" || carOptions?.unlockMode === "randomUnlock") &&
+    carOptions?.unlockMode !== "baseGame" &&
     (carOptions?.numStartingCars || 0) > 0;
   const startingCount = startingCarsActive ? (carOptions?.numStartingCars || 0) : 0;
 
