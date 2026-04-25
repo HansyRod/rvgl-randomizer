@@ -35,6 +35,7 @@ const DEFAULT_STATE = {
     generatedFilePath: "",
     instanceName: "randomized-instance",
     profileName: "player1",
+    generatedHistory: [],
   },
   play: {
     extraArgs: "",

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useAppContext } from "../AppProvider";
+import HistoryPanel from "../components/HistoryPanel";
 import { handleTogglePack } from "./packHelpers";
 import "./SetupView.css";
 
@@ -18,7 +19,7 @@ export default function InstallPanel() {
     const history = Array.isArray(setup.installHistory) ? setup.installHistory : [];
     const newHistory = history.filter(h => h.path !== path);
     newHistory.unshift({ path, installType });
-    return newHistory.slice(0, 5);
+    return newHistory;
   }
 
   const togglePack = (packIndex, type) => {
@@ -81,6 +82,7 @@ export default function InstallPanel() {
 
   const isLauncher = scanResult?.installType === "launcher";
   const isClassic  = scanResult?.installType === "classic";
+  const previousInstallations = installHistory.filter((entry) => entry.path !== installPath);
 
   const totalCars   = useMemo(() => {
     if (!scanResult) return 0;
@@ -122,42 +124,23 @@ export default function InstallPanel() {
         </div>
       )}
 
-      {(installHistory.filter(h => h.path !== installPath).length > 0 || (scanResult && isLauncher)) && (
+      {(previousInstallations.length > 0 || (scanResult && isLauncher)) && (
         <div className="setup-columns">
-          {installHistory.filter(h => h.path !== installPath).length > 0 && (
-            <div className="setup-section">
-              <h3 className="setup-section-title">Previous installations</h3>
-              <div className="install-history-list">
-                {installHistory.filter(h => h.path !== installPath).map((h, i) => (
-                  <div key={i} className="install-history-item">
-                    <div className="install-history-details">
-                      <span className="install-path-text" title={h.path}>{h.path}</span>
-                      <span className={`install-badge badge-${h.installType}`}>{h.installType} install</span>
-                    </div>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <button 
-                        className="btn-secondary btn-action-wide" 
-                        onClick={() => handleSwitch(h.path)}
-                        disabled={isScanning}
-                      >
-                        Switch
-                      </button>
-                      <button
-                        className="btn-secondary btn-icon"
-                        onClick={() => handleRemoveHistory(h.path)}
-                        disabled={isScanning}
-                        title="Remove from history"
-                        style={{ color: "var(--text-secondary)" }}
-                      >
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {previousInstallations.length > 0 && (
+            <HistoryPanel
+              title="Previous installations"
+              items={installHistory}
+              activeKey={installPath}
+              getKey={(entry) => entry.path}
+              getPrimaryText={(entry) => entry.path}
+              getBadgeLabel={(entry) => `${entry.installType} install`}
+              getBadgeClassName={(entry) => `install-badge badge-${entry.installType}`}
+              actionLabel="Switch"
+              onAction={(entry) => handleSwitch(entry.path)}
+              onRemove={handleRemoveHistory}
+              disabled={isScanning}
+              summaryLabel="install locations"
+            />
           )}
         </div>
       )}

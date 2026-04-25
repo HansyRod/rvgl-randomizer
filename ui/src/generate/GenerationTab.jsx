@@ -2,6 +2,33 @@ import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open, confirm } from '@tauri-apps/plugin-dialog';
 import { useAppContext } from '../AppProvider';
+import HistoryPanel from "../components/HistoryPanel";
+import "./SetupView.css";
+
+function getSelectedPath(selected) {
+  if (typeof selected === "string") {
+    return selected;
+  }
+  if (selected && typeof selected === "object" && typeof selected.path === "string") {
+    return selected.path;
+  }
+  return "";
+}
+
+function getFileName(path) {
+  return path.split(/[\\/]/).pop() || path;
+}
+
+function getInstanceNameFromPath(path) {
+  return getFileName(path).replace(/\.json$/i, "");
+}
+
+function updateGeneratedHistory(currentHistory, path, instanceName, profileName) {
+  const history = Array.isArray(currentHistory) ? currentHistory : [];
+  const next = history.filter((entry) => entry?.path && entry.path !== path);
+  next.unshift({ path, instanceName, profileName });
+  return next;
+}
 
 export default function GenerationTab() {
 
@@ -13,7 +40,8 @@ export default function GenerationTab() {
   // Destructure individual variables
   const { installPath, scanResult } = setup;
   const { carOptions, trackOptions, carsSpecState, trackSpecState, cupSpecState } = configure;
-  const { generatedFilePath, instanceName, profileName } = generate;
+  const { generatedFilePath, instanceName, profileName, generatedHistory } = generate;
+  const generatedHistoryList = Array.isArray(generatedHistory) ? generatedHistory : [];
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState("");
@@ -82,9 +110,19 @@ export default function GenerationTab() {
         fileName: instanceName.trim(),
         profileName: profileName.trim()
       });
-      
-      updateCategoryCtx("generate", { generatedFilePath: outPath });
-      setMessage(`Successfully generated: ${outPath.split(/[\\/]/).pop()}`);
+
+      const newHistory = updateGeneratedHistory(
+        generatedHistoryList,
+        outPath,
+        instanceName.trim(),
+        profileName.trim()
+      );
+
+      updateCategoryCtx("generate", {
+        generatedFilePath: outPath,
+        generatedHistory: newHistory,
+      });
+      setMessage(`Successfully generated: ${getFileName(outPath)}`);
     } catch (error) {
       console.error(error);
       setMessage(`Error: ${error}`);
@@ -94,35 +132,66 @@ export default function GenerationTab() {
   };
 
   const handleLoadFile = async () => {
-    const file = await open({
+    const file = getSelectedPath(await open({
       multiple: false,
-      filters: [{ name: 'JSON Config', extensions: ['json'] }]
-    });
-    
-    if (file) {
+      filters: [{ name: "JSON Config", extensions: ["json"] }],
+    }));
+    if (!file) return;
 
-      // Auto-fill the instance name input with the loaded file's name
-      const loadedName = file.split(/[\\/]/).pop().replace('.json', '');
+    const loadedName = getInstanceNameFromPath(file);
+    const newGenerateState = {
+      generatedFilePath: file,
+      instanceName: loadedName,
+    };
 
-      const newGenerateState = {
-        generatedFilePath: file,
-        instanceName: loadedName
-      };
-
-      try {
-        const configData = await invoke("read_config_file", { filePath: file });
-        if (configData?.metadata?.profileName) {
-          newGenerateState.profileName = configData.metadata.profileName;
-        }
-      } catch (err) {
-        console.error("Failed to read profile name from config:", err);
+    try {
+      const configData = await invoke("read_config_file", { filePath: file });
+      if (configData?.metadata?.profileName) {
+        newGenerateState.profileName = configData.metadata.profileName;
       }
-
-      updateCategoryCtx("generate", newGenerateState);
-
-      setMessage(`Loaded existing file: ${file.split(/[\\/]/).pop()}`);
+    } catch (err) {
+      console.error("Failed to read profile name from config:", err);
     }
+
+    const resolvedProfileName = newGenerateState.profileName ?? profileName;
+    const newHistory = updateGeneratedHistory(
+      generatedHistoryList,
+      file,
+      newGenerateState.instanceName,
+      resolvedProfileName
+    );
+
+    updateCategoryCtx("generate", {
+      ...newGenerateState,
+      generatedHistory: newHistory,
+    });
+    setMessage(`Loaded existing file: ${getFileName(file)}`);
   };
+
+  function handleLoadFromHistory(entry) {
+    const nextInstanceName = entry.instanceName || getInstanceNameFromPath(entry.path);
+    const nextProfileName = entry.profileName || profileName;
+    const newHistory = updateGeneratedHistory(
+      generatedHistoryList,
+      entry.path,
+      nextInstanceName,
+      nextProfileName
+    );
+
+    updateCategoryCtx("generate", {
+      generatedFilePath: entry.path,
+      instanceName: nextInstanceName,
+      profileName: nextProfileName,
+      generatedHistory: newHistory,
+    });
+    setMessage(`Switched to: ${getFileName(entry.path)}`);
+  }
+
+  function handleRemoveFromHistory(pathToRemove) {
+    updateCategoryCtx("generate", {
+      generatedHistory: generatedHistoryList.filter((entry) => entry?.path !== pathToRemove),
+    });
+  }
 
   return (
     <div className="tab-container">
@@ -194,6 +263,23 @@ export default function GenerationTab() {
             <strong>Ready to Launch:</strong> {generatedFilePath}
           </div>
         )}
+
+        <HistoryPanel
+          title="Previous seeds"
+          items={generatedHistoryList.filter((entry) => entry?.path)}
+          activeKey={generatedFilePath}
+          getKey={(entry) => entry.path}
+          getPrimaryText={(entry) => getFileName(entry.path)}
+          getPrimaryTitle={(entry) => entry.path}
+          getBadgeLabel={(entry) => entry.profileName || ""}
+          getBadgeClassName={() => "install-badge badge-seed"}
+          actionLabel="Load"
+          onAction={handleLoadFromHistory}
+          onRemove={handleRemoveFromHistory}
+          disabled={isGenerating}
+          summaryLabel="generated seeds"
+          style={{ marginTop: "0.5rem" }}
+        />
       </div>
     </div>
   );
