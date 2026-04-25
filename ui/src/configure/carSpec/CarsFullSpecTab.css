@@ -50,7 +50,7 @@
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  gap: 5rem;
+  gap: clamp(1.5rem, calc(-4.333rem + 7.778vw), 5rem);
 }
 
 .spec-grid-row {
@@ -61,7 +61,7 @@
   border-radius: 6px;
   padding: 0.25rem 1rem;
   align-items: center;
-  gap: 5rem;
+  gap: clamp(1.5rem, calc(-4.333rem + 7.778vw), 5rem);
 }
 
 .spec-grid-row:hover {
@@ -104,12 +104,12 @@
 
 .specs-horizontal {
   display: flex;
-  gap: 2rem;
+  gap: clamp(0.5rem, calc(-2rem + 3.333vw), 2rem);
 }
 
 .specs-horizontal-header {
   display: flex;
-  gap: 2rem;
+  gap: clamp(0.5rem, calc(-2rem + 3.333vw), 2rem);
   color: var(--text-secondary);
   font-size: 0.85rem;
   font-weight: normal;
