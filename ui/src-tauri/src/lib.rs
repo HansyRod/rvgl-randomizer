@@ -2,6 +2,7 @@ pub mod scanner;
 pub mod randomizer;
 pub mod launcher;
 pub mod cache; // Added cache module
+pub mod validation;
 
 use tauri::Manager;
 
@@ -30,7 +31,11 @@ pub fn run() {
             cache::save_cache,
             cache::clear_cache,
             cache::read_config_file,
-            cache::write_config_file
+            cache::write_config_file,
+            validation::check_file_exists,
+            validation::check_path_writable,
+            validation::check_carbox_assets_exist,
+            validation::check_dll_exists
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
