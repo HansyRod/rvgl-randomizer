@@ -103,6 +103,8 @@ export default function App() {
         <StepNavigator
           activeStep={activeStep}
           onStepClick={goToStep}
+          errors={allErrors}
+          warnings={allWarnings}
         />
       </header>
 

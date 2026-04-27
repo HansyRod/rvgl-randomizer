@@ -95,3 +95,37 @@
   padding-left: 1.05rem; /* align with label */
   padding-top: 0.125rem;
 }
+
+/* ── Validation badges ─────────────────────────────────────────────────────── */
+.step-nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.step-nav-badge-error {
+  background: #e05050;
+  color: #fff;
+}
+
+.step-nav-badge-warning {
+  background: #f0a030;
+  color: #fff;
+}
+
+/* Subtle tint on the step item itself */
+.step-nav-item.has-errors:not(.active) .step-nav-num {
+  color: #e05050;
+}
+
+.step-nav-item.has-warnings:not(.active) .step-nav-num {
+  color: #f0a030;
+}
