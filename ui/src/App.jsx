@@ -16,6 +16,8 @@ import GenerationTab from "./generate/GenerationTab";
 // Validation
 import { useValidation } from "./validation/useValidation";
 import { useLaunchValidation } from "./validation/useLaunchValidation";
+import ValidationStatus from "./validation/ValidationStatus";
+
 export default function App() {
   const { state, resetContext, updateContext, updateCategoryCtx } = useAppContext();
   const { app, setup } = state;
@@ -120,6 +122,12 @@ export default function App() {
       </div>
 
       <footer>
+        <ValidationStatus
+          errors={allErrors}
+          warnings={allWarnings}
+          activeStep={activeStep}
+          onNavigate={goToStep}
+        />
         <div style={{ display: "flex", gap: "0.75rem" }}>
           {activeStep !== "setup" && (
             <button
