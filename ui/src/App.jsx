@@ -13,11 +13,20 @@ import PlayView from "./play/PlayView";
 // Generate + Play
 import GenerationTab from "./generate/GenerationTab";
 
+// Validation
+import { useValidation } from "./validation/useValidation";
+import { useLaunchValidation } from "./validation/useLaunchValidation";
 export default function App() {
   const { state, resetContext, updateContext, updateCategoryCtx } = useAppContext();
   const { app, setup } = state;
   const { isLoading, theme, isFetchingPack } = app;
   const activeStep = app?.activeStep ?? "setup";
+
+  // Combine sync and async validation results
+  const { errors: syncErrors, warnings: syncWarnings } = useValidation();
+  const { errors: asyncErrors, warnings: asyncWarnings } = useLaunchValidation();
+  const allErrors   = [...syncErrors,   ...asyncErrors];
+  const allWarnings = [...syncWarnings, ...asyncWarnings];
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);

@@ -520,3 +520,15 @@ footer {
   background: transparent;
   color: var(--text-secondary);
 }
+
+/* Add position: relative so the panel can anchor to the footer */
+/* Change justify-content so ValidationStatus sits on the left */
+footer {
+  padding: 0.75rem 1.5rem;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between; /* was: flex-end */
+  align-items: center;
+  position: relative;             /* new: needed for panel positioning */
+}
