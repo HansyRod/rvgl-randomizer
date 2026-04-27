@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open, confirm } from '@tauri-apps/plugin-dialog';
 import { useAppContext } from '../AppProvider';
 import HistoryPanel from "../components/HistoryPanel";
-import "./SetupView.css";
+import "../setup/SetupView.css";
 
 function getSelectedPath(selected) {
   if (typeof selected === "string") {
