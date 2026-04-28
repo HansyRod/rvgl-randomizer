@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppContext } from '../AppProvider';
 
-export default function LaunchTab() {
+export default function LaunchTab({errors}) {
 
   const { state, updateCategoryCtx } = useAppContext();
 
@@ -86,7 +86,7 @@ export default function LaunchTab() {
           <button 
             className="primary" 
             onClick={handleLaunch} 
-            disabled={!generatedFilePath || isLaunching}
+            disabled={!generatedFilePath || isLaunching || errors.length > 0}
             style={{ padding: "0.75rem 3rem", fontSize: "1.2rem", fontWeight: "bold" }}
           >
             {isLaunching ? "Launching..." : "▶ Launch Game"}

@@ -115,10 +115,10 @@ export default function App() {
         {activeStep === "configure" && <ConfigureView />}
         {activeStep === "generate"  && (
           <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
-            <GenerationTab />
+            <GenerationTab errors={syncErrors} warnings={syncWarnings} />
           </div>
         )}
-        {activeStep === "play"      && <PlayView />}
+        {activeStep === "play"      && <PlayView errors={allErrors} />}
       </div>
 
       <footer>

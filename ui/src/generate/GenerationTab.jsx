@@ -30,7 +30,7 @@ function updateGeneratedHistory(currentHistory, path, instanceName, profileName)
   return next;
 }
 
-export default function GenerationTab() {
+export default function GenerationTab({errors}) {
 
   const { state, updateCategoryCtx } = useAppContext();
 
@@ -193,6 +193,8 @@ export default function GenerationTab() {
     });
   }
 
+  const isGenerateBtnDisabled = isGenerating || !carsSpecState || errors.length > 0;
+
   return (
     <div className="tab-container">
       <p className="tab-description" style={{ marginTop: 0 }}>
@@ -238,7 +240,7 @@ export default function GenerationTab() {
           <button 
             className="primary" 
             onClick={handleGenerate} 
-            disabled={isGenerating || !carsSpecState}
+            disabled={isGenerateBtnDisabled}
             style={{ padding: "0.5rem 1.5rem", fontSize: "1rem" }}
           >
             {isGenerating ? "Generating..." : "⚡ Generate Instance"}

@@ -3,7 +3,7 @@ import { useAppContext } from "../AppProvider";
 import LaunchTab from "./LaunchTab";
 import PacksTab from "./PacksTab";
 
-export default function PlayView() {
+export default function PlayView(errors) {
   const { state } = useAppContext();
   const { setup: { scanResult } } = state;
   const isLauncher = scanResult?.installType === "launcher";
@@ -11,7 +11,7 @@ export default function PlayView() {
   return (
     <div style={{ display: "flex", flex: 1, overflowY: "auto", padding: "1rem" }}>
       {isLauncher && <PacksTab />}
-      <LaunchTab />
+      <LaunchTab errors={errors} />
     </div>
   );
 }
