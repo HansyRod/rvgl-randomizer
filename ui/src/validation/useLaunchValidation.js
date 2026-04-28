@@ -28,8 +28,7 @@ export function useLaunchValidation() {
           errors.push({
             id: "launch_config_missing",
             scope: "launch",
-            message: `The config file no longer exists at: ${generatedFilePath}. ` +
-              `Generate a new seed or load a different file.`
+            message: "The selected seed file can no longer be found. Generate it again or load a different file."
           });
         }
       }
@@ -41,8 +40,7 @@ export function useLaunchValidation() {
         errors.push({
           id: "launch_dll_missing",
           scope: "launch",
-          message: `randomizer.dll was not found. Run "npm run build:dll" to build it, ` +
-            `then restart the app.`
+          message: "The randomizer component is missing, so the game cannot be launched from the app. Rebuild the app support files and restart the app."
         });
       }
 
@@ -56,8 +54,7 @@ export function useLaunchValidation() {
           warnings.push({
             id: "launch_carbox_missing",
             scope: "launch",
-            message: `Could not find cars/misc/carbox1.bmp in any enabled location. ` +
-              `The car selection screen may show blank portraits.`
+            message: "A required car portrait image could not be found. Car portraits may appear blank in the selection screen."
           });
         }
       }
@@ -77,8 +74,7 @@ export function useLaunchValidation() {
           errors.push({
             id: "launch_packlist_not_writable",
             scope: "launch",
-            message: `Cannot write the packlist file to: ${packsDir}. ` +
-              `Check folder permissions before launching.`
+            message: "The app cannot update the enabled content list for this RVGL install. Check folder permissions before launching."
           });
         }
       }

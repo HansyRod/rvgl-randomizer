@@ -1,4 +1,4 @@
-import { getAllTracksFromScan } from "./validationUtils";
+import { formatValidationList, getAllTracksFromScan } from "./validationUtils";
 import { STOCK_TRACKS } from "../utils/constants";
 
 export function validateTrackSpec(trackSpecState, trackOptions, scanResult) {
@@ -12,7 +12,7 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult) {
     errors.push({
       id: "tracks_none_available",
       scope: "trackSpec",
-      message: "No valid tracks are available in the current scan."
+      message: "No playable tracks are available in the selected content."
     });
     return { errors, warnings };
   }
@@ -35,7 +35,7 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult) {
       warnings.push({
         id: "tracks_stale_stock_refs",
         scope: "trackSpec",
-        message: `Stock tracks are not randomized but some stock tracks are not found: ${staleStockRefs.join(", ")}. These tracks will be unavailable and cups using them will not work.`
+        message: `Some stock track slots are missing from the selected content: ${formatValidationList(staleStockRefs)}. Those tracks will be unavailable.`
       });
     }
 
@@ -62,7 +62,7 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult) {
     warnings.push({
       id: "tracks_stale_specific_refs",
       scope: "trackSpec",
-      message: `Some track slots reference folders not found in the current scan: ${staleTracks.join(", ")}. These will fall back to random picks.`
+      message: `Some track slots point to tracks that are no longer available: ${formatValidationList(staleTracks)}. Those slots will use random tracks instead.`
     });
   }
 

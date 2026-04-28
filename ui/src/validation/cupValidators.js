@@ -1,4 +1,4 @@
-const CUP_NAMES = ["Bronze", "Silver", "Gold", "Platinum"];
+const CUP_NAMES = ["Bronze Cup", "Silver Cup", "Gold Cup", "Platinum Cup"];
 
 export function validateCupSpec(cupSpecState, trackSpecState) {
   const errors = [];
@@ -13,10 +13,10 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
 
   // Default stage mode needs enough distinct tracks for Platinum
   if (cupSpecState.stageMode === "default" && trackCount < 6) {
-    warnings.push({
+    errors.push({
       id: "cup_insufficient_tracks_default",
       scope: "cupSpec",
-      message: "The Default Stages layout for the Platinum cup requires at least 6 distinct tracks. Some stages may not fill correctly."
+      message: "Default Stages needs at least 6 distinct tracks to build the Platinum Cup. Add more tracks or choose another stage mode."
     });
   }
 
@@ -34,7 +34,7 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
         id: `cup_cpc_mismatch_${i}`,
         scope: "cupSpec",
         field: `cups[${i}].carsPerClass`,
-        message: `${CUP_NAMES[i]} Cup: Cars Per Class sums to ${sum} but should be ${expected} (numCars − 1).`
+        message: `${CUP_NAMES[i]} Cars per Class must add up to ${expected}. It currently adds up to ${sum}.`
       });
     }
   });
@@ -45,19 +45,19 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
       errors.push({
         id: `cup_laps_invalid_${label}`,
         scope: "cupSpec",
-        message: `${label}: Laps Min (${min}) is greater than Laps Max (${max}).`
+        message: `${label}: Minimum laps cannot be greater than maximum laps.`
       });
     }
   };
 
-  checkLaps(cupSpecState.numLapsMin, cupSpecState.numLapsMax, "Global");
+  checkLaps(cupSpecState.numLapsMin, cupSpecState.numLapsMax, "Global settings");
 
   cupSpecState.cups?.forEach((cup, i) => {
     if (cup.overrideGlobal && cup.numLapsMin != null && cup.numLapsMax != null) {
       checkLaps(
         cup.numLapsMin,
         cup.numLapsMax,
-        `${CUP_NAMES[i]} Cup`
+        CUP_NAMES[i]
       );
     }
   });
@@ -70,7 +70,7 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
           id: `cup_no_stages_${i}`,
           scope: "cupSpec",
           field: `cups[${i}].stages`,
-          message: `${CUP_NAMES[i]} Cup has no stages defined. Add at least one stage or switch to a different Stage Mode.`
+          message: `${CUP_NAMES[i]} has no stages. Add at least one stage or choose another stage mode.`
         });
       }
     });
@@ -107,15 +107,14 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
             scope: "cupSpec",
             field: `cups[${cupIdx}].stages[${stageIdx}]`,
             message:
-              `${cupNames[cupIdx]} Cup, Stage ${stageIdx + 1}: track "${pool}" ` +
-              `is not present in the current track pool. ` +
-              `Add it to the Track Spec or choose a different track.`
+              `${CUP_NAMES[cupIdx]}, Stage ${stageIdx + 1}: "${pool}" ` +
+              `is not available in the current track setup. ` +
+              `Add it in Track Specification or choose another track.`
           });
         }
       });
     });
   }
-
 
   return { errors, warnings };
 }

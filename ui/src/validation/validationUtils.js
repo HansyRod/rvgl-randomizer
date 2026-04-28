@@ -15,3 +15,13 @@ export function getAllTracksFromScan(scanResult) {
     .flatMap(p => p.tracks)
     .filter(t => t.hasValidFile && t.trackType === 0);
 }
+
+export function formatValidationList(items, maxVisible = 3) {
+  const list = (items || []).filter(Boolean);
+  if (list.length <= maxVisible) {
+    return list.join(", ");
+  }
+
+  const visible = list.slice(0, maxVisible).join(", ");
+  return `${visible}, +${list.length - maxVisible} more`;
+}

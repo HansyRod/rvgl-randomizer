@@ -1,4 +1,4 @@
-import { getAllCarsFromScan } from "./validationUtils";
+import { formatValidationList, getAllCarsFromScan } from "./validationUtils";
 import { STOCK_CARS, DC_CARS, ATTR_RATINGS_LIST } from "../utils/constants";
 
 export function validateCarOptions(carOptions, carsSpecState, scanResult) {
@@ -49,7 +49,7 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult) {
       warnings.push({
         id: "cars_stale_stock_refs",
         scope: "carOptions",
-        message: `Stock cars are not randomized but some stock cars are not found: ${staleStockRefs.join(", ")}. These cars will be unavailable.`
+        message: `Some stock car slots are missing from the selected content: ${formatValidationList(staleStockRefs)}. Those cars will be unavailable.`
       });
     }
   }
@@ -67,7 +67,7 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult) {
       warnings.push({
         id: "cars_stale_dc_refs",
         scope: "carOptions",
-        message: `DC cars are not randomized but some DC cars are not found: ${staleDCRefs.join(", ")}. These cars will be unavailable.`
+        message: `Some DC car slots are missing from the selected content: ${formatValidationList(staleDCRefs)}. Those cars will be unavailable.`
       });
     }
   }
@@ -76,7 +76,7 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult) {
     warnings.push({
       id: "cars_stale_specific_refs",
       scope: "carOptions",
-      message: `Some slots reference cars not found in the current scan: ${staleRefs.join(", ")}. These will fall back to random picks.`
+      message: `Some car slots point to cars that are no longer available: ${formatValidationList(staleRefs)}. Those slots will use random cars instead.`
     });
   }
 
@@ -104,7 +104,7 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult) {
       warnings.push({
         id: `cars_dist_max_too_low_${label}`,
         scope: "carOptions",
-        message: `${label}: the combined maximum across all ratings (${maxSum}) is less than the number of slots (${totalSlots}).`
+        message: `${label} cannot cover all selected car slots with the current maximum values. Results may not fully match this distribution.`
       });
     }
   };
@@ -125,7 +125,7 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult) {
         warnings.push({
           id: `cars_dist_min_too_low_${label}`,
           scope: "carOptions",
-          message: `Car Pool Rating Distribution: The number of ${label} cars (${ratingCars.length}) in the source pool is less than the number of ${label} slots (${ratingDist.min}).`
+          message: `There are not enough ${label} cars available to meet this minimum. Results may use fewer than requested.`
         });
       }
 
@@ -185,9 +185,8 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult) {
         id: "cars_starting_insufficient",
         scope: "carOptions",
         message:
-          `Starting Car Configuration requires ${carOptions.numStartingCars} car(s), ` +
-          `but only ${candidates.length} car(s) match the current pool, rating, ` +
-          `and obtain constraints. Reduce the count, loosen the filters or add more cars.`
+          `The current starting car rules need ${carOptions.numStartingCars} cars, ` +
+          `but only ${candidates.length} match. Reduce the count or broaden the filters.`
       });
     }
   }

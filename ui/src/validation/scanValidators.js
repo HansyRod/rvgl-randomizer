@@ -11,18 +11,18 @@ export function validateScan(scanResult) {
   const validTracks = allTracks.filter(t => t.hasValidFile && t.trackType === 0);
 
   if (validCars.length < 28) {
-    errors.push({
+    warnings.push({
       id: "scan_insufficient_cars",
       scope: "scan",
-      message: `Only ${validCars.length} valid cars found across enabled pools. At least 28 are needed to fill all stock slots without duplicates.`
+      message: `Only ${validCars.length} eligible cars are available. Car randomization may have limited variety.`
     });
   }
 
   if (validTracks.length < 14) {
-    errors.push({
+    warnings.push({
       id: "scan_insufficient_tracks",
       scope: "scan",
-      message: `Only ${validTracks.length} valid tracks found. At least 14 are needed to fill the track spec.`
+      message: `Only ${validTracks.length} eligible tracks are available. Track randomization may have limited variety.`
     });
   }
 
@@ -35,7 +35,7 @@ export function validateScan(scanResult) {
       errors.push({
         id: "scan_no_car_packs",
         scope: "scan",
-        message: "No content packs are enabled for cars. The randomizer will have no cars to draw from."
+        message: "No car content packs are enabled. Enable at least one pack with cars before generating."
       });
     }
 
@@ -43,7 +43,7 @@ export function validateScan(scanResult) {
       errors.push({
         id: "scan_no_track_packs",
         scope: "scan",
-        message: "No content packs are enabled for tracks. The randomizer will have no tracks to draw from."
+        message: "No track content packs are enabled. Enable at least one pack with tracks before generating."
       });
     }
   }

@@ -7,7 +7,7 @@ export function validateLaunch(generate, setup) {
     errors.push({
       id: "launch_no_config",
       scope: "launch",
-      message: "No randomization config is loaded. Generate a new seed or load an existing one from the Generate step."
+      message: "No generated seed is loaded. Generate a new seed or load an existing one before launching."
     });
   }
 

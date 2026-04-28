@@ -14,7 +14,7 @@ export function validateGenerate(generate, configure) {
       id: "gen_no_instance_name",
       scope: "generate",
       field: "instanceName",
-      message: "Instance name is required."
+      message: "Enter a name for the generated seed file."
     });
   } else {
     const name = instanceName.trim().replace(/\.json$/i, "");
@@ -31,7 +31,7 @@ export function validateGenerate(generate, configure) {
         id: "gen_reserved_instance_name",
         scope: "generate",
         field: "instanceName",
-        message: `"${name}" is a reserved filename on Windows and cannot be used.`
+        message: `"${name}" cannot be used as an instance name on Windows.`
       });
     }
   }
@@ -42,7 +42,7 @@ export function validateGenerate(generate, configure) {
       id: "gen_no_profile_name",
       scope: "generate",
       field: "profileName",
-      message: "Profile name is required."
+      message: "Enter a profile name."
     });
   } else if (profileName.length > 15) {
     errors.push({
@@ -56,7 +56,7 @@ export function validateGenerate(generate, configure) {
       id: "gen_profile_name_chars",
       scope: "generate",
       field: "profileName",
-      message: "Profile name contains characters other than letters, numbers, and underscores. This may cause issues with RVGL's profile system."
+      message: "Use only letters, numbers, and underscores in the profile name to avoid in-game issues."
     });
   }
 
