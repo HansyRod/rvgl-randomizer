@@ -64,6 +64,12 @@ export default function CupConfigPage({ cupIndex }) {
 
   const stageCount = (cupSpec.stages || []).length;
 
+  // Effective stage mode: per-cup override if active, otherwise fall through to global.
+  // Stages are always per-cup data, so the builder must be accessible even when the mode
+  // is inherited from the global setting rather than overridden here.
+  const effectiveStageMode = cupSpec.overrideStageMode ? cupSpec.stageMode : globalState.stageMode;
+
+
   return (
     <div className="car-options-tab cup-spec-tab">
 
@@ -113,72 +119,93 @@ export default function CupConfigPage({ cupIndex }) {
           {cupSpec.overrideStageMode && cupSpec.stageMode === "random" && (
             <div className="cup-override-grid" style={{ marginTop: "1rem" }}>
               <div className="cup-field-pair">
-                <label>Min Stages</label>
+                <label>Minimum Number of Stages</label>
                 <input type="number" min={1} max={16} value={cupSpec.numStagesMin}
                   onChange={e => setCup("numStagesMin", Math.max(1, parseInt(e.target.value) || 1))}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
-                <label>Max Stages</label>
+                <label>Maximum Number of Stages</label>
                 <input type="number" min={1} max={16} value={cupSpec.numStagesMax}
                   onChange={e => setCup("numStagesMax", Math.max(cupSpec.numStagesMin, parseInt(e.target.value) || 1))}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
-                <label>Laps Min</label>
+                <label>Minimum Number of Laps</label>
                 <input type="number" min={1} max={30} value={cupSpec.numLapsMin}
                   onChange={e => setCup("numLapsMin", parseInt(e.target.value) || 2)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
-                <label>Laps Max</label>
+                <label>Maximum Number of Laps</label>
                 <input type="number" min={1} max={30} value={cupSpec.numLapsMax}
                   onChange={e => setCup("numLapsMax", Math.max(cupSpec.numLapsMin, parseInt(e.target.value) || 2))}
                   className="co-number-input" />
               </div>
             </div>
           )}
-
-          {/* User-Defined Stages: stage builder */}
-          {cupSpec.overrideStageMode && cupSpec.stageMode === "userDefined" && (
-            <div className="cup-stages-section" style={{ marginTop: "1rem" }}>
-              <div className="cup-stages-header-row">
-                <span className="cup-cpc-title">Stages</span>
-                <span className="cup-stages-count">{stageCount}/16</span>
-              </div>
-              {stageCount === 0 && (
-                <p className="cup-stages-empty">No stages defined. Add at least one stage.</p>
-              )}
-              {stageCount > 0 && (
-                <div className="cup-stages-col-header">
-                  <span style={{ width: 24 }}>#</span>
-                  <span style={{ flex: 2 }}>Track Pool</span>
-                  <span style={{ flex: 1 }}>Laps</span>
-                  <span>Rev</span>
-                  <span>Mir</span>
-                  <span style={{ width: 28 }}></span>
-                </div>
-              )}
-              {(cupSpec.stages || []).map((stage, i) => (
-                <StageRow
-                  key={i}
-                  stage={stage}
-                  index={i}
-                  onUpdate={updateStage}
-                  onRemove={removeStage}
-                  resolvedTracks={resolvedTracks}
-                  scanResult={scanResult}
-                />
-              ))}
-              {stageCount < 16 && (
-                <button className="cup-add-stage-btn" onClick={addStage}>
-                  + Add Stage
-                </button>
-              )}
-            </div>
-          )}
         </div>
+
+        {/* Random Stages sub-options when mode is inherited from global (numStagesMin/Max are per-cup) */}
+        {!cupSpec.overrideStageMode && effectiveStageMode === "random" && (
+          <div className="cup-override-grid" style={{ marginTop: "1rem" }}>
+            <div className="cup-field-pair">
+              <label>Minimum Number of Stages</label>
+              <input type="number" min={1} max={16} value={cupSpec.numStagesMin}
+                onChange={e => setCup("numStagesMin", Math.max(1, parseInt(e.target.value) || 1))}
+                className="co-number-input" />
+            </div>
+            <div className="cup-field-pair">
+              <label>Maximum Number of Stages</label>
+              <input type="number" min={1} max={16} value={cupSpec.numStagesMax}
+                onChange={e => setCup("numStagesMax", Math.max(cupSpec.numStagesMin, parseInt(e.target.value) || 1))}
+                className="co-number-input" />
+            </div>
+          </div>
+        )}
+
+        {/* Stage builder — stages are always per-cup data.
+            Rendered whenever the effective mode is User-Defined, whether inherited
+            from the global setting or set as a per-cup override. */}
+        {effectiveStageMode === "userDefined" && (
+          <div className="cup-stages-section" style={{ marginTop: "1rem" }}>
+            <div className="cup-stages-header-row">
+              <span className="cup-cpc-title">Stages</span>
+              <span className="cup-stages-count">{stageCount}/16</span>
+            </div>
+            {stageCount === 0 && (
+              <p className="cup-stages-empty">No stages defined. Add at least one stage.</p>
+            )}
+            {stageCount > 0 && (
+              <div className="cup-stages-col-header">
+                <span style={{ width: 24 }}>#</span>
+                <span style={{ flex: 2 }}>Track Pool</span>
+                <span style={{ flex: 1 }}>Laps</span>
+                <span style={{ flex: 1.1 }}>Reverse</span>
+                <span style={{ flex: 1.1 }}>Mirror</span>
+                <span style={{ width: 28 }}></span>
+              </div>
+            )}
+            {(cupSpec.stages || []).map((stage, i) => (
+              <StageRow
+                key={i}
+                stage={stage}
+                index={i}
+                onUpdate={updateStage}
+                onRemove={removeStage}
+                resolvedTracks={resolvedTracks}
+                scanResult={scanResult}
+              />
+            ))}
+            {stageCount < 16 && (
+              <button className="cup-add-stage-btn" onClick={addStage}>
+                + Add Stage
+              </button>
+            )}
+          </div>
+        )}
       </section>
+
 
       {/* ── Section 2 · Number of Cars ── */}
       <section className="co-section">
@@ -200,7 +227,7 @@ export default function CupConfigPage({ cupIndex }) {
         <div className={`cup-override-controls${cupSpec.overrideNumCars ? "" : " disabled"}`}>
           <div className="cup-override-grid">
             <div className="cup-field-pair">
-              <label>Num Cars</label>
+              <label>Number of Cars</label>
               <input
                 type="number" min={1} max={16}
                 value={cupSpec.overrideNumCars ? (cupSpec.numCars ?? globalState.numCars) : globalState.numCars}
@@ -259,7 +286,7 @@ export default function CupConfigPage({ cupIndex }) {
         <div className={`cup-override-controls${cupSpec.overrideNumTries ? "" : " disabled"}`}>
           <div className="cup-override-grid">
             <div className="cup-field-pair">
-              <label>Num Tries</label>
+              <label>Number of Tries</label>
               <input
                 type="number" min={1} max={10}
                 value={cupSpec.overrideNumTries ? (cupSpec.numTries ?? globalState.numTries) : globalState.numTries}
@@ -292,7 +319,7 @@ export default function CupConfigPage({ cupIndex }) {
         <div className={`cup-override-controls${cupSpec.overridePerRacePlace ? "" : " disabled"}`}>
           <div className="cup-override-grid">
             <div className="cup-field-pair">
-              <label>Per-Race Place</label>
+              <label>Minimum Per-Race Position</label>
               <input
                 type="number" min={1} max={16}
                 value={cupSpec.overridePerRacePlace ? (cupSpec.perRaceRequiredPlace ?? globalState.perRaceRequiredPlace) : globalState.perRaceRequiredPlace}
@@ -325,7 +352,7 @@ export default function CupConfigPage({ cupIndex }) {
         <div className={`cup-override-controls${cupSpec.overrideOverallPlace ? "" : " disabled"}`}>
           <div className="cup-override-grid">
             <div className="cup-field-pair">
-              <label>Overall Place</label>
+              <label>Minimum Overall Position</label>
               <input
                 type="number" min={1} max={16}
                 value={cupSpec.overrideOverallPlace ? (cupSpec.overallRequiredPlace ?? globalState.overallRequiredPlace) : globalState.overallRequiredPlace}

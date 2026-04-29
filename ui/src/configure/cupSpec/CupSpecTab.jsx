@@ -199,37 +199,37 @@ export default function CupSpecTab() {
             </p>
             <div className="cup-override-grid">
               <div className="cup-field-pair">
-                <label>Num Cars</label>
+                <label>Number of Cars</label>
                 <input type="number" min={1} max={16} value={globalNumCars}
                   onChange={e => set("numCars", parseInt(e.target.value) || 8)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
-                <label>Num Tries</label>
+                <label>Number of Tries</label>
                 <input type="number" min={1} max={10} value={cupSpecState.numTries}
                   onChange={e => set("numTries", parseInt(e.target.value) || 3)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
-                <label>Per-Race Place</label>
+                <label>Minimum Per-Race Position</label>
                 <input type="number" min={1} max={16} value={cupSpecState.perRaceRequiredPlace}
                   onChange={e => set("perRaceRequiredPlace", parseInt(e.target.value) || 3)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
-                <label>Overall Place</label>
+                <label>Minimum Overall Position</label>
                 <input type="number" min={1} max={16} value={cupSpecState.overallRequiredPlace}
                   onChange={e => set("overallRequiredPlace", parseInt(e.target.value) || 1)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
-                <label>Laps Min</label>
+                <label>Minimum Number of Laps</label>
                 <input type="number" min={1} max={30} value={globalLapsMin}
                   onChange={e => set("numLapsMin", parseInt(e.target.value) || 6)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
-                <label>Laps Max</label>
+                <label>Maximum Number of Laps</label>
                 <input type="number" min={1} max={30} value={globalLapsMax}
                   onChange={e => set("numLapsMax", parseInt(e.target.value) || 6)}
                   className="co-number-input" />
