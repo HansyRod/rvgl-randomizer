@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+// No React hook imports needed for this module
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -40,7 +40,9 @@ export const SAME_TRACK_OPTIONS = [
 export function makeDefaultStage() {
   return {
     sourcePool: "Random",
-    numLaps: null,
+    numLaps: null,    // null = random between numLapsMin/numLapsMax; number = fixed
+    numLapsMin: 2,
+    numLapsMax: 8,
     isReverse: null,
     isMirror: null,
   };
@@ -52,66 +54,93 @@ function carsPerClassSum(arr) {
 
 // ─── Shared sub-components ────────────────────────────────────────────────────
 
-export function StageRow({ stage, index, onUpdate, onRemove, resolvedTracks, scanResult }) {
-  const trackOptions = useMemo(() => {
-    if (!resolvedTracks || resolvedTracks.length === 0) return [];
-    return resolvedTracks;
-  }, [resolvedTracks]);
+const SLOT_COUNT = 14; // Fixed number of stock track slots (slots 0-13)
 
+export function StageRow({ stage, index, onUpdate, onRemove, resolvedTracks }) {
   const poolValue = stage.sourcePool ?? "Random";
+
+  // numLaps: null → random mode; number → fixed mode
+  const isFixedLaps = typeof stage.numLaps === "number";
 
   return (
     <div className="cup-stage-row">
       <span className="cup-stage-num">{index + 1}</span>
 
-      {/* Track pool */}
+      {/* Track — Random | Specific Slot | Specific Track from resolved list */}
       <select
         value={poolValue}
         onChange={e => onUpdate(index, { sourcePool: e.target.value })}
         className="cup-stage-select"
       >
-        <option value="Random">Full Random</option>
-        <optgroup label="By Difficulty">
-          <option value="1">Easy tracks</option>
-          <option value="2">Medium tracks</option>
-          <option value="3">Hard tracks</option>
-          <option value="4">Extreme tracks</option>
+        <option value="Random">Random</option>
+        <optgroup label="Specific Slot">
+          {Array.from({ length: SLOT_COUNT }, (_, i) => (
+            <option key={`slot:${i}`} value={`slot:${i}`}>Slot {i + 1}</option>
+          ))}
         </optgroup>
-        {trackOptions.length > 0 && (
+        {resolvedTracks && resolvedTracks.length > 0 && (
           <optgroup label="Specific Track">
-            {trackOptions.map(t => (
+            {resolvedTracks.map(t => (
               <option key={t.folderName ?? t.folder} value={t.folderName ?? t.folder}>
-                {t.name} ({t.folderName ?? t.folder})
+                {t.name ?? (t.folderName ?? t.folder)}
               </option>
             ))}
           </optgroup>
         )}
       </select>
 
-      {/* Laps */}
+      {/* Laps — Fixed (single value) or Random (explicit min–max range) */}
       <div className="cup-stage-laps">
         <label className="cup-stage-inline-label">Laps</label>
         <select
-          value={stage.numLaps === null ? "inherit" : String(stage.numLaps)}
-          onChange={e => onUpdate(index, { numLaps: e.target.value === "inherit" ? null : parseInt(e.target.value) })}
+          value={isFixedLaps ? "fixed" : "random"}
+          onChange={e => onUpdate(index,
+            e.target.value === "fixed"
+              ? { numLaps: stage.numLapsMin ?? 6 }
+              : { numLaps: null }
+          )}
           className="cup-stage-select-sm"
         >
-          <option value="inherit">Inherit</option>
-          {[1,2,3,4,5,6,7,8,9,10].map(n => (
-            <option key={n} value={n}>{n}</option>
-          ))}
+          <option value="fixed">Fixed</option>
+          <option value="random">Random</option>
         </select>
+        {isFixedLaps ? (
+          <input
+            type="number" min={1} max={30}
+            value={stage.numLaps}
+            onChange={e => onUpdate(index, { numLaps: Math.max(1, parseInt(e.target.value) || 1) })}
+            className="cup-stage-laps-input"
+          />
+        ) : (
+          <>
+            <input
+              type="number" min={1} max={30}
+              value={stage.numLapsMin ?? 2}
+              onChange={e => onUpdate(index, { numLapsMin: Math.max(1, parseInt(e.target.value) || 1) })}
+              className="cup-stage-laps-input"
+              title="Min laps"
+            />
+            <span className="cup-stage-laps-sep">–</span>
+            <input
+              type="number" min={1} max={30}
+              value={stage.numLapsMax ?? 8}
+              onChange={e => onUpdate(index, { numLapsMax: Math.max(stage.numLapsMin ?? 1, parseInt(e.target.value) || 1) })}
+              className="cup-stage-laps-input"
+              title="Max laps"
+            />
+          </>
+        )}
       </div>
 
       {/* Reverse flag */}
       <div className="cup-stage-flag">
-        <label className="cup-stage-inline-label">Reverse</label>
+        <label className="cup-stage-inline-label">Rev</label>
         <select
           value={stage.isReverse === null ? "random" : String(stage.isReverse)}
           onChange={e => onUpdate(index, { isReverse: e.target.value === "random" ? null : e.target.value === "true" })}
           className="cup-stage-select-sm"
         >
-          <option value="random">Random</option>
+          <option value="random">Rnd</option>
           <option value="false">No</option>
           <option value="true">Yes</option>
         </select>
@@ -119,13 +148,13 @@ export function StageRow({ stage, index, onUpdate, onRemove, resolvedTracks, sca
 
       {/* Mirror flag */}
       <div className="cup-stage-flag">
-        <label className="cup-stage-inline-label">Mirror</label>
+        <label className="cup-stage-inline-label">Mir</label>
         <select
           value={stage.isMirror === null ? "random" : String(stage.isMirror)}
           onChange={e => onUpdate(index, { isMirror: e.target.value === "random" ? null : e.target.value === "true" })}
           className="cup-stage-select-sm"
         >
-          <option value="random">Random</option>
+          <option value="random">Rnd</option>
           <option value="false">No</option>
           <option value="true">Yes</option>
         </select>
