@@ -213,11 +213,17 @@
   margin: 0;
 }
 
-.cup-stages-col-header {
-  display: flex;
-  align-items: center;
+/* shared column template: # | track | laps | reverse | mirror | remove */
+.cup-stages-col-header,
+.cup-stage-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 2fr) minmax(0, 3fr) minmax(0, 1.1fr) minmax(0, 1.1fr) 22px;
   gap: 0.4rem;
-  padding: 0 0.4rem;
+}
+
+.cup-stages-col-header {
+  align-items: center;
+  padding: 0 0.5rem;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-secondary);
@@ -225,13 +231,13 @@
   letter-spacing: 0.04em;
 }
 
-.cup-stages-col-header span { flex: 1; }
+.cup-stages-col-header span {
+  padding-left: 4px;
+}
 
 /* ── Stage rows ── */
 .cup-stage-row {
-  display: flex;
   align-items: center;
-  gap: 0.4rem;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -245,22 +251,19 @@
 .cup-stage-num {
   font-size: 0.78rem;
   color: var(--text-secondary);
-  width: 20px;
   text-align: center;
-  flex-shrink: 0;
 }
 
 .cup-stage-select {
-  flex: 2;
   font-size: 0.82rem;
   padding: 0.2rem 1.6rem 0.2rem 0.4rem;
+  min-width: 0;
 }
 
 .cup-stage-laps {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  flex: 2;
   min-width: 0;
 }
 
@@ -268,7 +271,7 @@
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  flex: 1.1;
+  min-width: 0;
 }
 
 .cup-stage-inline-label {

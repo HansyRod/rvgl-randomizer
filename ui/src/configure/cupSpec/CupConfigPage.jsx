@@ -36,21 +36,52 @@ export default function CupConfigPage({ cupIndex }) {
     updateCategoryCtx("configure", { cupSpecState: { ...cupSpecState, cups } });
   }, [cupSpecState, cupIndex, updateCategoryCtx]);
 
-  // Resolved track list for the stage pool selector (same logic as CupSpecTab)
+  // Tracks available for "Specific Track" selection in user-defined stages.
+  // • When track randomization is disabled, the 14 stock tracks are the resolved
+  //   list, so all of them are valid choices.
+  // • When track randomization is enabled, only tracks explicitly pinned by
+  //   folder name in the Track Spec are offered — these are the only tracks
+  //   guaranteed to appear in the resolved 14-slot list. Showing all installed
+  //   tracks would let users pick folders that fail validation and generation.
   const resolvedTracks = useMemo(() => {
     if (!scanResult || !trackSpecState) return [];
-    const stockFolders = [
-      "nhood1","market2","muse2","garden1","roof","toylite","wild_west1",
-      "toy2","nhood2","ship1","muse1","market1","wild_west2","ship2",
-    ];
+
     const allTracks = scanResult.installType === "classic"
       ? (scanResult.tracks || [])
       : (scanResult.contentPacks || []).filter(p => p.useTracks).flatMap(p => p.tracks);
+
+    // Track randomization disabled → stock tracks are the valid set
     if (trackSpecState.includeTracks === false) {
-      return allTracks.filter(t => stockFolders.includes(t.folderName?.toLowerCase()));
+      const stockFolders = new Set([
+        "nhood1","market2","muse2","garden1","roof","toylite","wild_west1",
+        "toy2","nhood2","ship1","muse1","market1","wild_west2","ship2",
+      ]);
+      return allTracks.filter(t =>
+        t.hasValidFile &&
+        t.trackType === 0 &&
+        stockFolders.has(t.folderName?.toLowerCase())
+      );
     }
-    return allTracks.filter(t => t.hasValidFile && t.trackType === 0);
+
+    // Track randomization enabled → only tracks pinned by folder name in the Track Spec
+    const genericPools = new Set(["full random", "stock", "custom"]);
+    const pinnedFolders = new Set(
+      (trackSpecState.tracks || [])
+        .map(t => t.sourcePool)
+        .filter(p => p && !genericPools.has(p.toLowerCase()) && !p.toLowerCase().startsWith("pack:"))
+        .map(p => p.toLowerCase())
+    );
+
+    if (pinnedFolders.size === 0) return [];
+
+    return allTracks.filter(t =>
+      t.hasValidFile &&
+      t.trackType === 0 &&
+      pinnedFolders.has(t.folderName?.toLowerCase())
+    );
   }, [scanResult, trackSpecState]);
+
+
 
   // Stage list handlers
   const addStage    = () => setCup("stages", [...(cupSpec.stages || []), makeDefaultStage()]);
@@ -178,14 +209,15 @@ export default function CupConfigPage({ cupIndex }) {
             )}
             {stageCount > 0 && (
               <div className="cup-stages-col-header">
-                <span style={{ width: 24 }}>#</span>
-                <span style={{ flex: 2 }}>Track Pool</span>
-                <span style={{ flex: 1 }}>Laps</span>
-                <span style={{ flex: 1.1 }}>Reverse</span>
-                <span style={{ flex: 1.1 }}>Mirror</span>
-                <span style={{ width: 28 }}></span>
+                <span>#</span>
+                <span>Track Pool</span>
+                <span>Laps</span>
+                <span>Reverse</span>
+                <span>Mirror</span>
+                <span></span>
               </div>
             )}
+
             {(cupSpec.stages || []).map((stage, i) => (
               <StageRow
                 key={i}

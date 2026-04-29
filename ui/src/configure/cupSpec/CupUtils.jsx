@@ -91,7 +91,6 @@ export function StageRow({ stage, index, onUpdate, onRemove, resolvedTracks }) {
 
       {/* Laps — Fixed (single value) or Random (explicit min–max range) */}
       <div className="cup-stage-laps">
-        <label className="cup-stage-inline-label">Laps</label>
         <select
           value={isFixedLaps ? "fixed" : "random"}
           onChange={e => onUpdate(index,
@@ -134,13 +133,12 @@ export function StageRow({ stage, index, onUpdate, onRemove, resolvedTracks }) {
 
       {/* Reverse flag */}
       <div className="cup-stage-flag">
-        <label className="cup-stage-inline-label">Rev</label>
         <select
           value={stage.isReverse === null ? "random" : String(stage.isReverse)}
           onChange={e => onUpdate(index, { isReverse: e.target.value === "random" ? null : e.target.value === "true" })}
           className="cup-stage-select-sm"
         >
-          <option value="random">Rnd</option>
+          <option value="random">Random</option>
           <option value="false">No</option>
           <option value="true">Yes</option>
         </select>
@@ -148,13 +146,12 @@ export function StageRow({ stage, index, onUpdate, onRemove, resolvedTracks }) {
 
       {/* Mirror flag */}
       <div className="cup-stage-flag">
-        <label className="cup-stage-inline-label">Mir</label>
         <select
           value={stage.isMirror === null ? "random" : String(stage.isMirror)}
           onChange={e => onUpdate(index, { isMirror: e.target.value === "random" ? null : e.target.value === "true" })}
           className="cup-stage-select-sm"
         >
-          <option value="random">Rnd</option>
+          <option value="random">Random</option>
           <option value="false">No</option>
           <option value="true">Yes</option>
         </select>
