@@ -179,10 +179,14 @@ impl Default for SameTrackHandling {
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UserStageSpec {
-    /// "Random", "1".."4" for difficulty pool, or a specific folder name
+    /// "Random", "slot:N" for slot index, or a specific track folder name
     pub source_pool: String,
-    /// None = random, Some(n) = fixed
+    /// None = random between num_laps_min..num_laps_max; Some(n) = fixed
     pub num_laps: Option<u32>,
+    /// Per-stage random laps min (used when num_laps is None; falls back to cup-level range)
+    pub num_laps_min: Option<u32>,
+    /// Per-stage random laps max (used when num_laps is None; falls back to cup-level range)
+    pub num_laps_max: Option<u32>,
     /// None = random, Some(true/false) = forced
     pub is_reverse: Option<bool>,
     /// None = random, Some(true/false) = forced
@@ -196,9 +200,20 @@ pub struct CupSpec {
     /// One of the 4 base cups: 0=Bronze, 1=Silver, 2=Gold, 3=Platinum
     pub index: usize,
 
-    // ── override global shared settings ──────────────────────────────
+    // ── per-field override flags ───────────────────────────────────────
+    #[serde(default)] pub override_stage_mode: bool,
+    #[serde(default)] pub override_num_cars: bool,
+    #[serde(default)] pub override_cars_per_class: bool,
+    #[serde(default)] pub override_num_tries: bool,
+    #[serde(default)] pub override_per_race_place: bool,
+    #[serde(default)] pub override_overall_place: bool,
+    #[serde(default)] pub override_points_table: bool,
+
+    // ── per-cup stage mode (only meaningful when override_stage_mode = true) ──
     #[serde(default)]
-    pub override_global: bool,
+    pub stage_mode: CupStageMode,
+
+    // ── per-cup values (used when the corresponding override flag is true) ──
     pub num_cars: Option<u32>,
     pub num_tries: Option<u32>,
     pub per_race_required_place: Option<u32>,
@@ -206,17 +221,18 @@ pub struct CupSpec {
     pub points_table: Option<Vec<i32>>,
     /// cars_per_class[0..5] = Rookie..SuperPro; sum must == num_cars - 1
     pub cars_per_class: Option<Vec<u32>>,
-    /// Laps range override for this cup (overrides global when override_global=true)
+    /// Per-cup laps range (used when override_stage_mode=true and effective mode is Random)
     pub num_laps_min: Option<u32>,
     pub num_laps_max: Option<u32>,
 
     // ── stage configuration ───────────────────────────────────────────
+    /// Stage count range for Random mode (always per-cup)
     #[serde(default)]
     pub num_stages_min: u32,
     #[serde(default)]
     pub num_stages_max: u32,
 
-    /// User-defined stages (only used when global stage_mode == UserDefined)
+    /// User-defined stages (used when effective stage_mode == UserDefined)
     #[serde(default)]
     pub stages: Vec<UserStageSpec>,
 }

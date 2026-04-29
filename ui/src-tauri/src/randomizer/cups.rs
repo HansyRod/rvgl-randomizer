@@ -323,9 +323,13 @@ fn build_user_defined_stages(
 
         cross_cup_usage.record(&folder, variant);
 
+        // Laps: use per-stage range if specified, else fall back to cup-level range
+        let stage_laps_min = spec.num_laps_min.unwrap_or(laps_min);
+        let stage_laps_max = spec.num_laps_max.unwrap_or(laps_max);
+
         stages.push(RandomizedCupStage {
             track_folder: folder,
-            num_laps: spec.num_laps.unwrap_or_else(|| roll_laps(laps_min, laps_max, rng)),
+            num_laps: spec.num_laps.unwrap_or_else(|| roll_laps(stage_laps_min, stage_laps_max, rng)),
             is_reverse: variant.0,
             is_mirror: variant.1,
         });
@@ -340,9 +344,19 @@ fn select_track_for_stage(
     scan: &ScanResult,
     rng: &mut Rng,
 ) -> Option<String> {
-    // Specific folder given
-    if spec.source_pool != "Random" && !spec.source_pool.starts_with(|c: char| c.is_ascii_digit()) {
-        // It's a specific folder name — check it's in the resolved list
+    // Slot-based selection: "slot:N" maps directly to resolved[N]
+    if let Some(slot_str) = spec.source_pool.strip_prefix("slot:") {
+        if let Ok(idx) = slot_str.parse::<usize>() {
+            if idx < resolved.len() {
+                return Some(resolved[idx].folder.clone());
+            }
+        }
+        // Out-of-range or malformed slot — fall through to random
+    }
+    // Specific folder name (not "Random", not a digit prefix, not "slot:")
+    else if spec.source_pool != "Random"
+        && !spec.source_pool.starts_with(|c: char| c.is_ascii_digit())
+    {
         if resolved.iter().any(|t| t.folder.eq_ignore_ascii_case(&spec.source_pool)) {
             return Some(spec.source_pool.clone());
         }
@@ -370,7 +384,6 @@ fn select_track_for_stage(
 
     // Fallback: any candidate
     if candidates.is_empty() {
-        // Relax pool constraint entirely
         if resolved.is_empty() { return None; }
         let i = rng.next_usize(resolved.len());
         return Some(resolved[i].folder.clone());
@@ -450,29 +463,50 @@ pub fn generate_cups(
     for cup_index in 0..4 {
         // ── resolve per-cup settings ──────────────────────────────────
         let cup_spec = cup_state.cups.iter().find(|c| c.index == cup_index);
-        let override_global = cup_spec.map(|c| c.override_global).unwrap_or(false);
 
-        let num_cars = if override_global { cup_spec.and_then(|c| c.num_cars).unwrap_or(cup_state.num_cars) }
-                       else { cup_state.num_cars };
-        let num_tries = if override_global { cup_spec.and_then(|c| c.num_tries).unwrap_or(cup_state.num_tries) }
-                        else { cup_state.num_tries };
-        let per_race = if override_global { cup_spec.and_then(|c| c.per_race_required_place).unwrap_or(cup_state.per_race_required_place) }
-                       else { cup_state.per_race_required_place };
-        let overall = if override_global { cup_spec.and_then(|c| c.overall_required_place).unwrap_or(cup_state.overall_required_place) }
-                      else { cup_state.overall_required_place };
-        let points = if override_global { cup_spec.and_then(|c| c.points_table.clone()).unwrap_or_else(|| cup_state.points_table.clone()) }
-                     else { cup_state.points_table.clone() };
-        let cars_per_class = cup_spec.and_then(|c| c.cars_per_class.clone())
-            .unwrap_or_else(|| default_cars_per_class(cup_index));
-        let laps_min = if override_global { cup_spec.and_then(|c| c.num_laps_min).unwrap_or(cup_state.num_laps_min) }
-                       else { cup_state.num_laps_min };
-        let laps_max = if override_global { cup_spec.and_then(|c| c.num_laps_max).unwrap_or(cup_state.num_laps_max) }
-                       else { cup_state.num_laps_max };
+        // Effective stage mode: per-cup override wins, otherwise fall through to global
+        let effective_mode = if cup_spec.map(|c| c.override_stage_mode).unwrap_or(false) {
+            cup_spec.map(|c| c.stage_mode.clone()).unwrap_or_else(|| cup_state.stage_mode.clone())
+        } else {
+            cup_state.stage_mode.clone()
+        };
+
+        let num_cars = if cup_spec.map(|c| c.override_num_cars).unwrap_or(false) {
+            cup_spec.and_then(|c| c.num_cars).unwrap_or(cup_state.num_cars)
+        } else { cup_state.num_cars };
+
+        let num_tries = if cup_spec.map(|c| c.override_num_tries).unwrap_or(false) {
+            cup_spec.and_then(|c| c.num_tries).unwrap_or(cup_state.num_tries)
+        } else { cup_state.num_tries };
+
+        let per_race = if cup_spec.map(|c| c.override_per_race_place).unwrap_or(false) {
+            cup_spec.and_then(|c| c.per_race_required_place).unwrap_or(cup_state.per_race_required_place)
+        } else { cup_state.per_race_required_place };
+
+        let overall = if cup_spec.map(|c| c.override_overall_place).unwrap_or(false) {
+            cup_spec.and_then(|c| c.overall_required_place).unwrap_or(cup_state.overall_required_place)
+        } else { cup_state.overall_required_place };
+
+        let points = if cup_spec.map(|c| c.override_points_table).unwrap_or(false) {
+            cup_spec.and_then(|c| c.points_table.clone()).unwrap_or_else(|| cup_state.points_table.clone())
+        } else { cup_state.points_table.clone() };
+
+        let cars_per_class = if cup_spec.map(|c| c.override_cars_per_class).unwrap_or(false) {
+            cup_spec.and_then(|c| c.cars_per_class.clone()).unwrap_or_else(|| default_cars_per_class(cup_index))
+        } else { default_cars_per_class(cup_index) };
+
+        // Laps range: use per-cup override when override_stage_mode is active, else global
+        let laps_min = if cup_spec.map(|c| c.override_stage_mode).unwrap_or(false) {
+            cup_spec.and_then(|c| c.num_laps_min).unwrap_or(cup_state.num_laps_min)
+        } else { cup_state.num_laps_min };
+        let laps_max = if cup_spec.map(|c| c.override_stage_mode).unwrap_or(false) {
+            cup_spec.and_then(|c| c.num_laps_max).unwrap_or(cup_state.num_laps_max)
+        } else { cup_state.num_laps_max };
 
         // ── build stages ──────────────────────────────────────────────
         let mut per_cup_usage = CupUsage::new();
 
-        let stages = match cup_state.stage_mode {
+        let stages = match effective_mode {
             CupStageMode::Default => {
                 let s = build_default_stages(cup_index, resolved_tracks, scan, laps_min, laps_max, rng);
                 // Register default stages into cross_cup_usage so later cups see them
@@ -553,7 +587,14 @@ fn default_cups(
 pub fn make_default_cup_spec_rust(index: usize) -> CupSpec {
     CupSpec {
         index,
-        override_global: false,
+        override_stage_mode: false,
+        override_num_cars: false,
+        override_cars_per_class: false,
+        override_num_tries: false,
+        override_per_race_place: false,
+        override_overall_place: false,
+        override_points_table: false,
+        stage_mode: CupStageMode::Default,
         num_cars: None,
         num_tries: None,
         per_race_required_place: None,
