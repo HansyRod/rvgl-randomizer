@@ -300,3 +300,42 @@
   font-size: 0.82rem;
   padding: 0.35rem 0.9rem;
 }
+
+/* ── Per-cup page ── */
+
+.cup-page-header {
+  margin-bottom: 0.5rem;
+}
+
+.cup-page-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+  color: var(--text-primary);
+}
+
+/* Override section: checkbox header + collapsible controls */
+.cup-override-section-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.cup-override-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: opacity 0.15s ease;
+}
+
+.cup-override-controls.disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
+}
+
+.cup-override-hint {
+  margin: 0 0 0.6rem;
+  font-style: italic;
+}
+

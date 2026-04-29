@@ -11,15 +11,6 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
     ? (trackSpecState?.tracks?.length ?? 14)
     : 14; // stock tracks always available as fallback
 
-  // Default stage mode needs enough distinct tracks for Platinum
-  if (cupSpecState.stageMode === "default" && trackCount < 6) {
-    errors.push({
-      id: "cup_insufficient_tracks_default",
-      scope: "cupSpec",
-      message: "Default Stages needs at least 6 distinct tracks to build the Platinum Cup. Add more tracks or choose another stage mode."
-    });
-  }
-
   // Per-cup cars-per-class sum validation
   cupSpecState.cups?.forEach((cup, i) => {
     const numCars = cup.overrideGlobal
