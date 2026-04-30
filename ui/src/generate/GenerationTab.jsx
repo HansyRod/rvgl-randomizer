@@ -4,6 +4,9 @@ import { open, confirm } from '@tauri-apps/plugin-dialog';
 import { useAppContext } from '../AppProvider';
 import HistoryPanel from "../components/HistoryPanel";
 import "../setup/SetupView.css";
+import { DEFAULT_CAR_OPTIONS } from '../utils/constants';
+
+const { poolRatingDistributions, attrRatingDistributions } = DEFAULT_CAR_OPTIONS;
 
 function getSelectedPath(selected) {
   if (typeof selected === "string") {
@@ -100,10 +103,26 @@ export default function GenerationTab({errors}) {
         tracks: trackSpecState.includeTracks === false ? [] : trackSpecState.tracks
       };
 
+      const showRatingOptions = carOptions?.unlockMode === "random" || carOptions?.unlockMode === "randomRatings";
+      const showObtainOptions = carOptions?.unlockMode === "random" || carOptions?.unlockMode === "randomUnlock";
+      const showStartingCars = carOptions?.unlockMode !== "baseGame";
+
+      const sanitizedCarOptions = carOptions ? {
+        ...carOptions,
+        // Pool/attr distributions only meaningful when Rating Options is visible
+        poolRatingDistributions: showRatingOptions ? carOptions.poolRatingDistributions : poolRatingDistributions,
+        attrRatingDistributions: showRatingOptions ? carOptions.attrRatingDistributions : attrRatingDistributions,
+        // Cheat-only / stunt-arena only apply when obtain is being randomized
+        includeCheatOnly: showObtainOptions && carOptions.includeCheatOnly,
+        includeStuntArena: showObtainOptions && carOptions.includeStuntArena,
+        // Starting car config only applies outside baseGame mode
+        enableStartingCars: showStartingCars && carOptions.enableStartingCars,
+      } : null;
+
       const outPath = await invoke("generate_result", {
         scanResult,
         carsSpecState: filteredSpecState,
-        carOptions: carOptions ?? null,
+        carOptions: sanitizedCarOptions,
         trackSpecState: filteredTrackSpecState,
         trackOptions: trackOptions ?? null,
         cupSpecState: cupSpecState ?? null,
