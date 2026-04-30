@@ -263,89 +263,81 @@ pub fn allocate_ratings(
     let mut result = Vec::with_capacity(count);
     if count == 0 { return result; }
 
-    // Enabled rows are treated as the explicit allowed set.
-    // If nothing is enabled, fall back to the default full range (0..4 or 0..5).
-    let mut enabled_indices: Vec<usize> = (0..=5)
-        .filter(|&i| distributions.get(&i.to_string()).map(|d| d.enabled).unwrap_or(false))
+    // Build the set of valid rating indices.
+    // A rating is excluded only if:
+    //   - It is Super Pro (index 5) and include_super_pro is false, OR
+    //   - It has an explicit distribution entry with max == 0.
+    // Ratings absent from the map are unrestricted (no forced zero).
+    let all_indices: Vec<usize> = (0..=5).collect();
+    let allowed_indices: Vec<usize> = all_indices
+        .into_iter()
+        .filter(|&i| {
+            // Remove Super Pro entirely when disabled
+            if i == 5 && !include_super_pro {
+                return false;
+            }
+            // If there is an explicit entry with max == 0, exclude this rating
+            if let Some(dist) = distributions.get(&i.to_string()) {
+                return dist.max > 0;
+            }
+            // Not in the map → unrestricted, always allowed
+            true
+        })
         .collect();
-    if !include_super_pro {
-        enabled_indices.retain(|&i| i != 5);
-    }
-
-    let has_explicit_enabled = !enabled_indices.is_empty();
-    let allowed_indices: Vec<usize> = if has_explicit_enabled {
-        enabled_indices
-    } else {
-        let mut base: Vec<usize> = (0..=5).collect();
-        if !include_super_pro {
-            base.retain(|&i| i != 5);
-        }
-        base
-    };
 
     if allowed_indices.is_empty() {
         return result;
     }
 
     let mut remaining = count;
-    let mut counts = vec![0; 6]; // 0..5
+    let mut counts = vec![0usize; 6]; // index == rating value
 
-    // 1. Assign minimums
+    // 1. Assign minimums for ratings that have an explicit distribution entry.
+    //    Cap each minimum against that rating's max and the remaining budget.
     for &i in &allowed_indices {
         if let Some(dist) = distributions.get(&i.to_string()) {
-            let max_cap = dist.max;
-            let m = dist.min.min(max_cap).min(remaining);
+            let m = dist.min.min(dist.max).min(remaining);
             counts[i] = m;
             remaining -= m;
         }
     }
 
-    // 2. Distribute remaining
-    if remaining > 0 {
-        // Simple random distribution respecting max
-        while remaining > 0 {
-            // Filter to only those that can still accept more
-            let candidates: Vec<usize> = allowed_indices
-                .iter()
-                .cloned()
-                .filter(|&i| {
-                    if has_explicit_enabled {
-                        let dist = distributions.get(&i.to_string());
-                        if let Some(d) = dist {
-                            return counts[i] < d.max;
-                        }
-                        return false;
-                    }
-                    if let Some(d) = distributions.get(&i.to_string()) {
-                        if d.enabled {
-                            return counts[i] < d.max;
-                        }
-                    }
+    // 2. Distribute the remaining slots randomly, respecting per-rating maximums.
+    //    Ratings without a map entry are considered unbounded (no upper limit).
+    while remaining > 0 {
+        let candidates: Vec<usize> = allowed_indices
+            .iter()
+            .cloned()
+            .filter(|&i| {
+                if let Some(dist) = distributions.get(&i.to_string()) {
+                    // Respect the explicit maximum
+                    counts[i] < dist.max
+                } else {
+                    // No restriction on this rating — always a valid candidate
                     true
-                })
-                .collect();
+                }
+            })
+            .collect();
 
-            if candidates.is_empty() { break; } // Safety break
+        if candidates.is_empty() { break; } // All explicit maxes are exhausted
 
-            let idx = candidates[rng.next_usize(candidates.len())];
-            counts[idx] += 1;
-            remaining -= 1;
-        }
+        let pick = candidates[rng.next_usize(candidates.len())];
+        counts[pick] += 1;
+        remaining -= 1;
     }
 
-    // 3. Build the flat list
+    // 3. Build the flat list (ordered lowest rating → highest)
     for (i, &c) in counts.iter().enumerate() {
         for _ in 0..c {
             result.push(i as i32);
         }
     }
-    
-    // 4. If we still have slots left (e.g. explicit maxes too low), keep choices
-    // inside the already-allowed rating set.
+
+    // 4. Safety: if explicit maxes were too tight to fill the count, fill the
+    //    remainder from the allowed set (ignoring maximums as a last resort).
     while result.len() < count {
         let ridx = rng.next_usize(allowed_indices.len());
-        let r = allowed_indices[ridx] as i32;
-        result.push(r);
+        result.push(allowed_indices[ridx] as i32);
     }
 
     rng.shuffle(&mut result);
