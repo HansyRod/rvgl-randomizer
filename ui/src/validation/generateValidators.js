@@ -1,6 +1,10 @@
 const WINDOWS_RESERVED = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
 const INVALID_FILENAME_CHARS = /[<>:"/\\|?*\x00-\x1f]/;
-const VALID_PROFILE_CHARS = /^[a-zA-Z0-9_]+$/;
+
+// Characters confirmed to work properly in-game (no warning shown).
+// This includes common keyboard characters not restricted by Windows:
+// Space ! @ # $ % ^ & ( ) - = + [ ] { } ; ' , . ~ `
+const VALID_PROFILE_CHARS = /^[a-zA-Z0-9_ !@#$%^&()\-=+\[\]{};',.~`]+$/;
 
 export function validateGenerate(generate, configure) {
   const errors = [];
@@ -51,13 +55,30 @@ export function validateGenerate(generate, configure) {
       field: "profileName",
       message: "Profile name must be 15 characters or fewer."
     });
-  } else if (!VALID_PROFILE_CHARS.test(profileName)) {
-    warnings.push({
-      id: "gen_profile_name_chars",
+  } else if (INVALID_FILENAME_CHARS.test(profileName)) {
+    errors.push({
+      id: "gen_profile_invalid_chars",
       scope: "generate",
       field: "profileName",
-      message: "Use only letters, numbers, and underscores in the profile name to avoid in-game issues."
+      message: "Profile name cannot contain: < > : \" / \\ | ? *"
     });
+  } else {
+    if (profileName.startsWith(" ") || profileName.endsWith(" ")) {
+      warnings.push({
+        id: "gen_profile_spaces",
+        scope: "generate",
+        field: "profileName",
+        message: "Leading or trailing spaces will be removed by the game."
+      });
+    }
+    if (!VALID_PROFILE_CHARS.test(profileName)) {
+      warnings.push({
+        id: "gen_profile_name_chars",
+        scope: "generate",
+        field: "profileName",
+        message: "Profile name contains unconfirmed characters (such as symbols, accents, or emojis) that may not display correctly in-game."
+      });
+    }
   }
 
   return { errors, warnings };
