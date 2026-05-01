@@ -8,6 +8,21 @@
 #include <utility>   // std::index_sequence, std::make_index_sequence
 #include <windows.h>
 
+#if !defined(_DEBUG)
+
+namespace CallLogger {
+
+int RegisterAll(const std::unordered_map<uint32_t, const char*>&) {
+    return 0;
+}
+
+void UnregisterAll() {
+}
+
+} // namespace CallLogger
+
+#else
+
 // ============================================================================
 // How the template pool trick works
 // ============================================================================
@@ -183,3 +198,5 @@ void UnregisterAll() {
 }
 
 } // namespace CallLogger
+
+#endif

@@ -219,6 +219,7 @@ static void RegisterHooks() {
     // 0x00400000 from the Ghidra address to get the RVA).
     // ------------------------------------------------------------------
 
+    #if defined(_DEBUG)
     CallLogger::RegisterAll({
         // Game loop
         // { 0x00001610, "FrameUpdateDispatcher"       },
@@ -272,6 +273,7 @@ static void RegisterHooks() {
 
         
     });
+    #endif
 }
 
 // ============================================================================
