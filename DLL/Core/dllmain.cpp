@@ -15,8 +15,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
 
     case DLL_PROCESS_ATTACH:
 
-        // --- ADD THIS LINE ---
+        #if defined(_DEBUG)
         MessageBoxA(NULL, "Attach Visual Studio now, then click OK!", "Waiting for Debugger...", MB_OK);
+        #endif
 
         // We don't need thread attach/detach notifications.
         DisableThreadLibraryCalls(hModule);
