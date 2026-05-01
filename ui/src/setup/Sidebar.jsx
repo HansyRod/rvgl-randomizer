@@ -1,16 +1,20 @@
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useAppContext } from "../AppProvider";
 import { handleTogglePack } from "./packHelpers";
 
 export default function Sidebar() {
 
   const context = useAppContext();
+  const [refreshNotice, setRefreshNotice] = useState("");
 
   // Destructure categories
-  const { state: { setup }, updateCategoryCtx } = context;
+  const { state: { app, setup }, updateCategoryCtx } = context;
   
   // Destructure individual variables
+  const { isFetchingPack } = app;
   const { scanResult, setupTab : activeTab } = setup;
-  const { contentPacks: packs } = scanResult || {};
+  const packs = scanResult?.contentPacks || [];
 
   const togglePack = (packIndex) => {
     handleTogglePack(packIndex, activeTab, scanResult, updateCategoryCtx);
@@ -24,20 +28,48 @@ export default function Sidebar() {
   const selectedPacks = validPacks.filter(({pack}) => activeTab === "cars" ? pack.useCars : pack.useTracks);
   const unselectedPacks = validPacks.filter(({pack}) => activeTab === "cars" ? !pack.useCars : !pack.useTracks);
 
+  useEffect(() => {
+    if (!refreshNotice) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setRefreshNotice("");
+    }, 5000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [refreshNotice]);
+
   const handleRefreshPack = async (e, pack, originalIndex) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    // You will need to implement `scan_pack_folder` in Rust to return a single updated ContentPack
+
+    if (!scanResult) return;
+
+    updateCategoryCtx("app", { isFetchingPack: true });
+
     try {
-      console.log("Refreshing pack:", pack.name);
-      // const updatedPack = await invoke("scan_pack_folder", { folderPath: pack.absolutePath });
-      // const newResult = JSON.parse(JSON.stringify(scanResult));
-      // newResult.contentPacks[originalIndex] = updatedPack;
-      // setScanResult(newResult);
-      alert("Refresh single pack coming soon! Needs Rust backend command.");
+      const updatedPack = await invoke("scan_pack_folder", {
+        folderPath: pack.absolutePath,
+        useCars: pack.useCars,
+        useTracks: pack.useTracks,
+      });
+
+      const nextContentPacks = [...scanResult.contentPacks];
+      nextContentPacks[originalIndex] = updatedPack;
+      const newResult = {
+        ...scanResult,
+        contentPacks: nextContentPacks,
+      };
+
+      setRefreshNotice("");
+      updateCategoryCtx("setup", { scanResult: newResult });
     } catch (err) {
       console.error(err);
+      const errorMessage = typeof err === "string"
+        ? err
+        : err?.message || "Failed to refresh pack contents.";
+      setRefreshNotice(`Could not refresh "${pack.name}": ${errorMessage}`);
+    } finally {
+      updateCategoryCtx("app", { isFetchingPack: false });
     }
   };
 
@@ -48,6 +80,7 @@ export default function Sidebar() {
           type="checkbox" 
           checked={activeTab === "cars" ? pack.useCars : pack.useTracks}
           onChange={() => togglePack(originalIndex)}
+          disabled={isFetchingPack}
         />
         <span style={{ marginLeft: "6px", textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: "nowrap" }}>
           {pack.name}
@@ -58,6 +91,7 @@ export default function Sidebar() {
         <button 
           onClick={(e) => handleRefreshPack(e, pack, originalIndex)}
           title="Refresh pack contents"
+          disabled={isFetchingPack}
           style={{ background: "transparent", border: "none", cursor: "pointer", padding: "0 4px", color: "var(--text-secondary)" }}
         >
           ↻
@@ -72,6 +106,22 @@ export default function Sidebar() {
       <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "0.8rem", fontStyle: "italic" }}>
         Packs included in randomization:
       </div>
+
+      {refreshNotice && (
+        <div
+          style={{
+            marginBottom: "0.8rem",
+            padding: "0.55rem 0.7rem",
+            borderRadius: "8px",
+            background: "color-mix(in srgb, #b43c3c 14%, transparent)",
+            border: "1px solid color-mix(in srgb, #b43c3c 42%, transparent)",
+            color: "var(--text-primary)",
+            fontSize: "0.8rem",
+          }}
+        >
+          {refreshNotice}
+        </div>
+      )}
       
       {validPacks.length === 0 && <p style={{opacity: 0.7, fontSize: '0.85rem'}}>No packs found.</p>}
       
