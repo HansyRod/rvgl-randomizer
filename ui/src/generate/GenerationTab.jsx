@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open, confirm } from '@tauri-apps/plugin-dialog';
 import { useAppContext } from '../AppProvider';
 import HistoryPanel from "../components/HistoryPanel";
+import LoadSeedDialog from "./LoadSeedDialog";
 import "../setup/SetupView.css";
 import { DEFAULT_CAR_OPTIONS } from '../utils/constants';
 
@@ -162,39 +163,24 @@ export default function GenerationTab({errors}) {
     }
   };
 
-  const handleLoadFile = async () => {
-    const file = getSelectedPath(await open({
-      multiple: false,
-      filters: [{ name: "JSON Config", extensions: ["json"] }],
-    }));
-    if (!file) return;
+  const [loadDialogData, setLoadDialogData] = useState(null); // { file, metadata, loadedName }
 
-    const loadedName = getInstanceNameFromPath(file);
+  const applyLoad = async (file, metadata, loadedName, overrides = {}) => {
     const newGenerateState = {
       generatedFilePath: file,
       instanceName: loadedName,
     };
 
-    try {
-      const metadata = await invoke("read_seed_context", { filePath: file });
-      if (metadata?.profileName) {
-        newGenerateState.profileName = metadata.profileName;
-      }
-      if (metadata?.uiContext) {
-        newGenerateState.seedContext = metadata.uiContext;
-      } else {
-        newGenerateState.seedContext = null;
-      }
-    } catch (err) {
-      console.error("Failed to read metadata from config:", err);
-      newGenerateState.seedContext = null;
+    if (metadata?.profileName) {
+      newGenerateState.profileName = metadata.profileName;
     }
+    newGenerateState.seedContext = metadata?.uiContext || null;
 
     const resolvedProfileName = newGenerateState.profileName ?? profileName;
     const newHistory = updateGeneratedHistory(
       generatedHistoryList,
       file,
-      newGenerateState.instanceName,
+      loadedName,
       resolvedProfileName
     );
 
@@ -203,40 +189,86 @@ export default function GenerationTab({errors}) {
       generatedHistory: newHistory,
     });
     setMessage(`Loaded existing file: ${getFileName(file)}`);
+
+    if (metadata?.uiContext) {
+      if (overrides.overrideConfigure && metadata.uiContext.configure) {
+        updateCategoryCtx("configure", metadata.uiContext.configure);
+      }
+
+      let currentScanResult = scanResult;
+
+      if (overrides.overrideInstall && metadata.uiContext.setup?.installPath) {
+        const targetInstallPath = metadata.uiContext.setup.installPath;
+        try {
+          const scanRes = await invoke("scan_install", { executablePath: targetInstallPath });
+          if (scanRes) {
+            currentScanResult = scanRes;
+            
+            const history = Array.isArray(setup.installHistory) ? setup.installHistory : [];
+            const nextHistory = history.filter((entry) => entry?.path !== targetInstallPath);
+            nextHistory.unshift({ path: targetInstallPath, installType: scanRes.installType });
+            
+            updateCategoryCtx("setup", {
+              installPath: targetInstallPath,
+              scanResult: currentScanResult,
+              installHistory: nextHistory
+            });
+          }
+        } catch (err) {
+          console.error("Failed to scan loaded install path", err);
+        }
+      }
+
+      if (overrides.overridePacks && metadata.uiContext.setup?.requiredPacks && currentScanResult?.contentPacks) {
+        const requiredPacks = metadata.uiContext.setup.requiredPacks;
+        const updatedPacks = currentScanResult.contentPacks.map(p => ({
+          ...p,
+          useCars: requiredPacks.includes(p.name),
+          useTracks: requiredPacks.includes(p.name)
+        }));
+        
+        const updatedScanResult = { ...currentScanResult, contentPacks: updatedPacks };
+        updateCategoryCtx("setup", { scanResult: updatedScanResult });
+      }
+    }
+  };
+
+  const handleLoadFile = async () => {
+    const file = getSelectedPath(await open({
+      multiple: false,
+      filters: [{ name: "JSON Config", extensions: ["json"] }],
+    }));
+    if (!file) return;
+
+    const loadedName = getInstanceNameFromPath(file);
+
+    try {
+      const metadata = await invoke("read_seed_context", { filePath: file });
+      if (metadata?.uiContext) {
+        setLoadDialogData({ file, metadata, loadedName });
+      } else {
+        applyLoad(file, metadata, loadedName);
+      }
+    } catch (err) {
+      console.error("Failed to read metadata from config:", err);
+      applyLoad(file, null, loadedName);
+    }
   };
 
   async function handleLoadFromHistory(entry) {
-    const nextInstanceName = entry.instanceName || getInstanceNameFromPath(entry.path);
-    let nextProfileName = entry.profileName || profileName;
-    let seedContext = null;
+    const loadedName = entry.instanceName || getInstanceNameFromPath(entry.path);
 
     try {
       const metadata = await invoke("read_seed_context", { filePath: entry.path });
-      if (metadata?.profileName) {
-        nextProfileName = metadata.profileName;
-      }
       if (metadata?.uiContext) {
-        seedContext = metadata.uiContext;
+        setLoadDialogData({ file: entry.path, metadata, loadedName });
+      } else {
+        applyLoad(entry.path, metadata, loadedName);
       }
     } catch (err) {
       console.error("Failed to read metadata from history entry:", err);
+      applyLoad(entry.path, null, loadedName);
     }
-
-    const newHistory = updateGeneratedHistory(
-      generatedHistoryList,
-      entry.path,
-      nextInstanceName,
-      nextProfileName
-    );
-
-    updateCategoryCtx("generate", {
-      generatedFilePath: entry.path,
-      instanceName: nextInstanceName,
-      profileName: nextProfileName,
-      generatedHistory: newHistory,
-      seedContext,
-    });
-    setMessage(`Switched to: ${getFileName(entry.path)}`);
   }
 
   function handleRemoveFromHistory(pathToRemove) {
@@ -335,6 +367,17 @@ export default function GenerationTab({errors}) {
           style={{ marginTop: "0.5rem" }}
         />
       </div>
+
+      <LoadSeedDialog
+        isOpen={!!loadDialogData}
+        seedMetadata={loadDialogData?.metadata}
+        currentInstallPath={installPath}
+        onClose={() => setLoadDialogData(null)}
+        onConfirm={(overrides) => {
+          applyLoad(loadDialogData.file, loadDialogData.metadata, loadDialogData.loadedName, overrides);
+          setLoadDialogData(null);
+        }}
+      />
     </div>
   );
 }
