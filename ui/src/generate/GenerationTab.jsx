@@ -138,9 +138,20 @@ export default function GenerationTab({errors}) {
         profileName.trim()
       );
 
+      let seedContext = null;
+      try {
+        const metadata = await invoke("read_seed_context", { filePath: outPath });
+        if (metadata?.uiContext) {
+          seedContext = metadata.uiContext;
+        }
+      } catch (err) {
+        console.error("Failed to read metadata from generated config:", err);
+      }
+
       updateCategoryCtx("generate", {
         generatedFilePath: outPath,
         generatedHistory: newHistory,
+        seedContext,
       });
       setMessage(`Successfully generated: ${getFileName(outPath)}`);
     } catch (error) {
@@ -165,12 +176,18 @@ export default function GenerationTab({errors}) {
     };
 
     try {
-      const configData = await invoke("read_config_file", { filePath: file });
-      if (configData?.metadata?.profileName) {
-        newGenerateState.profileName = configData.metadata.profileName;
+      const metadata = await invoke("read_seed_context", { filePath: file });
+      if (metadata?.profileName) {
+        newGenerateState.profileName = metadata.profileName;
+      }
+      if (metadata?.uiContext) {
+        newGenerateState.seedContext = metadata.uiContext;
+      } else {
+        newGenerateState.seedContext = null;
       }
     } catch (err) {
-      console.error("Failed to read profile name from config:", err);
+      console.error("Failed to read metadata from config:", err);
+      newGenerateState.seedContext = null;
     }
 
     const resolvedProfileName = newGenerateState.profileName ?? profileName;
@@ -188,9 +205,23 @@ export default function GenerationTab({errors}) {
     setMessage(`Loaded existing file: ${getFileName(file)}`);
   };
 
-  function handleLoadFromHistory(entry) {
+  async function handleLoadFromHistory(entry) {
     const nextInstanceName = entry.instanceName || getInstanceNameFromPath(entry.path);
-    const nextProfileName = entry.profileName || profileName;
+    let nextProfileName = entry.profileName || profileName;
+    let seedContext = null;
+
+    try {
+      const metadata = await invoke("read_seed_context", { filePath: entry.path });
+      if (metadata?.profileName) {
+        nextProfileName = metadata.profileName;
+      }
+      if (metadata?.uiContext) {
+        seedContext = metadata.uiContext;
+      }
+    } catch (err) {
+      console.error("Failed to read metadata from history entry:", err);
+    }
+
     const newHistory = updateGeneratedHistory(
       generatedHistoryList,
       entry.path,
@@ -203,6 +234,7 @@ export default function GenerationTab({errors}) {
       instanceName: nextInstanceName,
       profileName: nextProfileName,
       generatedHistory: newHistory,
+      seedContext,
     });
     setMessage(`Switched to: ${getFileName(entry.path)}`);
   }

@@ -36,6 +36,7 @@ const DEFAULT_STATE = {
     instanceName: "randomized-instance",
     profileName: "player1",
     generatedHistory: [],
+    seedContext: null,
   },
   play: {
     extraArgs: "",
