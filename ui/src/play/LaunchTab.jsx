@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppContext } from '../AppProvider';
+import SeedSummaryPanel from "../components/SeedSummaryPanel";
 
 export default function LaunchTab({errors}) {
 
@@ -40,7 +41,7 @@ export default function LaunchTab({errors}) {
         profileName: profileName
       });
       
-      setLaunchStatus(`Game running! Process ID: ${result.pid}`);
+      setLaunchStatus(`Game running!`);
     } catch (error) {
       console.error(error);
       setLaunchStatus(`Launch failed: ${error}`);
@@ -52,6 +53,23 @@ export default function LaunchTab({errors}) {
   return (
     <div className="tab-container">
       <div className="control-panel">
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "2rem" }}>
+          <button 
+            className="primary" 
+            onClick={handleLaunch} 
+            disabled={!generatedFilePath || isLaunching || errors.length > 0}
+            style={{ padding: "0.75rem 3rem", fontSize: "1.2rem", fontWeight: "bold" }}
+          >
+            {isLaunching ? "Launching..." : "▶ Launch Game"}
+          </button>
+          
+          {launchStatus && (
+            <p style={{ marginTop: "1rem", marginBottom: 0, color: launchStatus.includes("failed") ? "var(--error-color, #c0392b)" : "var(--text-primary)" }}>
+              {launchStatus}
+            </p>
+          )}
+        </div>
+
         <div className="control-group">
           <label style={{ fontWeight: "bold" }}>Command Line Arguments:</label>
           <input 
@@ -64,38 +82,18 @@ export default function LaunchTab({errors}) {
           <small style={{ color: "var(--text-secondary)" }}>These flags are passed directly to rvgl.exe.</small>
         </div>
 
-        <div className="launch-summary" style={{ marginTop: "1.5rem", padding: "1rem", backgroundColor: "var(--bg-secondary)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-          <h3 style={{ marginTop: 0, marginBottom: "1rem" }}>Launch Summary</h3>
-          
+        <div style={{ marginTop: "1.5rem" }}>
           {!generatedFilePath ? (
-            <p style={{ color: "var(--error-color, #c0392b)", margin: 0 }}>
-              ⚠ You must Generate or Load an instance file first (see Randomize tab).
-            </p>
+            <div style={{ padding: "1rem", backgroundColor: "var(--bg-secondary)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
+              <p style={{ color: "var(--error-color, #c0392b)", margin: 0 }}>
+                ⚠ You must Generate or Load an instance file first (see Randomize tab).
+              </p>
+            </div>
           ) : (
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-              <li><strong>Target Executable:</strong> {installPath.split(/[\\/]/).pop()}</li>
-              <li><strong>Configuration:</strong> {generatedFilePath.split(/[\\/]/).pop()}</li>
-              {scanResult.installType === 'launcher' && (
-                <li><strong>Packlist:</strong> 2 Auto + {extraPacks.length} Extra + Selected Content</li>
-              )}
-            </ul>
-          )}
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "2rem" }}>
-          <button 
-            className="primary" 
-            onClick={handleLaunch} 
-            disabled={!generatedFilePath || isLaunching || errors.length > 0}
-            style={{ padding: "0.75rem 3rem", fontSize: "1.2rem", fontWeight: "bold" }}
-          >
-            {isLaunching ? "Launching..." : "▶ Launch Game"}
-          </button>
-          
-          {launchStatus && (
-            <p style={{ marginTop: "1rem", color: launchStatus.includes("failed") ? "var(--error-color, #c0392b)" : "var(--text-primary)" }}>
-              {launchStatus}
-            </p>
+            <>
+              <h3 style={{ marginTop: 0, marginBottom: "0.75rem" }}>Launch Summary</h3>
+              <SeedSummaryPanel configPath={generatedFilePath} compact={true} />
+            </>
           )}
         </div>
       </div>

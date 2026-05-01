@@ -4,6 +4,7 @@ import { open, confirm } from '@tauri-apps/plugin-dialog';
 import { useAppContext } from '../AppProvider';
 import HistoryPanel from "../components/HistoryPanel";
 import LoadSeedDialog from "./LoadSeedDialog";
+import SeedSummaryPanel from "../components/SeedSummaryPanel";
 import "../setup/SetupView.css";
 import { DEFAULT_CAR_OPTIONS } from '../utils/constants';
 
@@ -305,8 +306,9 @@ export default function GenerationTab({errors}) {
         Create a new randomized game based on your current configuration parameters.
       </p>
 
-      <div className="control-panel">
-        <div className="control-group">
+      <div className="generation-tab-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem", alignItems: "start" }}>
+        <div className="control-panel left-column">
+          <div className="control-group">
           <label style={{ fontWeight: "bold" }}>Instance Name:</label>
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
             <input 
@@ -363,13 +365,6 @@ export default function GenerationTab({errors}) {
           </div>
         )}
 
-        {generatedFilePath && (
-          <div className="active-file-box" style={{ marginTop: "1rem", padding: "1rem", border: "1px solid var(--accent)", borderRadius: "6px", backgroundColor: "var(--bg-secondary)" }}>
-            <span style={{ color: "var(--accent)", marginRight: "0.5rem" }}>✓</span>
-            <strong>Ready to Launch:</strong> {generatedFilePath}
-          </div>
-        )}
-
         <HistoryPanel
           title="Previous seeds"
           items={generatedHistoryList.filter((entry) => entry?.path)}
@@ -386,6 +381,30 @@ export default function GenerationTab({errors}) {
           summaryLabel="generated seeds"
           style={{ marginTop: "0.5rem" }}
         />
+        </div>
+
+        <div className="right-column">
+          {generatedFilePath ? (
+            <SeedSummaryPanel configPath={generatedFilePath} compact={false} />
+          ) : (
+            <div className="empty-summary-placeholder" style={{ 
+              border: "1px dashed var(--border-color)", 
+              borderRadius: "8px", 
+              padding: "2rem", 
+              textAlign: "center", 
+              color: "var(--text-secondary)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1rem",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: "200px"
+            }}>
+              <span style={{ fontSize: "2rem" }}>📋</span>
+              <p style={{ margin: 0 }}>Generate or load a seed to see its summary here.</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <LoadSeedDialog
