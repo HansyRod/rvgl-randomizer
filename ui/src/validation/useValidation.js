@@ -5,7 +5,6 @@ import { validateCarOptions } from "./carValidators";
 import { validateTrackSpec } from "./trackValidators";
 import { validateCupSpec } from "./cupValidators";
 import { validateGenerate } from "./generateValidators";
-import { validateLaunch } from "./launchValidators";
 
 export function useValidation() {
   const { state } = useAppContext();
@@ -48,7 +47,6 @@ export function useValidation() {
     }
 
     collect(validateGenerate(generate, configure));
-    collect(validateLaunch(generate, setup));
 
     return { errors, warnings };
   }, [setup, configure, generate, play]);
