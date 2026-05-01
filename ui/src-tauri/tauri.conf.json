@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "rvgl-randomizer-ui",
+  "productName": "rvgl-randomizer",
   "version": "0.1.0",
-  "identifier": "com.rod.rvgl-randomizer-ui",
+  "identifier": "com.rod.rvgl-randomizer",
   "build": {
     "beforeDevCommand": "npm run build:dll && npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "rvgl-randomizer-ui",
+        "title": "RVGL Randomizer",
         "width": 1200,
         "height": 800
       }
