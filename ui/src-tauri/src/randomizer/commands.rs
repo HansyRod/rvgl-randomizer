@@ -15,6 +15,7 @@ use super::rng::Rng;
 #[tauri::command]
 pub fn generate_result(
     app_handle: tauri::AppHandle,
+    install_path: String,
     scan_result: ScanResult,
     cars_spec_state: CarsSpecState,
     car_options: Option<CarOptionsInput>,
@@ -202,12 +203,43 @@ pub fn generate_result(
     });
     let cups = generate_cups(&cup_state, &tracks, &scan_result, &mut rng);
 
-    // 4. Build the output structure
+    // 4. Assemble UiContext
+    let required_packs: Vec<String> = match &scan_result.install_type {
+        crate::scanner::InstallType::Launcher => scan_result.content_packs
+            .as_deref()
+            .unwrap_or(&[])
+            .iter()
+            .filter(|p| p.use_cars || p.use_tracks)
+            .map(|p| p.name.clone())
+            .collect(),
+        crate::scanner::InstallType::Classic => vec![],
+    };
+
+    let configure = serde_json::json!({
+        "carOptions": opts,
+        "trackOptions": track_opts,
+        "carsSpecState": cars_spec_state,
+        "trackSpecState": track_spec_state,
+        "cupSpecState": cup_state,
+    });
+
+    let ui_context = Some(UiContext {
+        generated_at: chrono::Utc::now().to_rfc3339(),
+        setup: UiInstallContext {
+            install_type: format!("{:?}", scan_result.install_type).to_lowercase(),
+            install_path,
+            required_packs,
+        },
+        configure,
+    });
+
+    // 5. Build the output structure
     let config = ConfigData {
         metadata: ConfigMetadata {
             seed: "alpha-test-88".to_string(), // In the future, we can hook this up to the RNG
             version: "1.0.0".to_string(),
             profile_name: Some(profile_name),
+            ui_context,
         },
         global_options: ConfigGlobalOptions {
             load_extra_cars: false,

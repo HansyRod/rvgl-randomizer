@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 // Input types — mirror the JS carsSpecState shape
 // ============================================================================
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CarSpec {
     pub id: String,
@@ -15,14 +15,14 @@ pub struct CarSpec {
     pub attr_obtain: String,   // "Random", "Unchanged", or "-1".."4"
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CarsSpecState {
     pub stock_cars: Vec<CarSpec>,
     pub dc_cars: Vec<CarSpec>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TrackSpec {
     pub id: String,
@@ -32,7 +32,7 @@ pub struct TrackSpec {
     pub attr_obtain: String,       // "Random" or "-1".."5"
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TrackSpecState {
     #[serde(default = "default_true")]
@@ -41,7 +41,7 @@ pub struct TrackSpecState {
     pub tracks: Vec<TrackSpec>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RatingDist {
     pub enabled: bool,
@@ -51,7 +51,7 @@ pub struct RatingDist {
 
 /// High-level options from the Car Options tab.
 /// All fields are optional so older JSON payloads remain compatible.
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CarOptionsInput {
     #[serde(default = "default_unlock_mode")]
@@ -78,7 +78,7 @@ pub struct CarOptionsInput {
     pub attr_rating_distributions: std::collections::HashMap<String, RatingDist>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TrackOptionsInput {
     #[serde(default = "default_track_unlock_mode")]
@@ -121,11 +121,29 @@ pub struct RandomizedTrack {
 }
 
 #[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct UiContext {
+    pub generated_at: String,
+    pub setup: UiInstallContext,
+    pub configure: serde_json::Value,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct UiInstallContext {
+    pub install_type: String,
+    pub install_path: String,
+    pub required_packs: Vec<String>,
+}
+
+#[derive(Serialize, Debug, Clone)]
 pub struct ConfigMetadata {
     pub seed: String,
     pub version: String,
     #[serde(rename = "profileName", skip_serializing_if = "Option::is_none")]
     pub profile_name: Option<String>,
+    #[serde(rename = "uiContext", skip_serializing_if = "Option::is_none")]
+    pub ui_context: Option<UiContext>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -151,7 +169,7 @@ pub struct ConfigData {
 // CUP SPEC — input types from the UI
 // ============================================================================
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum CupStageMode {
     Default,
@@ -163,7 +181,7 @@ impl Default for CupStageMode {
     fn default() -> Self { CupStageMode::Default }
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum SameTrackHandling {
     Forbid,
@@ -176,7 +194,7 @@ impl Default for SameTrackHandling {
 }
 
 /// A single user-defined stage spec inside a cup.
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UserStageSpec {
     /// "Random", "slot:N" for slot index, or a specific track folder name
@@ -194,7 +212,7 @@ pub struct UserStageSpec {
 }
 
 /// Per-cup configuration.
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CupSpec {
     /// One of the 4 base cups: 0=Bronze, 1=Silver, 2=Gold, 3=Platinum
@@ -238,7 +256,7 @@ pub struct CupSpec {
 }
 
 /// Top-level cup options input, mirroring the UI's cupSpecState.
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CupSpecState {
     #[serde(default = "default_true")]

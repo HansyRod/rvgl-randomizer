@@ -120,6 +120,7 @@ export default function GenerationTab({errors}) {
       } : null;
 
       const outPath = await invoke("generate_result", {
+        installPath,
         scanResult,
         carsSpecState: filteredSpecState,
         carOptions: sanitizedCarOptions,
