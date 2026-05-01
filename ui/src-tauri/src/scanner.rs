@@ -65,6 +65,15 @@ pub struct Track {
 }
 
 #[tauri::command]
+pub fn scan_pack_folder(
+    folder_path: String,
+    use_cars: bool,
+    use_tracks: bool,
+) -> Result<ContentPack, String> {
+    scan_pack_folder_sync(Path::new(&folder_path), use_cars, use_tracks)
+}
+
+#[tauri::command]
 pub fn scan_install(executable_path: String) -> Option<ScanResult> {
     let exe_path = Path::new(&executable_path);
     if !exe_path.exists() {
@@ -225,6 +234,61 @@ pub fn check_profile_exists(executable_path: String, profile_name: String) -> bo
     }
 
     false
+}
+
+fn scan_pack_folder_sync(
+    folder_path: &Path,
+    use_cars: bool,
+    use_tracks: bool,
+) -> Result<ContentPack, String> {
+    if !folder_path.exists() {
+        return Err(format!(
+            "Pack folder does not exist: {}",
+            folder_path.display()
+        ));
+    }
+
+    if !folder_path.is_dir() {
+        return Err(format!(
+            "Pack path is not a directory: {}",
+            folder_path.display()
+        ));
+    }
+
+    let name = folder_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| format!("Could not determine pack name for {}", folder_path.display()))?
+        .to_string();
+
+    let cars_path = folder_path.join("cars");
+    let levels_path = folder_path.join("levels");
+
+    let has_cars = cars_path.is_dir();
+    let has_tracks = levels_path.is_dir();
+
+    let cars = if has_cars {
+        scan_cars_folder_sync(&cars_path)
+    } else {
+        Vec::new()
+    };
+
+    let tracks = if has_tracks {
+        scan_levels_folder_sync(&levels_path)
+    } else {
+        Vec::new()
+    };
+
+    Ok(ContentPack {
+        name,
+        absolute_path: folder_path.to_string_lossy().to_string(),
+        has_cars,
+        has_tracks,
+        use_cars: use_cars && has_cars,
+        use_tracks: use_tracks && has_tracks,
+        cars,
+        tracks,
+    })
 }
 
 fn scan_cars_folder_sync(folder_path: &Path) -> Vec<Car> {
