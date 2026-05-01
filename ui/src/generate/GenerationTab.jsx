@@ -6,6 +6,7 @@ import HistoryPanel from "../components/HistoryPanel";
 import LoadSeedDialog from "./LoadSeedDialog";
 import SeedSummaryPanel from "../components/SeedSummaryPanel";
 import "../setup/SetupView.css";
+import "./GenerationTab.css";
 import { DEFAULT_CAR_OPTIONS } from '../utils/constants';
 
 const { poolRatingDistributions, attrRatingDistributions } = DEFAULT_CAR_OPTIONS;
@@ -301,12 +302,12 @@ export default function GenerationTab({errors}) {
   const isGenerateBtnDisabled = isGenerating || !carsSpecState || errors.length > 0;
 
   return (
-    <div className="tab-container">
+    <div className="tab-container generation-tab">
       <p className="tab-description" style={{ marginTop: 0 }}>
         Create a new randomized game based on your current configuration parameters.
       </p>
 
-      <div className="generation-tab-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem", alignItems: "start" }}>
+      <div className="generation-tab-grid">
         <div className="control-panel left-column">
           <div className="control-group">
           <label style={{ fontWeight: "bold" }}>Instance Name:</label>
@@ -387,19 +388,7 @@ export default function GenerationTab({errors}) {
           {generatedFilePath ? (
             <SeedSummaryPanel configPath={generatedFilePath} compact={false} />
           ) : (
-            <div className="empty-summary-placeholder" style={{ 
-              border: "1px dashed var(--border-color)", 
-              borderRadius: "8px", 
-              padding: "2rem", 
-              textAlign: "center", 
-              color: "var(--text-secondary)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "1rem",
-              alignItems: "center",
-              justifyContent: "center",
-              minHeight: "200px"
-            }}>
+            <div className="empty-summary-placeholder">
               <span style={{ fontSize: "2rem" }}>📋</span>
               <p style={{ margin: 0 }}>Generate or load a seed to see its summary here.</p>
             </div>

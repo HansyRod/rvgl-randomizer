@@ -35,10 +35,6 @@ function PacksTab() {
 
   return (
     <div className="tab-container packs-tab">
-      <p className="tab-description" style={{ marginTop: 0 }}>
-        Configure which content packs are loaded when the randomized game launches.
-      </p>
-
       <div className="pack-group">
         <h3>Automatically selected packs:</h3>
         <ul className="pack-list">

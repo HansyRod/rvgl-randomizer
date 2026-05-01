@@ -51,7 +51,7 @@ export default function LaunchTab({errors}) {
   };
 
   return (
-    <div className="tab-container">
+    <div className="tab-container launch-tab">
       <div className="control-panel">
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "2rem" }}>
           <button 
