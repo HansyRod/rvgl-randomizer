@@ -269,7 +269,7 @@ unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLeve
                 CarboxSource src = GetVanillaCarboxSource(internalName);
 
                 // Absolute path for writing the generated carbox, which we'll delete after loading
-                std::string customTexturePath = GetCarboxAbsoluteFolderPath() + "\\custom_carbox_" + internalName + ".bmp";
+                customTexturePath = GetCarboxAbsoluteFolderPath() + "\\custom_carbox_" + internalName + ".bmp";
                 GenerateAndSaveSingleCarbox(customTexturePath, src);
 
                 // keep original VFS path for the engine
@@ -297,7 +297,7 @@ unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLeve
                 // Generate the stitched file to disk
                 GenerateAndSaveCarboxAtlas(customTexturePath, randomGrid);
 
-                Logger::TimestampLogf("[LoadTextureByName] Atlas carbox %d written to: %s", carboxNumber, customTexturePath);
+                Logger::TimestampLogf("[LoadTextureByName] Atlas carbox %d written to: %s", carboxNumber, customTexturePath.c_str());
 
                 // Point our targetPath to the newly generated file instead of overwriting memory
                 // Redirect the engine to the VFS-relative path so it finds the file
