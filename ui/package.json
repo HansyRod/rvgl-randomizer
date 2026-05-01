@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "release": "tauri build",
     "cmake:configure": "cmake -S .. -B ../build -A x64",
     "cmake:build": "cmake --build ../build --config Release --target randomizer",
     "cmake:build:dbg": "cmake --build ../build --config Debug   --target randomizer",
