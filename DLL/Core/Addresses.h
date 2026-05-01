@@ -70,6 +70,9 @@ constexpr uint32_t RVA_PROFILE_CREATE_OR_LOAD = 0x00075500;
 // Profile_LoadAndReset - Loads a profile and resets state.
 constexpr uint32_t RVA_PROFILE_LOAD_AND_RESET = 0x000753c0;
 
+// LoadSettingsFromIni - Loads the INI file and stores settings in global variables in memory.
+constexpr uint32_t RVA_LOAD_SETTINGS_FROM_INI = 0x0007a6a0;
+
 // ----------------------------------------------------------------------------
 // Globals
 // ----------------------------------------------------------------------------
@@ -105,7 +108,8 @@ constexpr uint32_t RVA_DC_CUP_ARRAY = 0x0025ee38;
 // First entry of the array is empty, index 1 is the Bronze Cup, etc.
 constexpr uint32_t RVA_VANILLA_CUP_ARRAY = 0x0025f4a0;
 
-
+// Global variable for CupDC setting. If enabled, DC Cups are used and DC Cars can be loaded into championships.
+constexpr uint32_t RVA_CUP_DC = 0x00b4349e;
 
 // ----------------------------------------------------------------------------
 // AbsFromRva

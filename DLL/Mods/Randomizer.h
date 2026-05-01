@@ -29,6 +29,7 @@ namespace Randomizer {
     using FnGetProfileIndex         = int(*)(char* profileName);
     using FnProfile_CreateOrLoad    = bool(*)(char* displayName);
     using FnProfile_LoadAndReset    = void(*)(char* profileName);
+    using FnLoadSettingsFromIni     = void(*)(char* profileName);
 
     // ------------------------------------------------------------------------
     // Original function pointers.
@@ -48,6 +49,7 @@ namespace Randomizer {
     extern FnGetProfileIndex        Orig_GetProfileIndex;
     extern FnProfile_CreateOrLoad   Orig_Profile_CreateOrLoad;
     extern FnProfile_LoadAndReset   Orig_Profile_LoadAndReset;
+    extern FnLoadSettingsFromIni    Orig_LoadSettingsFromIni;
 
     // ------------------------------------------------------------------------
     // Detour functions — registered in HookManager.cpp → RegisterHooks().
@@ -64,6 +66,7 @@ namespace Randomizer {
     int Hook_GetProfileIndex(char* profileName);
     bool Hook_Profile_CreateOrLoad(char* displayName);
     void Hook_Profile_LoadAndReset(char* profileName);
+    void Hook_LoadSettingsFromIni(char* profileName);
 
     // Utils functions
     void Initialize();

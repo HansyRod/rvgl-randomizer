@@ -159,6 +159,7 @@ FnUpdateCarSelectability Orig_UpdateCarSelectability = nullptr;
 FnGetProfileIndex        Orig_GetProfileIndex        = nullptr;
 FnProfile_CreateOrLoad   Orig_Profile_CreateOrLoad   = nullptr;
 FnProfile_LoadAndReset   Orig_Profile_LoadAndReset   = nullptr;
+FnLoadSettingsFromIni    Orig_LoadSettingsFromIni    = nullptr;
 
 // ----------------------------------------------------------------------------
 // Car pool snapshot
@@ -648,6 +649,14 @@ void Hook_Profile_LoadAndReset(char* profileName) {
         return;
     }
     Orig_Profile_LoadAndReset(profileName);
+}
+
+void Hook_LoadSettingsFromIni(char* profileName) {
+    Orig_LoadSettingsFromIni(profileName);
+
+    // Force CupDC flag to true so DC cups are loaded and selectable in championships.
+    bool* cupDCFlag = reinterpret_cast<bool*>(AbsFromRva(RVA_CUP_DC));
+    *cupDCFlag = true;
 }
 
 } // namespace Randomizer

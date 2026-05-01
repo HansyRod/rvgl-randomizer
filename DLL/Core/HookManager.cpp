@@ -177,6 +177,14 @@ static void RegisterHooks() {
         reinterpret_cast<void**>(&Randomizer::Orig_Profile_LoadAndReset),
         "Profile_LoadAndReset"
     );
+
+    HookManager::Add(
+        AbsFromRva(RVA_LOAD_SETTINGS_FROM_INI),
+        reinterpret_cast<void*>(Randomizer::Hook_LoadSettingsFromIni),
+        reinterpret_cast<void**>(&Randomizer::Orig_LoadSettingsFromIni),
+        "LoadSettingsFromIni"
+    );
+    
     /* HookManager::Add(
         AbsFromRva(RVA_PARSE_PARAMETERS_TXT),
         reinterpret_cast<void*>(Randomizer::Hook_ParseParametersTxt),
