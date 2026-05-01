@@ -221,14 +221,34 @@ export default function GenerationTab({errors}) {
 
       if (overrides.overridePacks && metadata.uiContext.setup?.requiredPacks && currentScanResult?.contentPacks) {
         const requiredPacks = metadata.uiContext.setup.requiredPacks;
-        const updatedPacks = currentScanResult.contentPacks.map(p => ({
-          ...p,
-          useCars: requiredPacks.includes(p.name),
-          useTracks: requiredPacks.includes(p.name)
-        }));
         
-        const updatedScanResult = { ...currentScanResult, contentPacks: updatedPacks };
-        updateCategoryCtx("setup", { scanResult: updatedScanResult });
+        updateCategoryCtx("app", { isFetchingPack: true });
+        try {
+          const updatedPacks = [];
+          for (const p of currentScanResult.contentPacks) {
+            const shouldBeEnabled = requiredPacks.includes(p.name);
+            const newPack = { 
+              ...p, 
+              useCars: shouldBeEnabled && p.hasCars, 
+              useTracks: shouldBeEnabled && p.hasTracks 
+            };
+            
+            if (newPack.useCars && (!newPack.cars || newPack.cars.length === 0)) {
+              newPack.cars = await invoke("scan_cars_folder", { folderPath: `${newPack.absolutePath}\\cars` });
+            }
+            if (newPack.useTracks && (!newPack.tracks || newPack.tracks.length === 0)) {
+              newPack.tracks = await invoke("scan_levels_folder", { folderPath: `${newPack.absolutePath}\\levels` });
+            }
+            updatedPacks.push(newPack);
+          }
+          
+          const updatedScanResult = { ...currentScanResult, contentPacks: updatedPacks };
+          updateCategoryCtx("setup", { scanResult: updatedScanResult });
+        } catch (err) {
+          console.error("Failed to fetch packs while loading seed:", err);
+        } finally {
+          updateCategoryCtx("app", { isFetchingPack: false });
+        }
       }
     }
   };

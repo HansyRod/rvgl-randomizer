@@ -126,6 +126,8 @@ pub struct UiContext {
     pub generated_at: String,
     pub setup: UiInstallContext,
     pub configure: serde_json::Value,
+    pub generated_car_folders: Vec<String>,
+    pub generated_track_folders: Vec<String>,
 }
 
 #[derive(Serialize, Debug, Clone)]

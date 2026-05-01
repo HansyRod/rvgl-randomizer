@@ -223,6 +223,11 @@ pub fn generate_result(
         "cupSpecState": cup_state,
     });
 
+    let mut generated_car_folders: Vec<String> = stock_cars.iter().map(|c| c.folder.clone()).collect();
+    generated_car_folders.extend(dc_cars.iter().map(|c| c.folder.clone()));
+
+    let generated_track_folders: Vec<String> = tracks.iter().map(|t| t.folder.clone()).collect();
+
     let ui_context = Some(UiContext {
         generated_at: chrono::Utc::now().to_rfc3339(),
         setup: UiInstallContext {
@@ -231,6 +236,8 @@ pub fn generate_result(
             required_packs,
         },
         configure,
+        generated_car_folders,
+        generated_track_folders,
     });
 
     // 5. Build the output structure

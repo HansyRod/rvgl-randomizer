@@ -5,7 +5,7 @@ import { useAppContext } from "../AppProvider";
 export function useLaunchValidation() {
   const { state } = useAppContext();
   const { generate, setup } = state;
-  const { generatedFilePath } = generate;
+  const { generatedFilePath, seedContext } = generate;
   const { installPath, scanResult } = setup;
 
   const [asyncErrors, setAsyncErrors] = useState([]);
@@ -79,6 +79,75 @@ export function useLaunchValidation() {
         }
       }
 
+      // 5A: INSTALL TYPE MISMATCH
+      if (seedContext?.setup?.installType && scanResult?.installType) {
+        if (seedContext.setup.installType !== scanResult.installType) {
+          warnings.push({
+            id: "launch_install_mismatch",
+            scope: "launch",
+            message: `This seed was generated for a ${seedContext.setup.installType} install but your current install is ${scanResult.installType}. Launch may fail or produce unexpected results.`
+          });
+        }
+      }
+
+      // 5C: REQUIRED PACKS MISSING
+      if (installPath && scanResult?.installType === "launcher" && seedContext?.setup?.requiredPacks) {
+        const requiredPacks = seedContext.setup.requiredPacks;
+        
+        const allAvailablePacks = (scanResult.contentPacks || []).map(p => p.name);
+        const currentlyEnabledPacks = (scanResult.contentPacks || [])
+          .filter(p => p.useCars || p.useTracks)
+          .map(p => p.name);
+        
+        const completelyMissingPacks = requiredPacks.filter(p => !allAvailablePacks.includes(p));
+        const presentButDisabledPacks = requiredPacks.filter(p => allAvailablePacks.includes(p) && !currentlyEnabledPacks.includes(p));
+        
+        if (completelyMissingPacks.length > 0) {
+          warnings.push({
+            id: "launch_packs_not_found",
+            scope: "launch",
+            message: `The following packs are required by this seed but are completely missing from your RVGL installation: ${completelyMissingPacks.join(', ')}. Install them to ensure the seed works correctly.`
+          });
+        }
+        
+        if (presentButDisabledPacks.length > 0) {
+          warnings.push({
+            id: "launch_missing_packs",
+            scope: "launch",
+            message: `The following packs are required by this seed but are not enabled: ${presentButDisabledPacks.join(', ')}. Enable them in Setup before launching.`
+          });
+        }
+      }
+
+      // 5C: MISSING CONTENT FOLDERS
+      if (seedContext?.generatedCarFolders || seedContext?.generatedTrackFolders) {
+        const seedCarFolders = seedContext.generatedCarFolders || [];
+        const seedTrackFolders = seedContext.generatedTrackFolders || [];
+        
+        let availableCarFolders = [];
+        let availableTrackFolders = [];
+        
+        if (scanResult?.installType === "launcher") {
+          const activePacks = scanResult.contentPacks || [];
+          availableCarFolders = activePacks.filter(p => p.useCars).flatMap(p => (p.cars || []).map(c => c.folderName));
+          availableTrackFolders = activePacks.filter(p => p.useTracks).flatMap(p => (p.tracks || []).map(t => t.folderName));
+        } else {
+          availableCarFolders = (scanResult?.cars || []).map(c => c.folderName);
+          availableTrackFolders = (scanResult?.tracks || []).map(t => t.folderName);
+        }
+        
+        const missingCars = seedCarFolders.some(f => !availableCarFolders.includes(f));
+        const missingTracks = seedTrackFolders.some(f => !availableTrackFolders.includes(f));
+        
+        if (missingCars || missingTracks) {
+          errors.push({
+            id: "launch_missing_content",
+            scope: "launch",
+            message: "Some content referenced by this seed is missing from your current active install or loaded packs. Verify your RVGL installation is complete and the correct packs are enabled."
+          });
+        }
+      }
+
       if (!cancelled) {
         setAsyncErrors(errors);
         setAsyncWarnings(warnings);
@@ -87,7 +156,7 @@ export function useLaunchValidation() {
 
     run();
     return () => { cancelled = true; };
-  }, [generatedFilePath, installPath, scanResult?.installType]);
+  }, [generatedFilePath, installPath, scanResult, seedContext]);
 
   return { errors: asyncErrors, warnings: asyncWarnings };
 }
