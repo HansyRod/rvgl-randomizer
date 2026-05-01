@@ -28,7 +28,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
         // it costs nothing and prevents edge-case issues on slower machines.
         Sleep(50);
 
-        Logger::Init();
+        Logger::Init(hModule);
         HookManager::InstallAll();
         Randomizer::Initialize();
         break;

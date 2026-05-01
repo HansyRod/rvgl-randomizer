@@ -1,4 +1,5 @@
 #pragma once
+#include <windows.h>
 #include <string>
 
 // ============================================================================
@@ -7,11 +8,12 @@
 // Writes messages to two sinks simultaneously:
 //   1. OutputDebugStringA  — visible in the VS Code Debug Console when
 //                            the process is launched with cppvsdbg.
-//   2. A log file          — written to the RVGL exe directory so it
-//                            survives after the process exits.
+//   2. A log file          — written next to the randomizer app bundle so it
+//                            survives after the process exits and stays out of
+//                            the RVGL install directory.
 //
 // Usage:
-//   Logger::Init();           // call once from DllMain / HookManager::InstallAll
+//   Logger::Init(hModule);    // call once from DllMain / HookManager::InstallAll
 //   Logger::Log("hi");        // plain message
 //   Logger::Logf("car %d", n); // printf-style
 //   Logger::TimestampLog("hi");        // plain message with timestamp
@@ -22,7 +24,7 @@
 namespace Logger {
 
     // Opens the log file. Safe to call multiple times (no-op after first call).
-    void Init();
+    void Init(HMODULE selfModule);
 
     // Flushes and closes the log file.
     void Shutdown();
