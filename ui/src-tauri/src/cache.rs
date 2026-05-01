@@ -73,3 +73,12 @@ pub fn write_config_file(file_path: String, data: serde_json::Value) -> Result<(
         
     Ok(())
 }
+
+#[tauri::command]
+pub fn read_seed_context(file_path: String) -> Result<serde_json::Value, String> {
+    let contents = fs::read_to_string(&file_path)
+        .map_err(|e| format!("Cannot read file: {}", e))?;
+    let json: serde_json::Value = serde_json::from_str(&contents)
+        .map_err(|e| format!("Invalid JSON: {}", e))?;
+    Ok(json["metadata"].clone())
+}

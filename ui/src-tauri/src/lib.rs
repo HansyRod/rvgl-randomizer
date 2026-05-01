@@ -32,6 +32,7 @@ pub fn run() {
             cache::clear_cache,
             cache::read_config_file,
             cache::write_config_file,
+            cache::read_seed_context,
             validation::check_file_exists,
             validation::check_path_writable,
             validation::check_carbox_assets_exist,
