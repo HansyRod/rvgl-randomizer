@@ -116,8 +116,9 @@
   padding-top: 0.5rem;
 }
 
-.pack-list {
+.seed-summary-panel .pack-list {
   display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
