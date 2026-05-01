@@ -53,8 +53,8 @@ export function makeDefaultCupSpecState() {
     perRaceRequiredPlace: 3,
     overallRequiredPlace: 1,
     pointsTable: [...DEFAULT_POINTS],
-    numLapsMin: 6,
-    numLapsMax: 6,
+    numLapsMin: 2,
+    numLapsMax: 8,
     cups: [0, 1, 2, 3].map(makeDefaultCupSpec),
   };
 }
@@ -225,13 +225,13 @@ export default function CupSpecTab() {
               <div className="cup-field-pair">
                 <label>Minimum Number of Laps</label>
                 <input type="number" min={1} max={30} value={globalLapsMin}
-                  onChange={e => set("numLapsMin", parseInt(e.target.value) || 6)}
+                  onChange={e => set("numLapsMin", parseInt(e.target.value) || 2)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
                 <label>Maximum Number of Laps</label>
                 <input type="number" min={1} max={30} value={globalLapsMax}
-                  onChange={e => set("numLapsMax", parseInt(e.target.value) || 6)}
+                  onChange={e => set("numLapsMax", parseInt(e.target.value) || 8)}
                   className="co-number-input" />
               </div>
             </div>
