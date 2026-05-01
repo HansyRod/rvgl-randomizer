@@ -6,11 +6,6 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
 
   if (!cupSpecState?.enabled) return { errors, warnings };
 
-  // Estimate how many tracks will be resolved
-  const trackCount = trackSpecState?.includeTracks !== false
-    ? (trackSpecState?.tracks?.length ?? 14)
-    : 14; // stock tracks always available as fallback
-
   // ── Per-cup cars-per-class sum ─────────────────────────────────────────────
   // Default distributions (designed for 8 cars, sum = 7 each).
   const DEFAULT_CARS_PER_CLASS = [

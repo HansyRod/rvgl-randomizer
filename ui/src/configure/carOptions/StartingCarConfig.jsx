@@ -9,7 +9,6 @@ export default function StartingCarConfig() {
   const { configure: { carOptions, carsSpecState }, setup: { scanResult } } = state;
   
   const {
-    unlockMode,
     enableStartingCars, numStartingCars,
     enableStartingCarsPool, startingCarsPool,
     enableStartingCarsRating, startingCarsRating,

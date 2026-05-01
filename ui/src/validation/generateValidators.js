@@ -4,9 +4,9 @@ const INVALID_FILENAME_CHARS = /[<>:"/\\|?*\x00-\x1f]/;
 // Characters confirmed to work properly in-game (no warning shown).
 // This includes common keyboard characters not restricted by Windows:
 // Space ! @ # $ % ^ & ( ) - = + [ ] { } ; ' , . ~ `
-const VALID_PROFILE_CHARS = /^[a-zA-Z0-9_ !@#$%^&()\-=+\[\]{};',.~`]+$/;
+const VALID_PROFILE_CHARS = /^[a-zA-Z0-9_ !@#$%^&()\-=+[\]{};',.~`]+$/;
 
-export function validateGenerate(generate, configure) {
+export function validateGenerate(generate) {
   const errors = [];
   const warnings = [];
 

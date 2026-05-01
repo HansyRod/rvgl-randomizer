@@ -46,7 +46,7 @@ export function useValidation() {
       ));
     }
 
-    collect(validateGenerate(generate, configure));
+    collect(validateGenerate(generate));
 
     return { errors, warnings };
   }, [setup, configure, generate, play]);

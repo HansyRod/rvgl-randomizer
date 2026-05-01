@@ -67,7 +67,7 @@ export default function CupSpecTab() {
 
   const { configure } = state;
   
-  const { trackSpecState, cupSpecState } = configure;
+  const { cupSpecState } = configure;
 
   const set = useCallback((key, val) => {
     updateCategoryCtx("configure", { cupSpecState: { ...cupSpecState, [key]: val } });

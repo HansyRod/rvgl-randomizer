@@ -140,9 +140,6 @@ export default function CarOptionsTab() {
     });
   };
 
-  const setInclude = (key, value) =>
-    updateCategoryCtx("configure", { carsSpecState: { ...carsSpecState, [key]: value } });
-
   return (
     <div className="car-options-tab">
 

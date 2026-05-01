@@ -82,7 +82,7 @@ export default function LoadSeedDialog({ isOpen, onClose, onConfirm, seedMetadat
                   <span style={{ display: "flex", flexDirection: "column" }}>
                     <span>Restore <strong>Loaded Packs</strong></span>
                     <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginTop: "0.25rem", fontWeight: "normal" }}>
-                      Update active content packs in your setup to match the seed's requirements.
+                      Update active content packs in your setup to match the seed&apos;s requirements.
                     </span>
                   </span>
                 </label>
@@ -92,14 +92,14 @@ export default function LoadSeedDialog({ isOpen, onClose, onConfirm, seedMetadat
 
           <section className="co-section">
             <h2 className="co-section-title">Configure Options</h2>
-            <p className="co-desc">Enable this option to use this seed's rules as a template for generating a new seed.</p>
+            <p className="co-desc">Enable this option to use this seed&apos;s rules as a template for generating a new seed.</p>
             <div className="co-checkbox-group">
               <label className="co-checkbox-row">
                 <input type="checkbox" checked={overrideConfigure} onChange={e => setOverrideConfigure(e.target.checked)} />
                 <span style={{ display: "flex", flexDirection: "column" }}>
                   <span>Restore <strong>Configure Options</strong></span>
                   <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginTop: "0.25rem", fontWeight: "normal" }}>
-                    Overwrite all Car, Track, and Cup configurations with the seed's settings.
+                    Overwrite all Car, Track, and Cup configurations with the seed&apos;s settings.
                   </span>
                 </span>
               </label>
