@@ -1,7 +1,6 @@
 #include "ConfigManager.h"
 #include "ConfigData.h"
 #include "Logger.h"
-#include <iostream>
 #include <fstream>
 #include <windows.h>
 
@@ -30,8 +29,7 @@ namespace Randomizer {
         std::ifstream fileStream(configFilePath);
         
         if (!fileStream.is_open()) {
-            // TODO: Integrate with existing Logger.cpp
-            std::cerr << "[Randomizer] Error: Could not open config file: " << configFilePath << std::endl;
+            Logger::TimestampLogf("[Randomizer] Error: Could not open config file: %s", configFilePath.c_str());
             return std::nullopt;
         }
 
@@ -45,7 +43,7 @@ namespace Randomizer {
             return parsedData;
 
         } catch (const json::exception& e) {
-            std::cerr << "[Randomizer] JSON Parsing Error: " << e.what() << std::endl;
+            Logger::TimestampLogf("[Randomizer] JSON Parsing Error: %s", e.what());
             return std::nullopt;
         }
     }
