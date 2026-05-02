@@ -121,6 +121,10 @@ export default function TrackSpecTab() {
         availableTracks={availableTracks}
       />
 
+      <div className="section-lock-info">
+        <strong>Generated tracks are sorted by difficulty.</strong> User configurations applied to a slot may be applied to a different slot.
+      </div>
+
       {lockDifficulty && (
         <div className="section-lock-info">
           🔒 <strong>Difficulty column is locked</strong> by Track Options mode.

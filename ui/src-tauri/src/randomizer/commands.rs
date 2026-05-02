@@ -174,6 +174,7 @@ pub fn generate_result(
                 });
             }
         }
+        tracks.sort_by_key(|track| track.difficulty);
     }
 
     // Phase 3: Cup generation (depends on resolved track list)
