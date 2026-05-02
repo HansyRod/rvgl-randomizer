@@ -136,12 +136,8 @@ pub fn resolve_track_obtain(attr: &str, mode: &str, opts: &TrackOptionsInput, rn
     if mode == "randomDifficulty" || mode == "unchanged" || mode == "baseGame" {
         0
     } else if attr == "Random" {
-        if !opts.enable_random_obtain_methods {
-            return 0;
-        }
-        let mut allowed = vec![1, 2, 3, 4];
+        let mut allowed = vec![0, 1, 2, 3, 4];
         if opts.include_cheat_only { allowed.push(-1); }
-        if opts.include_unlocked_by_default { allowed.push(0); }
         if opts.include_stunt_arena { allowed.push(5); }
         let i = rng.next_usize(allowed.len());
         allowed[i]

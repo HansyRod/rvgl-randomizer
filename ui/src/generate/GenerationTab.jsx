@@ -109,6 +109,7 @@ export default function GenerationTab({errors}) {
       const showRatingOptions = carOptions?.unlockMode === "random" || carOptions?.unlockMode === "randomRatings";
       const showObtainOptions = carOptions?.unlockMode === "random" || carOptions?.unlockMode === "randomUnlock";
       const showStartingCars = carOptions?.unlockMode !== "baseGame";
+      const showTrackObtainOptions = trackOptions?.unlockMode === "random" || trackOptions?.unlockMode === "randomUnlock";
 
       const sanitizedCarOptions = carOptions ? {
         ...carOptions,
@@ -121,6 +122,11 @@ export default function GenerationTab({errors}) {
         // Starting car config only applies outside baseGame mode
         enableStartingCars: showStartingCars && carOptions.enableStartingCars,
       } : null;
+      const sanitizedTrackOptions = trackOptions ? {
+        unlockMode: trackOptions.unlockMode,
+        includeCheatOnly: showTrackObtainOptions && trackOptions.includeCheatOnly,
+        includeStuntArena: showTrackObtainOptions && trackOptions.includeStuntArena,
+      } : null;
 
       const outPath = await invoke("generate_result", {
         installPath,
@@ -128,7 +134,7 @@ export default function GenerationTab({errors}) {
         carsSpecState: filteredSpecState,
         carOptions: sanitizedCarOptions,
         trackSpecState: filteredTrackSpecState,
-        trackOptions: trackOptions ?? null,
+        trackOptions: sanitizedTrackOptions,
         cupSpecState: cupSpecState ?? null,
         fileName: instanceName.trim(),
         profileName: profileName.trim()

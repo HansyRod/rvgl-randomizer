@@ -123,26 +123,19 @@ export default function TrackOptionsTab() {
 
       {showObtainControls && (
         <section className="co-section">
-          <h2 className="co-section-title">Random Obtain Methods</h2>
+          <h2 className="co-section-title">Allowed Unlock Methods</h2>
           <p className="co-desc">
-            If disabled, random obtain is replaced with Default (0).
+            Standard methods (Default, Championship, Time Trial, Practice, Single Race) are always in the pool.
+            Enable the options below to include additional unlock types.
           </p>
           <div className="co-checkbox-group">
             <label className="co-checkbox-row">
-              <input type="checkbox" checked={enableRandomObtainMethods} onChange={e => set("enableRandomObtainMethods", e.target.checked)} />
-              <span>Enable random obtain methods</span>
-            </label>
-            <label className="co-checkbox-row">
               <input type="checkbox" checked={includeCheatOnly} onChange={e => set("includeCheatOnly", e.target.checked)} />
-              <span>Include <strong>Cheat Only</strong> <span className="co-tag">-1</span></span>
-            </label>
-            <label className="co-checkbox-row">
-              <input type="checkbox" checked={includeUnlockedByDefault} onChange={e => set("includeUnlockedByDefault", e.target.checked)} />
-              <span>Include <strong>Default</strong> <span className="co-tag">0</span></span>
+              <span>Include <strong>Cheat Only</strong> — tracks are permanently locked without cheat codes.</span>
             </label>
             <label className="co-checkbox-row">
               <input type="checkbox" checked={includeStuntArena} onChange={e => set("includeStuntArena", e.target.checked)} />
-              <span>Include <strong>Stunt Arena</strong> <span className="co-tag">5</span></span>
+              <span>Include <strong>Stunt Arena</strong> — tracks unlocked via Stunt Arena completion.</span>
             </label>
           </div>
         </section>

@@ -207,9 +207,7 @@ export default function CarOptionsTab() {
                 onChange={e => set("includeCheatOnly", e.target.checked)}
               />
               <span>
-                Include <strong>Cheat Only</strong>{" "}
-                <span className="co-tag">obtain −1</span>
-                {" "}— cars are permanently locked without cheat codes.
+                Include <strong>Cheat Only</strong> — cars are permanently locked without cheat codes.
               </span>
             </label>
             <label className="co-checkbox-row">
@@ -219,9 +217,7 @@ export default function CarOptionsTab() {
                 onChange={e => set("includeStuntArena", e.target.checked)}
               />
               <span>
-                Include <strong>Stunt Arena</strong>{" "}
-                <span className="co-tag">obtain 5</span>
-                {" "}— cars unlocked via Stunt Arena completion.
+                Include <strong>Stunt Arena</strong> — cars unlocked via Stunt Arena completion.
               </span>
             </label>
           </div>

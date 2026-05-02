@@ -162,9 +162,7 @@ export const DEFAULT_CAR_OPTIONS = {
 
 export const DEFAULT_TRACK_OPTIONS = {
   unlockMode: "random", // random | randomUnlock | randomDifficulty | unchanged | baseGame
-  enableRandomObtainMethods: true,
   includeCheatOnly: false,
-  includeUnlockedByDefault: false,
   includeStuntArena: false,
 };
 

@@ -83,12 +83,8 @@ pub struct CarOptionsInput {
 pub struct TrackOptionsInput {
     #[serde(default = "default_track_unlock_mode")]
     pub unlock_mode: String, // random | randomUnlock | randomDifficulty | unchanged | baseGame
-    #[serde(default = "default_true")]
-    pub enable_random_obtain_methods: bool,
     #[serde(default)]
     pub include_cheat_only: bool,
-    #[serde(default)]
-    pub include_unlocked_by_default: bool,
     #[serde(default)]
     pub include_stunt_arena: bool,
 }

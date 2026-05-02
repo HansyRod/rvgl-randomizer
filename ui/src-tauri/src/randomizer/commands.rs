@@ -43,9 +43,7 @@ pub fn generate_result(
     });
     let track_opts = track_options.unwrap_or_else(|| TrackOptionsInput {
         unlock_mode: default_track_unlock_mode(),
-        enable_random_obtain_methods: true,
         include_cheat_only: false,
-        include_unlocked_by_default: false,
         include_stunt_arena: false,
     });
 
