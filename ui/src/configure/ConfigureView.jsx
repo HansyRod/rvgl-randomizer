@@ -14,7 +14,7 @@ const CONFIGURE_TABS = [
   { id: "stock-cars-spec",  label: "Stock specification",    group: "Cars",   disabledKey: "includeStockCars" },
   { id: "dc-cars-spec",     label: "DC specification",       group: "Cars",   disabledKey: "includeDcCars" },
   { id: "track-options",    label: "Track options",          group: "Tracks", disabledKey: null },
-  { id: "track-spec",       label: "Track specification",    group: "Tracks", disabledKey: null },
+  { id: "track-spec",       label: "Track specification",    group: "Tracks", disabledKey: "includeTracks" },
   { id: "cup-spec",         label: "Cup Settings",        group: "Cups",   disabledKey: null },
   { id: "cup-bronze",      label: "Bronze Cup",          group: "Cups",   disabledKey: null },
   { id: "cup-silver",      label: "Silver Cup",          group: "Cups",   disabledKey: null },
@@ -27,9 +27,11 @@ export default function ConfigureView() {
   const { configure } = state;
   const activeTab = configure?.configureTab ?? "car-options";
   const carsSpecState = configure?.carsSpecState;
+  const trackSpecState = configure?.trackSpecState;
 
   const includeStockCars = carsSpecState?.includeStockCars !== false;
-  const includeDcCars    = carsSpecState?.includeDcCars    !== false;
+  const includeDcCars = carsSpecState?.includeDcCars !== false;
+  const includeTracks = trackSpecState?.includeTracks !== false;
 
   function setTab(id) {
     updateCategoryCtx("configure", { configureTab: id });
@@ -47,14 +49,20 @@ export default function ConfigureView() {
             {CONFIGURE_TABS.filter(t => t.group === group).map(tab => {
               const isDisabled = tab.disabledKey === "includeStockCars" ? !includeStockCars
                                : tab.disabledKey === "includeDcCars"    ? !includeDcCars
+                               : tab.disabledKey === "includeTracks"    ? !includeTracks
                                : false;
+
+              const disabledTitle = tab.disabledKey === "includeTracks"
+                ? "Disabled - toggle in Track Options"
+                : "Disabled - toggle in Car Options";
+
               return (
                 <button
                   key={tab.id}
                   className={`configure-nav-item ${activeTab === tab.id ? "active" : ""} ${isDisabled ? "disabled" : ""}`}
                   onClick={() => !isDisabled && setTab(tab.id)}
                   disabled={isDisabled}
-                  title={isDisabled ? "Disabled — toggle in Car Options" : undefined}
+                  title={isDisabled ? disabledTitle : undefined}
                 >
                   {tab.label}
                 </button>
