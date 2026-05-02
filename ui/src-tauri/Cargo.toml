@@ -38,3 +38,6 @@ windows = { version = "0.61", features = [
 ] }
 chrono = "0.4.44"
 
+[profile.dev]
+opt-level = 0
+debug = true
