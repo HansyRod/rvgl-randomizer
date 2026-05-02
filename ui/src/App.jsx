@@ -128,7 +128,7 @@ export default function App() {
           activeStep={activeStep}
           onNavigate={goToStep}
         />
-        <div style={{ display: "flex", gap: "0.75rem" }}>
+        <div style={{ display: "flex", gap: "0.75rem", marginLeft: "auto" }}>
           {activeStep !== "setup" && (
             <button
               className="btn-secondary"
