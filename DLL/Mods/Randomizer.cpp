@@ -160,6 +160,11 @@ FnGetProfileIndex        Orig_GetProfileIndex        = nullptr;
 FnProfile_CreateOrLoad   Orig_Profile_CreateOrLoad   = nullptr;
 FnProfile_LoadAndReset   Orig_Profile_LoadAndReset   = nullptr;
 FnLoadSettingsFromIni    Orig_LoadSettingsFromIni    = nullptr;
+FnTrack_ApplyCustomUnlock Orig_Track_ApplyCustomUnlock = nullptr;
+FnCheckIfTierChampionshipWon Orig_CheckIfTierChampionshipWon = nullptr;
+FnCheckIfTierTimeTrialsBeaten Orig_CheckIfTierTimeTrialsBeaten = nullptr;
+FnCheckIfTierPracticeStarsFound Orig_CheckIfTierPracticeStarsFound = nullptr;
+FnCheckIfTierSingleRacesWon Orig_CheckIfTierSingleRacesWon = nullptr;
 
 // ----------------------------------------------------------------------------
 // Car pool snapshot
@@ -177,6 +182,9 @@ static std::vector<TrackInfo> s_vanillaTrackPool;
 static std::vector<TrackInfo> s_customTrackPool;
 static int s_trackCount = 0;
 
+// Flag to enable/disable difficulty manipulation in unlock checks.
+// Enabled only when we do a track check, since the check functions are shared between cars and tracks.
+static bool checkingTrackUnlocks = false;
 
 // ============================================================================
 // Hook_LoadCars
@@ -657,6 +665,36 @@ void Hook_LoadSettingsFromIni(char* profileName) {
     // Force CupDC flag to true so DC cups are loaded and selectable in championships.
     bool* cupDCFlag = reinterpret_cast<bool*>(AbsFromRva(RVA_CUP_DC));
     *cupDCFlag = true;
+}
+
+void Hook_Track_ApplyCustomUnlock(int trackIndex) {
+    checkingTrackUnlocks = true; // Set the flag to indicate we're in a track unlock check
+    Orig_Track_ApplyCustomUnlock(trackIndex);
+    checkingTrackUnlocks = false; // Reset the flag after the unlock check
+}
+
+bool Hook_CheckIfTierChampionshipWon(int difficultyRating) {
+    int actualDifficulty = checkingTrackUnlocks ? difficultyRating - 1 : difficultyRating;
+    bool result = Orig_CheckIfTierChampionshipWon(actualDifficulty);
+    return result;
+}
+
+bool Hook_CheckIfTierTimeTrialsBeaten(int difficultyRating) {
+    int actualDifficulty = checkingTrackUnlocks ? difficultyRating - 1 : difficultyRating;
+    bool result = Orig_CheckIfTierTimeTrialsBeaten(actualDifficulty);
+    return result;
+}
+
+bool Hook_CheckIfTierPracticeStarsFound(int difficultyRating) {
+    int actualDifficulty = checkingTrackUnlocks ? difficultyRating - 1 : difficultyRating;
+    bool result = Orig_CheckIfTierPracticeStarsFound(actualDifficulty);
+    return result;
+}
+
+bool Hook_CheckIfTierSingleRacesWon(int difficultyRating) {
+    int actualDifficulty = checkingTrackUnlocks ? difficultyRating - 1 : difficultyRating;
+    bool result = Orig_CheckIfTierSingleRacesWon(actualDifficulty);
+    return result;
 }
 
 } // namespace Randomizer

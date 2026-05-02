@@ -30,6 +30,11 @@ namespace Randomizer {
     using FnProfile_CreateOrLoad    = bool(*)(char* displayName);
     using FnProfile_LoadAndReset    = void(*)(char* profileName);
     using FnLoadSettingsFromIni     = void(*)(char* profileName);
+    using FnTrack_ApplyCustomUnlock = void(*)(int trackIndex);
+    using FnCheckIfTierChampionshipWon = bool(*)(int difficulty);
+    using FnCheckIfTierTimeTrialsBeaten = bool(*)(int difficulty);
+    using FnCheckIfTierPracticeStarsFound = bool(*)(int difficulty);
+    using FnCheckIfTierSingleRacesWon = bool(*)(int difficulty);
 
     // ------------------------------------------------------------------------
     // Original function pointers.
@@ -50,6 +55,11 @@ namespace Randomizer {
     extern FnProfile_CreateOrLoad   Orig_Profile_CreateOrLoad;
     extern FnProfile_LoadAndReset   Orig_Profile_LoadAndReset;
     extern FnLoadSettingsFromIni    Orig_LoadSettingsFromIni;
+    extern FnTrack_ApplyCustomUnlock Orig_Track_ApplyCustomUnlock;
+    extern FnCheckIfTierChampionshipWon Orig_CheckIfTierChampionshipWon;
+    extern FnCheckIfTierTimeTrialsBeaten Orig_CheckIfTierTimeTrialsBeaten;
+    extern FnCheckIfTierPracticeStarsFound Orig_CheckIfTierPracticeStarsFound;
+    extern FnCheckIfTierSingleRacesWon Orig_CheckIfTierSingleRacesWon;
 
     // ------------------------------------------------------------------------
     // Detour functions — registered in HookManager.cpp → RegisterHooks().
@@ -67,6 +77,11 @@ namespace Randomizer {
     bool Hook_Profile_CreateOrLoad(char* displayName);
     void Hook_Profile_LoadAndReset(char* profileName);
     void Hook_LoadSettingsFromIni(char* profileName);
+    void Hook_Track_ApplyCustomUnlock(int trackIndex);
+    bool Hook_CheckIfTierChampionshipWon(int difficulty);
+    bool Hook_CheckIfTierTimeTrialsBeaten(int difficulty);
+    bool Hook_CheckIfTierPracticeStarsFound(int difficulty);
+    bool Hook_CheckIfTierSingleRacesWon(int difficulty);
 
     // Utils functions
     void Initialize();

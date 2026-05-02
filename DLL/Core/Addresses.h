@@ -73,6 +73,21 @@ constexpr uint32_t RVA_PROFILE_LOAD_AND_RESET = 0x000753c0;
 // LoadSettingsFromIni - Loads the INI file and stores settings in global variables in memory.
 constexpr uint32_t RVA_LOAD_SETTINGS_FROM_INI = 0x0007a6a0;
 
+// Track_ApplyCustomUnlock - Update a track's unlock status based on its obtain condition and the player's profile.
+constexpr uint32_t RVA_TRACK_APPLY_CUSTOM_UNLOCK = 0x00053ba0;
+
+// CheckIfTierChampionshipWon - returns true if championship for given difficulty has been beaten
+constexpr uint32_t RVA_CHECK_IF_TIER_CHAMPIONSHIP_WON = 0x0004a250;
+
+// CheckIfTierTimeTrialsBeaten - returns true if normal time trial for all tracks in the given difficulty has been beaten
+constexpr uint32_t RVA_CHECK_IF_TIER_TIME_TRIALS_BEATEN = 0x00049f50;
+
+// CheckIfTierPracticeStarsFound - returns true if practice stars for all tracks in the given difficulty have been found
+constexpr uint32_t RVA_CHECK_IF_TIER_PRACTICE_STARS_FOUND = 0x0004a110;
+
+// checkIfTierSingleRacesWon - returns true if single races for all tracks in the given difficulty have been won
+constexpr uint32_t RVA_CHECK_IF_TIER_SINGLE_RACES_WON = 0x0004a1b0;
+
 // ----------------------------------------------------------------------------
 // Globals
 // ----------------------------------------------------------------------------

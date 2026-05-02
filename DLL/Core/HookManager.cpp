@@ -184,6 +184,41 @@ static void RegisterHooks() {
         reinterpret_cast<void**>(&Randomizer::Orig_LoadSettingsFromIni),
         "LoadSettingsFromIni"
     );
+
+    HookManager::Add(
+        AbsFromRva(RVA_TRACK_APPLY_CUSTOM_UNLOCK),
+        reinterpret_cast<void*>(Randomizer::Hook_Track_ApplyCustomUnlock),
+        reinterpret_cast<void**>(&Randomizer::Orig_Track_ApplyCustomUnlock),
+        "Track_ApplyCustomUnlock"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_CHECK_IF_TIER_CHAMPIONSHIP_WON),
+        reinterpret_cast<void*>(Randomizer::Hook_CheckIfTierChampionshipWon),
+        reinterpret_cast<void**>(&Randomizer::Orig_CheckIfTierChampionshipWon),
+        "CheckIfTierChampionshipWon"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_CHECK_IF_TIER_TIME_TRIALS_BEATEN),
+        reinterpret_cast<void*>(Randomizer::Hook_CheckIfTierTimeTrialsBeaten),
+        reinterpret_cast<void**>(&Randomizer::Orig_CheckIfTierTimeTrialsBeaten),
+        "CheckIfTierTimeTrialsBeaten"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_CHECK_IF_TIER_PRACTICE_STARS_FOUND),
+        reinterpret_cast<void*>(Randomizer::Hook_CheckIfTierPracticeStarsFound),
+        reinterpret_cast<void**>(&Randomizer::Orig_CheckIfTierPracticeStarsFound),
+        "CheckIfTierPracticeStarsFound"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_CHECK_IF_TIER_SINGLE_RACES_WON),
+        reinterpret_cast<void*>(Randomizer::Hook_CheckIfTierSingleRacesWon),
+        reinterpret_cast<void**>(&Randomizer::Orig_CheckIfTierSingleRacesWon),
+        "CheckIfTierSingleRacesWon"
+    );
     
     /* HookManager::Add(
         AbsFromRva(RVA_PARSE_PARAMETERS_TXT),
