@@ -145,3 +145,156 @@ pub fn resolve_track_obtain(attr: &str, mode: &str, opts: &TrackOptionsInput, rn
         attr.parse::<i32>().unwrap_or(0)
     }
 }
+
+fn difficulty_index(difficulty: i32) -> Option<usize> {
+    if (1..=4).contains(&difficulty) {
+        Some((difficulty - 1) as usize)
+    } else {
+        None
+    }
+}
+
+fn count_generated_difficulties(tracks: &[RandomizedTrack]) -> [usize; 4] {
+    let mut counts = [0usize; 4];
+    for track in tracks {
+        if let Some(idx) = difficulty_index(track.difficulty) {
+            counts[idx] += 1;
+        }
+    }
+    counts
+}
+
+fn missing_difficulties(counts: &[usize; 4]) -> Vec<i32> {
+    (1..=4)
+        .filter(|difficulty| counts[(difficulty - 1) as usize] == 0)
+        .collect()
+}
+
+fn slot_has_randomized_difficulty(spec: &TrackSpec, mode: &str) -> bool {
+    if mode == "baseGame" || mode == "randomUnlock" || mode == "unchanged" {
+        return false;
+    }
+    spec.attr_difficulty == "Random"
+}
+
+fn slot_uses_scanned_difficulty(spec: &TrackSpec, mode: &str) -> bool {
+    if mode == "randomUnlock" || mode == "unchanged" {
+        return true;
+    }
+    if mode == "baseGame" {
+        return false;
+    }
+    spec.attr_difficulty == "Unchanged"
+}
+
+pub fn ensure_track_difficulty_coverage(
+    tracks: &mut [RandomizedTrack],
+    specs: &[TrackSpec],
+    all_tracks: &[Track],
+    scan: &ScanResult,
+    mode: &str,
+    rng: &mut Rng,
+) {
+    if tracks.len() < 4 || specs.is_empty() {
+        return;
+    }
+
+    let mut counts = count_generated_difficulties(tracks);
+
+    for missing in missing_difficulties(&counts) {
+        let eligible: Vec<usize> = tracks.iter().enumerate()
+            .filter_map(|(idx, track)| {
+                if !slot_has_randomized_difficulty(&specs[idx], mode) {
+                    return None;
+                }
+                let current_idx = difficulty_index(track.difficulty)?;
+                (counts[current_idx] > 1).then_some(idx)
+            })
+            .collect();
+
+        if eligible.is_empty() {
+            continue;
+        }
+
+        let max_count = eligible.iter()
+            .filter_map(|idx| difficulty_index(tracks[*idx].difficulty).map(|diff_idx| counts[diff_idx]))
+            .max()
+            .unwrap_or(0);
+
+        let best: Vec<usize> = eligible.into_iter()
+            .filter(|idx| {
+                difficulty_index(tracks[*idx].difficulty)
+                    .map(|diff_idx| counts[diff_idx] == max_count)
+                    .unwrap_or(false)
+            })
+            .collect();
+
+        let chosen_idx = best[rng.next_usize(best.len())];
+        if let Some(old_idx) = difficulty_index(tracks[chosen_idx].difficulty) {
+            counts[old_idx] -= 1;
+        }
+        tracks[chosen_idx].difficulty = missing;
+        if let Some(new_idx) = difficulty_index(missing) {
+            counts[new_idx] += 1;
+        }
+    }
+
+    for missing in missing_difficulties(&counts) {
+        let used_folders: HashSet<String> = tracks.iter().map(|track| track.folder.clone()).collect();
+        let mut replacement_slots = Vec::new();
+
+        for (idx, track) in tracks.iter().enumerate() {
+            if !slot_uses_scanned_difficulty(&specs[idx], mode) {
+                continue;
+            }
+
+            let Some(current_idx) = difficulty_index(track.difficulty) else {
+                continue;
+            };
+            if counts[current_idx] <= 1 {
+                continue;
+            }
+
+            let preferred: Vec<Track> = track_candidate_set(&specs[idx], all_tracks, scan)
+                .into_iter()
+                .filter(|candidate| {
+                    candidate.difficulty == missing &&
+                    (!used_folders.contains(&candidate.folder_name) || candidate.folder_name.eq_ignore_ascii_case(&track.folder))
+                })
+                .cloned()
+                .collect();
+
+            let fallback: Vec<Track> = if preferred.is_empty() {
+                track_candidate_set(&specs[idx], all_tracks, scan)
+                    .into_iter()
+                    .filter(|candidate| candidate.difficulty == missing)
+                    .cloned()
+                    .collect()
+            } else {
+                Vec::new()
+            };
+
+            if !preferred.is_empty() || !fallback.is_empty() {
+                replacement_slots.push((idx, preferred, fallback, counts[current_idx]));
+            }
+        }
+
+        if replacement_slots.is_empty() {
+            continue;
+        }
+
+        replacement_slots.sort_by(|a, b| b.3.cmp(&a.3));
+        let (slot_idx, preferred, fallback, _) = &replacement_slots[0];
+        let choices = if !preferred.is_empty() { preferred } else { fallback };
+        let chosen_track = choices[rng.next_usize(choices.len())].clone();
+
+        if let Some(old_idx) = difficulty_index(tracks[*slot_idx].difficulty) {
+            counts[old_idx] -= 1;
+        }
+        tracks[*slot_idx].folder = chosen_track.folder_name;
+        tracks[*slot_idx].difficulty = chosen_track.difficulty;
+        if let Some(new_idx) = difficulty_index(chosen_track.difficulty) {
+            counts[new_idx] += 1;
+        }
+    }
+}

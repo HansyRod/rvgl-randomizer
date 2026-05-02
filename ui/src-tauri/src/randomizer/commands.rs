@@ -174,6 +174,14 @@ pub fn generate_result(
                 });
             }
         }
+        ensure_track_difficulty_coverage(
+            &mut tracks,
+            &track_spec_state.tracks,
+            &all_tracks,
+            &scan_result,
+            &track_opts.unlock_mode,
+            &mut rng,
+        );
         tracks.sort_by_key(|track| track.difficulty);
     }
 
