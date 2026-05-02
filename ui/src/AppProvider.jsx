@@ -12,7 +12,7 @@ const DEFAULT_STATE = {
   setup: {
     installPath: "",
     scanResult: null,
-    setupTab: "Install", // Setup sub-tab: "Install" | "Cars" | "Tracks"
+    setupTab: "install", // Setup sub-tab: "install" | "cars" | "tracks"
     installHistory: [], // List of { path, installType }
   },
   configure: {
