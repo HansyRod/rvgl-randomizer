@@ -50,15 +50,16 @@ export default function LaunchTab({errors}) {
     }
   };
 
+  const isLaunchBtnDisabled = !generatedFilePath || isLaunching || errors.length > 0;
+
   return (
     <div className="tab-container launch-tab">
       <div className="control-panel">
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "2rem" }}>
           <button 
-            className="primary" 
+            className={`primary launch-btn ${isLaunchBtnDisabled ? "launch-btn-disabled" : ""}`}
             onClick={handleLaunch} 
-            disabled={!generatedFilePath || isLaunching || errors.length > 0}
-            style={{ padding: "0.75rem 3rem", fontSize: "1.2rem", fontWeight: "bold" }}
+            disabled={isLaunchBtnDisabled}
           >
             {isLaunching ? "Launching..." : "▶ Launch Game"}
           </button>

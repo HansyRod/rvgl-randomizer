@@ -87,6 +87,18 @@ button.primary:hover {
   border-color: var(--accent-hover);
 }
 
+.launch-btn {
+  padding: 0.75rem 3rem;
+  font-size: 1.2rem;
+  font-weight: bold;
+  transition: opacity 0.2s ease;
+}
+
+.launch-btn.launch-btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 input[type="checkbox"] {
   accent-color: var(--accent);
   width: 1rem;
