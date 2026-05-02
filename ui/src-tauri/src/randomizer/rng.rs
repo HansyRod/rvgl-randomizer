@@ -6,6 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 // ============================================================================
 pub struct Rng {
     state: u64,
+    seed: String,
 }
 
 impl Rng {
@@ -15,7 +16,13 @@ impl Rng {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.subsec_nanos() as u64 ^ d.as_secs().wrapping_mul(6364136223846793005))
             .unwrap_or(12345);
-        Rng { state: nanos | 1 }
+        let seed_str = format!("{:x}", nanos);
+        Rng { state: nanos | 1, seed: seed_str }
+    }
+
+    /// Returns the seed string used for this RNG
+    pub fn seed(&self) -> &str {
+        &self.seed
     }
 
     /// Returns a random usize in [0, n)

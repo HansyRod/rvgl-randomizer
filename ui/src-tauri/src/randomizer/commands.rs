@@ -250,8 +250,8 @@ pub fn generate_result(
     // 5. Build the output structure
     let config = ConfigData {
         metadata: ConfigMetadata {
-            seed: "alpha-test-88".to_string(), // In the future, we can hook this up to the RNG
-            version: "1.0.0".to_string(),
+            seed: rng.seed().to_string(),
+            version: "0.1.0".to_string(),
             profile_name: Some(profile_name),
             ui_context,
         },
