@@ -45,7 +45,7 @@ export default function TrackOptionsTab() {
         case "randomDifficulty":
         case "baseGame":
         default:
-          out.attrObtain = "1";
+          out.attrObtain = "0";
           break;
       }
 
@@ -95,9 +95,9 @@ export default function TrackOptionsTab() {
   const cards = [
     { id: "random", label: "Full Random", desc: "Randomize both track difficulty and unlock method." },
     { id: "randomUnlock", label: "Random Unlock", desc: "Keep difficulty unchanged, randomize unlock method." },
-    { id: "randomDifficulty", label: "Random Difficulty", desc: "Randomize difficulty, set unlock method to Championship." },
-    { id: "unchanged", label: "All Unchanged", desc: "Keep difficulty unchanged, set unlock method to Championship." },
-    { id: "baseGame", label: "Base Game Distribution", desc: "Apply 4 Easy, 4 Medium, 3 Hard, 3 Extreme, unlock by Championship." },
+    { id: "randomDifficulty", label: "Random Difficulty", desc: "Randomize difficulty, set unlock method to Default." },
+    { id: "unchanged", label: "All Unchanged", desc: "Keep difficulty unchanged, set unlock method to Default." },
+    { id: "baseGame", label: "Base Game Distribution", desc: "Apply 4 Easy, 4 Medium, 3 Hard, 3 Extreme, use default unlocks." },
   ];
 
   const showObtainControls = unlockMode === "random" || unlockMode === "randomUnlock";
@@ -125,7 +125,7 @@ export default function TrackOptionsTab() {
         <section className="co-section">
           <h2 className="co-section-title">Random Obtain Methods</h2>
           <p className="co-desc">
-            If disabled, random obtain is replaced with Championship (1).
+            If disabled, random obtain is replaced with Default (0).
           </p>
           <div className="co-checkbox-group">
             <label className="co-checkbox-row">
@@ -138,7 +138,7 @@ export default function TrackOptionsTab() {
             </label>
             <label className="co-checkbox-row">
               <input type="checkbox" checked={includeUnlockedByDefault} onChange={e => set("includeUnlockedByDefault", e.target.checked)} />
-              <span>Include <strong>Unlocked by Default</strong> <span className="co-tag">0</span></span>
+              <span>Include <strong>Default</strong> <span className="co-tag">0</span></span>
             </label>
             <label className="co-checkbox-row">
               <input type="checkbox" checked={includeStuntArena} onChange={e => set("includeStuntArena", e.target.checked)} />

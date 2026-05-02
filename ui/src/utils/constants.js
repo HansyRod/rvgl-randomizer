@@ -28,7 +28,7 @@ export const TRACK_DIFFICULTIES = {
 
 export const TRACK_OBTAIN_METHODS = {
   [-1]: "Cheat Only",
-  0: "Unlocked by Default",
+  0: "Default",
   1: "Championship",
   2: "Time Trial",
   3: "Practice",
@@ -123,7 +123,7 @@ export const TRACK_DIFFICULTY_ATTR_LIST = [
 export const TRACK_OBTAINS_LIST = [
   { val: "Random", label: "Random" },
   { val: "-1", label: "Cheat Only" },
-  { val: "0", label: "Unlocked by Default" },
+  { val: "0", label: "Default" },
   { val: "1", label: "Championship" },
   { val: "2", label: "Time Trial" },
   { val: "3", label: "Practice" },

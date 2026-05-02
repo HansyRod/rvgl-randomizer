@@ -134,10 +134,10 @@ pub fn resolve_track_difficulty(attr: &str, scanned: i32, slot_index: usize, mod
 
 pub fn resolve_track_obtain(attr: &str, mode: &str, opts: &TrackOptionsInput, rng: &mut Rng) -> i32 {
     if mode == "randomDifficulty" || mode == "unchanged" || mode == "baseGame" {
-        1
+        0
     } else if attr == "Random" {
         if !opts.enable_random_obtain_methods {
-            return 1;
+            return 0;
         }
         let mut allowed = vec![1, 2, 3, 4];
         if opts.include_cheat_only { allowed.push(-1); }
@@ -146,6 +146,6 @@ pub fn resolve_track_obtain(attr: &str, mode: &str, opts: &TrackOptionsInput, rn
         let i = rng.next_usize(allowed.len());
         allowed[i]
     } else {
-        attr.parse::<i32>().unwrap_or(1)
+        attr.parse::<i32>().unwrap_or(0)
     }
 }
