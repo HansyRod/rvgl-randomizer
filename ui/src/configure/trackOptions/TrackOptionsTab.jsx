@@ -24,7 +24,8 @@ export default function TrackOptionsTab() {
 
   const set = (key, value) => updateCategoryCtx("configure", { trackOptions: { ...trackOptions, [key]: value } });
   
-  const { unlockMode, enableRandomObtainMethods, includeCheatOnly, includeStuntArena, includeUnlockedByDefault } = trackOptions;
+  const { unlockMode, includeCheatOnly, includeStuntArena } = trackOptions;
+  const includeTracks = trackSpecState?.includeTracks !== false;
 
   const handleModeSelect = (modeId) => {
 
@@ -104,6 +105,28 @@ export default function TrackOptionsTab() {
 
   return (
     <div className="car-options-tab">
+      <section className="co-section">
+        <h2 className="co-section-title">Randomization Scope</h2>
+        <p className="co-desc">
+          Choose if tracks are included in the randomization.
+        </p>
+        <div className="co-checkbox-group">
+          <label className="co-checkbox-row">
+            <input
+              type="checkbox"
+              checked={includeTracks}
+              onChange={e => updateCategoryCtx("configure", {
+                trackSpecState: {
+                  ...trackSpecState,
+                  includeTracks: e.target.checked
+                }
+              })}
+            />
+            <span>Randomize <strong>Tracks</strong></span>
+          </label>
+        </div>
+      </section>
+
       <section className="co-section">
         <h2 className="co-section-title">Track Randomization</h2>
         <p className="co-desc">Controls how track difficulty and unlock methods are assigned.</p>

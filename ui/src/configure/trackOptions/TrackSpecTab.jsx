@@ -132,17 +132,6 @@ export default function TrackSpecTab() {
         </div>
       )}
 
-      <div style={{ marginBottom: "1rem" }}>
-        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: "bold", fontSize: "1.1rem" }}>
-          <input
-            type="checkbox"
-            checked={isEnabled}
-            onChange={e => updateCategoryCtx("configure", { trackSpecState: { ...specState, includeTracks: e.target.checked } })}
-          />
-          Include Tracks in Randomization
-        </label>
-      </div>
-
       <div className="cars-full-spec" style={{ opacity: isEnabled ? 1 : 0.5, pointerEvents: isEnabled ? "auto" : "none" }}>
         <div className="presets-row">
           <label>Presets:</label>
