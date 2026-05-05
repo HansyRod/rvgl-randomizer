@@ -26,7 +26,7 @@ export const STAGE_MODES = [
   {
     id: "userDefined",
     label: "User-Defined Stages",
-    desc: "Manually configure each stage. Guarantee First Normal is auto-disabled.",
+    desc: "Manually configure each stage.",
   },
 ];
 export const SAME_TRACK_OPTIONS = [
