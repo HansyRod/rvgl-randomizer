@@ -351,7 +351,7 @@ export default function GenerationTab({errors}) {
 
         <div className="action-row">
           <button 
-            className="primary" 
+            className="primary core-button"
             onClick={handleGenerate} 
             disabled={isGenerateBtnDisabled}
             style={{ padding: "0.5rem 1.5rem", fontSize: "1rem" }}

@@ -94,7 +94,7 @@ button.primary:hover {
   transition: opacity 0.2s ease;
 }
 
-.launch-btn.launch-btn-disabled {
+button:disabled.core-button {
   opacity: 0.5;
   cursor: not-allowed;
 }

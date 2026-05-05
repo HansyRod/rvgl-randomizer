@@ -57,7 +57,7 @@ export default function LaunchTab({errors}) {
       <div className="control-panel">
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "2rem" }}>
           <button 
-            className={`primary launch-btn ${isLaunchBtnDisabled ? "launch-btn-disabled" : ""}`}
+            className="primary launch-btn core-button"
             onClick={handleLaunch} 
             disabled={isLaunchBtnDisabled}
           >
