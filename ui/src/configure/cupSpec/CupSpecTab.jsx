@@ -55,6 +55,8 @@ export function makeDefaultCupSpecState() {
     pointsTable: [...DEFAULT_POINTS],
     numLapsMin: 2,
     numLapsMax: 8,
+    numStagesMin: 3,
+    numStagesMax: 6,
     cups: [0, 1, 2, 3].map(makeDefaultCupSpec),
   };
 }
@@ -79,6 +81,8 @@ export default function CupSpecTab() {
   const globalNumCars = cupSpecState.numCars;
   const globalLapsMin = cupSpecState.numLapsMin;
   const globalLapsMax = cupSpecState.numLapsMax;
+  const globalNumStagesMin = cupSpecState.numStagesMin;
+  const globalNumStagesMax = cupSpecState.numStagesMax;
 
   return (
     <div className="car-options-tab cup-spec-tab">
@@ -134,68 +138,6 @@ export default function CupSpecTab() {
             </div>
           </section>
 
-          {/* ── Variant flags (hidden in userDefined mode) ── */}
-          {!userDefinedMode && (
-            <section className="co-section">
-              <h2 className="co-section-title">Track Variant Flags</h2>
-              <p className="co-desc">
-                Which modes may be assigned to stages. Normal is always available.
-                Reverse requires a track to have a reversed version.
-              </p>
-              <div className="co-checkbox-group">
-                <label className="co-checkbox-row">
-                  <input type="checkbox" checked={cupSpecState.allowReverse}
-                    onChange={e => set("allowReverse", e.target.checked)} />
-                  <span>Allow Reverse stages</span>
-                </label>
-                <label className="co-checkbox-row">
-                  <input type="checkbox" checked={cupSpecState.allowMirror}
-                    onChange={e => set("allowMirror", e.target.checked)} />
-                  <span>Allow Mirror stages</span>
-                </label>
-                <label className="co-checkbox-row">
-                  <input type="checkbox" checked={cupSpecState.allowReverseMirror}
-                    onChange={e => set("allowReverseMirror", e.target.checked)} />
-                  <span>Allow Reverse Mirror stages</span>
-                </label>
-              </div>
-            </section>
-          )}
-
-          {/* ── Random-mode constraints (hidden in userDefined) ── */}
-          {stageMode === "random" && (
-            <section className="co-section">
-              <h2 className="co-section-title">Random Stage Constraints</h2>
-              <div className="co-checkbox-group">
-                <label className="co-checkbox-row">
-                  <input type="checkbox" checked={cupSpecState.guaranteeFirstNormal}
-                    onChange={e => set("guaranteeFirstNormal", e.target.checked)} />
-                  <span>
-                    <strong>Guarantee first appearance in Normal mode</strong>
-                    {" "}— a track is always played normally the first time it appears across all cups.
-                  </span>
-                </label>
-              </div>
-              <div style={{ marginTop: "1rem" }}>
-                <p className="co-desc" style={{ marginBottom: "0.5rem" }}>
-                  When a track appears more than once in the same cup:
-                </p>
-                <div className="co-mode-grid">
-                  {SAME_TRACK_OPTIONS.map(opt => (
-                    <button
-                      key={opt.id}
-                      className={`co-mode-card${cupSpecState.sameTrackHandling === opt.id ? " selected" : ""}`}
-                      onClick={() => set("sameTrackHandling", opt.id)}
-                    >
-                      <span className="co-mode-label">{opt.label}</span>
-                      <span className="co-mode-desc">{opt.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
-
           {/* ── Global shared settings ── */}
           <section className="co-section">
             <h2 className="co-section-title">Global Cup Settings</h2>
@@ -227,6 +169,87 @@ export default function CupSpecTab() {
                   onChange={e => set("overallRequiredPlace", parseInt(e.target.value) || 1)}
                   className="co-number-input" />
               </div>
+            </div>
+
+            <div style={{ marginTop: "1.25rem" }}>
+              <PointsTableEditor
+                points={cupSpecState.pointsTable}
+                numCars={globalNumCars}
+                onChange={v => set("pointsTable", v)}
+              />
+            </div>
+          </section>
+
+          {/* ── Random-mode constraints ── */}
+          <section className="co-section">
+            <h2 className="co-section-title">Random Stage Constraints</h2>
+            <p className="co-desc">
+              Settings applied when "Stage Mode" is set to "Random".
+            </p>
+            <h4 style={{marginTop: "1rem", marginBottom: 0}}>Track Variant Flags</h4>
+            <p className="co-desc">
+              Which modes may be assigned to stages. Normal is always available.
+              Reverse requires a track to have a reversed version.
+            </p>
+            <div className="co-checkbox-group">
+              <label className="co-checkbox-row">
+                <input type="checkbox" checked={cupSpecState.allowReverse}
+                  onChange={e => set("allowReverse", e.target.checked)} />
+                <span>Allow Reverse stages</span>
+              </label>
+              <label className="co-checkbox-row">
+                <input type="checkbox" checked={cupSpecState.allowMirror}
+                  onChange={e => set("allowMirror", e.target.checked)} />
+                <span>Allow Mirror stages</span>
+              </label>
+              <label className="co-checkbox-row">
+                <input type="checkbox" checked={cupSpecState.allowReverseMirror}
+                  onChange={e => set("allowReverseMirror", e.target.checked)} />
+                <span>Allow Reverse Mirror stages</span>
+              </label>
+            </div>
+            <div className="co-checkbox-group" style={{ marginTop: "1rem" }}>
+              <label className="co-checkbox-row">
+                <input type="checkbox" checked={cupSpecState.guaranteeFirstNormal}
+                  onChange={e => set("guaranteeFirstNormal", e.target.checked)} />
+                <span>
+                  <strong>Guarantee first appearance in Normal mode</strong>
+                  {" "}— a track is always played normally the first time it appears across all cups.
+                </span>
+              </label>
+            </div>
+            <h4 style={{marginTop: "1rem", marginBottom: 0}}>Duplicate Track Handling</h4>
+            <div>
+              <p className="co-desc" style={{ marginBottom: "0.5rem" }}>
+                When a track appears more than once in the same cup:
+              </p>
+              <div className="co-mode-grid">
+                {SAME_TRACK_OPTIONS.map(opt => (
+                  <button
+                    key={opt.id}
+                    className={`co-mode-card${cupSpecState.sameTrackHandling === opt.id ? " selected" : ""}`}
+                    onClick={() => set("sameTrackHandling", opt.id)}
+                  >
+                    <span className="co-mode-label">{opt.label}</span>
+                    <span className="co-mode-desc">{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <h4 style={{marginTop: "1rem", marginBottom: 0}}>Number of Stages & Laps</h4>
+            <div className="cup-override-grid">
+              <div className="cup-field-pair">
+                <label>Minimum Number of Stages</label>
+                <input type="number" min={1} max={30} value={globalNumStagesMin}
+                  onChange={e => set("numStagesMin", parseInt(e.target.value) || 2)}
+                  className="co-number-input" />
+              </div>
+              <div className="cup-field-pair">
+                <label>Maximum Number of Stages</label>
+                <input type="number" min={1} max={30} value={globalNumStagesMax}
+                  onChange={e => set("numStagesMax", parseInt(e.target.value) || 8)}
+                  className="co-number-input" />
+              </div>
               <div className="cup-field-pair">
                 <label>Minimum Number of Laps</label>
                 <input type="number" min={1} max={30} value={globalLapsMin}
@@ -239,14 +262,6 @@ export default function CupSpecTab() {
                   onChange={e => set("numLapsMax", parseInt(e.target.value) || 8)}
                   className="co-number-input" />
               </div>
-            </div>
-
-            <div style={{ marginTop: "1.25rem" }}>
-              <PointsTableEditor
-                points={cupSpecState.pointsTable}
-                numCars={globalNumCars}
-                onChange={v => set("pointsTable", v)}
-              />
             </div>
           </section>
 
