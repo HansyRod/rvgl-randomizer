@@ -87,6 +87,13 @@ export function StageRow({ stage, index, onUpdate, onRemove, resolvedTracks }) {
             ))}
           </optgroup>
         )}
+        { poolValue !== "Random" && 
+         !poolValue.startsWith("slot:") && 
+         !resolvedTracks.some((t) => t.folderName === poolValue) &&
+          (
+            <option value={poolValue}>Unknown Track: {poolValue}</option>
+          )
+        }
       </select>
 
       {/* Laps — Fixed (single value) or Random (explicit min–max range) */}
