@@ -23,6 +23,10 @@ export function makeDefaultCupSpec(index) {
     overridePerRacePlace: false,
     overrideOverallPlace: false,
     overridePointsTable: false,
+    overrideNumStagesMin: false,
+    overrideNumStagesMax: false,
+    overrideNumLapsMin: false,
+    overrideNumLapsMax: false,
     // Per-cup values (used when the corresponding override flag is true)
     stageMode: "default",
     numStagesMin: 3,
@@ -240,25 +244,25 @@ export default function CupSpecTab() {
             <div className="cup-override-grid">
               <div className="cup-field-pair">
                 <label>Minimum Number of Stages</label>
-                <input type="number" min={1} max={30} value={globalNumStagesMin}
+                <input type="number" min={1} max={20} value={globalNumStagesMin}
                   onChange={e => set("numStagesMin", parseInt(e.target.value) || 2)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
                 <label>Maximum Number of Stages</label>
-                <input type="number" min={1} max={30} value={globalNumStagesMax}
+                <input type="number" min={1} max={20} value={globalNumStagesMax}
                   onChange={e => set("numStagesMax", parseInt(e.target.value) || 8)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
                 <label>Minimum Number of Laps</label>
-                <input type="number" min={1} max={30} value={globalLapsMin}
+                <input type="number" min={1} max={20} value={globalLapsMin}
                   onChange={e => set("numLapsMin", parseInt(e.target.value) || 2)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
                 <label>Maximum Number of Laps</label>
-                <input type="number" min={1} max={30} value={globalLapsMax}
+                <input type="number" min={1} max={20} value={globalLapsMax}
                   onChange={e => set("numLapsMax", parseInt(e.target.value) || 8)}
                   className="co-number-input" />
               </div>

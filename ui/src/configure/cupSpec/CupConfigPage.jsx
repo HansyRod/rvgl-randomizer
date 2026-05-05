@@ -13,6 +13,27 @@ import {
   PointsTableEditor,
 } from "./CupUtils";
 
+// ─── OverrideRow ──────────────────────────────────────────────────────────────
+// A single row in the override table.
+function OverrideRow({ label, globalValue, overriding, onToggle, children }) {
+  return (
+    <tr className={`cup-override-row${overriding ? " is-overriding" : ""}`}>
+      <td className="cup-ov-label">{label}</td>
+      <td className="cup-ov-global">
+        <span className="cup-ov-global-value">{globalValue}</span>
+      </td>
+      <td className="cup-ov-check">
+        <input type="checkbox" checked={overriding} onChange={e => onToggle(e.target.checked)} />
+      </td>
+      <td className="cup-ov-input">
+        <div className={overriding ? "" : "cup-ov-disabled"}>
+          {children}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 // ─── CupConfigPage ────────────────────────────────────────────────────────────
 // Renders the per-cup override configuration page for one cup (cupIndex 0–3).
 // Each setting has its own override checkbox; when unchecked the control is
@@ -35,6 +56,21 @@ export default function CupConfigPage({ cupIndex }) {
     );
     updateCategoryCtx("configure", { cupSpecState: { ...cupSpecState, cups } });
   }, [cupSpecState, cupIndex, updateCategoryCtx]);
+
+  // Effective values (cup override if active, else global)
+  const eff = {
+    stageMode:    cupSpec.overrideStageMode    ? (cupSpec.stageMode ?? globalState.stageMode)                       : globalState.stageMode,
+    numCars:      cupSpec.overrideNumCars      ? (cupSpec.numCars ?? globalState.numCars)                           : globalState.numCars,
+    numTries:     cupSpec.overrideNumTries     ? (cupSpec.numTries ?? globalState.numTries)                         : globalState.numTries,
+    perRacePlace: cupSpec.overridePerRacePlace ? (cupSpec.perRaceRequiredPlace ?? globalState.perRaceRequiredPlace) : globalState.perRaceRequiredPlace,
+    overallPlace: cupSpec.overrideOverallPlace ? (cupSpec.overallRequiredPlace ?? globalState.overallRequiredPlace) : globalState.overallRequiredPlace,
+    numStagesMin: cupSpec.overrideStageMode    ? (cupSpec.numStagesMin ?? globalState.numStagesMin)                 : globalState.numStagesMin,
+    numStagesMax: cupSpec.overrideStageMode    ? (cupSpec.numStagesMax ?? globalState.numStagesMax)                 : globalState.numStagesMax,
+    numLapsMin:   cupSpec.overrideStageMode    ? (cupSpec.numLapsMin ?? globalState.numLapsMin)                     : globalState.numLapsMin,
+    numLapsMax:   cupSpec.overrideStageMode    ? (cupSpec.numLapsMax ?? globalState.numLapsMax)                     : globalState.numLapsMax,
+  };
+
+  const isRandomMode = eff.stageMode === "random";
 
   // Tracks available for "Specific Track" selection in user-defined stages.
   // • When track randomization is disabled, the 14 stock tracks are the resolved
@@ -145,55 +181,7 @@ export default function CupConfigPage({ cupIndex }) {
               </button>
             ))}
           </div>
-
-          {/* Random Stages: stage count + laps range */}
-          {cupSpec.overrideStageMode && cupSpec.stageMode === "random" && (
-            <div className="cup-override-grid" style={{ marginTop: "1rem" }}>
-              <div className="cup-field-pair">
-                <label>Minimum Number of Stages</label>
-                <input type="number" min={1} max={16} value={cupSpec.numStagesMin}
-                  onChange={e => setCup("numStagesMin", Math.max(1, parseInt(e.target.value) || 1))}
-                  className="co-number-input" />
-              </div>
-              <div className="cup-field-pair">
-                <label>Maximum Number of Stages</label>
-                <input type="number" min={1} max={16} value={cupSpec.numStagesMax}
-                  onChange={e => setCup("numStagesMax", Math.max(cupSpec.numStagesMin, parseInt(e.target.value) || 1))}
-                  className="co-number-input" />
-              </div>
-              <div className="cup-field-pair">
-                <label>Minimum Number of Laps</label>
-                <input type="number" min={1} max={30} value={cupSpec.numLapsMin}
-                  onChange={e => setCup("numLapsMin", parseInt(e.target.value) || 2)}
-                  className="co-number-input" />
-              </div>
-              <div className="cup-field-pair">
-                <label>Maximum Number of Laps</label>
-                <input type="number" min={1} max={30} value={cupSpec.numLapsMax}
-                  onChange={e => setCup("numLapsMax", Math.max(cupSpec.numLapsMin, parseInt(e.target.value) || 2))}
-                  className="co-number-input" />
-              </div>
-            </div>
-          )}
         </div>
-
-        {/* Random Stages sub-options when mode is inherited from global (numStagesMin/Max are per-cup) */}
-        {!cupSpec.overrideStageMode && effectiveStageMode === "random" && (
-          <div className="cup-override-grid" style={{ marginTop: "1rem" }}>
-            <div className="cup-field-pair">
-              <label>Minimum Number of Stages</label>
-              <input type="number" min={1} max={16} value={cupSpec.numStagesMin}
-                onChange={e => setCup("numStagesMin", Math.max(1, parseInt(e.target.value) || 1))}
-                className="co-number-input" />
-            </div>
-            <div className="cup-field-pair">
-              <label>Maximum Number of Stages</label>
-              <input type="number" min={1} max={16} value={cupSpec.numStagesMax}
-                onChange={e => setCup("numStagesMax", Math.max(cupSpec.numStagesMin, parseInt(e.target.value) || 1))}
-                className="co-number-input" />
-            </div>
-          </div>
-        )}
 
         {/* Stage builder — stages are always per-cup data.
             Rendered whenever the effective mode is User-Defined, whether inherited
@@ -238,40 +226,6 @@ export default function CupConfigPage({ cupIndex }) {
         )}
       </section>
 
-
-      {/* ── Section 2 · Number of Cars ── */}
-      <section className="co-section">
-        <div className="cup-override-section-header">
-          <label className="co-checkbox-row">
-            <input
-              type="checkbox"
-              checked={cupSpec.overrideNumCars}
-              onChange={e => setCup("overrideNumCars", e.target.checked)}
-            />
-            <h2 className="co-section-title" style={{ margin: 0 }}>Number of Cars</h2>
-          </label>
-        </div>
-        {!cupSpec.overrideNumCars && (
-          <p className="co-desc cup-override-hint">
-            Inheriting global value: <strong>{globalState.numCars} cars</strong>.
-          </p>
-        )}
-        <div className={`cup-override-controls${cupSpec.overrideNumCars ? "" : " disabled"}`}>
-          <div className="cup-override-grid">
-            <div className="cup-field-pair">
-              <label>Number of Cars</label>
-              <input
-                type="number" min={1} max={16}
-                value={cupSpec.overrideNumCars ? (cupSpec.numCars ?? globalState.numCars) : globalState.numCars}
-                onChange={e => setCup("numCars", parseInt(e.target.value) || 8)}
-                disabled={!cupSpec.overrideNumCars}
-                className="co-number-input"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ── Section 3 · Cars Per Class ── */}
       <section className="co-section">
         <div className="cup-override-section-header">
@@ -284,117 +238,168 @@ export default function CupConfigPage({ cupIndex }) {
             <h2 className="co-section-title" style={{ margin: 0 }}>Cars Per Class</h2>
           </label>
         </div>
-        {!cupSpec.overrideCarsPerClass && (
+        { cupSpec.overrideCarsPerClass
+          ?
+          <div className={`cup-override-controls${cupSpec.overrideCarsPerClass ? "" : " disabled"}`}>
+            <CarsPerClassEditor
+              carsPerClass={cupSpec.carsPerClass ?? DEFAULT_CARS_PER_CLASS[cupIndex]}
+              numCars={effectiveNumCars}
+              onChange={v => cupSpec.overrideCarsPerClass && setCup("carsPerClass", v)}
+            />
+          </div>
+          :
           <p className="co-desc cup-override-hint">
-            Using the existing Cars Per Class settings for this cup from Cup Specification.
+            Using the default Cars Per Class settings for this cup.
           </p>
-        )}
-        <div className={`cup-override-controls${cupSpec.overrideCarsPerClass ? "" : " disabled"}`}>
-          <CarsPerClassEditor
-            carsPerClass={cupSpec.carsPerClass ?? DEFAULT_CARS_PER_CLASS[cupIndex]}
-            numCars={effectiveNumCars}
-            onChange={v => cupSpec.overrideCarsPerClass && setCup("carsPerClass", v)}
-          />
-        </div>
+        }
       </section>
 
-      {/* ── Section 4 · Number of Tries ── */}
-      <section className="co-section">
-        <div className="cup-override-section-header">
-          <label className="co-checkbox-row">
-            <input
-              type="checkbox"
-              checked={cupSpec.overrideNumTries}
-              onChange={e => setCup("overrideNumTries", e.target.checked)}
-            />
-            <h2 className="co-section-title" style={{ margin: 0 }}>Number of Tries</h2>
-          </label>
-        </div>
-        {!cupSpec.overrideNumTries && (
-          <p className="co-desc cup-override-hint">
-            Inheriting global value: <strong>{globalState.numTries} tries</strong>.
-          </p>
-        )}
-        <div className={`cup-override-controls${cupSpec.overrideNumTries ? "" : " disabled"}`}>
-          <div className="cup-override-grid">
-            <div className="cup-field-pair">
-              <label>Number of Tries</label>
+      {/* ── Override table ── */}
+      <section className="cup-ov-table-section">
+        <h3>Override Summary</h3>
+        <p>Choose which settings to override and compare the cup value with the global value.</p>
+        <table className="cup-ov-table">
+          <thead>
+            <tr>
+              <th className="cup-ov-th-label">Setting</th>
+              <th className="cup-ov-th-global">Global value</th>
+              <th className="cup-ov-th-check">Override?</th>
+              <th className="cup-ov-th-input">Cup value</th>
+            </tr>
+          </thead>
+          <tbody>
+
+            {/* Number of Cars */}
+            <OverrideRow
+              label="Number of Cars"
+              globalValue={globalState.numCars}
+              overriding={cupSpec.overrideNumCars}
+              onToggle={v => setCup("overrideNumCars", v)}
+            >
+              <input
+                type="number" min={1} max={16}
+                value={cupSpec.numCars ?? globalState.numCars}
+                onChange={e => setCup("numCars", parseInt(e.target.value) || 8)}
+                disabled={!cupSpec.overrideNumCars}
+                className="co-number-input"
+              />
+            </OverrideRow>
+
+            {/* Number of Tries */}
+            <OverrideRow
+              label="Number of Tries"
+              globalValue={globalState.numTries}
+              overriding={cupSpec.overrideNumTries}
+              onToggle={v => setCup("overrideNumTries", v)}
+            >
               <input
                 type="number" min={1} max={10}
-                value={cupSpec.overrideNumTries ? (cupSpec.numTries ?? globalState.numTries) : globalState.numTries}
+                value={cupSpec.numTries ?? globalState.numTries}
                 onChange={e => setCup("numTries", parseInt(e.target.value) || 3)}
                 disabled={!cupSpec.overrideNumTries}
                 className="co-number-input"
               />
-            </div>
-          </div>
-        </div>
-      </section>
+            </OverrideRow>
 
-      {/* ── Section 5 · Minimum Position Per Race ── */}
-      <section className="co-section">
-        <div className="cup-override-section-header">
-          <label className="co-checkbox-row">
-            <input
-              type="checkbox"
-              checked={cupSpec.overridePerRacePlace}
-              onChange={e => setCup("overridePerRacePlace", e.target.checked)}
-            />
-            <h2 className="co-section-title" style={{ margin: 0 }}>Minimum Position Per Race</h2>
-          </label>
-        </div>
-        {!cupSpec.overridePerRacePlace && (
-          <p className="co-desc cup-override-hint">
-            Inheriting global value: finish <strong>position {globalState.perRaceRequiredPlace}</strong> or better each race.
-          </p>
-        )}
-        <div className={`cup-override-controls${cupSpec.overridePerRacePlace ? "" : " disabled"}`}>
-          <div className="cup-override-grid">
-            <div className="cup-field-pair">
-              <label>Minimum Per-Race Position</label>
+            {/* Per-Race Position */}
+            <OverrideRow
+              label="Minimum Position Per Race"
+              globalValue={`${globalState.perRaceRequiredPlace}${ordinal(globalState.perRaceRequiredPlace)}`}
+              overriding={cupSpec.overridePerRacePlace}
+              onToggle={v => setCup("overridePerRacePlace", v)}
+            >
               <input
                 type="number" min={1} max={16}
-                value={cupSpec.overridePerRacePlace ? (cupSpec.perRaceRequiredPlace ?? globalState.perRaceRequiredPlace) : globalState.perRaceRequiredPlace}
+                value={cupSpec.perRaceRequiredPlace ?? globalState.perRaceRequiredPlace}
                 onChange={e => setCup("perRaceRequiredPlace", parseInt(e.target.value) || 3)}
                 disabled={!cupSpec.overridePerRacePlace}
                 className="co-number-input"
               />
-            </div>
-          </div>
-        </div>
-      </section>
+            </OverrideRow>
 
-      {/* ── Section 6 · Minimum Overall Position ── */}
-      <section className="co-section">
-        <div className="cup-override-section-header">
-          <label className="co-checkbox-row">
-            <input
-              type="checkbox"
-              checked={cupSpec.overrideOverallPlace}
-              onChange={e => setCup("overrideOverallPlace", e.target.checked)}
-            />
-            <h2 className="co-section-title" style={{ margin: 0 }}>Minimum Overall Position</h2>
-          </label>
-        </div>
-        {!cupSpec.overrideOverallPlace && (
-          <p className="co-desc cup-override-hint">
-            Inheriting global value: finish <strong>position {globalState.overallRequiredPlace}</strong> overall to beat the cup.
-          </p>
-        )}
-        <div className={`cup-override-controls${cupSpec.overrideOverallPlace ? "" : " disabled"}`}>
-          <div className="cup-override-grid">
-            <div className="cup-field-pair">
-              <label>Minimum Overall Position</label>
+            {/* Overall Position */}
+            <OverrideRow
+              label="Minimum Overall Position"
+              globalValue={`${globalState.overallRequiredPlace}${ordinal(globalState.overallRequiredPlace)}`}
+              overriding={cupSpec.overrideOverallPlace}
+              onToggle={v => setCup("overrideOverallPlace", v)}
+            >
               <input
                 type="number" min={1} max={16}
-                value={cupSpec.overrideOverallPlace ? (cupSpec.overallRequiredPlace ?? globalState.overallRequiredPlace) : globalState.overallRequiredPlace}
+                value={cupSpec.overallRequiredPlace ?? globalState.overallRequiredPlace}
                 onChange={e => setCup("overallRequiredPlace", parseInt(e.target.value) || 1)}
                 disabled={!cupSpec.overrideOverallPlace}
                 className="co-number-input"
               />
-            </div>
-          </div>
-        </div>
+            </OverrideRow>
+
+            {/* Random-mode rows — only shown when the effective mode is Random
+                (either from global or from an already-active stage-mode override) */}
+            {isRandomMode && (<>
+
+              <OverrideRow
+                label="Minimum Number of Stages"
+                globalValue={globalState.numStagesMin}
+                overriding={cupSpec.overrideNumStagesMin}
+                onToggle={v => setCup("overrideNumStagesMin", v)}
+              >
+                <input
+                  type="number" min={1} max={16}
+                  value={cupSpec.numStagesMin ?? globalState.numStagesMin}
+                  onChange={e => setCup("numStagesMin", Math.max(1, parseInt(e.target.value) || 1))}
+                  disabled={!cupSpec.overrideNumStagesMin}
+                  className="co-number-input"
+                />
+              </OverrideRow>
+
+              <OverrideRow
+                label="Maximum Number of Stages"
+                globalValue={globalState.numStagesMax}
+                overriding={cupSpec.overrideNumStagesMax}
+                onToggle={v => setCup("overrideNumStagesMax", v)}
+              >
+                <input
+                  type="number" min={1} max={16}
+                  value={cupSpec.numStagesMax ?? globalState.numStagesMax}
+                  onChange={e => setCup("numStagesMax", Math.max(cupSpec.numStagesMin ?? 1, parseInt(e.target.value) || 1))}
+                  disabled={!cupSpec.overrideNumStagesMax}
+                  className="co-number-input"
+                />
+              </OverrideRow>
+
+              <OverrideRow
+                label="Minimum Number of Laps"
+                globalValue={globalState.numLapsMin}
+                overriding={cupSpec.overrideNumLapsMin}
+                onToggle={v => setCup("overrideNumLapsMin", v)}
+              >
+                <input
+                  type="number" min={1} max={20}
+                  value={cupSpec.numLapsMin ?? globalState.numLapsMin}
+                  onChange={e => setCup("numLapsMin", parseInt(e.target.value) || 1)}
+                  disabled={!cupSpec.overrideNumLapsMin}
+                  className="co-number-input"
+                />
+              </OverrideRow>
+
+              <OverrideRow
+                label="Maximum Number of Laps"
+                globalValue={globalState.numLapsMax}
+                overriding={cupSpec.overrideNumLapsMax}
+                onToggle={v => setCup("overrideNumLapsMax", v)}
+              >
+                <input
+                  type="number" min={1} max={20}
+                  value={cupSpec.numLapsMax ?? globalState.numLapsMax}
+                  onChange={e => setCup("numLapsMax", Math.max(cupSpec.numLapsMin ?? 1, parseInt(e.target.value) || 1))}
+                  disabled={!cupSpec.overrideNumLapsMax}
+                  className="co-number-input"
+                />
+              </OverrideRow>
+            </>)}
+
+          </tbody>
+        </table>
       </section>
 
       {/* ── Section 7 · Points Table ── */}
@@ -409,20 +414,30 @@ export default function CupConfigPage({ cupIndex }) {
             <h2 className="co-section-title" style={{ margin: 0 }}>Points Table</h2>
           </label>
         </div>
-        {!cupSpec.overridePointsTable && (
+        {cupSpec.overridePointsTable
+          ?
+          <div className={`cup-override-controls${cupSpec.overridePointsTable ? "" : " disabled"}`}>
+            <PointsTableEditor
+              points={cupSpec.pointsTable ?? [...DEFAULT_POINTS]}
+              numCars={effectiveNumCars}
+              onChange={v => cupSpec.overridePointsTable && setCup("pointsTable", v)}
+            />
+          </div>
+          :
           <p className="co-desc cup-override-hint">
             Inheriting global points table.
           </p>
-        )}
-        <div className={`cup-override-controls${cupSpec.overridePointsTable ? "" : " disabled"}`}>
-          <PointsTableEditor
-            points={cupSpec.pointsTable ?? [...DEFAULT_POINTS]}
-            numCars={effectiveNumCars}
-            onChange={v => cupSpec.overridePointsTable && setCup("pointsTable", v)}
-          />
-        </div>
+        }
       </section>
 
     </div>
   );
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function ordinal(n) {
+  if (n === 1) return "st";
+  if (n === 2) return "nd";
+  if (n === 3) return "rd";
+  return "th";
 }

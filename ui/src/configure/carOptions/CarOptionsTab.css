@@ -21,6 +21,9 @@
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border-color);
   color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  width: 100%;
 }
 
 .co-desc {
@@ -170,6 +173,8 @@
   font-size: 0.88rem;
   color: var(--text-primary);
   line-height: 1.5;
+  flex: 1;
+  min-width: 0;
 }
 
 .co-checkbox-row input[type="checkbox"] {

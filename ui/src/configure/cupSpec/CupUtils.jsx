@@ -112,7 +112,7 @@ export function StageRow({ stage, index, onUpdate, onRemove, resolvedTracks }) {
         </select>
         {isFixedLaps ? (
           <input
-            type="number" min={1} max={30}
+            type="number" min={1} max={20}
             value={stage.numLaps}
             onChange={e => onUpdate(index, { numLaps: Math.max(1, parseInt(e.target.value) || 1) })}
             className="cup-stage-laps-input"
@@ -120,7 +120,7 @@ export function StageRow({ stage, index, onUpdate, onRemove, resolvedTracks }) {
         ) : (
           <>
             <input
-              type="number" min={1} max={30}
+              type="number" min={1} max={20}
               value={stage.numLapsMin ?? 2}
               onChange={e => onUpdate(index, { numLapsMin: Math.max(1, parseInt(e.target.value) || 1) })}
               className="cup-stage-laps-input"
@@ -128,7 +128,7 @@ export function StageRow({ stage, index, onUpdate, onRemove, resolvedTracks }) {
             />
             <span className="cup-stage-laps-sep">–</span>
             <input
-              type="number" min={1} max={30}
+              type="number" min={1} max={20}
               value={stage.numLapsMax ?? 8}
               onChange={e => onUpdate(index, { numLapsMax: Math.max(stage.numLapsMin ?? 1, parseInt(e.target.value) || 1) })}
               className="cup-stage-laps-input"
