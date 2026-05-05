@@ -85,6 +85,40 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult) {
     return { errors, warnings };
   }
 
+  // Get list of specific cars from the configuration
+  const specificCars = [
+    ...(includeStock ? (carsSpecState?.stockCars || []) : STOCK_CARS.map((c) => { return { sourcePool: c } })),
+    ...(includeDC ? (carsSpecState?.dcCars || []) : DC_CARS.map((c) => { return { sourcePool: c } }))
+  ].filter((row) => {
+    return (
+      row.sourcePool &&
+      row.sourcePool !== "Full Random" &&
+      row.sourcePool !== "Stock" &&
+      row.sourcePool !== "DC" &&
+      row.sourcePool !== "Custom" &&
+      !row.sourcePool.startsWith("Pack:")
+    );
+  }).map(row => row.sourcePool);
+
+  const duplicateCars = new Set();
+  const seen = new Set();
+
+  specificCars.forEach((car) => {
+    const lower = car.toLowerCase();
+    if (seen.has(lower)) {
+      duplicateCars.add(car);
+    }
+    seen.add(lower);
+  });
+
+  if (duplicateCars.size > 0) {
+    warnings.push({
+      id: "cars_duplicate_specific_refs",
+      scope: "carOptions",
+      message: `Some cars are present in multiple slots: ${formatValidationList(Array.from(duplicateCars))}.`
+    });
+  }
+
   // Check distribution constraints are satisfiable
   const totalSlots =
     (includeStock ? (carsSpecState?.stockCars?.length ?? STOCK_CARS.length) : 0) +
