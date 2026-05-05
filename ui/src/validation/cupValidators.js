@@ -1,5 +1,7 @@
 const CUP_NAMES = ["Bronze Cup", "Silver Cup", "Gold Cup", "Platinum Cup"];
 
+import { STOCK_TRACKS } from "../utils/constants";
+
 export function validateCupSpec(cupSpecState, trackSpecState) {
   const errors = [];
   const warnings = [];
@@ -71,7 +73,8 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
 
   // Build the set of specific track folders declared in the track spec
   // (used only to validate specific-folder stage references).
-  const availableTrackFolders = new Set(
+  const availableTrackFolders = trackSpecState.includeTracks ? 
+    new Set(
     (trackSpecState?.tracks || [])
       .map(t => t.sourcePool?.toLowerCase())
       .filter(p =>
@@ -81,7 +84,7 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
         p !== "custom" &&
         !p.startsWith("pack:")
       )
-  );
+  ) : new Set(STOCK_TRACKS);
 
   cupSpecState.cups?.forEach((cup, cupIdx) => {
     if (effectiveMode(cup) !== "userDefined") return;
