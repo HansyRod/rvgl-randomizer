@@ -95,25 +95,36 @@ fn cup_obtain(cup_index: usize) -> i32 {
 // ============================================================================
 // Default-stages builder
 //
-// Follows the base game layout:
-//   Bronze  : tracks[0..3]  — Normal
-//   Silver  : tracks[4..7]  — Normal
-//   Gold    : tracks[8..10] Normal  +  tracks[4] (Silver[0]) Mirror
-//   Platinum: tracks[11..13] Normal + tracks[5] (Silver[1]) RevMirror-if-has_rev else Mirror
-//                                   + tracks[8] (Gold[0]) Mirror
+// Follows the base game layout with fixed lap counts per stage:
+//   Bronze  : tracks[0,1,2,3] all Normal with laps [3,4,3,5]
+//   Silver  : tracks[4,5,6,7] all Normal with laps [4,6,4,4]
+//   Gold    : track8(Normal), track4(Mirror), track9(Normal), track10(Normal) with laps [5,5,5,5]
+//   Platinum: track11(Normal), track12(Normal), track5(RevMirror or Mirror), track10(Mirror), track13(Normal) with laps [6,6,8,6,6]
 // ============================================================================
+
+/// Returns the fixed lap counts for each stage in a default cup.
+fn default_laps_per_stage(cup_index: usize) -> &'static [u32] {
+    match cup_index {
+        0 => &[3, 4, 3, 5],     // Bronze
+        1 => &[4, 6, 4, 4],     // Silver
+        2 => &[5, 5, 5, 5],     // Gold
+        3 => &[6, 6, 8, 6, 6],  // Platinum
+        _ => &[],
+    }
+}
+
 fn build_default_stages(
     cup_index: usize,
     resolved: &[RandomizedTrack],
     scan: &ScanResult,
-    laps_min: u32,
-    laps_max: u32,
     rng: &mut Rng,
 ) -> Vec<RandomizedCupStage> {
-    let make_stage = |folder: &str, is_reverse: bool, is_mirror: bool, rng: &mut Rng| {
+    let laps = default_laps_per_stage(cup_index);
+    
+    let make_stage = |folder: &str, is_reverse: bool, is_mirror: bool, num_laps: u32| {
         RandomizedCupStage {
             track_folder: folder.to_string(),
-            num_laps: roll_laps(laps_min, laps_max, rng),
+            num_laps,
             is_reverse,
             is_mirror,
         }
@@ -121,59 +132,86 @@ fn build_default_stages(
 
     match cup_index {
         // Bronze: tracks 0–3, all Normal
-        0 => (0..4.min(resolved.len()))
-            .map(|i| make_stage(&resolved[i].folder, false, false, rng))
-            .collect(),
-
-        // Silver: tracks 4–7, all Normal
-        1 => (4..8.min(resolved.len()))
-            .map(|i| make_stage(&resolved[i].folder, false, false, rng))
-            .collect(),
-
-        // Gold: tracks 8–10 Normal + Silver[0] (track 4) Mirror
-        2 => {
-            let mut stages: Vec<RandomizedCupStage> = (8..11.min(resolved.len()))
-                .map(|i| make_stage(&resolved[i].folder, false, false, rng))
-                .collect();
-            if resolved.len() > 4 {
-                stages.push(make_stage(&resolved[4].folder, false, true, rng));
+        0 => {
+            let mut stages = Vec::new();
+            for i in 0..4.min(resolved.len()) {
+                if i < laps.len() {
+                    stages.push(make_stage(&resolved[i].folder, false, false, laps[i]));
+                }
             }
             stages
         }
 
-        // Platinum: tracks 11–13 Normal
-        //   + Silver[1] (track 5): RevMirror if has_rev, else Mirror
-        //   + Gold[0]   (track 8): Mirror
-        3 => {
-            let mut stages: Vec<RandomizedCupStage> = (11..14.min(resolved.len()))
-                .map(|i| make_stage(&resolved[i].folder, false, false, rng))
-                .collect();
+        // Silver: tracks 4–7, all Normal
+        1 => {
+            let mut stages = Vec::new();
+            for i in 0..4.min(resolved.len()) {
+                let idx = 4 + i;
+                if idx < resolved.len() && i < laps.len() {
+                    stages.push(make_stage(&resolved[idx].folder, false, false, laps[i]));
+                }
+            }
+            stages
+        }
 
-            // Silver[1] replacement
-            if resolved.len() > 5 {
+        // Gold: track8, track4(mirror), track9, track10
+        2 => {
+            let mut stages = Vec::new();
+            let indices = [8, 4, 9, 10];
+            for (i, &track_idx) in indices.iter().enumerate() {
+                if track_idx < resolved.len() && i < laps.len() {
+                    let is_mirror = track_idx == 4; // track4 is mirrored
+                    stages.push(make_stage(&resolved[track_idx].folder, false, is_mirror, laps[i]));
+                }
+            }
+            stages
+        }
+
+        // Platinum: track11, track12, track5(with variant logic), track10(mirror), track13
+        3 => {
+            let mut stages = Vec::new();
+            
+            // Stage 0: track11 (Normal)
+            if resolved.len() > 11 && laps.len() > 0 {
+                stages.push(make_stage(&resolved[11].folder, false, false, laps[0]));
+            }
+            
+            // Stage 1: track12 (Normal)
+            if resolved.len() > 12 && laps.len() > 1 {
+                stages.push(make_stage(&resolved[12].folder, false, false, laps[1]));
+            }
+            
+            // Stage 2: track5 with variant logic
+            if resolved.len() > 5 && laps.len() > 2 {
                 let folder = &resolved[5].folder;
                 let has_rev = track_has_reversed(folder, scan);
                 if has_rev {
-                    stages.push(make_stage(folder, true, true, rng));
+                    stages.push(make_stage(folder, true, true, laps[2]));
                 } else {
-                    // Fallback: find any track from positions 0–10 with has_rev, prefer non-5/8
-                    let fallback = (0..11.min(resolved.len()))
-                        .filter(|&i| i != 5 && i != 8)
-                        .find(|&i| track_has_reversed(&resolved[i].folder, scan));
-                    if let Some(i) = fallback {
-                        stages.push(make_stage(&resolved[i].folder, true, true, rng));
+                    // Fallback: collect all tracks from positions 0–10 with has_rev, excluding 5/10
+                    let candidates: Vec<usize> = (0..11.min(resolved.len()))
+                        .filter(|&i| i != 5 && i != 10 && track_has_reversed(&resolved[i].folder, scan))
+                        .collect();
+                    if !candidates.is_empty() {
+                        let idx = candidates[rng.next_usize(candidates.len())];
+                        stages.push(make_stage(&resolved[idx].folder, true, true, laps[2]));
                     } else {
                         // Last resort: just play it in Mirror only
-                        stages.push(make_stage(folder, false, true, rng));
+                        stages.push(make_stage(folder, false, true, laps[2]));
                     }
                 }
             }
-
-            // Gold[0] replacement (track 8) Mirror
-            if resolved.len() > 8 {
-                stages.push(make_stage(&resolved[8].folder, false, true, rng));
+            
+            // Stage 3: track10 (Mirror)
+            if resolved.len() > 10 && laps.len() > 3 {
+                stages.push(make_stage(&resolved[10].folder, false, true, laps[3]));
             }
-
+            
+            // Stage 4: track13 (Normal)
+            if resolved.len() > 13 && laps.len() > 4 {
+                stages.push(make_stage(&resolved[13].folder, false, false, laps[4]));
+            }
+            
             stages
         }
 
@@ -508,7 +546,7 @@ pub fn generate_cups(
 
         let stages = match effective_mode {
             CupStageMode::Default => {
-                let s = build_default_stages(cup_index, resolved_tracks, scan, laps_min, laps_max, rng);
+                let s = build_default_stages(cup_index, resolved_tracks, scan, rng);
                 // Register default stages into cross_cup_usage so later cups see them
                 for stage in &s {
                     let v = (stage.is_reverse, stage.is_mirror);
@@ -579,8 +617,7 @@ fn default_cups(
         overall_required_place: cup_state.overall_required_place,
         cars_per_class: default_cars_per_class(i),
         points_table: pad_points(&cup_state.points_table),
-        stages: build_default_stages(i, resolved_tracks, scan,
-                                     cup_state.num_laps_min, cup_state.num_laps_max, rng),
+        stages: build_default_stages(i, resolved_tracks, scan, rng),
     }).collect()
 }
 
