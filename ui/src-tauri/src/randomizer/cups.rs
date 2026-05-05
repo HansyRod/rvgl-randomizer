@@ -534,12 +534,20 @@ pub fn generate_cups(
         } else { default_cars_per_class(cup_index) };
 
         // Laps range: use per-cup override when override_stage_mode is active, else global
-        let laps_min = if cup_spec.map(|c| c.override_stage_mode).unwrap_or(false) {
+        let laps_min = if cup_spec.map(|c| c.override_num_laps_min).unwrap_or(false) {
             cup_spec.and_then(|c| c.num_laps_min).unwrap_or(cup_state.num_laps_min)
         } else { cup_state.num_laps_min };
-        let laps_max = if cup_spec.map(|c| c.override_stage_mode).unwrap_or(false) {
+        let laps_max = if cup_spec.map(|c| c.override_num_laps_max).unwrap_or(false) {
             cup_spec.and_then(|c| c.num_laps_max).unwrap_or(cup_state.num_laps_max)
         } else { cup_state.num_laps_max };
+
+        // Num stages: use per-cup override when override_stage_mode is active, else global (only applies to Random mode)
+        let num_stages_min = if cup_spec.map(|c| c.override_num_stages_min).unwrap_or(false) {
+            cup_spec.and_then(|c| c.num_stages_min).unwrap_or(cup_state.num_stages_min)
+        } else { cup_state.num_stages_min };
+        let num_stages_max = if cup_spec.map(|c| c.override_num_stages_max).unwrap_or(false) {
+            cup_spec.and_then(|c| c.num_stages_max).unwrap_or(cup_state.num_stages_max)
+        } else { cup_state.num_stages_max };
 
         // ── build stages ──────────────────────────────────────────────
         let mut per_cup_usage = CupUsage::new();
@@ -558,8 +566,8 @@ pub fn generate_cups(
             }
 
             CupStageMode::Random => {
-                let num_stages_min = cup_spec.map(|c| c.num_stages_min).unwrap_or(4).max(1);
-                let num_stages_max = cup_spec.map(|c| c.num_stages_max).unwrap_or(4).max(num_stages_min);
+                let num_stages_min = num_stages_min.max(1);
+                let num_stages_max = num_stages_max.max(num_stages_min);
                 let num_stages = if num_stages_min == num_stages_max {
                     num_stages_min
                 } else {
@@ -631,6 +639,11 @@ pub fn make_default_cup_spec_rust(index: usize) -> CupSpec {
         override_per_race_place: false,
         override_overall_place: false,
         override_points_table: false,
+        override_num_stages_min: false,
+        override_num_stages_max: false,
+        override_num_laps_min: false,
+        override_num_laps_max: false,
+
         stage_mode: CupStageMode::Default,
         num_cars: None,
         num_tries: None,
@@ -640,8 +653,8 @@ pub fn make_default_cup_spec_rust(index: usize) -> CupSpec {
         cars_per_class: None,
         num_laps_min: None,
         num_laps_max: None,
-        num_stages_min: 4,
-        num_stages_max: 4,
+        num_stages_min: None,
+        num_stages_max: None,
         stages: vec![],
     }
 }

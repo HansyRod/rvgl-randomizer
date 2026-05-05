@@ -198,8 +198,10 @@ pub fn generate_result(
         per_race_required_place: 3,
         overall_required_place: 1,
         points_table: default_points_table(),
-        num_laps_min: 6,
-        num_laps_max: 6,
+        num_laps_min: 2,
+        num_laps_max: 8,
+        num_stages_min: 3,
+        num_stages_max: 6,
         cups: vec![
             make_default_cup_spec_rust(0),
             make_default_cup_spec_rust(1),

@@ -222,6 +222,11 @@ pub struct CupSpec {
     #[serde(default)] pub override_per_race_place: bool,
     #[serde(default)] pub override_overall_place: bool,
     #[serde(default)] pub override_points_table: bool,
+    #[serde(default)] pub override_num_stages_min: bool,
+    #[serde(default)] pub override_num_stages_max: bool,
+    #[serde(default)] pub override_num_laps_min: bool,
+    #[serde(default)] pub override_num_laps_max: bool,
+
 
     // ── per-cup stage mode (only meaningful when override_stage_mode = true) ──
     #[serde(default)]
@@ -242,9 +247,9 @@ pub struct CupSpec {
     // ── stage configuration ───────────────────────────────────────────
     /// Stage count range for Random mode (always per-cup)
     #[serde(default)]
-    pub num_stages_min: u32,
+    pub num_stages_min: Option<u32>,
     #[serde(default)]
-    pub num_stages_max: u32,
+    pub num_stages_max: Option<u32>,
 
     /// User-defined stages (used when effective stage_mode == UserDefined)
     #[serde(default)]
@@ -294,6 +299,12 @@ pub struct CupSpecState {
     #[serde(default = "default_laps_max")]
     pub num_laps_max: u32,
 
+    // ── global stage count range ───────────────────────────────────────
+    #[serde(default = "default_num_stages_min")]
+    pub num_stages_min: u32,
+    #[serde(default = "default_num_stages_max")]
+    pub num_stages_max: u32,
+
     // ── per-cup configuration ─────────────────────────────────────────
     pub cups: Vec<CupSpec>,
 }
@@ -302,8 +313,10 @@ fn default_num_cars()        -> u32       { 8 }
 fn default_num_tries()       -> u32       { 3 }
 fn default_per_race_place()  -> u32       { 3 }
 fn default_overall_place()   -> u32       { 1 }
-fn default_laps_min()        -> u32       { 6 }
-fn default_laps_max()        -> u32       { 6 }
+fn default_laps_min()        -> u32       { 2 }
+fn default_laps_max()        -> u32       { 8 }
+fn default_num_stages_min()  -> u32       { 3 }
+fn default_num_stages_max()  -> u32       { 6 }
 pub fn default_points_table()    -> Vec<i32>  {
     vec![10, 6, 4, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 }
