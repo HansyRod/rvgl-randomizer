@@ -1,7 +1,7 @@
 .cars-full-spec {
   display: flex;
   flex-direction: column;
-  padding: 1.5rem;
+  padding: 0 1rem;
   overflow-y: auto;
   box-sizing: border-box;
 }
