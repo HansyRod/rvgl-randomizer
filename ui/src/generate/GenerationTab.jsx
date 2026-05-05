@@ -124,7 +124,6 @@ export default function GenerationTab({errors}) {
       } : null;
       const sanitizedTrackOptions = trackOptions ? {
         unlockMode: trackOptions.unlockMode,
-        includeCheatOnly: showTrackObtainOptions && trackOptions.includeCheatOnly,
         includeStuntArena: showTrackObtainOptions && trackOptions.includeStuntArena,
       } : null;
 

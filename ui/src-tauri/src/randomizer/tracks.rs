@@ -137,7 +137,6 @@ pub fn resolve_track_obtain(attr: &str, mode: &str, opts: &TrackOptionsInput, rn
         0
     } else if attr == "Random" {
         let mut allowed = vec![0, 1, 2, 3, 4];
-        if opts.include_cheat_only { allowed.push(-1); }
         if opts.include_stunt_arena { allowed.push(5); }
         let i = rng.next_usize(allowed.len());
         allowed[i]

@@ -84,8 +84,6 @@ pub struct TrackOptionsInput {
     #[serde(default = "default_track_unlock_mode")]
     pub unlock_mode: String, // random | randomUnlock | randomDifficulty | unchanged | baseGame
     #[serde(default)]
-    pub include_cheat_only: bool,
-    #[serde(default)]
     pub include_stunt_arena: bool,
 }
 

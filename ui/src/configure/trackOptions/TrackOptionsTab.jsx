@@ -24,7 +24,7 @@ export default function TrackOptionsTab() {
 
   const set = (key, value) => updateCategoryCtx("configure", { trackOptions: { ...trackOptions, [key]: value } });
   
-  const { unlockMode, includeCheatOnly, includeStuntArena } = trackOptions;
+  const { unlockMode, includeStuntArena } = trackOptions;
   const includeTracks = trackSpecState?.includeTracks !== false;
 
   const handleModeSelect = (modeId) => {
@@ -152,10 +152,6 @@ export default function TrackOptionsTab() {
             Enable the options below to include additional unlock types.
           </p>
           <div className="co-checkbox-group">
-            <label className="co-checkbox-row">
-              <input type="checkbox" checked={includeCheatOnly} onChange={e => set("includeCheatOnly", e.target.checked)} />
-              <span>Include <strong>Cheat Only</strong> — tracks are permanently locked without cheat codes.</span>
-            </label>
             <label className="co-checkbox-row">
               <input type="checkbox" checked={includeStuntArena} onChange={e => set("includeStuntArena", e.target.checked)} />
               <span>Include <strong>Stunt Arena</strong> — tracks unlocked via Stunt Arena completion.</span>
