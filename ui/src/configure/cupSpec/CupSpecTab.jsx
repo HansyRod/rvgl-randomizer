@@ -84,6 +84,9 @@ export default function CupSpecTab() {
     <div className="car-options-tab cup-spec-tab">
 
       {/* ── Enable / disable cups ── */}
+      { /* Forcing cup randomization to be always enabled since the default
+        // cups will fail if the player changes the track specification.
+      
       <section className="co-section">
         <h2 className="co-section-title">Cup Randomization</h2>
         <label className="co-checkbox-row">
@@ -96,10 +99,12 @@ export default function CupSpecTab() {
         </label>
         {!cupSpecState.enabled && (
           <p className="co-desc" style={{ marginTop: "0.5rem" }}>
-            Cups are disabled. The DLL will use default cup data.
+            Cup randomization is disabled. 
           </p>
         )}
       </section>
+
+      */ }
 
       {cupSpecState.enabled && (
         <>
