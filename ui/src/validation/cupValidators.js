@@ -60,9 +60,43 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
   checkLaps(cupSpecState.numLapsMin, cupSpecState.numLapsMax, "Global settings");
 
   cupSpecState.cups?.forEach((cup, i) => {
-    // Laps range override is only meaningful when overrideStageMode is active
-    if (cup.overrideStageMode && cup.numLapsMin != null && cup.numLapsMax != null) {
-      checkLaps(cup.numLapsMin, cup.numLapsMax, CUP_NAMES[i]);
+
+    const effectiveStageMode = cup.overrideStageMode ? cup.stageMode : cupSpecState.stageMode;
+    const effectiveNumLapsMin = cup.overrideNumLapsMin ? cup.numLapsMin : cupSpecState.numLapsMin;
+    const effectiveNumLapsMax = cup.overrideNumLapsMax ? cup.numLapsMax : cupSpecState.numLapsMax;
+
+    // Laps range override is only meaningful when using random stage mode
+    if (effectiveStageMode === "random") {
+      if (cup.overrideNumLapsMin || cup.overrideNumLapsMax) {
+        checkLaps(effectiveNumLapsMin, effectiveNumLapsMax, CUP_NAMES[i]);
+      }
+    }
+  });
+
+  // ── Stage count range sanity ──────────────────────────────────────────────────────
+  const checkStages = (min, max, label) => {
+    if (min > max) {
+      errors.push({
+        id: `cup_stages_invalid_${label}`,
+        scope: "cupSpec",
+        message: `${label}: Minimum number of stages cannot be greater than maximum number of stages.`
+      });
+    }
+  };
+
+  checkStages(cupSpecState.numStagesMin, cupSpecState.numStagesMax, "Global settings");
+
+  cupSpecState.cups?.forEach((cup, i) => {
+
+    const effectiveStageMode = cup.overrideStageMode ? cup.stageMode : cupSpecState.stageMode;
+    const effectiveNumStagesMin = cup.overrideNumStagesMin ? cup.numStagesMin : cupSpecState.numStagesMin;
+    const effectiveNumStagesMax = cup.overrideNumStagesMax ? cup.numStagesMax : cupSpecState.numStagesMax;
+
+    // Stage count range override is only meaningful when using random stage mode
+    if (effectiveStageMode === "random") {
+      if (cup.overrideNumStagesMin || cup.overrideNumStagesMax) {
+        checkStages(effectiveNumStagesMin, effectiveNumStagesMax, CUP_NAMES[i]);
+      }
     }
   });
 

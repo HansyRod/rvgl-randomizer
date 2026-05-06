@@ -363,7 +363,7 @@ export default function CupConfigPage({ cupIndex }) {
                 <input
                   type="number" min={1} max={16}
                   value={cupSpec.numStagesMax ?? globalState.numStagesMax}
-                  onChange={e => setCup("numStagesMax", Math.max(cupSpec.numStagesMin ?? 1, parseInt(e.target.value) || 1))}
+                  onChange={e => setCup("numStagesMax", Math.max(1, parseInt(e.target.value) || 1))}
                   disabled={!cupSpec.overrideNumStagesMax}
                   className="co-number-input"
                 />
@@ -393,7 +393,7 @@ export default function CupConfigPage({ cupIndex }) {
                 <input
                   type="number" min={1} max={20}
                   value={cupSpec.numLapsMax ?? globalState.numLapsMax}
-                  onChange={e => setCup("numLapsMax", Math.max(cupSpec.numLapsMin ?? 1, parseInt(e.target.value) || 1))}
+                  onChange={e => setCup("numLapsMax", Math.max(1, parseInt(e.target.value) || 1))}
                   disabled={!cupSpec.overrideNumLapsMax}
                   className="co-number-input"
                 />
