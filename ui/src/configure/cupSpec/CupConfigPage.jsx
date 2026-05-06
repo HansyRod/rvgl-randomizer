@@ -161,27 +161,29 @@ export default function CupConfigPage({ cupIndex }) {
             <h2 className="co-section-title" style={{ margin: 0 }}>Stage Mode</h2>
           </label>
         </div>
-        {!cupSpec.overrideStageMode && (
+        {cupSpec.overrideStageMode
+          ?
+          <div className={`cup-override-controls${cupSpec.overrideStageMode ? "" : " disabled"}`}>
+            <p className="co-desc">How stages are assigned to this cup.</p>
+            <div className="co-mode-grid">
+              {STAGE_MODES.map(mode => (
+                <button
+                  key={mode.id}
+                  className={`co-mode-card${(cupSpec.stageMode ?? "default") === mode.id ? " selected" : ""}`}
+                  onClick={() => cupSpec.overrideStageMode && setCup("stageMode", mode.id)}
+                  disabled={!cupSpec.overrideStageMode}
+                >
+                  <span className="co-mode-label">{mode.label}</span>
+                  <span className="co-mode-desc">{mode.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          :
           <p className="co-desc cup-override-hint">
             Inheriting global stage mode: <strong>{STAGE_MODES.find(m => m.id === globalState.stageMode)?.label ?? globalState.stageMode}</strong>.
           </p>
-        )}
-        <div className={`cup-override-controls${cupSpec.overrideStageMode ? "" : " disabled"}`}>
-          <p className="co-desc">How stages are assigned to this cup only.</p>
-          <div className="co-mode-grid">
-            {STAGE_MODES.map(mode => (
-              <button
-                key={mode.id}
-                className={`co-mode-card${(cupSpec.stageMode ?? "default") === mode.id ? " selected" : ""}`}
-                onClick={() => cupSpec.overrideStageMode && setCup("stageMode", mode.id)}
-                disabled={!cupSpec.overrideStageMode}
-              >
-                <span className="co-mode-label">{mode.label}</span>
-                <span className="co-mode-desc">{mode.desc}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        }
 
         {/* Stage builder — stages are always per-cup data.
             Rendered whenever the effective mode is User-Defined, whether inherited
