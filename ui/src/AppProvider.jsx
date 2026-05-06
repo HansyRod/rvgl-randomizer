@@ -41,6 +41,7 @@ const DEFAULT_STATE = {
   play: {
     extraArgs: "",
     extraPacks: [],
+    runningPid: 0
   }
 };
 

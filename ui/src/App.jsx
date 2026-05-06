@@ -55,6 +55,28 @@ export default function App() {
     invoke("save_cache", { data: state }).catch(console.error);
   }, [state, isLoading]);
 
+  // Poll every 3 s to check if the game process is still running.
+  // When it exits, reset runningPid back to 0.
+  const runningPid = state.play?.runningPid ?? 0;
+  useEffect(() => {
+    if (runningPid === 0) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const isRunning = await invoke("is_process_running", { pid: runningPid });
+        if (!isRunning) {
+          updateCategoryCtx("play", { runningPid: 0 });
+        }
+      } catch (error) {
+        console.error("is_process_running check failed:", error);
+        // If the command itself errors, assume the process is gone.
+        updateCategoryCtx("play", { runningPid: 0 });
+      }
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [runningPid]);
+
   function goToStep(stepId) {
     updateCategoryCtx("app", { activeStep: stepId });
   }

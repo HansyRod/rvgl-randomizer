@@ -13,7 +13,7 @@ export default function LaunchTab({errors}) {
   // Destructure individual variables
   const { installPath, scanResult } = setup;
   const { generatedFilePath, profileName } = generate;
-  const { extraArgs, extraPacks } = play;
+  const { extraArgs, extraPacks, runningPid } = play;
 
   const [launchStatus, setLaunchStatus] = useState("");
   const [isLaunching, setIsLaunching] = useState(false);
@@ -40,8 +40,9 @@ export default function LaunchTab({errors}) {
         packlist: packlist,
         profileName: profileName
       });
-      
-      setLaunchStatus(`Game running!`);
+      const { pid } = result;
+      updateCategoryCtx("play", { runningPid: pid });
+      setLaunchStatus("");
     } catch (error) {
       console.error(error);
       setLaunchStatus(`Launch failed: ${error}`);
@@ -64,7 +65,11 @@ export default function LaunchTab({errors}) {
             {isLaunching ? "Launching..." : "▶ Launch Game"}
           </button>
           
-          {launchStatus && (
+          {runningPid > 0 ? (
+            <p style={{ marginTop: "1rem", marginBottom: 0, color: "var(--text-primary)" }}>
+              Game Running!
+            </p>
+          ) : launchStatus && (
             <p style={{ marginTop: "1rem", marginBottom: 0, color: launchStatus.includes("failed") ? "var(--error-color, #c0392b)" : "var(--text-primary)" }}>
               {launchStatus}
             </p>

@@ -13,7 +13,7 @@ use std::path::Path;
 use tauri::{Manager};
 
 use windows::Win32::{
-    Foundation::CloseHandle,
+    Foundation::{CloseHandle, STILL_ACTIVE},
     System::{
         Diagnostics::Debug::WriteProcessMemory,
         LibraryLoader::{GetModuleHandleA, GetProcAddress},
@@ -21,9 +21,10 @@ use windows::Win32::{
             VirtualAllocEx, VirtualFreeEx, MEM_COMMIT, MEM_RELEASE, MEM_RESERVE, PAGE_READWRITE,
         },
         Threading::{
-            CreateProcessA, CreateRemoteThread, GetExitCodeThread, ResumeThread, TerminateProcess,
-            WaitForSingleObject, CREATE_SUSPENDED, INFINITE, LPTHREAD_START_ROUTINE,
-            PROCESS_INFORMATION, STARTUPINFOA,
+            CreateProcessA, CreateRemoteThread, GetExitCodeProcess, GetExitCodeThread,
+            OpenProcess, ResumeThread, TerminateProcess, WaitForSingleObject, CREATE_SUSPENDED,
+            INFINITE, LPTHREAD_START_ROUTINE, PROCESS_INFORMATION,
+            PROCESS_QUERY_LIMITED_INFORMATION, STARTUPINFOA,
         },
     },
 };
@@ -266,5 +267,32 @@ pub fn launch_game(
         let _ = CloseHandle(pi.hProcess);
 
         Ok(LaunchResult { pid })
+    }
+}
+
+// ============================================================================
+// is_process_running Tauri command
+//
+// Returns true if the process with the given PID is still running.
+// Uses OpenProcess + GetExitCodeProcess with PROCESS_QUERY_LIMITED_INFORMATION,
+// which is the least-privilege access right needed for this check.
+// ============================================================================
+#[tauri::command]
+pub fn is_process_running(pid: u32) -> bool {
+    unsafe {
+        // Try to open the process with minimal rights.
+        // If it fails, the process is already gone.
+        let handle = match OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) {
+            Ok(h) => h,
+            Err(_) => return false,
+        };
+
+        let mut exit_code: u32 = 0;
+        let still_running = GetExitCodeProcess(handle, &mut exit_code)
+            .is_ok()
+            && exit_code == STILL_ACTIVE.0 as u32;
+
+        let _ = CloseHandle(handle);
+        still_running
     }
 }

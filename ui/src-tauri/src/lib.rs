@@ -37,7 +37,8 @@ pub fn run() {
             validation::check_file_exists,
             validation::check_path_writable,
             validation::check_carbox_assets_exist,
-            validation::check_dll_exists
+            validation::check_dll_exists,
+            launcher::is_process_running
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
