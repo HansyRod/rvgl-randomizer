@@ -244,13 +244,13 @@ export default function CupSpecTab() {
             <div className="cup-override-grid">
               <div className="cup-field-pair">
                 <label>Minimum Number of Stages</label>
-                <input type="number" min={1} max={20} value={globalNumStagesMin}
+                <input type="number" min={1} max={16} value={globalNumStagesMin}
                   onChange={e => set("numStagesMin", parseInt(e.target.value) || 2)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
                 <label>Maximum Number of Stages</label>
-                <input type="number" min={1} max={20} value={globalNumStagesMax}
+                <input type="number" min={1} max={16} value={globalNumStagesMax}
                   onChange={e => set("numStagesMax", parseInt(e.target.value) || 8)}
                   className="co-number-input" />
               </div>
