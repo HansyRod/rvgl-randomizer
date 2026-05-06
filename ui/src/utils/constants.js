@@ -100,6 +100,7 @@ export const ATTR_OBTAINS_LIST = [
   { val: "2", label: "Time Trial" },
   { val: "3", label: "Practice" },
   { val: "4", label: "Single Race" },
+  { val: "5", label: "Stunt Arena" },
   { val: "-1", label: "Cheat Only" }
 ];
 
