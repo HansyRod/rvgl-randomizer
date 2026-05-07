@@ -220,6 +220,41 @@ static void RegisterHooks() {
         "CheckIfTierSingleRacesWon"
     );
     
+    HookManager::Add(
+        AbsFromRva(RVA_INIT_CAR_PHYSICS_BLOCK),
+        reinterpret_cast<void*>(Randomizer::Hook_InitCarPhysicsBlock),
+        reinterpret_cast<void**>(&Randomizer::Orig_InitCarPhysicsBlock),
+        "InitCarPhysicsBlock"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_TOKEN_MATCHES),
+        reinterpret_cast<void*>(Randomizer::Hook_Token_Matches),
+        reinterpret_cast<void**>(&Randomizer::Orig_Token_Matches),
+        "Token_Matches"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_READ_TOKEN_FLOAT),
+        reinterpret_cast<void*>(Randomizer::Hook_ReadTokenFloat),
+        reinterpret_cast<void**>(&Randomizer::Orig_ReadTokenFloat),
+        "ReadTokenFloat"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_READ_TOKEN_INT),
+        reinterpret_cast<void*>(Randomizer::Hook_ReadTokenInt),
+        reinterpret_cast<void**>(&Randomizer::Orig_ReadTokenInt),
+        "ReadTokenInt"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_READ_TOKEN_BOOL),
+        reinterpret_cast<void*>(Randomizer::Hook_ReadTokenBool),
+        reinterpret_cast<void**>(&Randomizer::Orig_ReadTokenBool),
+        "ReadTokenBool"
+    );
+
     /* HookManager::Add(
         AbsFromRva(RVA_PARSE_PARAMETERS_TXT),
         reinterpret_cast<void*>(Randomizer::Hook_ParseParametersTxt),

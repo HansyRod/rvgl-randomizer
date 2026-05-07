@@ -1,5 +1,6 @@
 #pragma once
 #include "RVGLStructs.h"
+#include <cstdio>
 
 // ============================================================================
 // Randomizer
@@ -35,6 +36,11 @@ namespace Randomizer {
     using FnCheckIfTierTimeTrialsBeaten = bool(*)(int difficulty);
     using FnCheckIfTierPracticeStarsFound = bool(*)(int difficulty);
     using FnCheckIfTierSingleRacesWon = bool(*)(int difficulty);
+    using FnInitCarPhysicsBlock = void(*)(CarPhysicsData *physData, int carIndex);
+    using FnToken_Matches       = bool(*)(char* str, char* pattern);
+    using FnReadTokenFloat      = bool(*)(float* outValue, FILE* file);
+    using FnReadTokenInt        = bool(*)(int* outValue, FILE* file);
+    using FnReadTokenBool       = bool(*)(bool* outValue, FILE* file);
 
     // ------------------------------------------------------------------------
     // Original function pointers.
@@ -60,6 +66,11 @@ namespace Randomizer {
     extern FnCheckIfTierTimeTrialsBeaten Orig_CheckIfTierTimeTrialsBeaten;
     extern FnCheckIfTierPracticeStarsFound Orig_CheckIfTierPracticeStarsFound;
     extern FnCheckIfTierSingleRacesWon Orig_CheckIfTierSingleRacesWon;
+    extern FnInitCarPhysicsBlock    Orig_InitCarPhysicsBlock;
+    extern FnToken_Matches          Orig_Token_Matches;
+    extern FnReadTokenFloat         Orig_ReadTokenFloat;
+    extern FnReadTokenInt           Orig_ReadTokenInt;
+    extern FnReadTokenBool          Orig_ReadTokenBool;
 
     // ------------------------------------------------------------------------
     // Detour functions — registered in HookManager.cpp → RegisterHooks().
@@ -82,6 +93,11 @@ namespace Randomizer {
     bool Hook_CheckIfTierTimeTrialsBeaten(int difficulty);
     bool Hook_CheckIfTierPracticeStarsFound(int difficulty);
     bool Hook_CheckIfTierSingleRacesWon(int difficulty);
+    void Hook_InitCarPhysicsBlock(CarPhysicsData *physData, int carIndex);
+    bool Hook_Token_Matches(char* str, char* pattern);
+    bool Hook_ReadTokenFloat(float* outValue, FILE* file);
+    bool Hook_ReadTokenInt(int* outValue, FILE* file);
+    bool Hook_ReadTokenBool(bool* outValue, FILE* file);
 
     // Utils functions
     void Initialize();

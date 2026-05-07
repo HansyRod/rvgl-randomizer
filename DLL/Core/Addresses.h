@@ -88,6 +88,21 @@ constexpr uint32_t RVA_CHECK_IF_TIER_PRACTICE_STARS_FOUND = 0x0004a110;
 // checkIfTierSingleRacesWon - returns true if single races for all tracks in the given difficulty have been won
 constexpr uint32_t RVA_CHECK_IF_TIER_SINGLE_RACES_WON = 0x0004a1b0;
 
+// InitCarPhysicsBlock - Initializes the physics object for a car
+constexpr uint32_t RVA_INIT_CAR_PHYSICS_BLOCK = 0x0003c580;
+
+// Token_Matches - String comparison function used when reading from parameters file
+constexpr uint32_t RVA_TOKEN_MATCHES = 0x00133ef0;
+
+// ReadTokenFloat - Reads a float value from a file
+constexpr uint32_t RVA_READ_TOKEN_FLOAT = 0x001345e0;
+
+// ReadTokenInt - Reads an integer value from a file
+constexpr uint32_t RVA_READ_TOKEN_INT = 0x001346e0;
+
+// ReadTokenBool - Reads a boolean value from a file
+constexpr uint32_t RVA_READ_TOKEN_BOOL = 0x001343c0;
+
 // ----------------------------------------------------------------------------
 // Globals
 // ----------------------------------------------------------------------------
