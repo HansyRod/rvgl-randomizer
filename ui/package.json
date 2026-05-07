@@ -16,7 +16,8 @@
     "copy:dll:dbg": "cmake -E copy ../build/DLL/Debug/randomizer.dll   src-tauri/resources/randomizer.dll",
     "build:dll": "npm run cmake:configure && npm run cmake:build:dbg && npm run copy:dll:dbg",
     "build:dll:release": "npm run cmake:configure && npm run cmake:build     && npm run copy:dll",
-    "build:all": "npm run build:dll:release && npm run build"
+    "build:all": "npm run build:dll:release && npm run build",
+    "md-to-doc": "cd .. && pandoc README.MD -f markdown -t docx -s -o README.docx && pandoc CONFIGURE.MD -f markdown -t docx -s -o CONFIGURE.docx"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
