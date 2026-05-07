@@ -95,19 +95,19 @@ Determines how the randomizer creates the stages for each cup. The options are:
   * Alternatively, if track randomization is disabled, any of the 14 stock tracks can be used.
   * You can also pick specific slots from the list of 14 track slots. This will select the track that was randomized to be in that slot for the cup stage.
 
-### Random Stage Constraints
-
-If the **Random Stages** option is selected, controls how the randomization process is restricted:
-* **Track Variant Flags** - select if Reverse, Mirror, and Reverse Mirror versions of tracks are allowed in random cups.
-* **Guarantee first appearance in Normal mode** - The first time a track is played in a random cup, it will be played in its Normal form. This gives progression a more stock-like feel as this rule is respected in the original game.
-* **Track Duplicates in Cup** - Sets whether playing the same track multiple times in the same cup is allowed.
-* **Minimum/Maximum Number of Stages** and **Minimum/Maximum Number of Laps** - controls how many stages are generated and how many laps can each stage have. Can be overridden in each cup.
-
 ### Global Cup Settings
 
 Controls the common cup properties - as documented in [Custom Cup](https://re-volt.gitlab.io/rvgl-docs/cups.html) creation.
 * **Number of Cars**, **Number of Tries**, **Minimum Per-Race Position**, **Minimum Overall Position**, **Points Table** can be set globally, and overridden on each cup.
 * **Cars Per Class** is specific to each cup, and should be set on the cup page.
+
+### Random Stage Constraints
+
+If the **Random Stages** option is selected, controls how the randomization process is restricted:
+* **Track Variant Flags** - select if Reverse, Mirror, and Reverse Mirror versions of tracks are allowed in random cups.
+* **Guarantee first appearance in Normal mode** - The first time a track is played in a random cup, it will be played in its Normal form. This gives progression a more stock-like feel as this rule is respected in the original game.
+* **Duplicate Track Handling** - Sets whether playing the same track multiple times in the same cup is allowed.
+* **Minimum/Maximum Number of Stages** and **Minimum/Maximum Number of Laps** - controls how many stages are generated and how many laps can each stage have. Can be overridden in each cup.
 
 ## Bronze / Silver / Gold / Platinum Cup
 
