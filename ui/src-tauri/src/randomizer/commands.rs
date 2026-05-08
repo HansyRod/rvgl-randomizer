@@ -29,15 +29,20 @@ pub fn generate_result(
 
     // Use provided options or fall back to safe defaults
     let opts = car_options.unwrap_or_else(|| CarOptionsInput {
-        unlock_mode:          default_unlock_mode(),
-        num_starting_cars:    0,
+        unlock_mode:             default_unlock_mode(),
+        num_starting_cars:       0,
         enable_starting_cars_pool: default_false(),
-        starting_cars_pool:   default_pool(),
+        starting_cars_pool:      default_pool(),
         enable_starting_cars_rating: default_false(),
-        starting_cars_rating: default_random(),
-        include_cheat_only:   false,
-        include_stunt_arena:  false,
-        include_super_pro:    default_true(),
+        starting_cars_rating:    default_random(),
+        include_cheat_only:      false,
+        include_stunt_arena:     false,
+        include_starting_car:    default_true(),
+        include_championship:    default_true(),
+        include_time_trial:      default_true(),
+        include_practice_stars:  default_true(),
+        include_single_race:     default_true(),
+        include_super_pro:       default_true(),
         pool_rating_distributions: std::collections::HashMap::new(),
         attr_rating_distributions: std::collections::HashMap::new(),
     });

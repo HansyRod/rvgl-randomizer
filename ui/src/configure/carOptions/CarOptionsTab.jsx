@@ -19,6 +19,11 @@ export default function CarOptionsTab() {
     unlockMode,
     includeCheatOnly,
     includeStuntArena,
+    includeStartingCar,
+    includeChampionship,
+    includeTimeTrial,
+    includePracticeStars,
+    includeSingleRace,
   } = carOptions;
 
   const set = (key, value) => updateCategoryCtx("configure", { carOptions: { ...carOptions, [key]: value } });
@@ -196,10 +201,62 @@ export default function CarOptionsTab() {
         <section className="co-section">
           <h2 className="co-section-title">Allowed Unlock Methods</h2>
           <p className="co-desc">
-            Standard methods (Starting Car, Championship, Time Trial, Practice Stars, Single Race) are always in the pool.
-            Enable the options below to include additional unlock types.
+            Choose which unlock methods are included in the random pool.
           </p>
           <div className="co-checkbox-group">
+            {/* ── Standard methods ── */}
+            <label className="co-checkbox-row">
+              <input
+                type="checkbox"
+                checked={includeStartingCar}
+                onChange={e => set("includeStartingCar", e.target.checked)}
+              />
+              <span>
+                <strong>Starting Car</strong> — car is available from the start without needing to unlock it.
+              </span>
+            </label>
+            <label className="co-checkbox-row">
+              <input
+                type="checkbox"
+                checked={includeChampionship}
+                onChange={e => set("includeChampionship", e.target.checked)}
+              />
+              <span>
+                <strong>Win Championship</strong> — car is unlocked by winning a cup.
+              </span>
+            </label>
+            <label className="co-checkbox-row">
+              <input
+                type="checkbox"
+                checked={includeTimeTrial}
+                onChange={e => set("includeTimeTrial", e.target.checked)}
+              />
+              <span>
+                <strong>Beat Time Trial</strong> — car is unlocked by beating Normal time trials on all tracks of its tier.
+              </span>
+            </label>
+            <label className="co-checkbox-row">
+              <input
+                type="checkbox"
+                checked={includePracticeStars}
+                onChange={e => set("includePracticeStars", e.target.checked)}
+              />
+              <span>
+                <strong>Catch Practice Stars</strong> — car is unlocked by collecting stars in practice mode on all tracks of its tier.
+              </span>
+            </label>
+            <label className="co-checkbox-row">
+              <input
+                type="checkbox"
+                checked={includeSingleRace}
+                onChange={e => set("includeSingleRace", e.target.checked)}
+              />
+              <span>
+                <strong>Win Single Races</strong> — car is unlocked by winning single races on all tracks of its tier.
+              </span>
+            </label>
+
+            {/* ── Extra / optional methods ── */}
             <label className="co-checkbox-row">
               <input
                 type="checkbox"
@@ -207,7 +264,7 @@ export default function CarOptionsTab() {
                 onChange={e => set("includeCheatOnly", e.target.checked)}
               />
               <span>
-                Include <strong>Cheat Only</strong> — cars are permanently locked without cheat codes.
+                Include <strong>Cheat Only</strong> — car is permanently locked and can only be unlocked with cheat codes.
               </span>
             </label>
             <label className="co-checkbox-row">
@@ -217,7 +274,7 @@ export default function CarOptionsTab() {
                 onChange={e => set("includeStuntArena", e.target.checked)}
               />
               <span>
-                Include <strong>Stunt Arena</strong> — cars unlocked via Stunt Arena completion.
+                Include <strong>Stunt Arena</strong> — car is unlocked by completing the Stunt Arena.
               </span>
             </label>
           </div>

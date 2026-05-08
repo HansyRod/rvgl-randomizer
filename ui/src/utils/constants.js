@@ -142,6 +142,11 @@ export const DEFAULT_CAR_OPTIONS = {
   startingCarsRating: "Random",
   includeCheatOnly: false,
   includeStuntArena: false,
+  includeStartingCar: true,
+  includeChampionship: true,
+  includeTimeTrial: true,
+  includePracticeStars: true,
+  includeSingleRace: true,
   includeSuperPro: true,
   poolRatingDistributions: {
     "0": { enabled: false, min: 0, max: 42 },

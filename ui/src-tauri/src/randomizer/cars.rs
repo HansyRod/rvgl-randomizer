@@ -225,13 +225,18 @@ fn resolve_obtain(attr: &str, scanned: i32, rng: &mut Rng, car_options: &CarOpti
     match attr {
         "Unchanged" => scanned,
         "Random" => {
-            // Standard methods are always available
-            let mut allowed: Vec<i32> = vec![0, 1, 2, 3, 4];
-            if car_options.include_cheat_only {
-                allowed.push(-1);
-            }
-            if car_options.include_stunt_arena {
-                allowed.push(5);
+            // Build the pool from individual per-method flags
+            let mut allowed: Vec<i32> = Vec::new();
+            if car_options.include_starting_car  { allowed.push(0); }
+            if car_options.include_championship   { allowed.push(1); }
+            if car_options.include_time_trial     { allowed.push(2); }
+            if car_options.include_practice_stars { allowed.push(3); }
+            if car_options.include_single_race    { allowed.push(4); }
+            if car_options.include_cheat_only     { allowed.push(-1); }
+            if car_options.include_stunt_arena    { allowed.push(5); }
+            // Fallback: if all methods are disabled, use the full standard set
+            if allowed.is_empty() {
+                allowed = vec![0, 1, 2, 3, 4];
             }
             let idx = rng.next_usize(allowed.len());
             allowed[idx]

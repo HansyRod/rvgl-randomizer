@@ -85,6 +85,29 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult) {
     return { errors, warnings };
   }
 
+  // Unlock method pool must have at least one method enabled when randomizing obtain values
+  const showAllowedMethods =
+    carOptions.unlockMode === "random" || carOptions.unlockMode === "randomUnlock";
+
+  if (showAllowedMethods) {
+    const anyMethodAllowed =
+      carOptions.includeStartingCar  ||
+      carOptions.includeChampionship  ||
+      carOptions.includeTimeTrial     ||
+      carOptions.includePracticeStars ||
+      carOptions.includeSingleRace    ||
+      carOptions.includeCheatOnly     ||
+      carOptions.includeStuntArena;
+
+    if (!anyMethodAllowed) {
+      errors.push({
+        id: "cars_no_unlock_methods",
+        scope: "carOptions",
+        message: "At least one unlock method must be enabled. Enable at least one method in \"Allowed Unlock Methods\".",
+      });
+    }
+  }
+
   // Get list of specific cars from the configuration
   const specificCars = [
     ...(includeStock ? (carsSpecState?.stockCars || []) : STOCK_CARS.map((c) => { return { sourcePool: c } })),

@@ -71,6 +71,16 @@ pub struct CarOptionsInput {
     #[serde(default)]
     pub include_stunt_arena: bool,
     #[serde(default = "default_true")]
+    pub include_starting_car: bool,
+    #[serde(default = "default_true")]
+    pub include_championship: bool,
+    #[serde(default = "default_true")]
+    pub include_time_trial: bool,
+    #[serde(default = "default_true")]
+    pub include_practice_stars: bool,
+    #[serde(default = "default_true")]
+    pub include_single_race: bool,
+    #[serde(default = "default_true")]
     pub include_super_pro: bool,
     #[serde(default)]
     pub pool_rating_distributions: std::collections::HashMap<String, RatingDist>,
