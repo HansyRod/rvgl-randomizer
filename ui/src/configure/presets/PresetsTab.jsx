@@ -66,7 +66,7 @@ export default function PresetsTab() {
               <div className="preset-card-header">
                 <span className="preset-card-label">{preset.label}</span>
                 {preset.tag && (
-                  <span className="preset-card-tag">{preset.tag}</span>
+                  <span className={`preset-card-tag ${preset.tag.toLowerCase()}`}>{preset.tag}</span>
                 )}
               </div>
 

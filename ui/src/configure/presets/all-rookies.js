@@ -4,7 +4,7 @@ import { makeDefaultCupSpecState } from "../cupSpec/CupSpecTab";
 export const ALL_ROOKIES_PRESET = {
   id: "all-rookies",
   label: "All Rookies",
-  tag: "Beginner-friendly",
+  tag: "Beginner",
   description:
     "Explore the variety of Rookie cars with this chill preset. Requires a community content pack to get the necessary amount of rookie cars.",
   bullets: [

@@ -62,9 +62,25 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  background: var(--accent);
   color: #fff;
   opacity: 0.85;
+}
+
+/* ── Tag color variants ── */
+.preset-card-tag.standard {
+  background: #005ce6; /* Blue */
+}
+
+.preset-card-tag.beginner {
+  background: #20ac4a; /* Green */
+}
+
+.preset-card-tag.chaos {
+  background: #8924e7; /* Purple */
+}
+
+.preset-card-tag.expert {
+  background: #c2410c; /* Red */
 }
 
 /* ── Short description blurb ── */

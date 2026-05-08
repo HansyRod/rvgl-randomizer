@@ -4,7 +4,7 @@ import { makeDefaultCupSpecState } from "../cupSpec/CupSpecTab";
 export const STOCK_LIKE_PRESET = {
   id: "stock-like",
   label: "Stock-like",
-  tag: "Beginner-friendly",
+  tag: "Standard",
   description:
     "This preset uses the original game's progression for cars, tracks and cups, while randomizing the list of cars and tracks available.",
   bullets: [
