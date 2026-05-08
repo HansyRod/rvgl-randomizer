@@ -10,6 +10,7 @@ import {
   makeDefaultTrackSpec,
 } from "../../utils/constants";
 import { makeDefaultCupSpecState } from "../cupSpec/CupSpecTab";
+import { STOCK_LIKE_PRESET } from "./stock-like";
 
 // ─── Preset definitions ───────────────────────────────────────────────────────
 // Each preset contains the exact configure sub-state that will be applied when
@@ -46,6 +47,7 @@ export const PRESETS = [
       cupSpecState: makeDefaultCupSpecState(),
     },
   },
+  STOCK_LIKE_PRESET
 ];
 
 // ─── Component ───────────────────────────────────────────────────────────────
