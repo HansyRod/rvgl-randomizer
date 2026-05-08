@@ -169,6 +169,10 @@ export const DEFAULT_CAR_OPTIONS = {
 export const DEFAULT_TRACK_OPTIONS = {
   unlockMode: "random", // random | randomUnlock | randomDifficulty | unchanged | baseGame
   includeStuntArena: false,
+  includeDefault: true,
+  includeTimeTrial: true,
+  includePractice: true,
+  includeSingleRace: true,
 };
 
 export function makeDefaultTrackSpec(ids) {

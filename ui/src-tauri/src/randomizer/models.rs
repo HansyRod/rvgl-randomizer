@@ -95,6 +95,14 @@ pub struct TrackOptionsInput {
     pub unlock_mode: String, // random | randomUnlock | randomDifficulty | unchanged | baseGame
     #[serde(default)]
     pub include_stunt_arena: bool,
+    #[serde(default = "default_true")]
+    pub include_default: bool,
+    #[serde(default = "default_true")]
+    pub include_time_trial: bool,
+    #[serde(default = "default_true")]
+    pub include_practice: bool,
+    #[serde(default = "default_true")]
+    pub include_single_race: bool,
 }
 
 pub fn default_unlock_mode() -> String { "random".to_string() }

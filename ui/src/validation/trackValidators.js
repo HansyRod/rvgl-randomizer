@@ -42,6 +42,27 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult) {
     return { errors, warnings };
   }
 
+  // Unlock method pool must have at least one method enabled when randomizing obtain values
+  const showObtainControls =
+    trackOptions?.unlockMode === "random" || trackOptions?.unlockMode === "randomUnlock";
+
+  if (showObtainControls) {
+    const anyMethodAllowed =
+      (trackOptions.includeDefault    ?? true) ||
+      (trackOptions.includeTimeTrial  ?? true) ||
+      (trackOptions.includePractice   ?? true) ||
+      (trackOptions.includeSingleRace ?? true) ||
+      trackOptions.includeStuntArena;
+
+    if (!anyMethodAllowed) {
+      errors.push({
+        id: "tracks_no_unlock_methods",
+        scope: "trackOptions",
+        message: "At least one unlock method must be enabled. Enable at least one method in \"Allowed Unlock Methods\".",
+      });
+    }
+  }
+
   // Stale specific-track references
   const staleTracks = [];
 

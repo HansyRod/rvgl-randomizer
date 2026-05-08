@@ -24,7 +24,15 @@ export default function TrackOptionsTab() {
 
   const set = (key, value) => updateCategoryCtx("configure", { trackOptions: { ...trackOptions, [key]: value } });
   
-  const { unlockMode, includeStuntArena } = trackOptions;
+  const {
+    unlockMode,
+    includeStuntArena,
+    includeDefault,
+    includeTimeTrial,
+    includePractice,
+    includeSingleRace,
+  } = trackOptions;
+
   const includeTracks = trackSpecState?.includeTracks !== false;
 
   const handleModeSelect = (modeId) => {
@@ -148,13 +156,58 @@ export default function TrackOptionsTab() {
         <section className="co-section">
           <h2 className="co-section-title">Allowed Unlock Methods</h2>
           <p className="co-desc">
-            Standard methods (Default, Championship, Time Trial, Practice, Single Race) are always in the pool.
-            Enable the options below to include additional unlock types.
+            Choose which unlock methods are included in the random pool.
           </p>
           <div className="co-checkbox-group">
             <label className="co-checkbox-row">
-              <input type="checkbox" checked={includeStuntArena} onChange={e => set("includeStuntArena", e.target.checked)} />
-              <span>Include <strong>Stunt Arena</strong> — tracks unlocked via Stunt Arena completion.</span>
+              <input
+                type="checkbox"
+                checked={includeDefault}
+                onChange={e => set("includeDefault", e.target.checked)}
+              />
+              <span>
+                <strong>Default</strong> — track is unlocked by winning a championship cup.
+              </span>
+            </label>
+            <label className="co-checkbox-row">
+              <input
+                type="checkbox"
+                checked={includeTimeTrial}
+                onChange={e => set("includeTimeTrial", e.target.checked)}
+              />
+              <span>
+                <strong>Time Trial</strong> — track is unlocked by beating a time trial.
+              </span>
+            </label>
+            <label className="co-checkbox-row">
+              <input
+                type="checkbox"
+                checked={includePractice}
+                onChange={e => set("includePractice", e.target.checked)}
+              />
+              <span>
+                <strong>Practice Stars</strong> — track is unlocked by collecting stars in practice mode.
+              </span>
+            </label>
+            <label className="co-checkbox-row">
+              <input
+                type="checkbox"
+                checked={includeSingleRace}
+                onChange={e => set("includeSingleRace", e.target.checked)}
+              />
+              <span>
+                <strong>Single Race</strong> — track is unlocked by winning a single race.
+              </span>
+            </label>
+            <label className="co-checkbox-row">
+              <input
+                type="checkbox"
+                checked={includeStuntArena}
+                onChange={e => set("includeStuntArena", e.target.checked)}
+              />
+              <span>
+                <strong>Stunt Arena</strong> — track is unlocked by completing the Stunt Arena.
+              </span>
             </label>
           </div>
         </section>

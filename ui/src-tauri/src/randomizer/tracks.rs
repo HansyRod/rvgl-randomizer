@@ -136,8 +136,15 @@ pub fn resolve_track_obtain(attr: &str, mode: &str, opts: &TrackOptionsInput, rn
     if mode == "randomDifficulty" || mode == "unchanged" || mode == "baseGame" {
         0
     } else if attr == "Random" {
-        let mut allowed = vec![0, 1, 2, 3, 4];
+        // Build pool from per-method flags
+        let mut allowed: Vec<i32> = Vec::new();
+        if opts.include_default    { allowed.push(0); }
+        if opts.include_time_trial { allowed.push(2); }
+        if opts.include_practice   { allowed.push(3); }
+        if opts.include_single_race { allowed.push(4); }
         if opts.include_stunt_arena { allowed.push(5); }
+        // Fallback: if all flags are disabled, use Default
+        if allowed.is_empty() { allowed.push(0); }
         let i = rng.next_usize(allowed.len());
         allowed[i]
     } else {

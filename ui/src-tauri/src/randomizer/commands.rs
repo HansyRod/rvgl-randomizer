@@ -49,6 +49,10 @@ pub fn generate_result(
     let track_opts = track_options.unwrap_or_else(|| TrackOptionsInput {
         unlock_mode: default_track_unlock_mode(),
         include_stunt_arena: false,
+        include_default: default_true(),
+        include_time_trial: default_true(),
+        include_practice: default_true(),
+        include_single_race: default_true(),
     });
 
     let all_cars = collect_available_cars(&scan_result);
