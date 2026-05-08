@@ -85,55 +85,69 @@ export default function PresetsTab() {
       {/* ── Preset cards ── */}
       <div className="preset-card-grid">
 
-        {PRESETS.map(preset => (
-          <button
-            key={preset.id}
-            className={`preset-card${selectedPreset === preset.id ? " selected" : ""}`}
-            onClick={() => handleSelectPreset(preset)}
-          >
-            <div className="preset-card-header">
-              <span className="preset-card-label">{preset.label}</span>
-              {preset.tag && (
-                <span className="preset-card-tag">{preset.tag}</span>
+        {PRESETS.map(preset => {
+          const isSelected = selectedPreset === preset.id;
+          return (
+            <button
+              key={preset.id}
+              className={`preset-card${isSelected ? " selected" : ""}`}
+              onClick={() => handleSelectPreset(preset)}
+            >
+              <div className="preset-card-header">
+                <span className="preset-card-label">{preset.label}</span>
+                {preset.tag && (
+                  <span className="preset-card-tag">{preset.tag}</span>
+                )}
+              </div>
+
+              <p className="preset-card-desc">{preset.description}</p>
+
+              {isSelected && (
+                <>
+                  <hr className="preset-card-divider" />
+                  <ul className="preset-card-bullets">
+                    {preset.bullets.map((bullet, i) => (
+                      <li key={i}>{bullet}</li>
+                    ))}
+                  </ul>
+                </>
               )}
-            </div>
-
-            <p className="preset-card-desc">{preset.description}</p>
-
-            <hr className="preset-card-divider" />
-
-            <ul className="preset-card-bullets">
-              {preset.bullets.map((bullet, i) => (
-                <li key={i}>{bullet}</li>
-              ))}
-            </ul>
-          </button>
-        ))}
+            </button>
+          );
+        })}
 
         {/* ── Custom card ── */}
-        <button
-          className={`preset-card preset-card-custom${selectedPreset === "custom" ? " selected" : ""}`}
-          onClick={handleSelectCustom}
-        >
-          <div className="preset-card-header">
-            <span className="preset-card-label">Custom</span>
-          </div>
+        {(() => {
+          const isSelected = selectedPreset === "custom";
+          return (
+            <button
+              className={`preset-card preset-card-custom${isSelected ? " selected" : ""}`}
+              onClick={handleSelectCustom}
+            >
+              <div className="preset-card-header">
+                <span className="preset-card-label">Custom</span>
+              </div>
 
-          <p className="preset-card-desc">
-            Configure every option manually across all the tabs in the sidebar.
-            All settings from the last applied preset are preserved as a
-            starting point.
-          </p>
+              <p className="preset-card-desc">
+                Configure every option manually across all the tabs in the sidebar.
+                All settings from the last applied preset are preserved as a
+                starting point.
+              </p>
 
-          <hr className="preset-card-divider" />
-
-          <ul className="preset-card-bullets">
-            <li>Full access to Car, Track and Cup settings</li>
-            <li>Car unlock mode, ratings, and obtain methods</li>
-            <li>Per-car and per-track specification overrides</li>
-            <li>Cup stage mode, lap counts, and per-cup overrides</li>
-          </ul>
-        </button>
+              {isSelected && (
+                <>
+                  <hr className="preset-card-divider" />
+                  <ul className="preset-card-bullets">
+                    <li>Full access to Car, Track and Cup settings</li>
+                    <li>Car unlock mode, ratings, and obtain methods</li>
+                    <li>Per-car and per-track specification overrides</li>
+                    <li>Cup stage mode, lap counts, and per-cup overrides</li>
+                  </ul>
+                </>
+              )}
+            </button>
+          );
+        })()}
 
       </div>
     </div>
