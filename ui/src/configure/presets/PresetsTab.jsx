@@ -3,6 +3,7 @@ import { useAppContext } from "../../AppProvider";
 import { STOCK_LIKE_PRESET } from "./stock-like";
 import { FULL_RANDOM_PRESET } from "./full-random";
 import { ALL_ROOKIES_PRESET } from "./all-rookies";
+import { CHALLENGE_PRESET } from "./challenge";
 
 // ─── Preset definitions ───────────────────────────────────────────────────────
 // Each preset contains the exact configure sub-state that will be applied when
@@ -12,6 +13,7 @@ export const PRESETS = [
   STOCK_LIKE_PRESET,
   ALL_ROOKIES_PRESET,
   FULL_RANDOM_PRESET,
+  CHALLENGE_PRESET
 ];
 
 // ─── Component ───────────────────────────────────────────────────────────────
