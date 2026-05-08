@@ -29,7 +29,8 @@ const DEFAULT_STATE = {
       tracks: makeDefaultTrackSpec(STOCK_TRACKS)
     },
     cupSpecState: makeDefaultCupSpecState(),
-    configureTab: "car-options", // Configure sub-tab: "car-options" | "stock-cars-spec" | "dc-cars-spec" | "track-options" | "track-spec" | "cup-spec"
+    preset: "basic",           // Selected preset id, or "custom" for manual configuration
+    configureTab: "presets",   // Configure sub-tab: "presets" | "car-options" | "stock-cars-spec" | "dc-cars-spec" | "track-options" | "track-spec" | "cup-spec"
   },
   generate: {
     generatedFilePath: "",

@@ -1,0 +1,108 @@
+/* ── Presets tab layout ── */
+.presets-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1.5rem;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* ── Preset card grid — wider min so cards have room for bullets ── */
+.preset-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.9rem;
+  align-items: start;
+}
+
+/* ── Base preset card — extends co-mode-card style ── */
+.preset-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 1.1rem 1.15rem 1.2rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  box-sizing: border-box;
+}
+
+.preset-card:hover {
+  border-color: var(--accent);
+}
+
+.preset-card.selected {
+  border-color: var(--accent);
+  background: var(--tab-active-bg);
+}
+
+/* ── Card header row: label + tag side-by-side ── */
+.preset-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.preset-card-label {
+  font-weight: 700;
+  font-size: 0.97rem;
+  color: var(--text-primary);
+}
+
+/* ── Tag badge ── */
+.preset-card-tag {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: var(--accent);
+  color: #fff;
+  opacity: 0.85;
+}
+
+/* ── Short description blurb ── */
+.preset-card-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Divider between description and bullets ── */
+.preset-card-divider {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 0.15rem 0;
+}
+
+/* ── "What it does" bullet list ── */
+.preset-card-bullets {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.preset-card-bullets li {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+/* ── Custom card — dashed border to visually distinguish ── */
+.preset-card-custom {
+  border-style: dashed;
+}
+
+.preset-card-custom.selected {
+  border-style: solid;
+}

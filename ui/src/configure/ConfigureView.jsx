@@ -1,6 +1,7 @@
 import { useAppContext } from "../AppProvider";
 
 // Configure sub-views
+import PresetsTab from "./presets/PresetsTab";
 import CarOptionsTab from "./carOptions/CarOptionsTab";
 import StockCarsFullSpecTab from "./carSpec/StockCarsFullSpecTab";
 import DcCarsFullSpecTab from "./carSpec/DcCarsFullSpecTab";
@@ -25,9 +26,12 @@ const CONFIGURE_TABS = [
 export default function ConfigureView() {
   const { state, updateCategoryCtx } = useAppContext();
   const { configure } = state;
-  const activeTab = configure?.configureTab ?? "car-options";
+  const activeTab = configure?.configureTab ?? "presets";
   const carsSpecState = configure?.carsSpecState;
   const trackSpecState = configure?.trackSpecState;
+
+  // When a named preset is active, all tabs except "presets" are locked.
+  const isCustom = configure?.preset === "custom";
 
   const includeStockCars = carsSpecState?.includeStockCars !== false;
   const includeDcCars = carsSpecState?.includeDcCars !== false;
@@ -43,18 +47,35 @@ export default function ConfigureView() {
     <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
       {/* Configure sidebar nav */}
       <nav className="configure-sidenav">
+
+        {/* Presets — top-level entry, not part of any group */}
+        <button
+          className={`configure-nav-item${activeTab === "presets" ? " active" : ""}`}
+          onClick={() => setTab("presets")}
+        >
+          Presets
+        </button>
+
         {groups.map(group => (
           <div key={group} className="configure-nav-group">
             <span className="configure-nav-group-label">{group}</span>
             {CONFIGURE_TABS.filter(t => t.group === group).map(tab => {
-              const isDisabled = tab.disabledKey === "includeStockCars" ? !includeStockCars
-                               : tab.disabledKey === "includeDcCars"    ? !includeDcCars
-                               : tab.disabledKey === "includeTracks"    ? !includeTracks
-                               : false;
+              // Disabled by spec-inclusion flags (e.g. stock/dc/tracks toggles)
+              const isDisabledBySpec = tab.disabledKey === "includeStockCars" ? !includeStockCars
+                                     : tab.disabledKey === "includeDcCars"    ? !includeDcCars
+                                     : tab.disabledKey === "includeTracks"    ? !includeTracks
+                                     : false;
 
-              const disabledTitle = tab.disabledKey === "includeTracks"
-                ? "Disabled - toggle in Track Options"
-                : "Disabled - toggle in Car Options";
+              // Disabled because a preset is active (overrides manual config)
+              const isPresetLocked = !isCustom;
+
+              const isDisabled = isPresetLocked || isDisabledBySpec;
+
+              const disabledTitle = isPresetLocked
+                ? "Disabled - switch to Custom to edit"
+                : tab.disabledKey === "includeTracks"
+                  ? "Disabled - toggle in Track Options"
+                  : "Disabled - toggle in Car Options";
 
               return (
                 <button
@@ -65,6 +86,7 @@ export default function ConfigureView() {
                   title={isDisabled ? disabledTitle : undefined}
                 >
                   {tab.label}
+                  {isPresetLocked && <span style={{ marginLeft: "0.4rem", fontSize: "0.75rem" }}>🔒</span>}
                 </button>
               );
             })}
@@ -74,6 +96,7 @@ export default function ConfigureView() {
 
       {/* Configure pane */}
       <div style={{ flex: 1, overflowY: "auto" }}>
+        {activeTab === "presets"        && <PresetsTab />}
         {activeTab === "car-options"     && <CarOptionsTab />}
         {activeTab === "stock-cars-spec" && <div style={{ padding: "1rem" }}><StockCarsFullSpecTab /></div>}
         {activeTab === "dc-cars-spec"    && <div style={{ padding: "1rem" }}><DcCarsFullSpecTab /></div>}
