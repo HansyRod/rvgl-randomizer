@@ -50,7 +50,8 @@ export function useValidation() {
     if (configure.cupSpecState && configure.trackSpecState) {
       collect(validateCupSpec(
         configure.cupSpecState,
-        configure.trackSpecState
+        configure.trackSpecState,
+        setup.scanResult
       ));
     }
 

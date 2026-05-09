@@ -1,6 +1,8 @@
+import { getAllTracksFromScan } from "./validationUtils";
+
 const CUP_NAMES = ["Bronze Cup", "Silver Cup", "Gold Cup", "Platinum Cup"];
 
-export function validateCupSpec(cupSpecState, trackSpecState) {
+export function validateCupSpec(cupSpecState, trackSpecState, scanResult) {
   const errors = [];
   const warnings = [];
 
@@ -102,6 +104,12 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
   // Compute each cup's effective stage mode (per-cup override beats global).
   const effectiveMode = (cup) =>
     cup.overrideStageMode ? (cup.stageMode ?? cupSpecState.stageMode) : cupSpecState.stageMode;
+  const activeSlotCount = trackSpecState?.tracks?.length ?? 14;
+  const allTrackFolders = new Set(
+    getAllTracksFromScan(scanResult)
+      .map(track => track.folderName?.toLowerCase())
+      .filter(Boolean)
+  );
 
   // Build the set of specific track folders declared in the track spec
   // (used only to validate specific-folder stage references).
@@ -114,12 +122,13 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
         p !== "full random" &&
         p !== "stock" &&
         p !== "custom" &&
-        !p.startsWith("pack:")
+        !p.startsWith("pack:") &&
+        (allTrackFolders.size === 0 || allTrackFolders.has(p))
       )
   ) : new Set(
     (trackSpecState?.tracks || [])
       .map(t => t.id?.toLowerCase())
-      .filter(Boolean)
+      .filter(folder => folder && (allTrackFolders.size === 0 || allTrackFolders.has(folder)))
   );
 
   cupSpecState.cups?.forEach((cup, cupIdx) => {
@@ -138,6 +147,23 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
     // Validate specific-folder references (skip Random, slot:N, difficulty tiers)
     (cup.stages || []).forEach((stage, stageIdx) => {
       const pool = stage.sourcePool;
+      const slotMatch = typeof pool === "string" ? pool.match(/^slot:(\d+)$/i) : null;
+
+      if (slotMatch) {
+        const slotIndex = parseInt(slotMatch[1], 10);
+        if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= activeSlotCount) {
+          errors.push({
+            id: `cup_stage_slot_invalid_${cupIdx}_${stageIdx}`,
+            scope: "cupSpec",
+            field: `cups[${cupIdx}].stages[${stageIdx}]`,
+            message:
+              `${CUP_NAMES[cupIdx]}, Stage ${stageIdx + 1}: Slot ${slotIndex + 1} is not available ` +
+              `in the current track setup. Choose a slot between 1 and ${activeSlotCount}.`
+          });
+        }
+        return;
+      }
+
       const isSpecificFolder =
         pool &&
         pool !== "Random" &&
@@ -192,7 +218,7 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
   });
 
   const allPinned = new Set([...pinnedInTrackSpec, ...pinnedInCupStages]);
-  if (allPinned.size > 14) {
+  if (allPinned.size > activeSlotCount) {
     errors.push({
       id: "cup_too_many_specific_tracks",
       scope: "cupSpec",
@@ -200,7 +226,7 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
         `${allPinned.size} distinct tracks are required (` +
         `${pinnedInTrackSpec.size} pinned in Track Specification, ` +
         `${pinnedInCupStages.size} in Cup Stages), ` +
-        `but the game only supports 14 track slots. ` +
+        `but the current setup only supports ${activeSlotCount} track slots. ` +
         `Reduce the number of specific track references.`
     });
   }
