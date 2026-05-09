@@ -56,8 +56,30 @@ pub fn generate_result(
     });
 
     let all_cars = collect_available_cars(&scan_result);
-    if all_cars.is_empty() {
-        return Err("No valid cars found in scan result. Cannot generate.".to_string());
+    let all_tracks = collect_available_tracks(&scan_result);
+    let is_stock_cars = is_stock_cars_only(&all_cars);
+    let is_stock_tracks = is_stock_tracks_only(&all_tracks);
+
+    let min_cars = if is_stock_cars { 28 } else { 42 };
+    let min_tracks = if is_stock_tracks { 13 } else { 14 };
+
+    let mut content_errors = Vec::new();
+    if all_cars.len() < min_cars {
+        content_errors.push(format!(
+            "Only {} eligible cars are available, but generation requires at least {}.",
+            all_cars.len(),
+            min_cars
+        ));
+    }
+    if all_tracks.len() < min_tracks {
+        content_errors.push(format!(
+            "Only {} eligible tracks are available, but generation requires at least {}.",
+            all_tracks.len(),
+            min_tracks
+        ));
+    }
+    if !content_errors.is_empty() {
+        return Err(content_errors.join(" "));
     }
 
     // 1. Prepare specs with resolved pool distributions
@@ -167,7 +189,6 @@ pub fn generate_result(
 
     let mut tracks = Vec::new();
     if track_spec_state.include_tracks && !track_spec_state.tracks.is_empty() {
-        let all_tracks = collect_available_tracks(&scan_result);
         let resolved_tracks = resolve_track_list(&track_spec_state.tracks, &all_tracks, &scan_result, &mut rng);
         for i in 0..track_spec_state.tracks.len() {
             if let Some(track) = &resolved_tracks[i] {
@@ -266,11 +287,6 @@ pub fn generate_result(
     });
 
     // 5. Build the output structure
-    let is_stock_cars = is_stock_cars_only(&all_cars);
-
-    let all_tracks_for_calc = collect_available_tracks(&scan_result);
-    let is_stock_tracks = is_stock_tracks_only(&all_tracks_for_calc);
-
     let config = ConfigData {
         metadata: ConfigMetadata {
             seed: rng.seed().to_string(),

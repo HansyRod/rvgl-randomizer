@@ -1,4 +1,4 @@
-import { getAllCarsFromScan, getAllTracksFromScan, getIsStockTracks } from "./validationUtils";
+import { getAllCarsFromScan, getAllTracksFromScan, getIsStockCars, getIsStockTracks } from "./validationUtils";
 
 export function validateScan(scanResult) {
   const errors = [];
@@ -7,25 +7,25 @@ export function validateScan(scanResult) {
   const allCars = getAllCarsFromScan(scanResult);
   const allTracks = getAllTracksFromScan(scanResult);
 
-  const validCars = allCars.filter(c => !c.isSystemCar && c.hasValidFile);
-  const validTracks = allTracks.filter(t => t.hasValidFile && t.trackType === 0);
+  const isStockCarsMode = getIsStockCars(scanResult);
+  const minCars = isStockCarsMode ? 28 : 42;
 
-  if (validCars.length < 28) {
-    warnings.push({
+  if (allCars.length < minCars) {
+    errors.push({
       id: "scan_insufficient_cars",
       scope: "scan",
-      message: `Only ${validCars.length} eligible cars are available. Car randomization may have limited variety.`
+      message: `Only ${allCars.length} eligible cars are available, but generation requires at least ${minCars}.`
     });
   }
 
   const isStockMode = getIsStockTracks(scanResult);
   const minTracks = isStockMode ? 13 : 14;
 
-  if (validTracks.length < minTracks) {
-    warnings.push({
+  if (allTracks.length < minTracks) {
+    errors.push({
       id: "scan_insufficient_tracks",
       scope: "scan",
-      message: `Only ${validTracks.length} eligible tracks are available. Track randomization may have limited variety.`
+      message: `Only ${allTracks.length} eligible tracks are available, but generation requires at least ${minTracks}.`
     });
   }
 
