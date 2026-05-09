@@ -4,8 +4,7 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult) {
   const warnings = [];
   const infos = [];
 
-  const allTracks = getAllTracksFromScan(scanResult)
-    .filter(t => t.hasValidFile && t.trackType === 0);
+  const allTracks = getAllTracksFromScan(scanResult);
 
   const isStockMode = getIsStockTracks(scanResult);
   if (isStockMode) {

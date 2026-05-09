@@ -95,15 +95,11 @@ export default function GenerationTab({errors}) {
     setMessage("Generating...");
 
     try {
-      // Intercept and strip arrays if the user unchecked them
+      // Intercept and strip car arrays if the user unchecked them
       const filteredSpecState = {
         ...carsSpecState,
         stockCars: carsSpecState.includeStockCars === false ? [] : carsSpecState.stockCars,
         dcCars: carsSpecState.includeDcCars === false ? [] : carsSpecState.dcCars
-      };
-      const filteredTrackSpecState = {
-        ...trackSpecState,
-        tracks: trackSpecState.includeTracks === false ? [] : trackSpecState.tracks
       };
 
       const showRatingOptions = carOptions?.unlockMode === "random" || carOptions?.unlockMode === "randomRatings";
@@ -132,7 +128,7 @@ export default function GenerationTab({errors}) {
         scanResult,
         carsSpecState: filteredSpecState,
         carOptions: sanitizedCarOptions,
-        trackSpecState: filteredTrackSpecState,
+        trackSpecState,
         trackOptions: sanitizedTrackOptions,
         cupSpecState: cupSpecState ?? null,
         fileName: instanceName.trim(),

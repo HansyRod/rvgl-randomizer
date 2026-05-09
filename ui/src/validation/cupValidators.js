@@ -186,9 +186,9 @@ export function validateCupSpec(cupSpecState, trackSpecState, scanResult) {
   });
 
   // ── Total distinct specific tracks ≤ 14 ──────────────────────────────────
-  // RVGL loads exactly 14 track slots. Every track folder that is pinned by
+  // RVGL loads a fixed number of track slots. Every track folder that is pinned by
   // name (in either the Track Spec or User-Defined cup stages) must fit within
-  // those 14 slots. If the union of all pinned folder names exceeds 14,
+  // the active slot count. If the union of all pinned folder names exceeds it,
   // generation is impossible.
 
   const isGenericTrackSpecPool = (p) =>
