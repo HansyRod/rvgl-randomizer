@@ -57,6 +57,11 @@ export default function CupConfigPage({ cupIndex }) {
     updateCategoryCtx("configure", { cupSpecState: { ...cupSpecState, cups } });
   }, [cupSpecState, cupIndex, updateCategoryCtx]);
 
+  const setCupIntWithDefault = useCallback((key, val, defaultVal) => {
+    const intVal = parseInt(val);
+    setCup(key, isNaN(intVal) ? defaultVal : intVal);
+  }, [setCup]);
+
   // Effective values (cup override if active, else global)
   const eff = {
     stageMode:    cupSpec.overrideStageMode    ? (cupSpec.stageMode ?? globalState.stageMode)                       : globalState.stageMode,
@@ -281,7 +286,7 @@ export default function CupConfigPage({ cupIndex }) {
               <input
                 type="number" min={1} max={16}
                 value={cupSpec.numCars ?? globalState.numCars}
-                onChange={e => setCup("numCars", parseInt(e.target.value) || 8)}
+                onChange={e => setCupIntWithDefault("numCars", e.target.value, 8)}
                 disabled={!cupSpec.overrideNumCars}
                 className="co-number-input"
               />
@@ -295,9 +300,9 @@ export default function CupConfigPage({ cupIndex }) {
               onToggle={v => setCup("overrideNumTries", v)}
             >
               <input
-                type="number" min={1} max={10}
+                type="number" min={0} max={10}
                 value={cupSpec.numTries ?? globalState.numTries}
-                onChange={e => setCup("numTries", parseInt(e.target.value) || 3)}
+                onChange={e => setCupIntWithDefault("numTries", e.target.value, 3)}
                 disabled={!cupSpec.overrideNumTries}
                 className="co-number-input"
               />
@@ -313,7 +318,7 @@ export default function CupConfigPage({ cupIndex }) {
               <input
                 type="number" min={1} max={16}
                 value={cupSpec.perRaceRequiredPlace ?? globalState.perRaceRequiredPlace}
-                onChange={e => setCup("perRaceRequiredPlace", parseInt(e.target.value) || 3)}
+                onChange={e => setCupIntWithDefault("perRaceRequiredPlace", e.target.value, 3)}
                 disabled={!cupSpec.overridePerRacePlace}
                 className="co-number-input"
               />
@@ -329,7 +334,7 @@ export default function CupConfigPage({ cupIndex }) {
               <input
                 type="number" min={1} max={16}
                 value={cupSpec.overallRequiredPlace ?? globalState.overallRequiredPlace}
-                onChange={e => setCup("overallRequiredPlace", parseInt(e.target.value) || 1)}
+                onChange={e => setCupIntWithDefault("overallRequiredPlace", e.target.value, 1)}
                 disabled={!cupSpec.overrideOverallPlace}
                 className="co-number-input"
               />
@@ -348,7 +353,7 @@ export default function CupConfigPage({ cupIndex }) {
                 <input
                   type="number" min={1} max={16}
                   value={cupSpec.numStagesMin ?? globalState.numStagesMin}
-                  onChange={e => setCup("numStagesMin", Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={e => setCupIntWithDefault("numStagesMin", e.target.value, 2)}
                   disabled={!cupSpec.overrideNumStagesMin}
                   className="co-number-input"
                 />
@@ -363,7 +368,7 @@ export default function CupConfigPage({ cupIndex }) {
                 <input
                   type="number" min={1} max={16}
                   value={cupSpec.numStagesMax ?? globalState.numStagesMax}
-                  onChange={e => setCup("numStagesMax", Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={e => setCupIntWithDefault("numStagesMax", e.target.value, 8)}
                   disabled={!cupSpec.overrideNumStagesMax}
                   className="co-number-input"
                 />
@@ -378,7 +383,7 @@ export default function CupConfigPage({ cupIndex }) {
                 <input
                   type="number" min={1} max={20}
                   value={cupSpec.numLapsMin ?? globalState.numLapsMin}
-                  onChange={e => setCup("numLapsMin", parseInt(e.target.value) || 1)}
+                  onChange={e => setCupIntWithDefault("numLapsMin", e.target.value, 2)}
                   disabled={!cupSpec.overrideNumLapsMin}
                   className="co-number-input"
                 />
@@ -393,7 +398,7 @@ export default function CupConfigPage({ cupIndex }) {
                 <input
                   type="number" min={1} max={20}
                   value={cupSpec.numLapsMax ?? globalState.numLapsMax}
-                  onChange={e => setCup("numLapsMax", Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={e => setCupIntWithDefault("numLapsMax", e.target.value, 8)}
                   disabled={!cupSpec.overrideNumLapsMax}
                   className="co-number-input"
                 />

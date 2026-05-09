@@ -79,6 +79,14 @@ export default function CupSpecTab() {
     updateCategoryCtx("configure", { cupSpecState: { ...cupSpecState, [key]: val } });
   }, [cupSpecState, updateCategoryCtx]);
 
+  const setIntWithDefault = useCallback((key, val, def) => {
+    let intVal = parseInt(val);
+    if (isNaN(intVal)) {
+      intVal = def;
+    }
+    set(key, intVal);
+  }, [set]);
+
   const stageMode = cupSpecState.stageMode;
   const userDefinedMode = stageMode === "userDefined";
 
@@ -152,25 +160,25 @@ export default function CupSpecTab() {
               <div className="cup-field-pair">
                 <label>Number of Cars</label>
                 <input type="number" min={1} max={16} value={globalNumCars}
-                  onChange={e => set("numCars", parseInt(e.target.value) || 8)}
+                  onChange={e => setIntWithDefault("numCars", e.target.value, 8)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
                 <label>Number of Tries</label>
-                <input type="number" min={1} max={10} value={cupSpecState.numTries}
-                  onChange={e => set("numTries", parseInt(e.target.value) || 3)}
+                <input type="number" min={0} max={10} value={cupSpecState.numTries}
+                  onChange={e => setIntWithDefault("numTries", e.target.value, 3)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
                 <label>Minimum Per-Race Position</label>
                 <input type="number" min={1} max={16} value={cupSpecState.perRaceRequiredPlace}
-                  onChange={e => set("perRaceRequiredPlace", parseInt(e.target.value) || 3)}
+                  onChange={e => setIntWithDefault("perRaceRequiredPlace", e.target.value, 3)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
                 <label>Minimum Overall Position</label>
                 <input type="number" min={1} max={16} value={cupSpecState.overallRequiredPlace}
-                  onChange={e => set("overallRequiredPlace", parseInt(e.target.value) || 1)}
+                  onChange={e => setIntWithDefault("overallRequiredPlace", e.target.value, 1)}
                   className="co-number-input" />
               </div>
             </div>
@@ -245,25 +253,25 @@ export default function CupSpecTab() {
               <div className="cup-field-pair">
                 <label>Minimum Number of Stages</label>
                 <input type="number" min={1} max={16} value={globalNumStagesMin}
-                  onChange={e => set("numStagesMin", parseInt(e.target.value) || 2)}
+                  onChange={e => setIntWithDefault("numStagesMin", e.target.value, 2)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
                 <label>Maximum Number of Stages</label>
                 <input type="number" min={1} max={16} value={globalNumStagesMax}
-                  onChange={e => set("numStagesMax", parseInt(e.target.value) || 8)}
+                  onChange={e => setIntWithDefault("numStagesMax", e.target.value, 8)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
                 <label>Minimum Number of Laps</label>
                 <input type="number" min={1} max={20} value={globalLapsMin}
-                  onChange={e => set("numLapsMin", parseInt(e.target.value) || 2)}
+                  onChange={e => setIntWithDefault("numLapsMin", e.target.value, 2)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
                 <label>Maximum Number of Laps</label>
                 <input type="number" min={1} max={20} value={globalLapsMax}
-                  onChange={e => set("numLapsMax", parseInt(e.target.value) || 8)}
+                  onChange={e => setIntWithDefault("numLapsMax", e.target.value, 8)}
                   className="co-number-input" />
               </div>
             </div>
