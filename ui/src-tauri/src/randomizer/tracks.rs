@@ -129,9 +129,24 @@ pub fn resolve_track_list(
     out
 }
 
-pub fn resolve_track_difficulty(attr: &str, scanned: i32, slot_index: usize, mode: &str, rng: &mut Rng) -> i32 {
-    if mode == "baseGame" {
+fn resolve_base_game_track_difficulty(slot_index: usize, slot_count: usize) -> i32 {
+    if slot_count == 13 {
+        if slot_index < 4 { 1 } else if slot_index < 7 { 2 } else if slot_index < 10 { 3 } else { 4 }
+    } else {
         if slot_index < 4 { 1 } else if slot_index < 8 { 2 } else if slot_index < 11 { 3 } else { 4 }
+    }
+}
+
+pub fn resolve_track_difficulty(
+    attr: &str,
+    scanned: i32,
+    slot_index: usize,
+    slot_count: usize,
+    mode: &str,
+    rng: &mut Rng,
+) -> i32 {
+    if mode == "baseGame" {
+        resolve_base_game_track_difficulty(slot_index, slot_count)
     } else if mode == "randomUnlock" || mode == "unchanged" {
         scanned
     } else {

@@ -199,6 +199,7 @@ pub fn generate_result(
                         &spec.attr_difficulty,
                         track.difficulty,
                         i,
+                        track_spec_state.tracks.len(),
                         &track_opts.unlock_mode,
                         &mut rng,
                     ),

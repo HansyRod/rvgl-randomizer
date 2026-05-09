@@ -13,6 +13,20 @@ function makeDefaultTrackSpec(ids) {
   }));
 }
 
+function getBaseGameTrackDifficulty(slotIndex, slotCount) {
+  if (slotCount === 13) {
+    if (slotIndex < 4) return "1";
+    if (slotIndex < 7) return "2";
+    if (slotIndex < 10) return "3";
+    return "4";
+  }
+
+  if (slotIndex < 4) return "1";
+  if (slotIndex < 8) return "2";
+  if (slotIndex < 11) return "3";
+  return "4";
+}
+
 export default function TrackOptionsTab() {
 
   const { state, updateCategoryCtx } = useAppContext();
@@ -42,6 +56,7 @@ export default function TrackOptionsTab() {
     const base = trackSpecState ?? {
       tracks: makeDefaultTrackSpec(STOCK_TRACKS),
     };
+    const slotCount = base.tracks.length;
 
     const nextTracks = base.tracks.map((track, i) => {
       const out = { ...track };
@@ -71,18 +86,7 @@ export default function TrackOptionsTab() {
           out.attrDifficulty = "Unchanged";
           break;
         case "baseGame":
-          if (i < 4) {
-            out.attrDifficulty = "1"; // Easy first 4 tracks
-          }
-          else if (i < 8) {
-            out.attrDifficulty = "2"; // Medium next 4 tracks
-          }
-          else if (i < 11) {
-            out.attrDifficulty = "3"; // Hard next 3 tracks
-          }
-          else {
-            out.attrDifficulty = "4"; // Extreme last 3 tracks
-          }
+          out.attrDifficulty = getBaseGameTrackDifficulty(i, slotCount);
           break;
         default:
           break;
