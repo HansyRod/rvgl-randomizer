@@ -223,6 +223,19 @@ pub fn generate_result(
         tracks.sort_by_key(|track| track.difficulty);
     }
 
+    let cup_tracks = if track_spec_state.include_tracks {
+        tracks.clone()
+    } else {
+        collect_stock_tracks_in_order(&all_tracks, !is_stock_tracks)
+            .into_iter()
+            .map(|track| RandomizedTrack {
+                folder: track.folder_name,
+                difficulty: track.difficulty,
+                obtain: 0,
+            })
+            .collect()
+    };
+
     // Phase 3: Cup generation (depends on resolved track list)
     let cup_state = cup_spec_state.unwrap_or_else(|| CupSpecState {
         enabled: true,
@@ -248,7 +261,7 @@ pub fn generate_result(
             make_default_cup_spec_rust(3),
         ],
     });
-    let cups = generate_cups(&cup_state, &tracks, &scan_result, &mut rng);
+    let cups = generate_cups(&cup_state, &cup_tracks, &scan_result, &mut rng);
 
     // 4. Assemble UiContext
     let required_packs: Vec<String> = match &scan_result.install_type {

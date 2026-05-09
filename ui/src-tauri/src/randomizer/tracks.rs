@@ -22,6 +22,25 @@ pub fn is_stock_tracks_only(tracks: &[Track]) -> bool {
         })
 }
 
+pub fn collect_stock_tracks_in_order(all_tracks: &[Track], include_roof: bool) -> Vec<Track> {
+    let mut ordered = Vec::new();
+
+    for stock_folder in STOCK_TRACK_FOLDERS {
+        if !include_roof && stock_folder.eq_ignore_ascii_case("roof") {
+            continue;
+        }
+
+        if let Some(track) = all_tracks
+            .iter()
+            .find(|track| track.folder_name.eq_ignore_ascii_case(stock_folder))
+        {
+            ordered.push(track.clone());
+        }
+    }
+
+    ordered
+}
+
 pub fn collect_available_tracks(scan: &ScanResult) -> Vec<Track> {
     let mut out = Vec::new();
     match &scan.install_type {
