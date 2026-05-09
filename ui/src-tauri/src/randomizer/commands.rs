@@ -268,7 +268,7 @@ pub fn generate_result(
         global_options: ConfigGlobalOptions {
             load_extra_cars: false,
             load_extra_tracks: false,
-            load_extra_cups: true,
+            load_extra_cups: false,
         },
         stock_cars,
         dc_cars,
