@@ -1,6 +1,4 @@
 import { formatValidationList, getAllTracksFromScan, getIsStockTracks } from "./validationUtils";
-import { STOCK_TRACKS } from "../utils/constants";
-
 export function validateTrackSpec(trackSpecState, trackOptions, scanResult) {
   const errors = [];
   const warnings = [];
@@ -33,11 +31,10 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult) {
 
     // Check stale original-track references
     const staleStockRefs = [];
+    const trackIds = (trackSpecState?.tracks || []).map(row => row?.id).filter(Boolean);
 
     // When stock tracks are not randomized, validate they exist in the source pool
-    STOCK_TRACKS.forEach((track, i) => {
-      // In stock mode, roof is excluded by definition, so ignore missing roof
-      if (isStockMode && track.toLowerCase() === "roof") return;
+    trackIds.forEach((track, i) => {
       if (!allTrackFolders.has(track)) {
         staleStockRefs.push(`slot ${i + 1} (${track})`);
       }

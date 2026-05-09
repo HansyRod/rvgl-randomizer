@@ -26,7 +26,8 @@ const DEFAULT_STATE = {
     },
     trackSpecState: {
       includeTracks: true,
-      tracks: makeDefaultTrackSpec(STOCK_TRACKS)
+      tracks: makeDefaultTrackSpec(STOCK_TRACKS),
+      cachedRoofTrackRow: null
     },
     cupSpecState: makeDefaultCupSpecState(),
     preset: "basic",           // Selected preset id, or "custom" for manual configuration

@@ -1,7 +1,5 @@
 const CUP_NAMES = ["Bronze Cup", "Silver Cup", "Gold Cup", "Platinum Cup"];
 
-import { STOCK_TRACKS } from "../utils/constants";
-
 export function validateCupSpec(cupSpecState, trackSpecState) {
   const errors = [];
   const warnings = [];
@@ -118,7 +116,11 @@ export function validateCupSpec(cupSpecState, trackSpecState) {
         p !== "custom" &&
         !p.startsWith("pack:")
       )
-  ) : new Set(STOCK_TRACKS);
+  ) : new Set(
+    (trackSpecState?.tracks || [])
+      .map(t => t.id?.toLowerCase())
+      .filter(Boolean)
+  );
 
   cupSpecState.cups?.forEach((cup, cupIdx) => {
     if (effectiveMode(cup) !== "userDefined") return;

@@ -4,7 +4,6 @@ import { STOCK_TRACKS } from "../../utils/constants";
 import { useAppContext } from "../../AppProvider";
 import TrackSearchModal from "./TrackSearchModal";
 import TrackSpecRow from "./TrackSpecRow";
-import { getIsStockTracks } from "../../validation/validationUtils";
 
 const SpecRow = memo(TrackSpecRow);
 
@@ -22,7 +21,6 @@ export default function TrackSpecTab() {
   const [presetSelection, setPresetSelection] = useState("Full Random");
   const [searchModalRow, setSearchModalRow] = useState(null);
   const isEnabled = specState?.includeTracks !== false;
-  const isStockMode = getIsStockTracks(scanResult);
 
   const availableTracks = useMemo(() => {
     if (!scanResult) return [];
@@ -90,7 +88,7 @@ export default function TrackSpecTab() {
       if (presetSelection === "Original Content") {
         return {
           ...row,
-          sourcePool: STOCK_TRACKS[i] || "Full Random",
+          sourcePool: row.id || STOCK_TRACKS[i] || "Full Random",
           sourceDifficulty: "Random",
         };
       }
@@ -168,7 +166,7 @@ export default function TrackSpecTab() {
                 </div>
               </div>
             </div>
-            {(specState?.tracks || []).map((row, index) => ({ row, index })).filter(({ index }) => !(isStockMode && index === 4)).map(({ row, index }) => (
+            {(specState?.tracks || []).map((row, index) => ({ row, index })).map(({ row, index }) => (
               <SpecRow
                 key={`${row.id}-${index}`}
                 index={index}

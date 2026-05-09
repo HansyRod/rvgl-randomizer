@@ -91,12 +91,13 @@ export default function CupConfigPage({ cupIndex }) {
       ? (scanResult.tracks || [])
       : (scanResult.contentPacks || []).filter(p => p.useTracks).flatMap(p => p.tracks);
 
-    // Track randomization disabled → stock tracks are the valid set
+    // Track randomization disabled → the normalized track spec is the valid set
     if (trackSpecState.includeTracks === false) {
-      const stockFolders = new Set([
-        "nhood1","market2","muse2","garden1","roof","toylite","wild_west1",
-        "toy2","nhood2","ship1","muse1","market1","wild_west2","ship2",
-      ]);
+      const stockFolders = new Set(
+        (trackSpecState.tracks || [])
+          .map(track => track.id?.toLowerCase())
+          .filter(Boolean)
+      );
       return allTracks.filter(t =>
         t.hasValidFile &&
         t.trackType === 0 &&

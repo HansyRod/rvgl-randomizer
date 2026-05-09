@@ -17,7 +17,8 @@ import GenerationTab from "./generate/GenerationTab";
 import { useValidation } from "./validation/useValidation";
 import { useLaunchValidation } from "./validation/useLaunchValidation";
 import ValidationStatus from "./validation/ValidationStatus";
-import { getIsStockCars } from "./validation/validationUtils";
+import { makeDefaultTrackSpec } from "./utils/constants";
+import { getIsStockCars, getIsStockTracks } from "./validation/validationUtils";
 
 export default function App() {
   const { state, resetContext, updateContext, updateCategoryCtx } = useAppContext();
@@ -50,6 +51,43 @@ export default function App() {
       }
     }
   }, [setup.scanResult, configure.carsSpecState?.includeDcCars, updateCategoryCtx]);
+
+  useEffect(() => {
+    const trackSpecState = configure.trackSpecState;
+    if (!setup.scanResult || !trackSpecState?.tracks) return;
+
+    const isStockTracksMode = getIsStockTracks(setup.scanResult);
+    const roofIndex = trackSpecState.tracks.findIndex(row => row?.id?.toLowerCase() === "roof");
+
+    if (isStockTracksMode) {
+      if (roofIndex !== -1) {
+        const cachedRoofTrackRow = trackSpecState.tracks[roofIndex];
+        const tracks = trackSpecState.tracks.filter((_, index) => index !== roofIndex);
+
+        updateCategoryCtx("configure", {
+          trackSpecState: {
+            ...trackSpecState,
+            tracks,
+            cachedRoofTrackRow
+          }
+        });
+      }
+      return;
+    }
+
+    if (roofIndex === -1) {
+      const roofRow = trackSpecState.cachedRoofTrackRow ?? makeDefaultTrackSpec(["roof"])[0];
+      const tracks = [...trackSpecState.tracks];
+      tracks.splice(Math.min(4, tracks.length), 0, roofRow);
+
+      updateCategoryCtx("configure", {
+        trackSpecState: {
+          ...trackSpecState,
+          tracks
+        }
+      });
+    }
+  }, [setup.scanResult, configure.trackSpecState, updateCategoryCtx]);
 
   // Load cache on mount
   useEffect(() => {
