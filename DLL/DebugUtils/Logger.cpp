@@ -61,7 +61,15 @@ void Init(HMODULE selfModule) {
     std::error_code createError;
     std::filesystem::create_directories(logsDirectory, createError);
 
-    const std::filesystem::path logPath = logsDirectory / "rvgl-randomizer.log";
+    // Create timestamped file
+    SYSTEMTIME t;
+    GetLocalTime(&t);
+
+    char timeStr[640]{};
+    snprintf(timeStr, sizeof(timeStr) - 1, "%04d-%02d-%02d %02d%02d%02d", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
+    const std::string logFileName = std::string("rvgl-randomizer-") + timeStr + ".log";
+
+    const std::filesystem::path logPath = logsDirectory / logFileName;
     g_logPath = WideToUtf8(logPath.wstring());
     g_file = _wfopen(logPath.c_str(), L"w");
 
