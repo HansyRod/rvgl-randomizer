@@ -54,10 +54,16 @@ function carsPerClassSum(arr) {
 
 // ─── Shared sub-components ────────────────────────────────────────────────────
 
-const SLOT_COUNT = 14; // Fixed number of stock track slots (slots 0-13)
-
-export function StageRow({ stage, index, onUpdate, onRemove, resolvedTracks }) {
+export function StageRow({ stage, index, onUpdate, onRemove, resolvedTracks = [], slotCount = 14 }) {
   const poolValue = stage.sourcePool ?? "Random";
+  const hasCurrentSpecificTrack = resolvedTracks.some((track) => {
+    const folder = track.folderName ?? track.folder;
+    return folder === poolValue;
+  });
+  const currentSlotIndex = poolValue.startsWith("slot:")
+    ? parseInt(poolValue.slice(5), 10)
+    : null;
+  const hasOutOfRangeSlot = Number.isInteger(currentSlotIndex) && (currentSlotIndex < 0 || currentSlotIndex >= slotCount);
 
   // numLaps: null → random mode; number → fixed mode
   const isFixedLaps = typeof stage.numLaps === "number";
@@ -74,7 +80,7 @@ export function StageRow({ stage, index, onUpdate, onRemove, resolvedTracks }) {
       >
         <option value="Random">Random</option>
         <optgroup label="Specific Slot">
-          {Array.from({ length: SLOT_COUNT }, (_, i) => (
+          {Array.from({ length: slotCount }, (_, i) => (
             <option key={`slot:${i}`} value={`slot:${i}`}>Slot {i + 1}</option>
           ))}
         </optgroup>
@@ -87,9 +93,12 @@ export function StageRow({ stage, index, onUpdate, onRemove, resolvedTracks }) {
             ))}
           </optgroup>
         )}
+        {hasOutOfRangeSlot && (
+          <option value={poolValue}>Unavailable Slot {currentSlotIndex + 1}</option>
+        )}
         { poolValue !== "Random" && 
          !poolValue.startsWith("slot:") && 
-         !resolvedTracks.some((t) => t.folderName === poolValue) &&
+         !hasCurrentSpecificTrack &&
           (
             <option value={poolValue}>Unknown Track: {poolValue}</option>
           )

@@ -2,6 +2,8 @@ import { useMemo, useCallback } from "react";
 import "../carOptions/CarOptionsTab.css";
 import "./CupSpecTab.css";
 import { useAppContext } from "../../AppProvider";
+import { STOCK_TRACKS } from "../../utils/constants";
+import { getIsStockTracks } from "../../validation/validationUtils";
 import {
   CUP_NAMES,
   DEFAULT_CARS_PER_CLASS,
@@ -44,6 +46,8 @@ export default function CupConfigPage({ cupIndex }) {
   const { setup, configure } = state;
   const { scanResult } = setup;
   const { trackSpecState, cupSpecState } = configure;
+  const isStockTracksMode = scanResult ? getIsStockTracks(scanResult) : false;
+  const slotCount = isStockTracksMode ? 13 : 14;
 
   const cupSpec = cupSpecState.cups[cupIndex];
   const globalState = cupSpecState;
@@ -93,16 +97,18 @@ export default function CupConfigPage({ cupIndex }) {
 
     // Track randomization disabled → the normalized track spec is the valid set
     if (trackSpecState.includeTracks === false) {
-      const stockFolders = new Set(
-        (trackSpecState.tracks || [])
-          .map(track => track.id?.toLowerCase())
-          .filter(Boolean)
+      const eligibleTracks = new Map(
+        allTracks
+          .filter(track => track.hasValidFile && track.trackType === 0 && track.folderName)
+          .map(track => [track.folderName.toLowerCase(), track])
       );
-      return allTracks.filter(t =>
-        t.hasValidFile &&
-        t.trackType === 0 &&
-        stockFolders.has(t.folderName?.toLowerCase())
-      );
+      const stockFolders = isStockTracksMode
+        ? STOCK_TRACKS.filter(folder => folder.toLowerCase() !== "roof")
+        : STOCK_TRACKS;
+
+      return stockFolders
+        .map(folder => eligibleTracks.get(folder.toLowerCase()))
+        .filter(Boolean);
     }
 
     // Track randomization enabled → only tracks pinned by folder name in the Track Spec
@@ -121,7 +127,7 @@ export default function CupConfigPage({ cupIndex }) {
       t.trackType === 0 &&
       pinnedFolders.has(t.folderName?.toLowerCase())
     );
-  }, [scanResult, trackSpecState]);
+  }, [scanResult, trackSpecState, isStockTracksMode]);
 
 
 
@@ -222,7 +228,7 @@ export default function CupConfigPage({ cupIndex }) {
                 onUpdate={updateStage}
                 onRemove={removeStage}
                 resolvedTracks={resolvedTracks}
-                scanResult={scanResult}
+                slotCount={slotCount}
               />
             ))}
             {stageCount < 16 && (
