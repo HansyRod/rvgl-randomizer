@@ -44,6 +44,18 @@ namespace Randomizer {
         bool is_stock_tracks = false;
     };
 
+    inline bool GetOptionalBool(const json& j, const char* primaryKey, const char* fallbackKey, bool defaultValue) {
+        if (j.contains(primaryKey) && !j.at(primaryKey).is_null()) {
+            return j.at(primaryKey).get<bool>();
+        }
+
+        if (j.contains(fallbackKey) && !j.at(fallbackKey).is_null()) {
+            return j.at(fallbackKey).get<bool>();
+        }
+
+        return defaultValue;
+    }
+
     inline void to_json(json& j, const ConfigGlobalOptions& p) {
         j = json{
             {"load_extra_cars", p.load_extra_cars},
@@ -55,11 +67,11 @@ namespace Randomizer {
     }
 
     inline void from_json(const json& j, ConfigGlobalOptions& p) {
-        p.load_extra_cars = j.value("load_extra_cars", false);
-        p.load_extra_tracks = j.value("load_extra_tracks", false);
-        p.load_extra_cups = j.value("load_extra_cups", false);
-        p.is_stock_cars = j.value("is_stock_cars", false);
-        p.is_stock_tracks = j.value("is_stock_tracks", false);
+        p.load_extra_cars = GetOptionalBool(j, "load_extra_cars", "loadExtraCars", false);
+        p.load_extra_tracks = GetOptionalBool(j, "load_extra_tracks", "loadExtraTracks", false);
+        p.load_extra_cups = GetOptionalBool(j, "load_extra_cups", "loadExtraCups", false);
+        p.is_stock_cars = GetOptionalBool(j, "is_stock_cars", "isStockCars", false);
+        p.is_stock_tracks = GetOptionalBool(j, "is_stock_tracks", "isStockTracks", false);
     }
 
     // Represents an entry in the "cars" array

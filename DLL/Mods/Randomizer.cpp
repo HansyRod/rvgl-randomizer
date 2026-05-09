@@ -667,9 +667,10 @@ void Hook_Profile_LoadAndReset(char* profileName) {
 void Hook_LoadSettingsFromIni(char* profileName) {
     Orig_LoadSettingsFromIni(profileName);
 
+    bool useCupDC = !(g_ActiveConfig.has_value() && g_ActiveConfig->global_options.is_stock_tracks == true);
     // Force CupDC flag to true so DC cups are loaded and selectable in championships.
     bool* cupDCFlag = reinterpret_cast<bool*>(AbsFromRva(RVA_CUP_DC));
-    *cupDCFlag = true;
+    *cupDCFlag = useCupDC;
 }
 
 void Hook_Track_ApplyCustomUnlock(int trackIndex) {
