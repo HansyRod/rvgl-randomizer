@@ -129,14 +129,19 @@ fn build_default_stages(
             is_mirror,
         }
     };
+    let push_stage_at = |stages: &mut Vec<RandomizedCupStage>, idx: usize, is_reverse: bool, is_mirror: bool, num_laps: u32| {
+        if let Some(track) = resolved.get(idx) {
+            stages.push(make_stage(&track.folder, is_reverse, is_mirror, num_laps));
+        }
+    };
 
     match cup_index {
         // Bronze: tracks 0–3, all Normal
         0 => {
             let mut stages = Vec::new();
             for i in 0..4.min(resolved.len()) {
-                if i < laps.len() {
-                    stages.push(make_stage(&resolved[i].folder, false, false, laps[i]));
+                if let Some(&lap) = laps.get(i) {
+                    push_stage_at(&mut stages, i, false, false, lap);
                 }
             }
             stages
@@ -154,15 +159,13 @@ fn build_default_stages(
                     (6, 4, false, false),
                 ];
                 for &(idx, l, rev, mir) in &layout {
-                    if idx < resolved.len() {
-                        stages.push(make_stage(&resolved[idx].folder, rev, mir, l));
-                    }
+                    push_stage_at(&mut stages, idx, rev, mir, l);
                 }
             } else {
                 for i in 0..4.min(resolved.len()) {
                     let idx = 4 + i;
-                    if idx < resolved.len() && i < laps.len() {
-                        stages.push(make_stage(&resolved[idx].folder, false, false, laps[i]));
+                    if let Some(&lap) = laps.get(i) {
+                        push_stage_at(&mut stages, idx, false, false, lap);
                     }
                 }
             }
@@ -178,9 +181,9 @@ fn build_default_stages(
                 [8, 5, 9, 10]
             };
             for (i, &track_idx) in indices.iter().enumerate() {
-                if track_idx < resolved.len() && i < laps.len() {
+                if let Some(&lap) = laps.get(i) {
                     let is_mirror = i == 1; // second stage is mirrored
-                    stages.push(make_stage(&resolved[track_idx].folder, false, is_mirror, laps[i]));
+                    push_stage_at(&mut stages, track_idx, false, is_mirror, lap);
                 }
             }
             stages
@@ -193,12 +196,20 @@ fn build_default_stages(
             // Stage 0: track11 (Normal)
             // Stage 1: track12 (Normal)
             if resolved.len() == 13 {
-                stages.push(make_stage(&resolved[10].folder, false, false, laps[0]));
-                stages.push(make_stage(&resolved[11].folder, false, false, laps[1]));
+                if let Some(&lap) = laps.get(0) {
+                    push_stage_at(&mut stages, 10, false, false, lap);
+                }
+                if let Some(&lap) = laps.get(1) {
+                    push_stage_at(&mut stages, 11, false, false, lap);
+                }
             }
             else {
-                stages.push(make_stage(&resolved[11].folder, false, false, laps[0]));
-                stages.push(make_stage(&resolved[12].folder, false, false, laps[1]));
+                if let Some(&lap) = laps.get(0) {
+                    push_stage_at(&mut stages, 11, false, false, lap);
+                }
+                if let Some(&lap) = laps.get(1) {
+                    push_stage_at(&mut stages, 12, false, false, lap);
+                }
             }
             
             let stage_2_idx = if resolved.len() == 13 { 4 } else { 5 };
@@ -206,29 +217,34 @@ fn build_default_stages(
             let stage_4_idx = if resolved.len() == 13 { 12 } else { 13 };
 
             // Stage 2: track5 with variant logic
-            let folder = &resolved[stage_2_idx].folder;
-            let has_rev = track_has_reversed(folder, scan);
-            if has_rev {
-                stages.push(make_stage(folder, true, true, laps[2]));
-            } else {
-                // Fallback: collect all tracks from positions 0–10 with has_rev, excluding 5/10
-                let candidates: Vec<usize> = (0..11.min(resolved.len()))
-                    .filter(|&i| i != stage_2_idx && i != stage_3_idx && track_has_reversed(&resolved[i].folder, scan))
-                    .collect();
-                if !candidates.is_empty() {
-                    let idx = candidates[rng.next_usize(candidates.len())];
-                    stages.push(make_stage(&resolved[idx].folder, true, true, laps[2]));
+            if let (Some(track), Some(&lap)) = (resolved.get(stage_2_idx), laps.get(2)) {
+                let has_rev = track_has_reversed(&track.folder, scan);
+                if has_rev {
+                    push_stage_at(&mut stages, stage_2_idx, true, true, lap);
                 } else {
-                    // Last resort: just play it in Mirror only
-                    stages.push(make_stage(folder, false, true, laps[2]));
+                    // Fallback: collect all tracks from positions 0–10 with has_rev, excluding 5/10
+                    let candidates: Vec<usize> = (0..11.min(resolved.len()))
+                        .filter(|&i| i != stage_2_idx && i != stage_3_idx && track_has_reversed(&resolved[i].folder, scan))
+                        .collect();
+                    if !candidates.is_empty() {
+                        let idx = candidates[rng.next_usize(candidates.len())];
+                        push_stage_at(&mut stages, idx, true, true, lap);
+                    } else {
+                        // Last resort: just play it in Mirror only
+                        push_stage_at(&mut stages, stage_2_idx, false, true, lap);
+                    }
                 }
             }
             
             // Stage 3: track10 (Mirror)
-            stages.push(make_stage(&resolved[stage_3_idx].folder, false, true, laps[3]));
+            if let Some(&lap) = laps.get(3) {
+                push_stage_at(&mut stages, stage_3_idx, false, true, lap);
+            }
             
             // Stage 4: track13 (Normal)
-            stages.push(make_stage(&resolved[stage_4_idx].folder, false, false, laps[4]));
+            if let Some(&lap) = laps.get(4) {
+                push_stage_at(&mut stages, stage_4_idx, false, false, lap);
+            }
 
             stages
         }
