@@ -1,9 +1,10 @@
-import { formatValidationList, getAllCarsFromScan } from "./validationUtils";
+import { formatValidationList, getAllCarsFromScan, getIsStockCars } from "./validationUtils";
 import { STOCK_CARS, DC_CARS, ATTR_RATINGS_LIST } from "../utils/constants";
 
 export function validateCarOptions(carOptions, carsSpecState, scanResult) {
   const errors = [];
   const warnings = [];
+  const infos = [];
 
   const includeStock = carsSpecState?.includeStockCars !== false;
   const includeDC = carsSpecState?.includeDcCars !== false;
@@ -11,6 +12,15 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult) {
   const allCars = getAllCarsFromScan(scanResult);
   const allFolders = new Set(allCars.map(c => c.folderName.toLowerCase()));
   
+  const isStockMode = getIsStockCars(scanResult);
+  if (isStockMode) {
+    infos.push({
+      id: "cars_stock_mode_active",
+      scope: "carOptions",
+      message: "Stock Content Mode is active for cars. Only the 28 base cars will be used."
+    });
+  }
+
   // Check stale specific-car references
   const staleRefs = [];
 
@@ -53,10 +63,11 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult) {
       });
     }
   }
-  if (includeDC) {
+  
+  if (includeDC && !isStockMode) {
     checkRows(carsSpecState?.dcCars, "DC");
   }
-  else {
+  else if (!includeDC && !isStockMode) {
     // When DC cars are not randomized, validate they exist in the source pool
     DC_CARS.forEach((car, i) => {
       if (!allFolders.has(car)) {
@@ -82,7 +93,7 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult) {
 
   // No car randomization, don't run the remaining checks
   if (!includeStock && !includeDC) {
-    return { errors, warnings };
+    return { errors, warnings, infos };
   }
 
   // Unlock method pool must have at least one method enabled when randomizing obtain values
@@ -111,7 +122,7 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult) {
   // Get list of specific cars from the configuration
   const specificCars = [
     ...(includeStock ? (carsSpecState?.stockCars || []) : STOCK_CARS.map((c) => { return { sourcePool: c } })),
-    ...(includeDC ? (carsSpecState?.dcCars || []) : DC_CARS.map((c) => { return { sourcePool: c } }))
+    ...(includeDC && !isStockMode ? (carsSpecState?.dcCars || []) : (!isStockMode ? DC_CARS.map((c) => { return { sourcePool: c } }) : []))
   ].filter((row) => {
     return (
       row.sourcePool &&
@@ -145,7 +156,7 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult) {
   // Check distribution constraints are satisfiable
   const totalSlots =
     (includeStock ? (carsSpecState?.stockCars?.length ?? STOCK_CARS.length) : 0) +
-    (includeDC ? (carsSpecState?.dcCars?.length ?? DC_CARS.length) : 0);
+    (includeDC && !isStockMode ? (carsSpecState?.dcCars?.length ?? DC_CARS.length) : 0);
 
   const checkDistribution = (distMap, label) => {
     const ratings = Object.entries(distMap);
@@ -248,5 +259,5 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult) {
     }
   }
 
-  return { errors, warnings };
+  return { errors, warnings, infos };
 }

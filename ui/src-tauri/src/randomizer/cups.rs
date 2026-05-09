@@ -107,8 +107,8 @@ fn default_laps_per_stage(cup_index: usize) -> &'static [u32] {
     match cup_index {
         0 => &[3, 4, 3, 5],     // Bronze
         1 => &[4, 6, 4, 4],     // Silver
-        2 => &[5, 5, 5, 5],     // Gold
-        3 => &[6, 6, 8, 6, 6],  // Platinum
+        2 => &[5, 8, 5, 5],     // Gold
+        3 => &[6, 6, 10, 6, 6],  // Platinum
         _ => &[],
     }
 }
@@ -142,76 +142,94 @@ fn build_default_stages(
             stages
         }
 
-        // Silver: tracks 4–7, all Normal
+        // Silver: tracks 4–7, all Normal (or 13-track alternative)
         1 => {
             let mut stages = Vec::new();
-            for i in 0..4.min(resolved.len()) {
-                let idx = 4 + i;
-                if idx < resolved.len() && i < laps.len() {
-                    stages.push(make_stage(&resolved[idx].folder, false, false, laps[i]));
+            if resolved.len() == 13 {
+                // 13-track mode: toylite (4), nhood1 (0), wild_west1 (5), toy2 (6)
+                let layout = [
+                    (4, 6, false, false),
+                    (0, 4, false, true),
+                    (5, 4, false, false),
+                    (6, 4, false, false),
+                ];
+                for &(idx, l, rev, mir) in &layout {
+                    if idx < resolved.len() {
+                        stages.push(make_stage(&resolved[idx].folder, rev, mir, l));
+                    }
+                }
+            } else {
+                for i in 0..4.min(resolved.len()) {
+                    let idx = 4 + i;
+                    if idx < resolved.len() && i < laps.len() {
+                        stages.push(make_stage(&resolved[idx].folder, false, false, laps[i]));
+                    }
                 }
             }
             stages
         }
 
-        // Gold: track8, track4(mirror), track9, track10
+        // Gold: track8, track4(mirror), track9, track10 (or 13-track alternative)
         2 => {
             let mut stages = Vec::new();
-            let indices = [8, 4, 9, 10];
+            let indices = if resolved.len() == 13 {
+                [7, 4, 8, 9]
+            } else {
+                [8, 5, 9, 10]
+            };
             for (i, &track_idx) in indices.iter().enumerate() {
                 if track_idx < resolved.len() && i < laps.len() {
-                    let is_mirror = track_idx == 4; // track4 is mirrored
+                    let is_mirror = i == 1; // second stage is mirrored
                     stages.push(make_stage(&resolved[track_idx].folder, false, is_mirror, laps[i]));
                 }
             }
             stages
         }
 
-        // Platinum: track11, track12, track5(with variant logic), track10(mirror), track13
+        // Platinum: track11, track12, track5(with variant logic), track10(mirror), track13 (or 13-track alternative)
         3 => {
             let mut stages = Vec::new();
             
             // Stage 0: track11 (Normal)
-            if resolved.len() > 11 && laps.len() > 0 {
-                stages.push(make_stage(&resolved[11].folder, false, false, laps[0]));
-            }
-            
             // Stage 1: track12 (Normal)
-            if resolved.len() > 12 && laps.len() > 1 {
+            if resolved.len() == 13 {
+                stages.push(make_stage(&resolved[10].folder, false, false, laps[0]));
+                stages.push(make_stage(&resolved[11].folder, false, false, laps[1]));
+            }
+            else {
+                stages.push(make_stage(&resolved[11].folder, false, false, laps[0]));
                 stages.push(make_stage(&resolved[12].folder, false, false, laps[1]));
             }
             
+            let stage_2_idx = if resolved.len() == 13 { 4 } else { 5 };
+            let stage_3_idx = if resolved.len() == 13 { 9 } else { 10 };
+            let stage_4_idx = if resolved.len() == 13 { 12 } else { 13 };
+
             // Stage 2: track5 with variant logic
-            if resolved.len() > 5 && laps.len() > 2 {
-                let folder = &resolved[5].folder;
-                let has_rev = track_has_reversed(folder, scan);
-                if has_rev {
-                    stages.push(make_stage(folder, true, true, laps[2]));
+            let folder = &resolved[stage_2_idx].folder;
+            let has_rev = track_has_reversed(folder, scan);
+            if has_rev {
+                stages.push(make_stage(folder, true, true, laps[2]));
+            } else {
+                // Fallback: collect all tracks from positions 0–10 with has_rev, excluding 5/10
+                let candidates: Vec<usize> = (0..11.min(resolved.len()))
+                    .filter(|&i| i != stage_2_idx && i != stage_3_idx && track_has_reversed(&resolved[i].folder, scan))
+                    .collect();
+                if !candidates.is_empty() {
+                    let idx = candidates[rng.next_usize(candidates.len())];
+                    stages.push(make_stage(&resolved[idx].folder, true, true, laps[2]));
                 } else {
-                    // Fallback: collect all tracks from positions 0–10 with has_rev, excluding 5/10
-                    let candidates: Vec<usize> = (0..11.min(resolved.len()))
-                        .filter(|&i| i != 5 && i != 10 && track_has_reversed(&resolved[i].folder, scan))
-                        .collect();
-                    if !candidates.is_empty() {
-                        let idx = candidates[rng.next_usize(candidates.len())];
-                        stages.push(make_stage(&resolved[idx].folder, true, true, laps[2]));
-                    } else {
-                        // Last resort: just play it in Mirror only
-                        stages.push(make_stage(folder, false, true, laps[2]));
-                    }
+                    // Last resort: just play it in Mirror only
+                    stages.push(make_stage(folder, false, true, laps[2]));
                 }
             }
             
             // Stage 3: track10 (Mirror)
-            if resolved.len() > 10 && laps.len() > 3 {
-                stages.push(make_stage(&resolved[10].folder, false, true, laps[3]));
-            }
+            stages.push(make_stage(&resolved[stage_3_idx].folder, false, true, laps[3]));
             
             // Stage 4: track13 (Normal)
-            if resolved.len() > 13 && laps.len() > 4 {
-                stages.push(make_stage(&resolved[13].folder, false, false, laps[4]));
-            }
-            
+            stages.push(make_stage(&resolved[stage_4_idx].folder, false, false, laps[4]));
+
             stages
         }
 

@@ -37,11 +37,30 @@ namespace Randomizer {
 
     // Represents the "global_options" block
     struct ConfigGlobalOptions {
-        bool load_extra_cars;
-        bool load_extra_tracks;
-        bool load_extra_cups;
+        bool load_extra_cars = false;
+        bool load_extra_tracks = false;
+        bool load_extra_cups = false;
+        bool is_stock_cars = false;
+        bool is_stock_tracks = false;
     };
-    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConfigGlobalOptions, load_extra_cars, load_extra_tracks, load_extra_cups)
+
+    inline void to_json(json& j, const ConfigGlobalOptions& p) {
+        j = json{
+            {"load_extra_cars", p.load_extra_cars},
+            {"load_extra_tracks", p.load_extra_tracks},
+            {"load_extra_cups", p.load_extra_cups},
+            {"is_stock_cars", p.is_stock_cars},
+            {"is_stock_tracks", p.is_stock_tracks}
+        };
+    }
+
+    inline void from_json(const json& j, ConfigGlobalOptions& p) {
+        p.load_extra_cars = j.value("load_extra_cars", false);
+        p.load_extra_tracks = j.value("load_extra_tracks", false);
+        p.load_extra_cups = j.value("load_extra_cups", false);
+        p.is_stock_cars = j.value("is_stock_cars", false);
+        p.is_stock_tracks = j.value("is_stock_tracks", false);
+    }
 
     // Represents an entry in the "cars" array
     struct RandomizedCar {

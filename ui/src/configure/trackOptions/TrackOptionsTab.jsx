@@ -1,6 +1,7 @@
 import "../carOptions/CarOptionsTab.css";
 import { STOCK_TRACKS } from "../../utils/constants";
 import { useAppContext } from "../../AppProvider";
+import { getIsStockTracks } from "../../validation/validationUtils";
 
 function makeDefaultTrackSpec(ids) {
   return ids.map(id => ({
@@ -33,6 +34,7 @@ export default function TrackOptionsTab() {
     includeSingleRace,
   } = trackOptions;
 
+  const isStockMode = getIsStockTracks(state.setup?.scanResult);
   const includeTracks = trackSpecState?.includeTracks !== false;
 
   const handleModeSelect = (modeId) => {
@@ -106,7 +108,7 @@ export default function TrackOptionsTab() {
     { id: "randomUnlock", label: "Random Unlock", desc: "Keep difficulty unchanged, randomize unlock method." },
     { id: "randomDifficulty", label: "Random Difficulty", desc: "Randomize difficulty, set unlock method to Default." },
     { id: "unchanged", label: "All Unchanged", desc: "Keep difficulty unchanged, set unlock method to Default." },
-    { id: "baseGame", label: "Base Game Distribution", desc: "Apply 4 Easy, 4 Medium, 3 Hard, 3 Extreme, use default unlocks." },
+    { id: "baseGame", label: "Base Game Distribution", desc: `Apply 4 Easy, ${isStockMode ? 3 : 4} Medium, 3 Hard, 3 Extreme, use default unlocks.` },
   ];
 
   const showObtainControls = unlockMode === "random" || unlockMode === "randomUnlock";

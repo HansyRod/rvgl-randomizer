@@ -17,22 +17,39 @@ import GenerationTab from "./generate/GenerationTab";
 import { useValidation } from "./validation/useValidation";
 import { useLaunchValidation } from "./validation/useLaunchValidation";
 import ValidationStatus from "./validation/ValidationStatus";
+import { getIsStockCars } from "./validation/validationUtils";
 
 export default function App() {
   const { state, resetContext, updateContext, updateCategoryCtx } = useAppContext();
-  const { app, setup } = state;
+  const { app, setup, configure } = state;
   const { isLoading, theme, isFetchingPack } = app;
   const activeStep = app?.activeStep ?? "setup";
 
   // Combine sync and async validation results
-  const { errors: syncErrors, warnings: syncWarnings } = useValidation();
-  const { errors: asyncErrors, warnings: asyncWarnings } = useLaunchValidation();
+  const { errors: syncErrors, warnings: syncWarnings, infos: syncInfos = [] } = useValidation();
+  const { errors: asyncErrors, warnings: asyncWarnings, infos: asyncInfos = [] } = useLaunchValidation();
   const allErrors   = [...syncErrors,   ...asyncErrors];
   const allWarnings = [...syncWarnings, ...asyncWarnings];
+  const allInfos    = [...syncInfos,    ...asyncInfos];
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
+
+  // Clean up includeDcCars if stock mode is active
+  useEffect(() => {
+    if (setup.scanResult) {
+      const isStockMode = getIsStockCars(setup.scanResult);
+      if (isStockMode && configure.carsSpecState?.includeDcCars) {
+        updateCategoryCtx("configure", {
+          carsSpecState: {
+            ...configure.carsSpecState,
+            includeDcCars: false
+          }
+        });
+      }
+    }
+  }, [setup.scanResult, configure.carsSpecState?.includeDcCars, updateCategoryCtx]);
 
   // Load cache on mount
   useEffect(() => {
@@ -147,6 +164,7 @@ export default function App() {
         <ValidationStatus
           errors={allErrors}
           warnings={allWarnings}
+          infos={allInfos}
           activeStep={activeStep}
           onNavigate={goToStep}
         />

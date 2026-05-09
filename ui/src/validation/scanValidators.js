@@ -1,4 +1,4 @@
-import { getAllCarsFromScan, getAllTracksFromScan } from "./validationUtils";
+import { getAllCarsFromScan, getAllTracksFromScan, getIsStockTracks } from "./validationUtils";
 
 export function validateScan(scanResult) {
   const errors = [];
@@ -18,7 +18,10 @@ export function validateScan(scanResult) {
     });
   }
 
-  if (validTracks.length < 14) {
+  const isStockMode = getIsStockTracks(scanResult);
+  const minTracks = isStockMode ? 13 : 14;
+
+  if (validTracks.length < minTracks) {
     warnings.push({
       id: "scan_insufficient_tracks",
       scope: "scan",

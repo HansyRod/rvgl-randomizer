@@ -8,6 +8,7 @@ import SeedSummaryPanel from "../components/SeedSummaryPanel";
 import "../setup/SetupView.css";
 import "./GenerationTab.css";
 import { DEFAULT_CAR_OPTIONS } from '../utils/constants';
+import { getIsStockTracks } from '../validation/validationUtils';
 
 const { poolRatingDistributions, attrRatingDistributions } = DEFAULT_CAR_OPTIONS;
 
@@ -101,9 +102,17 @@ export default function GenerationTab({errors}) {
         stockCars: carsSpecState.includeStockCars === false ? [] : carsSpecState.stockCars,
         dcCars: carsSpecState.includeDcCars === false ? [] : carsSpecState.dcCars
       };
+      const isStockTracksMode = getIsStockTracks(scanResult);
+      let tracksSpec = trackSpecState.tracks;
+      if (trackSpecState.includeTracks === false) {
+        tracksSpec = [];
+      } else if (isStockTracksMode && tracksSpec) {
+        tracksSpec = tracksSpec.filter((_, index) => index !== 4);
+      }
+
       const filteredTrackSpecState = {
         ...trackSpecState,
-        tracks: trackSpecState.includeTracks === false ? [] : trackSpecState.tracks
+        tracks: tracksSpec
       };
 
       const showRatingOptions = carOptions?.unlockMode === "random" || carOptions?.unlockMode === "randomRatings";

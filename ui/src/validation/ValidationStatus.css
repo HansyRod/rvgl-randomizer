@@ -47,11 +47,14 @@
 
 .vs-error-pill .vs-dot   { background: #e05050; }
 .vs-warning-pill .vs-dot { background: #f0a030; }
+.vs-info-pill .vs-dot    { background: #50a0e0; }
 
 .vs-error-pill   { color: #e05050; }
 .vs-warning-pill { color: #c8880a; }
+.vs-info-pill    { color: #3080d0; }
 
 [data-theme="dark"] .vs-warning-pill { color: #f0b040; }
+[data-theme="dark"] .vs-info-pill    { color: #60b0f0; }
 
 .vs-separator {
   color: var(--text-secondary);
@@ -264,6 +267,7 @@
 
 .vp-issue-error .vp-issue-dot   { background: #e05050; }
 .vp-issue-warning .vp-issue-dot { background: #f0a030; }
+.vp-issue-info .vp-issue-dot    { background: #50a0e0; }
 
 .vp-issue-msg {
   font-size: 0.8rem;

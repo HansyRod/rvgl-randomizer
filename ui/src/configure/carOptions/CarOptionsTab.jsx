@@ -4,15 +4,17 @@ import { useAppContext } from "../../AppProvider";
 import StartingCarConfig from "./StartingCarConfig";
 import CarRatingsConfig from "./CarRatingsConfig";
 import { applyModeRules, makeDefaultSpec, alignDistributionsWithSpec } from "./CarOptionsUtils";
+import { getIsStockCars } from "../../validation/validationUtils";
 
 export default function CarOptionsTab() {
 
   const { state, updateCategoryCtx } = useAppContext();
 
   // Destructure categories
-  const { configure } = state;
+  const { setup, configure } = state;
   
   // Destructure individual variables
+  const { scanResult } = setup;
   const { carOptions, carsSpecState } = configure;
   
   const {
@@ -25,6 +27,8 @@ export default function CarOptionsTab() {
     includePracticeStars,
     includeSingleRace,
   } = carOptions;
+
+  const isStockMode = getIsStockCars(scanResult);
 
   const set = (key, value) => updateCategoryCtx("configure", { carOptions: { ...carOptions, [key]: value } });
 
@@ -133,7 +137,7 @@ export default function CarOptionsTab() {
   const showRatingOptions = (unlockMode === "random" || unlockMode === "randomRatings");
 
   const includeStockCars = carsSpecState?.includeStockCars !== false;
-  const includeDcCars    = carsSpecState?.includeDcCars    !== false;
+  const includeDcCars    = carsSpecState?.includeDcCars !== false;
   const noneSelected = !includeStockCars && !includeDcCars;
 
   const handleInclude = (key, value) => {
@@ -163,13 +167,17 @@ export default function CarOptionsTab() {
             />
             <span>Randomize <strong>Stock Cars</strong></span>
           </label>
-          <label className="co-checkbox-row">
+          <label className="co-checkbox-row" style={{ opacity: isStockMode ? 0.5 : 1 }}>
             <input
               type="checkbox"
               checked={includeDcCars}
+              disabled={isStockMode}
               onChange={e => handleInclude("includeDcCars", e.target.checked)}
             />
-            <span>Randomize <strong>DC Cars</strong></span>
+            <span>
+              Randomize <strong>DC Cars</strong>
+              {isStockMode && " (Disabled in Stock Mode)"}
+            </span>
           </label>
         </div>
       </section>

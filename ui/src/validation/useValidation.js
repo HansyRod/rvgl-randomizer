@@ -13,10 +13,18 @@ export function useValidation() {
   return useMemo(() => {
     const errors = [];
     const warnings = [];
+    const infos = [];
 
     const collect = (results) => {
-      errors.push(...results.errors);
-      warnings.push(...results.warnings);
+      if (results.errors) {
+        errors.push(...results.errors);
+      }
+      if (results.warnings) {
+        warnings.push(...results.warnings);
+      }
+      if (results.infos) {
+        infos.push(...results.infos);
+      }
     };
 
     if (setup.scanResult) {
@@ -48,6 +56,6 @@ export function useValidation() {
 
     collect(validateGenerate(generate));
 
-    return { errors, warnings };
+    return { errors, warnings, infos };
   }, [setup, configure, generate, play]);
 }

@@ -1,3 +1,5 @@
+import { STOCK_CARS, STOCK_TRACKS } from "../utils/constants";
+
 export function getAllCarsFromScan(scanResult) {
   if (!scanResult) return [];
   if (scanResult.installType === "classic") return scanResult.cars || [];
@@ -14,6 +16,22 @@ export function getAllTracksFromScan(scanResult) {
     .filter(p => p.useTracks)
     .flatMap(p => p.tracks)
     .filter(t => t.hasValidFile && t.trackType === 0);
+}
+
+export function getIsStockCars(scanResult) {
+  const allCars = getAllCarsFromScan(scanResult);
+  if (allCars.length !== 28) return false;
+  
+  const stockSet = new Set(STOCK_CARS.map(c => c.toLowerCase()));
+  return allCars.every(c => stockSet.has(c.folderName.toLowerCase()));
+}
+
+export function getIsStockTracks(scanResult) {
+  const allTracks = getAllTracksFromScan(scanResult);
+  if (allTracks.length !== 13) return false;
+  
+  const baseTracksWithoutRoof = new Set(STOCK_TRACKS.map(t => t.toLowerCase()).filter(t => t !== "roof"));
+  return allTracks.every(t => baseTracksWithoutRoof.has(t.folderName.toLowerCase()));
 }
 
 export function formatValidationList(items, maxVisible = 3) {

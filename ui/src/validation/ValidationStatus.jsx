@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import ValidationPanel from "./ValidationPanel";
 import "./ValidationStatus.css";
 
-export default function ValidationStatus({ errors, warnings, activeStep, onNavigate }) {
+export default function ValidationStatus({ errors = [], warnings = [], infos = [], activeStep, onNavigate }) {
   const [open, setOpen] = useState(false);
   const panelRef = useRef(null);
   const btnRef = useRef(null);
@@ -30,7 +30,7 @@ export default function ValidationStatus({ errors, warnings, activeStep, onNavig
     return () => document.removeEventListener("keydown", handler);
   }, [open]);
 
-  if (errors.length === 0 && warnings.length === 0) return null;
+  if (errors.length === 0 && warnings.length === 0 && infos.length === 0) return null;
 
   const hasErrors = errors.length > 0;
 
@@ -40,6 +40,7 @@ export default function ValidationStatus({ errors, warnings, activeStep, onNavig
         <ValidationPanel
           errors={errors}
           warnings={warnings}
+          infos={infos}
           activeStep={activeStep}
           onNavigate={(stepId) => { onNavigate(stepId); setOpen(false); }}
           onClose={() => setOpen(false)}
@@ -48,10 +49,10 @@ export default function ValidationStatus({ errors, warnings, activeStep, onNavig
       )}
       <button
         ref={btnRef}
-        className={`vs-btn ${hasErrors ? "vs-has-errors" : "vs-has-warnings"}`}
+        className={`vs-btn ${hasErrors ? "vs-has-errors" : (warnings.length > 0 ? "vs-has-warnings" : "")}`}
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
-        aria-label={`${errors.length} errors, ${warnings.length} warnings. Click to ${open ? "hide" : "view"}.`}
+        aria-label={`${errors.length} errors, ${warnings.length} warnings, ${infos.length} infos. Click to ${open ? "hide" : "view"}.`}
       >
         {errors.length > 0 && (
           <span className="vs-pill vs-error-pill">
@@ -66,6 +67,15 @@ export default function ValidationStatus({ errors, warnings, activeStep, onNavig
           <span className="vs-pill vs-warning-pill">
             <span className="vs-dot" />
             {warnings.length} warning{warnings.length !== 1 ? "s" : ""}
+          </span>
+        )}
+        {(errors.length > 0 || warnings.length > 0) && infos.length > 0 && (
+          <span className="vs-separator">·</span>
+        )}
+        {infos.length > 0 && (
+          <span className="vs-pill vs-info-pill">
+            <span className="vs-dot" />
+            {infos.length} info{infos.length !== 1 ? "s" : ""}
           </span>
         )}
         <span className="vs-chevron" aria-hidden="true">

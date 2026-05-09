@@ -61,8 +61,16 @@ pub fn generate_result(
     }
 
     // 1. Prepare specs with resolved pool distributions
-    let mut final_specs_stock = cars_spec_state.stock_cars.clone();
-    let mut final_specs_dc = cars_spec_state.dc_cars.clone();
+    let mut final_specs_stock = if cars_spec_state.include_stock_cars {
+        cars_spec_state.stock_cars.clone()
+    } else {
+        Vec::new()
+    };
+    let mut final_specs_dc = if cars_spec_state.include_dc_cars {
+        cars_spec_state.dc_cars.clone()
+    } else {
+        Vec::new()
+    };
 
     // Identify slots that need a random pool rating.
     // Distribution constraints are global across stock + DC.
@@ -258,6 +266,13 @@ pub fn generate_result(
     });
 
     // 5. Build the output structure
+    let is_stock_cars = all_cars.len() == 28 && all_cars.iter().all(|c| matches!(c.pool, crate::scanner::Pool::Stock));
+    
+    let all_tracks_for_calc = collect_available_tracks(&scan_result);
+    let is_stock_tracks = all_tracks_for_calc.len() == 13 && all_tracks_for_calc.iter().all(|t| {
+        is_stock_track_folder(&t.folder_name) && t.folder_name.to_lowercase() != "roof"
+    });
+
     let config = ConfigData {
         metadata: ConfigMetadata {
             seed: rng.seed().to_string(),
@@ -269,6 +284,8 @@ pub fn generate_result(
             load_extra_cars: false,
             load_extra_tracks: false,
             load_extra_cups: false,
+            is_stock_cars,
+            is_stock_tracks,
         },
         stock_cars,
         dc_cars,

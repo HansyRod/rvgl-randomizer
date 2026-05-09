@@ -1,12 +1,22 @@
-import { formatValidationList, getAllTracksFromScan } from "./validationUtils";
+import { formatValidationList, getAllTracksFromScan, getIsStockTracks } from "./validationUtils";
 import { STOCK_TRACKS } from "../utils/constants";
 
 export function validateTrackSpec(trackSpecState, trackOptions, scanResult) {
   const errors = [];
   const warnings = [];
+  const infos = [];
 
   const allTracks = getAllTracksFromScan(scanResult)
     .filter(t => t.hasValidFile && t.trackType === 0);
+
+  const isStockMode = getIsStockTracks(scanResult);
+  if (isStockMode) {
+    infos.push({
+      id: "tracks_stock_mode_active",
+      scope: "trackSpec",
+      message: "Stock Content Mode is active for tracks. Only 13 basic stock tracks will be used."
+    });
+  }
 
   if (allTracks.length === 0) {
     errors.push({
@@ -14,7 +24,7 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult) {
       scope: "trackSpec",
       message: "No playable tracks are available in the selected content."
     });
-    return { errors, warnings };
+    return { errors, warnings, infos };
   }
 
   const allTrackFolders = new Set(allTracks.map(t => t.folderName.toLowerCase()));
@@ -26,6 +36,8 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult) {
 
     // When stock tracks are not randomized, validate they exist in the source pool
     STOCK_TRACKS.forEach((track, i) => {
+      // In stock mode, roof is excluded by definition, so ignore missing roof
+      if (isStockMode && track.toLowerCase() === "roof") return;
       if (!allTrackFolders.has(track)) {
         staleStockRefs.push(`slot ${i + 1} (${track})`);
       }
@@ -39,7 +51,7 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult) {
       });
     }
 
-    return { errors, warnings };
+    return { errors, warnings, infos };
   }
 
   // Unlock method pool must have at least one method enabled when randomizing obtain values
@@ -87,5 +99,5 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult) {
     });
   }
 
-  return { errors, warnings };
+  return { errors, warnings, infos };
 }

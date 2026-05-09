@@ -18,7 +18,13 @@ pub struct CarSpec {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CarsSpecState {
+    #[serde(default = "default_true")]
+    pub include_stock_cars: bool,
+    #[serde(default = "default_true")]
+    pub include_dc_cars: bool,
+    #[serde(default)]
     pub stock_cars: Vec<CarSpec>,
+    #[serde(default)]
     pub dc_cars: Vec<CarSpec>,
 }
 
@@ -161,10 +167,13 @@ pub struct ConfigMetadata {
 }
 
 #[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ConfigGlobalOptions {
     pub load_extra_cars: bool,
     pub load_extra_tracks: bool,
     pub load_extra_cups: bool,
+    pub is_stock_cars: bool,
+    pub is_stock_tracks: bool,
 }
 
 #[derive(Serialize, Debug, Clone)]

@@ -3,7 +3,7 @@ use super::models::*;
 use super::rng::Rng;
 use std::collections::HashSet;
 
-fn is_stock_track_folder(folder: &str) -> bool {
+pub fn is_stock_track_folder(folder: &str) -> bool {
     matches!(
         folder.to_ascii_lowercase().as_str(),
         "nhood1" | "market2" | "muse2" | "garden1" | "roof" | "toylite" | "wild_west1" |

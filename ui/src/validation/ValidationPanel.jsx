@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { SCOPE_TO_STEP, SCOPE_LABELS, STEP_LABELS, STEP_ORDER } from "./validationConfig";
 
-export default function ValidationPanel({ errors, warnings, activeStep, onNavigate, onClose, panelRef }) {
+export default function ValidationPanel({ errors = [], warnings = [], infos = [], activeStep, onNavigate, onClose, panelRef }) {
   const [filter, setFilter] = useState("current");
 
   const allIssues = [
     ...errors.map(e => ({ ...e, issueType: "error" })),
     ...warnings.map(w => ({ ...w, issueType: "warning" })),
+    ...infos.map(i => ({ ...i, issueType: "info" })),
   ];
 
   const currentStepIssues = allIssues.filter(
