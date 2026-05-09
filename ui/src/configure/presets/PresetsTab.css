@@ -121,3 +121,76 @@
 .preset-card-custom.selected {
   border-style: solid;
 }
+
+.preset-choice-modal {
+  display: flex;
+  flex-direction: column;
+}
+
+.preset-choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0 1.5rem 1rem;
+}
+
+.preset-choice-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem 1rem 1.05rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.preset-choice-card.selected {
+  border-color: var(--accent);
+  background: var(--tab-active-bg);
+}
+
+.preset-choice-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  cursor: pointer;
+}
+
+.preset-choice-option input {
+  margin-top: 0.18rem;
+}
+
+.preset-choice-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.preset-choice-select-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-left: 1.8rem;
+}
+
+.preset-choice-select-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.preset-choice-select {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.preset-choice-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

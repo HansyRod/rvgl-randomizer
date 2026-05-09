@@ -1,3 +1,4 @@
+import { useState } from "react";
 import "./PresetsTab.css";
 import { useAppContext } from "../../AppProvider";
 import { STOCK_LIKE_PRESET } from "./stock-like";
@@ -5,6 +6,16 @@ import { FULL_RANDOM_PRESET } from "./full-random";
 import { ALL_ROOKIES_PRESET } from "./all-rookies";
 import { CHALLENGE_PRESET } from "./challenge";
 import { LONG_CUPS_PRESET } from "./long-cups";
+import {
+  DEFAULT_CAR_OPTIONS,
+  DEFAULT_TRACK_OPTIONS,
+  STOCK_CARS,
+  DC_CARS,
+  STOCK_TRACKS,
+  makeDefaultCarsSpec,
+  makeDefaultTrackSpec,
+} from "../../utils/constants";
+import { makeDefaultCupSpecState } from "../cupSpec/CupSpecTab";
 
 // ─── Preset definitions ───────────────────────────────────────────────────────
 // Each preset contains the exact configure sub-state that will be applied when
@@ -18,12 +29,125 @@ export const PRESETS = [
   LONG_CUPS_PRESET
 ];
 
-// ─── Component ───────────────────────────────────────────────────────────────
+function cloneValue(value) {
+  if (typeof structuredClone === "function") {
+    return structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value));
+}
+
+function makeDefaultCustomConfigure() {
+  return {
+    carOptions: cloneValue(DEFAULT_CAR_OPTIONS),
+    trackOptions: cloneValue(DEFAULT_TRACK_OPTIONS),
+    carsSpecState: {
+      includeStockCars: true,
+      includeDcCars: true,
+      stockCars: makeDefaultCarsSpec(STOCK_CARS),
+      dcCars: makeDefaultCarsSpec(DC_CARS),
+    },
+    trackSpecState: {
+      includeTracks: true,
+      tracks: makeDefaultTrackSpec(STOCK_TRACKS),
+      cachedRoofTrackRow: null,
+    },
+    cupSpecState: makeDefaultCupSpecState(),
+  };
+}
+
+function CustomPresetDialog({
+  isOpen,
+  sourceMode,
+  presetId,
+  onClose,
+  onConfirm,
+  onSelectMode,
+  onSelectPreset,
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="search-modal-overlay" onClick={onClose}>
+      <div
+        className="search-modal-content preset-choice-modal"
+        onClick={e => e.stopPropagation()}
+        style={{ width: "640px", maxWidth: "90vw" }}
+      >
+        <div className="search-modal-header" style={{ paddingBottom: "1rem" }}>
+          <h3 style={{ margin: 0 }}>Start Custom Configuration</h3>
+        </div>
+
+        <div className="preset-choice-list">
+          <div className={`preset-choice-card${sourceMode === "default" ? " selected" : ""}`}>
+            <label className="preset-choice-option">
+              <input
+                type="radio"
+                name="custom-source-mode"
+                checked={sourceMode === "default"}
+                onChange={() => onSelectMode("default")}
+              />
+              <span className="preset-choice-copy">
+                <span className="preset-card-label">Default Manual Configuration</span>
+                <span className="preset-card-desc">
+                  Reset Car, Track, and Cup settings back to the baseline manual-editing state.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div className={`preset-choice-card${sourceMode === "copy" ? " selected" : ""}`}>
+            <label className="preset-choice-option">
+              <input
+                type="radio"
+                name="custom-source-mode"
+                checked={sourceMode === "copy"}
+                onChange={() => onSelectMode("copy")}
+              />
+              <span className="preset-choice-copy">
+                <span className="preset-card-label">Copy Another Preset</span>
+                <span className="preset-card-desc">
+                  Use an existing preset as the starting point, then continue editing it as Custom.
+                </span>
+              </span>
+            </label>
+
+            <div className="preset-choice-select-wrap">
+              <label className="preset-choice-select-label" htmlFor="custom-preset-source">
+                Preset to copy
+              </label>
+              <select
+                id="custom-preset-source"
+                className="preset-choice-select"
+                value={presetId}
+                disabled={sourceMode !== "copy"}
+                onChange={e => onSelectPreset(e.target.value)}
+              >
+                {PRESETS.map(preset => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div className="search-modal-footer">
+          <button onClick={onClose} style={{ marginRight: "0.5rem" }}>Cancel</button>
+          <button className="primary" onClick={onConfirm}>Start Custom</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function PresetsTab() {
   const { state, updateCategoryCtx } = useAppContext();
   const { configure } = state;
   const selectedPreset = configure?.preset ?? "basic";
+  const [isCustomDialogOpen, setIsCustomDialogOpen] = useState(false);
+  const [customSourceMode, setCustomSourceMode] = useState("default");
+  const [customSourcePresetId, setCustomSourcePresetId] = useState(PRESETS[0]?.id ?? "");
 
   // Apply a named preset: overwrite all configure option slices and record the
   // selected preset id so the sidebar knows to lock the other tabs.
@@ -34,14 +158,39 @@ export default function PresetsTab() {
     });
   }
 
-  // Switch to Custom: only update the preset field so the user's current
-  // configure state is preserved as the starting point for manual editing.
+  // Switch to Custom: open a chooser so the user can either start from the
+  // default manual-editing state or copy another preset first.
   function handleSelectCustom() {
-    updateCategoryCtx("configure", { preset: "custom" });
+    const matchingPreset = PRESETS.find(preset => preset.id === selectedPreset);
+    setCustomSourceMode("default");
+    setCustomSourcePresetId(matchingPreset?.id ?? PRESETS[0]?.id ?? "");
+    setIsCustomDialogOpen(true);
+  }
+
+  function handleConfirmCustom() {
+    const sourcePreset = PRESETS.find(preset => preset.id === customSourcePresetId);
+    const nextConfigure = customSourceMode === "copy" && sourcePreset
+      ? cloneValue(sourcePreset.configure)
+      : makeDefaultCustomConfigure();
+
+    updateCategoryCtx("configure", {
+      preset: "custom",
+      ...nextConfigure,
+    });
+    setIsCustomDialogOpen(false);
   }
 
   return (
     <div className="presets-tab">
+      <CustomPresetDialog
+        isOpen={isCustomDialogOpen}
+        sourceMode={customSourceMode}
+        presetId={customSourcePresetId}
+        onClose={() => setIsCustomDialogOpen(false)}
+        onConfirm={handleConfirmCustom}
+        onSelectMode={setCustomSourceMode}
+        onSelectPreset={setCustomSourcePresetId}
+      />
 
       {/* ── Header ── */}
       <section className="co-section">
@@ -100,8 +249,8 @@ export default function PresetsTab() {
 
               <p className="preset-card-desc">
                 Configure every option manually across all the tabs in the sidebar.
-                All settings from the last applied preset are preserved as a
-                starting point.
+                Choose whether to start from the default manual configuration
+                or copy another preset as your starting point.
               </p>
 
               {isSelected && (
