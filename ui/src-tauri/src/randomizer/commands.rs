@@ -266,12 +266,10 @@ pub fn generate_result(
     });
 
     // 5. Build the output structure
-    let is_stock_cars = all_cars.len() == 28 && all_cars.iter().all(|c| matches!(c.pool, crate::scanner::Pool::Stock));
-    
+    let is_stock_cars = is_stock_cars_only(&all_cars);
+
     let all_tracks_for_calc = collect_available_tracks(&scan_result);
-    let is_stock_tracks = all_tracks_for_calc.len() == 13 && all_tracks_for_calc.iter().all(|t| {
-        is_stock_track_folder(&t.folder_name) && t.folder_name.to_lowercase() != "roof"
-    });
+    let is_stock_tracks = is_stock_tracks_only(&all_tracks_for_calc);
 
     let config = ConfigData {
         metadata: ConfigMetadata {

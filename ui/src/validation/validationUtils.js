@@ -1,21 +1,33 @@
 import { STOCK_CARS, STOCK_TRACKS } from "../utils/constants";
 
+function isEligibleCar(car) {
+  return car && !car.isSystemCar && car.hasValidFile;
+}
+
+function isEligibleTrack(track) {
+  return track && track.hasValidFile && track.trackType === 0;
+}
+
 export function getAllCarsFromScan(scanResult) {
   if (!scanResult) return [];
-  if (scanResult.installType === "classic") return scanResult.cars || [];
-  return (scanResult.contentPacks || [])
+  const cars = scanResult.installType === "classic"
+    ? (scanResult.cars || [])
+    : (scanResult.contentPacks || [])
     .filter(p => p.useCars)
-    .flatMap(p => p.cars)
-    .filter(c => !c.isSystemCar && c.hasValidFile);
+    .flatMap(p => p.cars);
+
+  return cars.filter(isEligibleCar);
 }
 
 export function getAllTracksFromScan(scanResult) {
   if (!scanResult) return [];
-  if (scanResult.installType === "classic") return scanResult.tracks || [];
-  return (scanResult.contentPacks || [])
+  const tracks = scanResult.installType === "classic"
+    ? (scanResult.tracks || [])
+    : (scanResult.contentPacks || [])
     .filter(p => p.useTracks)
-    .flatMap(p => p.tracks)
-    .filter(t => t.hasValidFile && t.trackType === 0);
+    .flatMap(p => p.tracks);
+
+  return tracks.filter(isEligibleTrack);
 }
 
 export function getIsStockCars(scanResult) {

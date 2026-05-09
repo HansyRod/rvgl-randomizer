@@ -3,12 +3,23 @@ use super::models::*;
 use super::rng::Rng;
 use std::collections::HashSet;
 
+pub const STOCK_TRACK_FOLDERS: [&str; 14] = [
+    "nhood1", "market2", "muse2", "garden1", "roof", "toylite", "wild_west1",
+    "toy2", "nhood2", "ship1", "muse1", "market1", "wild_west2", "ship2",
+];
+
 pub fn is_stock_track_folder(folder: &str) -> bool {
-    matches!(
-        folder.to_ascii_lowercase().as_str(),
-        "nhood1" | "market2" | "muse2" | "garden1" | "roof" | "toylite" | "wild_west1" |
-        "toy2" | "nhood2" | "ship1" | "muse1" | "market1" | "wild_west2" | "ship2"
-    )
+    STOCK_TRACK_FOLDERS
+        .iter()
+        .any(|stock| stock.eq_ignore_ascii_case(folder))
+}
+
+pub fn is_stock_tracks_only(tracks: &[Track]) -> bool {
+    tracks.len() == STOCK_TRACK_FOLDERS.len() - 1
+        && tracks.iter().all(|track| {
+            is_stock_track_folder(&track.folder_name)
+                && !track.folder_name.eq_ignore_ascii_case("roof")
+        })
 }
 
 pub fn collect_available_tracks(scan: &ScanResult) -> Vec<Track> {

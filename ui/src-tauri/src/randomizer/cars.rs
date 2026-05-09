@@ -3,9 +3,22 @@ use std::collections::HashSet;
 use super::rng::Rng;
 use super::models::*;
 
+pub const STOCK_CAR_FOLDERS: [&str; 28] = [
+    "rc", "mite", "phat", "moss", "mud", "beatall", "volken",
+    "tc6", "dino", "candy", "gencar", "tc4", "mouse", "flag",
+    "tc2", "r5", "tc5", "sgt", "tc3", "adeon", "fone",
+    "tc1", "rotor", "cougar", "sugo", "toyeca", "amw", "panga",
+];
+
 // ============================================================================
 // Candidate set builder
 // ============================================================================
+
+pub fn is_stock_car_folder(folder: &str) -> bool {
+    STOCK_CAR_FOLDERS
+        .iter()
+        .any(|stock| stock.eq_ignore_ascii_case(folder))
+}
 
 /// Build a flat list of valid (non-system, valid-file) cars from the scan.
 pub fn collect_available_cars(scan: &ScanResult) -> Vec<Car> {
@@ -35,6 +48,11 @@ pub fn collect_available_cars(scan: &ScanResult) -> Vec<Car> {
         }
     }
     out
+}
+
+pub fn is_stock_cars_only(cars: &[Car]) -> bool {
+    cars.len() == STOCK_CAR_FOLDERS.len()
+        && cars.iter().all(|car| is_stock_car_folder(&car.folder_name))
 }
 
 pub fn is_specific_car_pool(pool: &str) -> bool {
