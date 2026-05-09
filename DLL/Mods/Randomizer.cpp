@@ -366,12 +366,12 @@ void Hook_LoadCustomCarPool() {
 
 void Hook_SyncCarInfoFromPhysics(int carIndex, CarPhysicsData *physData) {
 
-    if (carIndex >= 49) {
-        CarInfo* carPool = s_carPool.data();
-        CarInfo* car = &carPool[carIndex];
-
-        ApplyCarMods(carIndex, car, physData);
-    }
+    // Always apply car mods before syncing data. Not only the custom carboxes could be wrong, but also
+    // obtain condition in DC cars that were moved to stock conditions was found with the original value
+    // Applying car mods before sync guarantees that all unlock checks are done correctly
+    CarInfo* carPool = s_carPool.data();
+    CarInfo* car = &carPool[carIndex];
+    ApplyCarMods(carIndex, car, physData);
 
     Orig_SyncCarInfoFromPhysics(carIndex, physData);
 
