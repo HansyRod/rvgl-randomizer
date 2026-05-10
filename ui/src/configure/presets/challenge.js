@@ -1,5 +1,8 @@
 import { DEFAULT_CAR_OPTIONS, DEFAULT_TRACK_OPTIONS } from "../../utils/constants";
 import { makeDefaultCupSpecState, makeDefaultCupSpec } from "../cupSpec/CupSpecTab";
+import { countEligibleCarsByRating, getStockModePresetErrors } from "./presetValidation";
+
+const REQUIRED_SUPER_PROS = 14;
 
 export const CHALLENGE_PRESET = {
   id: "challenge",
@@ -13,6 +16,18 @@ export const CHALLENGE_PRESET = {
     "In each cup you'll have more and tougher opponents, and fewer retries.",
     "Platinum Cup is a special challenge against Super Pro cars. Can you withstand it?"
   ],
+  validateSelection: ({ scanResult }) => {
+    const errors = getStockModePresetErrors(scanResult);
+    const superProCount = countEligibleCarsByRating(scanResult, 5);
+
+    if (superProCount < REQUIRED_SUPER_PROS) {
+      errors.push(
+        `This preset requires at least ${REQUIRED_SUPER_PROS} eligible Super Pro cars, but only ${superProCount} are currently available.`
+      );
+    }
+
+    return errors;
+  },
   configure: {
     carOptions: {
       ...DEFAULT_CAR_OPTIONS,

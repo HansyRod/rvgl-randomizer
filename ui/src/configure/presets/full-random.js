@@ -1,5 +1,6 @@
 import { DEFAULT_CAR_OPTIONS, STOCK_CARS, DC_CARS, STOCK_TRACKS, makeDefaultCarsSpec, makeDefaultTrackSpec } from "../../utils/constants";
 import { makeDefaultCupSpecState } from "../cupSpec/CupSpecTab";
+import { getStockModePresetErrors } from "./presetValidation";
 
 export const FULL_RANDOM_PRESET = {
   id: "full-random",
@@ -13,6 +14,7 @@ export const FULL_RANDOM_PRESET = {
     "Cups have a random number of stages, and each stage has a random number of laps.",
     "You can play reverse / mirror tracks on cups with no restrictions."
   ],
+  validateSelection: ({ scanResult }) => getStockModePresetErrors(scanResult),
   configure: {
     carOptions: {
       ...DEFAULT_CAR_OPTIONS,

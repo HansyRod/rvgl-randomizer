@@ -1,5 +1,6 @@
 export const SCOPE_TO_STEP = {
   scan: "setup",
+  preset: "configure",
   carOptions: "configure",
   carSpec: "configure",
   trackSpec: "configure",
@@ -10,6 +11,7 @@ export const SCOPE_TO_STEP = {
 
 export const SCOPE_LABELS = {
   scan: "Installation",
+  preset: "Presets",
   carOptions: "Car Options",
   carSpec: "Car Specification",
   trackSpec: "Track Specification",

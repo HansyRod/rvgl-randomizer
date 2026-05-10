@@ -1,0 +1,53 @@
+import { getAllCarsFromScan, getIsStockCars, getIsStockTracks } from "../../validation/validationUtils.js";
+
+export function getStockModePresetErrors(scanResult) {
+  const isStockCarsMode = getIsStockCars(scanResult);
+  const isStockTracksMode = getIsStockTracks(scanResult);
+
+  if (isStockCarsMode || isStockTracksMode) {
+    return ["This preset cannot be used when Stock Content Mode is active."];
+  }
+
+  return [];
+}
+
+export function countEligibleCarsByRating(scanResult, rating) {
+  return getAllCarsFromScan(scanResult).filter((car) => car.rating === rating).length;
+}
+
+export function evaluatePresetSelection(preset, scanResult) {
+  if (!scanResult) {
+    return { isSelectable: true, errors: [] };
+  }
+
+  const errors = typeof preset?.validateSelection === "function"
+    ? (preset.validateSelection({ scanResult }) || []).filter(Boolean)
+    : [];
+
+  return {
+    isSelectable: errors.length === 0,
+    errors,
+  };
+}
+
+export function getPresetById(presetId, presets) {
+  return (presets || []).find((preset) => preset.id === presetId) ?? null;
+}
+
+export function evaluateSelectedPreset(configure, scanResult, presets) {
+  const presetId = configure?.preset;
+  if (!scanResult || !presetId || presetId === "custom" || presetId === "basic") {
+    return null;
+  }
+
+  const preset = getPresetById(presetId, presets);
+  if (!preset) {
+    return null;
+  }
+
+  return {
+    preset,
+    presetId,
+    ...evaluatePresetSelection(preset, scanResult),
+  };
+}

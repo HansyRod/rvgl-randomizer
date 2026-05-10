@@ -1,5 +1,8 @@
 import { DEFAULT_CAR_OPTIONS, DEFAULT_TRACK_OPTIONS } from "../../utils/constants";
 import { makeDefaultCupSpecState, makeDefaultCupSpec } from "../cupSpec/CupSpecTab";
+import { countEligibleCarsByRating, getStockModePresetErrors } from "./presetValidation";
+
+const REQUIRED_SUPER_PROS = 7;
 
 export const LONG_CUPS_PRESET = {
   id: "long-cups",
@@ -14,6 +17,18 @@ export const LONG_CUPS_PRESET = {
     "Each cup has 14 stages, one in each track. Bronze Cup races in Normal version, Silver Cup in Reverse, Gold Cup in Mirror, and Platinum Cup in Reverse Mirror.",
     "Progression is free between stages, but you need to finish 1st overall to progress to the next cup."
   ],
+  validateSelection: ({ scanResult }) => {
+    const errors = getStockModePresetErrors(scanResult);
+    const superProCount = countEligibleCarsByRating(scanResult, 5);
+
+    if (superProCount < REQUIRED_SUPER_PROS) {
+      errors.push(
+        `This preset requires at least ${REQUIRED_SUPER_PROS} eligible Super Pro cars, but only ${superProCount} are currently available.`
+      );
+    }
+
+    return errors;
+  },
   configure: {
     carOptions: {
       ...DEFAULT_CAR_OPTIONS,

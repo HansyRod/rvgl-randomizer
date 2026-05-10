@@ -1,5 +1,8 @@
 import { DEFAULT_CAR_OPTIONS, DEFAULT_TRACK_OPTIONS } from "../../utils/constants";
 import { makeDefaultCupSpecState } from "../cupSpec/CupSpecTab";
+import { countEligibleCarsByRating, getStockModePresetErrors } from "./presetValidation";
+
+const REQUIRED_ROOKIES = 42;
 
 export const ALL_ROOKIES_PRESET = {
   id: "all-rookies",
@@ -13,6 +16,18 @@ export const ALL_ROOKIES_PRESET = {
     "Get 14 random tracks, with 4 Easy, 4 Medium, 3 Hard and 3 Extreme.",
     "Easier cups: Finish top 5 to progress to the next stage, get more retries, and finish top 3 overall to win the championship."
   ],
+  validateSelection: ({ scanResult }) => {
+    const errors = getStockModePresetErrors(scanResult);
+    const rookieCount = countEligibleCarsByRating(scanResult, 0);
+
+    if (rookieCount < REQUIRED_ROOKIES) {
+      errors.push(
+        `This preset requires at least ${REQUIRED_ROOKIES} eligible Rookie cars, but only ${rookieCount} are currently available.`
+      );
+    }
+
+    return errors;
+  },
   configure: {
     carOptions: {
       ...DEFAULT_CAR_OPTIONS,

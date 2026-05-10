@@ -39,6 +39,39 @@
   background: var(--tab-active-bg);
 }
 
+.preset-card.invalid {
+  border-color: color-mix(in srgb, var(--border-color) 70%, #7f7f7f 30%);
+  background: color-mix(in srgb, var(--bg-secondary) 72%, #909090 28%);
+}
+
+.preset-card.invalid:hover {
+  border-color: color-mix(in srgb, var(--border-color) 70%, #7f7f7f 30%);
+}
+
+.preset-card.selected.invalid {
+  border-color: #d97878;
+  background: color-mix(in srgb, var(--tab-active-bg) 86%, #6a1f1f 14%);
+}
+
+.preset-card:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.preset-card.invalid:not(.selected) .preset-card-label {
+  color: color-mix(in srgb, var(--text-primary) 58%, #8d8d8d 42%);
+}
+
+.preset-card.invalid:not(.selected) .preset-card-desc,
+.preset-card.invalid:not(.selected) .preset-card-bullets li {
+  color: color-mix(in srgb, var(--text-secondary) 64%, #8d8d8d 36%);
+}
+
+.preset-card.invalid:not(.selected) .preset-card-tag {
+  opacity: 0.45;
+  filter: grayscale(0.7);
+}
+
 /* ── Card header row: label + tag side-by-side ── */
 .preset-card-header {
   display: flex;
@@ -110,6 +143,13 @@
 .preset-card-bullets li {
   font-size: 0.78rem;
   color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.preset-card-error {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #c98383;
   line-height: 1.45;
 }
 

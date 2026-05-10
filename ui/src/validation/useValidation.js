@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { useAppContext } from "../AppProvider";
+import { PRESETS } from "../configure/presets";
 import { validateScan } from "./scanValidators";
+import { validateSelectedPreset } from "./presetValidators";
 import { validateCarOptions } from "./carValidators";
 import { validateTrackSpec } from "./trackValidators";
 import { validateCupSpec } from "./cupValidators";
@@ -29,6 +31,7 @@ export function useValidation() {
 
     if (setup.scanResult) {
       collect(validateScan(setup.scanResult));
+      collect(validateSelectedPreset(configure, setup.scanResult, PRESETS));
     }
 
     if (setup.scanResult && configure.carOptions) {

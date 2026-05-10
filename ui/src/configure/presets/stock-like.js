@@ -1,5 +1,6 @@
 import { DEFAULT_CAR_OPTIONS, DEFAULT_TRACK_OPTIONS } from "../../utils/constants";
 import { makeDefaultCupSpecState } from "../cupSpec/CupSpecTab";
+import { getStockModePresetErrors } from "./presetValidation";
 
 export const STOCK_LIKE_PRESET = {
   id: "stock-like",
@@ -13,6 +14,7 @@ export const STOCK_LIKE_PRESET = {
     "Get 14 random tracks, with 4 Easy, 4 Medium, 3 Hard and 3 Extreme.",
     "Cups use the same rules as original cups, with the randomized track list."
   ],
+  validateSelection: ({ scanResult }) => getStockModePresetErrors(scanResult),
   configure: {
     carOptions: {
       ...DEFAULT_CAR_OPTIONS,

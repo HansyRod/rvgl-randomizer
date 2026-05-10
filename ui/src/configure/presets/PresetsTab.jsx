@@ -1,11 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import "./PresetsTab.css";
 import { useAppContext } from "../../AppProvider";
-import { STOCK_LIKE_PRESET } from "./stock-like";
-import { FULL_RANDOM_PRESET } from "./full-random";
-import { ALL_ROOKIES_PRESET } from "./all-rookies";
-import { CHALLENGE_PRESET } from "./challenge";
-import { LONG_CUPS_PRESET } from "./long-cups";
+import { PRESETS } from ".";
+import { evaluatePresetSelection } from "./presetValidation";
 import {
   DEFAULT_CAR_OPTIONS,
   DEFAULT_TRACK_OPTIONS,
@@ -20,14 +17,6 @@ import { makeDefaultCupSpecState } from "../cupSpec/CupSpecTab";
 // ─── Preset definitions ───────────────────────────────────────────────────────
 // Each preset contains the exact configure sub-state that will be applied when
 // the user selects it. Add new presets here to extend the list.
-
-export const PRESETS = [
-  STOCK_LIKE_PRESET,
-  ALL_ROOKIES_PRESET,
-  FULL_RANDOM_PRESET,
-  CHALLENGE_PRESET,
-  LONG_CUPS_PRESET
-];
 
 function cloneValue(value) {
   if (typeof structuredClone === "function") {
@@ -143,11 +132,16 @@ function CustomPresetDialog({
 
 export default function PresetsTab() {
   const { state, updateCategoryCtx } = useAppContext();
-  const { configure } = state;
+  const { configure, setup } = state;
   const selectedPreset = configure?.preset ?? "basic";
   const [isCustomDialogOpen, setIsCustomDialogOpen] = useState(false);
   const [customSourceMode, setCustomSourceMode] = useState("default");
   const [customSourcePresetId, setCustomSourcePresetId] = useState(PRESETS[0]?.id ?? "");
+  const presetValidity = useMemo(() => {
+    return Object.fromEntries(
+      PRESETS.map((preset) => [preset.id, evaluatePresetSelection(preset, setup.scanResult)])
+    );
+  }, [setup.scanResult]);
 
   // Apply a named preset: overwrite all configure option slices and record the
   // selected preset id so the sidebar knows to lock the other tabs.
@@ -206,11 +200,14 @@ export default function PresetsTab() {
 
         {PRESETS.map(preset => {
           const isSelected = selectedPreset === preset.id;
+          const validationState = presetValidity[preset.id] ?? { isSelectable: true, errors: [] };
+          const isInvalid = !validationState.isSelectable;
           return (
             <button
               key={preset.id}
-              className={`preset-card${isSelected ? " selected" : ""}`}
+              className={`preset-card${isSelected ? " selected" : ""}${isInvalid ? " invalid" : ""}`}
               onClick={() => handleSelectPreset(preset)}
+              disabled={isInvalid && !isSelected}
             >
               <div className="preset-card-header">
                 <span className="preset-card-label">{preset.label}</span>
@@ -220,6 +217,10 @@ export default function PresetsTab() {
               </div>
 
               <p className="preset-card-desc">{preset.description}</p>
+
+              {isInvalid && (
+                <p className="preset-card-error">{validationState.errors[0]}</p>
+              )}
 
               {isSelected && (
                 <>
