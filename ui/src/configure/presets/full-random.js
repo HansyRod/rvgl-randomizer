@@ -14,7 +14,7 @@ export const FULL_RANDOM_PRESET = {
     "Cups have a random number of stages, and each stage has a random number of laps.",
     "You can play reverse / mirror tracks on cups with no restrictions."
   ],
-  validateSelection: ({ scanResult }) => getStockModePresetErrors(scanResult),
+  validateSelection: ({ scanResult }) => getStockModePresetErrors(scanResult, FULL_RANDOM_PRESET.id),
   configure: {
     carOptions: {
       ...DEFAULT_CAR_OPTIONS,

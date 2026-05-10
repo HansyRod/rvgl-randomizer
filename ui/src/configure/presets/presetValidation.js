@@ -1,10 +1,14 @@
-import { getAllCarsFromScan, getAllTracksFromScan, getIsStockCars, getIsStockTracks } from "../../validation/validationUtils.js";
+import { getAllCarsFromScan, getAllTracksFromScan } from "../../validation/validationUtils";
+import { isEffectiveStockCarsMode, isEffectiveStockTracksMode, getSelectedPreset } from "../../validation/stockMode";
 
-export function getStockModePresetErrors(scanResult) {
-  const isStockCarsMode = getIsStockCars(scanResult);
-  const isStockTracksMode = getIsStockTracks(scanResult);
+export function getStockModePresetErrors(scanResult, presetId) {
+  const isStockCarsMode = isEffectiveStockCarsMode(scanResult, presetId);
+  const isStockTracksMode = isEffectiveStockTracksMode(scanResult, presetId);
+  const preset = getSelectedPreset(presetId);
+  const supportsStockCarsMode = !isStockCarsMode || preset?.stockMode?.cars;
+  const supportsStockTracksMode = !isStockTracksMode || preset?.stockMode?.tracks;
 
-  if (isStockCarsMode || isStockTracksMode) {
+  if (!supportsStockCarsMode || !supportsStockTracksMode) {
     return ["This preset cannot be used when Stock Content Mode is active."];
   }
 

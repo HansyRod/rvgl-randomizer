@@ -9,6 +9,10 @@ export const RANDOM_STOCKS_PRESET = {
   id: "random-stocks",
   label: "Random Stocks",
   tag: "Unmodded",
+  stockMode: {
+    cars: true,
+    tracks: true,
+  },
   description:
     "Race your familiar cars and tracks with a twist! Use this preset if you want to play only with the original game content.",
   bullets: [

@@ -1,12 +1,14 @@
-import { formatValidationList, getAllTracksFromScan, getIsStockTracks } from "./validationUtils";
-export function validateTrackSpec(trackSpecState, trackOptions, scanResult) {
+import { formatValidationList, getAllTracksFromScan } from "./validationUtils";
+import { isEffectiveStockTracksMode } from "./stockMode";
+
+export function validateTrackSpec(trackSpecState, trackOptions, scanResult, preset) {
   const errors = [];
   const warnings = [];
   const infos = [];
 
   const allTracks = getAllTracksFromScan(scanResult);
 
-  const isStockMode = getIsStockTracks(scanResult);
+  const isStockMode = isEffectiveStockTracksMode(scanResult, preset);
   if (isStockMode) {
     infos.push({
       id: "tracks_stock_mode_active",

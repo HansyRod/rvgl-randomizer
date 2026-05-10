@@ -4,7 +4,7 @@ import { useAppContext } from "../../AppProvider";
 import StartingCarConfig from "./StartingCarConfig";
 import CarRatingsConfig from "./CarRatingsConfig";
 import { applyModeRules, makeDefaultSpec, alignDistributionsWithSpec } from "./CarOptionsUtils";
-import { getIsStockCars } from "../../validation/validationUtils";
+import { isEffectiveStockCarsMode } from "../../validation/stockMode";
 
 export default function CarOptionsTab() {
 
@@ -15,7 +15,7 @@ export default function CarOptionsTab() {
   
   // Destructure individual variables
   const { scanResult } = setup;
-  const { carOptions, carsSpecState } = configure;
+  const { carOptions, carsSpecState, preset } = configure;
   
   const {
     unlockMode,
@@ -28,7 +28,7 @@ export default function CarOptionsTab() {
     includeSingleRace,
   } = carOptions;
 
-  const isStockMode = getIsStockCars(scanResult);
+  const isStockMode = isEffectiveStockCarsMode(scanResult, preset);
 
   const set = (key, value) => updateCategoryCtx("configure", { carOptions: { ...carOptions, [key]: value } });
 

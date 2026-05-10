@@ -1,13 +1,14 @@
-import { getAllCarsFromScan, getAllTracksFromScan, getIsStockCars, getIsStockTracks } from "./validationUtils";
+import { getAllCarsFromScan, getAllTracksFromScan } from "./validationUtils";
+import { isEffectiveStockCarsMode, isEffectiveStockTracksMode } from "./stockMode";
 
-export function validateScan(scanResult) {
+export function validateScan(scanResult, preset) {
   const errors = [];
   const warnings = [];
 
   const allCars = getAllCarsFromScan(scanResult);
   const allTracks = getAllTracksFromScan(scanResult);
 
-  const isStockCarsMode = getIsStockCars(scanResult);
+  const isStockCarsMode = isEffectiveStockCarsMode(scanResult, preset);
   const minCars = isStockCarsMode ? 28 : 42;
 
   if (allCars.length < minCars) {
@@ -18,7 +19,7 @@ export function validateScan(scanResult) {
     });
   }
 
-  const isStockMode = getIsStockTracks(scanResult);
+  const isStockMode = isEffectiveStockTracksMode(scanResult, preset);
   const minTracks = isStockMode ? 13 : 14;
 
   if (allTracks.length < minTracks) {

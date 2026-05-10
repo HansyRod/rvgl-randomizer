@@ -11,6 +11,7 @@ import { validateGenerate } from "./generateValidators";
 export function useValidation() {
   const { state } = useAppContext();
   const { setup, configure, generate, play } = state;
+  const { preset } = configure || {};
 
   return useMemo(() => {
     const errors = [];
@@ -30,7 +31,7 @@ export function useValidation() {
     };
 
     if (setup.scanResult) {
-      collect(validateScan(setup.scanResult));
+      collect(validateScan(setup.scanResult, preset));
       collect(validateSelectedPreset(configure, setup.scanResult, PRESETS));
     }
 
@@ -38,7 +39,8 @@ export function useValidation() {
       collect(validateCarOptions(
         configure.carOptions,
         configure.carsSpecState,
-        setup.scanResult
+        setup.scanResult,
+        preset
       ));
     }
 
@@ -46,7 +48,8 @@ export function useValidation() {
       collect(validateTrackSpec(
         configure.trackSpecState,
         configure.trackOptions,
-        setup.scanResult
+        setup.scanResult,
+        preset
       ));
     }
 

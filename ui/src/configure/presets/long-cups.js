@@ -18,7 +18,7 @@ export const LONG_CUPS_PRESET = {
     "Progression is free between stages, but you need to finish 1st overall to progress to the next cup."
   ],
   validateSelection: ({ scanResult }) => {
-    const errors = getStockModePresetErrors(scanResult);
+    const errors = getStockModePresetErrors(scanResult, LONG_CUPS_PRESET.id);
     const superProCount = countEligibleCarsByRating(scanResult, 5);
 
     if (superProCount < REQUIRED_SUPER_PROS) {

@@ -17,7 +17,7 @@ export const ALL_ROOKIES_PRESET = {
     "Easier cups: Finish top 5 to progress to the next stage, get more retries, and finish top 3 overall to win the championship."
   ],
   validateSelection: ({ scanResult }) => {
-    const errors = getStockModePresetErrors(scanResult);
+    const errors = getStockModePresetErrors(scanResult, ALL_ROOKIES_PRESET.id);
     const rookieCount = countEligibleCarsByRating(scanResult, 0);
 
     if (rookieCount < REQUIRED_ROOKIES) {

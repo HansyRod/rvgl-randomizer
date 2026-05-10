@@ -17,7 +17,7 @@ export const CHALLENGE_PRESET = {
     "Platinum Cup is a special challenge against Super Pro cars. Can you withstand it?"
   ],
   validateSelection: ({ scanResult }) => {
-    const errors = getStockModePresetErrors(scanResult);
+    const errors = getStockModePresetErrors(scanResult, CHALLENGE_PRESET.id);
     const superProCount = countEligibleCarsByRating(scanResult, 5);
 
     if (superProCount < REQUIRED_SUPER_PROS) {

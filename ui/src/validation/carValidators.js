@@ -1,7 +1,8 @@
-import { formatValidationList, getAllCarsFromScan, getIsStockCars } from "./validationUtils";
+import { formatValidationList, getAllCarsFromScan } from "./validationUtils";
+import { isEffectiveStockCarsMode } from "./stockMode";
 import { STOCK_CARS, DC_CARS, ATTR_RATINGS_LIST } from "../utils/constants";
 
-export function validateCarOptions(carOptions, carsSpecState, scanResult) {
+export function validateCarOptions(carOptions, carsSpecState, scanResult, preset) {
   const errors = [];
   const warnings = [];
   const infos = [];
@@ -12,7 +13,7 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult) {
   const allCars = getAllCarsFromScan(scanResult);
   const allFolders = new Set(allCars.map(c => c.folderName.toLowerCase()));
   
-  const isStockMode = getIsStockCars(scanResult);
+  const isStockMode = isEffectiveStockCarsMode(scanResult, preset);
   if (isStockMode) {
     infos.push({
       id: "cars_stock_mode_active",

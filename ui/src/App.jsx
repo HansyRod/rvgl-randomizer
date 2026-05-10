@@ -18,11 +18,12 @@ import { useValidation } from "./validation/useValidation";
 import { useLaunchValidation } from "./validation/useLaunchValidation";
 import ValidationStatus from "./validation/ValidationStatus";
 import { makeDefaultTrackSpec } from "./utils/constants";
-import { getIsStockCars, getIsStockTracks } from "./validation/validationUtils";
+import { isEffectiveStockCarsMode, isEffectiveStockTracksMode } from "./validation/stockMode";
 
 export default function App() {
   const { state, resetContext, updateContext, updateCategoryCtx } = useAppContext();
   const { app, setup, configure } = state;
+  const { preset, carsSpecState, trackSpecState } = configure || {};
   const { isLoading, theme, isFetchingPack } = app;
   const activeStep = app?.activeStep ?? "setup";
 
@@ -40,23 +41,22 @@ export default function App() {
   // Clean up includeDcCars if stock mode is active
   useEffect(() => {
     if (setup.scanResult) {
-      const isStockMode = getIsStockCars(setup.scanResult);
-      if (isStockMode && configure.carsSpecState?.includeDcCars) {
+      const isStockMode = isEffectiveStockCarsMode(setup.scanResult, preset);
+      if (isStockMode && carsSpecState?.includeDcCars) {
         updateCategoryCtx("configure", {
           carsSpecState: {
-            ...configure.carsSpecState,
+            ...carsSpecState,
             includeDcCars: false
           }
         });
       }
     }
-  }, [setup.scanResult, configure.carsSpecState?.includeDcCars, updateCategoryCtx]);
+  }, [setup.scanResult, preset, carsSpecState, updateCategoryCtx]);
 
   useEffect(() => {
-    const trackSpecState = configure.trackSpecState;
     if (!setup.scanResult || !trackSpecState?.tracks) return;
 
-    const isStockTracksMode = getIsStockTracks(setup.scanResult);
+    const isStockTracksMode = isEffectiveStockTracksMode(setup.scanResult, preset);
     const roofIndex = trackSpecState.tracks.findIndex(row => row?.id?.toLowerCase() === "roof");
 
     if (isStockTracksMode) {
@@ -87,7 +87,7 @@ export default function App() {
         }
       });
     }
-  }, [setup.scanResult, configure.trackSpecState, updateCategoryCtx]);
+  }, [setup.scanResult, preset, trackSpecState, updateCategoryCtx]);
 
   // Load cache on mount
   useEffect(() => {

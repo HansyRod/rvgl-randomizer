@@ -1,7 +1,7 @@
 import "../carOptions/CarOptionsTab.css";
 import { STOCK_TRACKS } from "../../utils/constants";
 import { useAppContext } from "../../AppProvider";
-import { getIsStockTracks } from "../../validation/validationUtils";
+import { isEffectiveStockTracksMode } from "../../validation/stockMode";
 
 function makeDefaultTrackSpec(ids) {
   return ids.map(id => ({
@@ -32,10 +32,11 @@ export default function TrackOptionsTab() {
   const { state, updateCategoryCtx } = useAppContext();
 
   // Destructure categories
-  const { configure } = state;
+  const { setup, configure } = state;
   
   // Destructure individual variables
-  const { trackOptions, trackSpecState } = configure;
+  const { scanResult } = setup || {};
+  const { trackOptions, trackSpecState, preset } = configure;
 
   const set = (key, value) => updateCategoryCtx("configure", { trackOptions: { ...trackOptions, [key]: value } });
   
@@ -48,7 +49,7 @@ export default function TrackOptionsTab() {
     includeSingleRace,
   } = trackOptions;
 
-  const isStockMode = getIsStockTracks(state.setup?.scanResult);
+  const isStockMode = isEffectiveStockTracksMode(scanResult, preset);
   const includeTracks = trackSpecState?.includeTracks !== false;
 
   const handleModeSelect = (modeId) => {

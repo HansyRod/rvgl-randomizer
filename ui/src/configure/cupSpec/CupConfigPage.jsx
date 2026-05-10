@@ -3,7 +3,7 @@ import "../carOptions/CarOptionsTab.css";
 import "./CupSpecTab.css";
 import { useAppContext } from "../../AppProvider";
 import { STOCK_TRACKS } from "../../utils/constants";
-import { getIsStockTracks } from "../../validation/validationUtils";
+import { isEffectiveStockTracksMode } from "../../validation/stockMode";
 import {
   CUP_NAMES,
   DEFAULT_CARS_PER_CLASS,
@@ -45,8 +45,8 @@ export default function CupConfigPage({ cupIndex }) {
   const { state, updateCategoryCtx } = useAppContext();
   const { setup, configure } = state;
   const { scanResult } = setup;
-  const { trackSpecState, cupSpecState } = configure;
-  const isStockTracksMode = scanResult ? getIsStockTracks(scanResult) : false;
+  const { trackSpecState, cupSpecState, preset } = configure;
+  const isStockTracksMode = scanResult ? isEffectiveStockTracksMode(scanResult, preset) : false;
   const slotCount = isStockTracksMode ? 13 : 14;
 
   const cupSpec = cupSpecState.cups[cupIndex];

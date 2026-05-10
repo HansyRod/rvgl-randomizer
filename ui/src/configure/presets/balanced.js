@@ -14,7 +14,7 @@ export const BALANCED_PRESET = {
     "Get 14 random tracks, with 4 Easy, 4 Medium, 3 Hard and 3 Extreme.",
     "Cups use the same rules as original cups, with the randomized track list."
   ],
-  validateSelection: ({ scanResult }) => getStockModePresetErrors(scanResult),
+  validateSelection: ({ scanResult }) => getStockModePresetErrors(scanResult, BALANCED_PRESET.id),
   configure: {
     carOptions: {
       ...DEFAULT_CAR_OPTIONS,

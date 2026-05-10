@@ -9,7 +9,7 @@ import TrackOptionsTab from "./trackOptions/TrackOptionsTab";
 import TrackSpecTab from "./trackOptions/TrackSpecTab";
 import CupSpecTab from "./cupSpec/CupSpecTab";
 import CupConfigPage from "./cupSpec/CupConfigPage";
-import { getIsStockCars } from "../validation/validationUtils";
+import { isEffectiveStockCarsMode } from "../validation/stockMode";
 
 const CONFIGURE_TABS = [
   { id: "car-options",      label: "Car options",            group: "Cars",   disabledKey: null },
@@ -27,14 +27,13 @@ const CONFIGURE_TABS = [
 export default function ConfigureView() {
   const { state, updateCategoryCtx } = useAppContext();
   const { setup, configure } = state;
-  const activeTab = configure?.configureTab ?? "presets";
-  const carsSpecState = configure?.carsSpecState;
-  const trackSpecState = configure?.trackSpecState;
+  const { carsSpecState, trackSpecState, configureTab, preset } = configure || {};
+  const activeTab = configureTab ?? "presets";
 
   // When a named preset is active, all tabs except "presets" are locked.
   const isCustom = configure?.preset === "custom";
 
-  const isStockMode = getIsStockCars(setup.scanResult);
+  const isStockMode = isEffectiveStockCarsMode(setup.scanResult, preset);
 
   const includeStockCars = carsSpecState?.includeStockCars !== false;
   const includeDcCars = isStockMode ? false : (carsSpecState?.includeDcCars !== false);

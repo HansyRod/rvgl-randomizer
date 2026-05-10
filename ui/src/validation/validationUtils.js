@@ -30,20 +30,44 @@ export function getAllTracksFromScan(scanResult) {
   return tracks.filter(isEligibleTrack);
 }
 
-export function getIsStockCars(scanResult) {
+export function hasAllStockCars(scanResult) {
   const allCars = getAllCarsFromScan(scanResult);
-  if (allCars.length !== 28) return false;
-  
   const stockSet = new Set(STOCK_CARS.map(c => c.toLowerCase()));
-  return allCars.every(c => stockSet.has(c.folderName.toLowerCase()));
+  const availableStockCars = new Set(
+    allCars
+      .map((car) => car.folderName?.toLowerCase())
+      .filter((folderName) => stockSet.has(folderName))
+  );
+
+  return availableStockCars.size === STOCK_CARS.length;
 }
 
-export function getIsStockTracks(scanResult) {
+export function hasOnlyStockCarsLoaded(scanResult) {
+  const allCars = getAllCarsFromScan(scanResult);
+  if (allCars.length !== STOCK_CARS.length) return false;
+
+  const stockSet = new Set(STOCK_CARS.map((car) => car.toLowerCase()));
+  return allCars.every((car) => stockSet.has(car.folderName.toLowerCase()));
+}
+
+export function hasAllStockTracks(scanResult) {
   const allTracks = getAllTracksFromScan(scanResult);
-  if (allTracks.length !== 13) return false;
-  
   const baseTracksWithoutRoof = new Set(STOCK_TRACKS.map(t => t.toLowerCase()).filter(t => t !== "roof"));
-  return allTracks.every(t => baseTracksWithoutRoof.has(t.folderName.toLowerCase()));
+  const availableStockTracks = new Set(
+    allTracks
+      .map((track) => track.folderName?.toLowerCase())
+      .filter((folderName) => baseTracksWithoutRoof.has(folderName))
+  );
+
+  return availableStockTracks.size === baseTracksWithoutRoof.size;
+}
+
+export function hasOnlyStockTracksLoaded(scanResult) {
+  const allTracks = getAllTracksFromScan(scanResult);
+  if (allTracks.length !== STOCK_TRACKS.length - 1) return false;
+
+  const baseTracksWithoutRoof = new Set(STOCK_TRACKS.map((track) => track.toLowerCase()).filter((track) => track !== "roof"));
+  return allTracks.every((track) => baseTracksWithoutRoof.has(track.folderName.toLowerCase()));
 }
 
 export function formatValidationList(items, maxVisible = 3) {
