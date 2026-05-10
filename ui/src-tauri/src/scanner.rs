@@ -111,13 +111,13 @@ pub fn scan_install(executable_path: String) -> Option<ScanResult> {
                             let has_cars = cars_path.is_dir();
                             let has_tracks = levels_path.is_dir();
 
-                            let is_game_files = name.to_ascii_lowercase() == "game_files";
+                            let auto_enable_pack = name.to_ascii_lowercase() == "game_files" || name.to_ascii_lowercase() == "rvgl_dcpack";
                             let mut use_cars = false;
                             let mut use_tracks = false;
                             let mut cars = Vec::new();
                             let mut tracks = Vec::new();
 
-                            if is_game_files {
+                            if auto_enable_pack {
                                 if has_cars {
                                     use_cars = true;
                                     cars = scan_cars_folder_sync(&cars_path);
