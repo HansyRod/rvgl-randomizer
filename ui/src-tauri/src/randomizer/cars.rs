@@ -20,6 +20,15 @@ pub fn is_stock_car_folder(folder: &str) -> bool {
         .any(|stock| stock.eq_ignore_ascii_case(folder))
 }
 
+pub fn count_available_stock_cars(cars: &[Car]) -> usize {
+    STOCK_CAR_FOLDERS
+        .iter()
+        .filter(|stock_folder| {
+            cars.iter().any(|car| car.folder_name.eq_ignore_ascii_case(stock_folder))
+        })
+        .count()
+}
+
 /// Build a flat list of valid (non-system, valid-file) cars from the scan.
 pub fn collect_available_cars(scan: &ScanResult) -> Vec<Car> {
     let mut out = Vec::new();
@@ -50,7 +59,11 @@ pub fn collect_available_cars(scan: &ScanResult) -> Vec<Car> {
     out
 }
 
-pub fn is_stock_cars_only(cars: &[Car]) -> bool {
+pub fn has_all_stock_cars(cars: &[Car]) -> bool {
+    count_available_stock_cars(cars) == STOCK_CAR_FOLDERS.len()
+}
+
+pub fn has_only_stock_cars_loaded(cars: &[Car]) -> bool {
     cars.len() == STOCK_CAR_FOLDERS.len()
         && cars.iter().all(|car| is_stock_car_folder(&car.folder_name))
 }

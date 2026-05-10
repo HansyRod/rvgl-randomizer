@@ -14,7 +14,21 @@ pub fn is_stock_track_folder(folder: &str) -> bool {
         .any(|stock| stock.eq_ignore_ascii_case(folder))
 }
 
-pub fn is_stock_tracks_only(tracks: &[Track]) -> bool {
+pub fn count_available_stock_tracks(tracks: &[Track]) -> usize {
+    STOCK_TRACK_FOLDERS
+        .iter()
+        .filter(|stock_folder| !stock_folder.eq_ignore_ascii_case("roof"))
+        .filter(|stock_folder| {
+            tracks.iter().any(|track| track.folder_name.eq_ignore_ascii_case(stock_folder))
+        })
+        .count()
+}
+
+pub fn has_all_stock_tracks(tracks: &[Track]) -> bool {
+    count_available_stock_tracks(tracks) == STOCK_TRACK_FOLDERS.len() - 1
+}
+
+pub fn has_only_stock_tracks_loaded(tracks: &[Track]) -> bool {
     tracks.len() == STOCK_TRACK_FOLDERS.len() - 1
         && tracks.iter().all(|track| {
             is_stock_track_folder(&track.folder_name)

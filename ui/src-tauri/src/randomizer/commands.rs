@@ -8,6 +8,10 @@ use super::tracks::*;
 use super::cups::*;
 use super::rng::Rng;
 
+fn is_effective_stock_mode(has_all_stock: bool, has_only_stock: bool, preset_stock_mode: bool) -> bool {
+    has_all_stock && (has_only_stock || preset_stock_mode)
+}
+
 // ============================================================================
 // Tauri command entry point
 // ============================================================================
@@ -22,6 +26,8 @@ pub fn generate_result(
     track_spec_state: TrackSpecState,
     track_options: Option<TrackOptionsInput>,
     cup_spec_state: Option<CupSpecState>,
+    preset_id: String,
+    preset_stock_mode: Option<PresetStockModeInput>,
     file_name: String,
     profile_name: String,
 ) -> Result<String, String> {
@@ -57,13 +63,41 @@ pub fn generate_result(
 
     let all_cars = collect_available_cars(&scan_result);
     let all_tracks = collect_available_tracks(&scan_result);
-    let is_stock_cars = is_stock_cars_only(&all_cars);
-    let is_stock_tracks = is_stock_tracks_only(&all_tracks);
+    let preset_stock_mode = preset_stock_mode.unwrap_or_default();
+    let has_all_stock_cars = has_all_stock_cars(&all_cars);
+    let has_only_stock_cars = has_only_stock_cars_loaded(&all_cars);
+    let has_all_stock_tracks = has_all_stock_tracks(&all_tracks);
+    let has_only_stock_tracks = has_only_stock_tracks_loaded(&all_tracks);
+    let is_stock_cars = is_effective_stock_mode(
+        has_all_stock_cars,
+        has_only_stock_cars,
+        preset_stock_mode.cars,
+    );
+    let is_stock_tracks = is_effective_stock_mode(
+        has_all_stock_tracks,
+        has_only_stock_tracks,
+        preset_stock_mode.tracks,
+    );
+
+    let mut content_errors = Vec::new();
+    if preset_stock_mode.cars && !has_all_stock_cars {
+        content_errors.push(format!(
+            "The selected stock preset requires all {} stock cars, but only {} are currently available.",
+            STOCK_CAR_FOLDERS.len(),
+            count_available_stock_cars(&all_cars)
+        ));
+    }
+    if preset_stock_mode.tracks && !has_all_stock_tracks {
+        content_errors.push(format!(
+            "The selected stock preset requires all {} stock tracks, but only {} are currently available.",
+            STOCK_TRACK_FOLDERS.len() - 1,
+            count_available_stock_tracks(&all_tracks)
+        ));
+    }
 
     let min_cars = if is_stock_cars { 28 } else { 42 };
     let min_tracks = if is_stock_tracks { 13 } else { 14 };
 
-    let mut content_errors = Vec::new();
     if all_cars.len() < min_cars {
         content_errors.push(format!(
             "Only {} eligible cars are available, but generation requires at least {}.",
@@ -281,6 +315,7 @@ pub fn generate_result(
         "carsSpecState": cars_spec_state,
         "trackSpecState": track_spec_state,
         "cupSpecState": cup_state,
+        "preset": preset_id,
     });
 
     let mut generated_car_folders: Vec<String> = stock_cars.iter().map(|c| c.folder.clone()).collect();
@@ -346,4 +381,125 @@ pub fn generate_result(
 
     // Return the absolute path so the frontend can store it for launching
     Ok(out_path.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_effective_stock_mode;
+    use crate::randomizer::cars::{
+        count_available_stock_cars,
+        has_all_stock_cars,
+        has_only_stock_cars_loaded,
+        STOCK_CAR_FOLDERS,
+    };
+    use crate::randomizer::tracks::{
+        count_available_stock_tracks,
+        has_all_stock_tracks,
+        has_only_stock_tracks_loaded,
+        STOCK_TRACK_FOLDERS,
+    };
+    use crate::scanner::{Car, Pool, Track};
+
+    fn make_car(folder_name: &str) -> Car {
+        Car {
+            folder_name: folder_name.to_string(),
+            name: folder_name.to_string(),
+            rating: 0,
+            obtain_method: 0,
+            is_system_car: false,
+            has_valid_file: true,
+            carbox_filename: None,
+            pool: if STOCK_CAR_FOLDERS.iter().any(|stock| stock.eq_ignore_ascii_case(folder_name)) {
+                Pool::Stock
+            } else {
+                Pool::Custom
+            },
+        }
+    }
+
+    fn make_track(folder_name: &str) -> Track {
+        Track {
+            folder_name: folder_name.to_string(),
+            name: folder_name.to_string(),
+            has_reversed: false,
+            track_type: 0,
+            difficulty: 1,
+            has_valid_file: true,
+        }
+    }
+
+    #[test]
+    fn pure_stock_content_activates_stock_mode_without_preset() {
+        let cars: Vec<Car> = STOCK_CAR_FOLDERS.iter().map(|folder| make_car(folder)).collect();
+        let tracks: Vec<Track> = STOCK_TRACK_FOLDERS
+            .iter()
+            .filter(|folder| !folder.eq_ignore_ascii_case("roof"))
+            .map(|folder| make_track(folder))
+            .collect();
+
+        assert!(has_all_stock_cars(&cars));
+        assert!(has_only_stock_cars_loaded(&cars));
+        assert!(has_all_stock_tracks(&tracks));
+        assert!(has_only_stock_tracks_loaded(&tracks));
+        assert!(is_effective_stock_mode(true, true, false));
+    }
+
+    #[test]
+    fn mixed_content_plus_stock_preset_activates_stock_mode() {
+        let mut cars: Vec<Car> = STOCK_CAR_FOLDERS.iter().map(|folder| make_car(folder)).collect();
+        cars.push(make_car("custom_car"));
+
+        let mut tracks: Vec<Track> = STOCK_TRACK_FOLDERS
+            .iter()
+            .filter(|folder| !folder.eq_ignore_ascii_case("roof"))
+            .map(|folder| make_track(folder))
+            .collect();
+        tracks.push(make_track("custom_track"));
+
+        assert!(has_all_stock_cars(&cars));
+        assert!(!has_only_stock_cars_loaded(&cars));
+        assert!(has_all_stock_tracks(&tracks));
+        assert!(!has_only_stock_tracks_loaded(&tracks));
+        assert!(is_effective_stock_mode(true, false, true));
+    }
+
+    #[test]
+    fn mixed_content_plus_non_stock_preset_does_not_activate_stock_mode() {
+        let mut cars: Vec<Car> = STOCK_CAR_FOLDERS.iter().map(|folder| make_car(folder)).collect();
+        cars.push(make_car("custom_car"));
+
+        let mut tracks: Vec<Track> = STOCK_TRACK_FOLDERS
+            .iter()
+            .filter(|folder| !folder.eq_ignore_ascii_case("roof"))
+            .map(|folder| make_track(folder))
+            .collect();
+        tracks.push(make_track("custom_track"));
+
+        assert!(has_all_stock_cars(&cars));
+        assert!(!has_only_stock_cars_loaded(&cars));
+        assert!(has_all_stock_tracks(&tracks));
+        assert!(!has_only_stock_tracks_loaded(&tracks));
+        assert!(!is_effective_stock_mode(true, false, false));
+    }
+
+    #[test]
+    fn stock_preset_without_complete_stock_roster_does_not_activate_stock_mode() {
+        let cars: Vec<Car> = STOCK_CAR_FOLDERS
+            .iter()
+            .take(STOCK_CAR_FOLDERS.len() - 1)
+            .map(|folder| make_car(folder))
+            .collect();
+        let tracks: Vec<Track> = STOCK_TRACK_FOLDERS
+            .iter()
+            .filter(|folder| !folder.eq_ignore_ascii_case("roof"))
+            .take(STOCK_TRACK_FOLDERS.len() - 2)
+            .map(|folder| make_track(folder))
+            .collect();
+
+        assert_eq!(count_available_stock_cars(&cars), STOCK_CAR_FOLDERS.len() - 1);
+        assert!(!has_all_stock_cars(&cars));
+        assert_eq!(count_available_stock_tracks(&tracks), STOCK_TRACK_FOLDERS.len() - 2);
+        assert!(!has_all_stock_tracks(&tracks));
+        assert!(!is_effective_stock_mode(false, false, true));
+    }
 }

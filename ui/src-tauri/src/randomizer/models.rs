@@ -118,6 +118,15 @@ pub fn default_random()      -> String { "Random".to_string() }
 pub fn default_false()       -> bool   { false }
 pub fn default_true()        -> bool   { true }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PresetStockModeInput {
+    #[serde(default)]
+    pub cars: bool,
+    #[serde(default)]
+    pub tracks: bool,
+}
+
 // ============================================================================
 // Output types — match ConfigData / ConfigManager.cpp field names exactly
 // ============================================================================

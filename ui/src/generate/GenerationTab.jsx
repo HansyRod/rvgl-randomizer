@@ -7,6 +7,7 @@ import LoadSeedDialog from "./LoadSeedDialog";
 import SeedSummaryPanel from "../components/SeedSummaryPanel";
 import "../setup/SetupView.css";
 import "./GenerationTab.css";
+import { PRESETS } from "../configure/presets";
 import { DEFAULT_CAR_OPTIONS } from '../utils/constants';
 
 const { poolRatingDistributions, attrRatingDistributions } = DEFAULT_CAR_OPTIONS;
@@ -95,6 +96,8 @@ export default function GenerationTab({errors}) {
     setMessage("Generating...");
 
     try {
+      const selectedPreset = PRESETS.find((preset) => preset.id === configure?.preset) ?? null;
+
       // Intercept and strip car arrays if the user unchecked them
       const filteredSpecState = {
         ...carsSpecState,
@@ -131,6 +134,11 @@ export default function GenerationTab({errors}) {
         trackSpecState,
         trackOptions: sanitizedTrackOptions,
         cupSpecState: cupSpecState ?? null,
+        presetId: configure?.preset ?? "basic",
+        presetStockMode: {
+          cars: Boolean(selectedPreset?.stockMode?.cars),
+          tracks: Boolean(selectedPreset?.stockMode?.tracks),
+        },
         fileName: instanceName.trim(),
         profileName: profileName.trim()
       });
