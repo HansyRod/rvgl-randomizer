@@ -32,3 +32,17 @@ export const handleTogglePack = async (packIndex, type, scanResult, updateCatego
   }
   updateCategoryCtx("setup", { scanResult: newResult });
 };
+
+export const getAutoPacks = (scanResult) => {
+  
+  const allPacks = scanResult?.contentPacks || [];
+
+  let autoPacks = ["rvgl_win64", "rvgl_assets"];
+  
+  const game_files_pack = allPacks.find(p => p.name.toLowerCase() === "game_files");
+  if (!game_files_pack || (!game_files_pack.useCars && !game_files_pack.useTracks)) {
+    autoPacks.push("game_files");
+  }
+  return autoPacks;
+
+}

@@ -1,4 +1,5 @@
 import { useAppContext } from "../AppProvider";
+import { getAutoPacks } from "../setup/packHelpers";
 
 function PacksTab() {
 
@@ -12,9 +13,8 @@ function PacksTab() {
   const { extraPacks } = play;
 
   const allPacks = scanResult?.contentPacks || [];
+  const autoPacks = getAutoPacks(scanResult);
 
-  const autoPacks = ["rvgl_win64", "rvgl_assets"];
-  
   const selectedContentPacks = allPacks.filter(
     pack => pack.useCars || pack.useTracks
   );

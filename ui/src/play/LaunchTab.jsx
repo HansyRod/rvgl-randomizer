@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppContext } from '../AppProvider';
 import SeedSummaryPanel from "../components/SeedSummaryPanel";
+import { getAutoPacks } from "../setup/packHelpers";
 
 export default function LaunchTab({errors}) {
 
@@ -24,7 +25,7 @@ export default function LaunchTab({errors}) {
     
     let packlist = null;
     if (scanResult.installType === 'launcher') {
-      const autoPacks = ["rvgl_win64", "rvgl_assets"];
+      const autoPacks = getAutoPacks(scanResult);
       const selectedContentPacks = scanResult.contentPacks
         .filter(p => p.useCars || p.useTracks)
         .map(p => p.name);
