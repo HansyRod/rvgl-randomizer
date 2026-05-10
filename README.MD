@@ -20,6 +20,20 @@
 
 **Note:** RVGL Randomizer creates a new profile in your RVGL installation. Outside of this profile, it doesn't affect your installation. Launching the game outside of RVGL Randomizer will continue to work with the unmodified behaviour.
 
+## How does the randomization process work?
+
+* RVGL Randomizer manipulates the original game content by changing which cars and tracks are present in the game. The original stock and DC content can be shuffled or replaced by custom content.
+* To manage this, RVGL Randomizer uses "slots" which match the 42 cars and 14 tracks present in stock + DC content.
+* Only content that is placed into those slots (either randomly or by manual configuration) will be loaded into the game. Other content is discarded.
+* Then, for each car/track, the rating/difficulty and unlock methods can also be randomized or customized.
+* The championship cups depend on which tracks are selected to be in the game, and will be changed to use those tracks, but can also be randomized or customized.
+
+### Stock mode
+
+* RVGL Randomizer accepts installations with and without custom content.
+* If your installation has only the original cars and tracks for Re-Volt on PC, RVGL Randomizer will detect this and enable "Stock Mode".
+* Stock Mode uses 28 cars instead of 42, and 13 tracks instead of 14.
+
 ## How to Use
 
 This is a step-by-step guide of what you can do in RVGL Randomizer.
@@ -35,13 +49,23 @@ In this section you can prepare your RVGL installation and available content.
 
 ### Configure
 
-In this section you can fine-tune the randomization criteria for cars, tracks and cups.
+In this section you can choose a randomization preset, or fine-tune the randomization criteria for cars, tracks and cups.
 
-* RVGL Randomizer manipulates the original game content by changing which cars and tracks are present in the game. The original stock and DC content can be shuffled or replaced by custom content.
-* To manage this, RVGL Randomizer uses "slots" which match the 42 cars and 14 tracks present in stock + DC content.
-* Only content that is placed into those slots (either randomly or by manual configuration) will be loaded into the game. Other content is discarded.
-* Then, for each car/track, the rating/difficulty and unlock methods can also be randomized or customized.
-* The championship cups depend on which tracks are selected to be in the game, and will be changed to use those tracks, but can also be randomized or customized.
+#### Presets
+
+For a quick start, you can choose a configuration preset that will randomize the game with curated instructions.
+
+* Click a preset to learn in more detail what it does.
+* Some presets have specific content requirements. If your installation doesn't meet the requirements, the preset will be disabled and display a message explaining why.
+* Once you're satisfied, continue to the Generate step with your chosen preset.
+
+#### Custom configuration
+
+Instead of using a preset, you can also customize exactly how you want the randomization for your game to work.
+
+1. Select the "Custom" option at the end of the preset list.
+2. Choose "Default Manual Configuration" if you want a clean setup, or "Copy Another Preset" to use an existing preset as a starting point.
+3. The "Cars", "Tracks" and "Cups" sections of the Configure menu will be available.
 
 See the [Configure Options](https://github.com/HansyRod/rvgl-randomizer/blob/dev/CONFIGURE.MD) page for detailed instructions on what each option does.
 
@@ -96,6 +120,18 @@ There are no plans to support other versions of RVGL or the original version of 
 To uninstall, run the `uninstall.exe` provided in the installation folder.
 * After uninstalling, you will be asked if you want to keep or remove your data. Removing your data will delete the `AppData` folder containing the generated seeds.
 * For a complete cleanup, remove the profiles in your RVGL save data folder that were created by RVGL Randomizer.
+
+## Known Issues / Limitations
+
+* Practice Star unlocks can break with randomized track setups, as some custom tracks don't have practice stars.
+* In some custom tracks which have their own soundtrack, the game is playing the default game soundtrack ("Redbook") instead.
+
+## Credits and Special Thanks
+
+* Theman and Sinaosal, they shared their modding knowledge without which this work wouldn't be possible.
+* Xarc, he created the [HD stock carboxes](https://www.revoltworld.net/dl/256x256-stock-carboxes-remake/) the randomizer uses to present stock and DC cars.
+* Jan and Bourdain, their testing and feedback was invaluable to iterate and improve the app.
+* All the friends who've been supporting this project!
 
 ## Contact
 

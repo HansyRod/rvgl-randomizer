@@ -23,7 +23,9 @@ Choose which car attributes should be modified during randomization. Also affect
 
 ### Allowed Unlock Methods
 
-Optionally allows the randomizer to give a **Cheat Only** and **Stunt Arena** obtain attribute to a car. "Cheat Only" cars can still be used by the AI.
+Configures the list of unlock methods that can be randomly attributed to a car.
+* Unlock methods outside of this list can still be attributed directly in the [Specification pages](#stock-specification--dc-specification).
+* "Cheat Only" cars can still be used by the AI.
 
 ### Rating Options
 
@@ -69,7 +71,8 @@ Choose which track attributes should be modified during randomization.
 
 * **Allowed Unlock Methods**
 
-Optionally allows the randomizer to give a **Stunt Arena** obtain attribute to a track.
+Configures the list of unlock methods that can be randomly attributed to a track.
+* Unlock methods outside of this list can still be attributed directly in the [Specification page](#track-specification).
 
 ## Track Specification
 
@@ -90,7 +93,7 @@ This page has settings that can apply to all cups, then Bronze / Silver / Gold /
 Determines how the randomizer creates the stages for each cup. The options are:
 * **Default Stages** - The cup stages follow the same pattern as the base game. For example, for Bronze Cup, the randomizer would replace the tracks used in the cup (Toys in the Hood 1 - Botanical Garden, the first four stock tracks) by the first four randomized tracks on the list of tracks, and leave everything else (number of stages, number of laps, reverse/mirror variant) unchanged.
 * **Random Stages** - Creates stages randomly for each cup, respecting the restrictions configured in **Random Stage Constraints**.
-* **User-Defined Stages** - Available as an override option, allows defining your own list of stages.
+* **User-Defined Stages** - Allows defining your own list of stages.
   * To use specific tracks, they must be defined in **Track Specification** so they're guaranteed to be in the resulting seed.
   * Alternatively, if track randomization is disabled, any of the 14 stock tracks can be used.
   * You can also pick specific slots from the list of 14 track slots. This will select the track that was randomized to be in that slot for the cup stage.
