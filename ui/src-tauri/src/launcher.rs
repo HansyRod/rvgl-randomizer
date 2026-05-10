@@ -195,7 +195,12 @@ pub fn launch_game(
         // Write the packlist file into the packs directory.
         let packlist_filename = format!("rvgl-randomizer-{}.txt", profile_name);
         let packlist_path = packs_dir.join(&packlist_filename);
-        std::fs::write(&packlist_path, packs.join("\n"))
+        let quoted_packlist = packs
+            .into_iter()
+            .map(|pack| format!("\"{}\"", pack))
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(&packlist_path, quoted_packlist)
             .map_err(|e| format!("Failed to write packlist {}: {}", packlist_filename, e))?;
 
         launcher_args.push(format!("-basepath \"{}\"", basepath.display()));
