@@ -93,6 +93,7 @@ namespace Randomizer {
 
 // Global or class-member variable to hold the active configuration
 std::optional<ConfigData> g_ActiveConfig = std::nullopt;
+bool useCupDC = true;
 
 void Initialize() {
     Logger::TimestampLogf("[Randomizer] Initializing Randomizer module...");
@@ -136,6 +137,10 @@ void Initialize() {
             }
             g_ActiveConfig->dcCars[i].folder = carPath; // Update the folder in the config struct
             s_patchedPtrs[35 + i] = g_ActiveConfig->dcCars[i].folder.c_str();
+        }
+        // Apply cupDC flag
+        if (g_ActiveConfig->global_options.is_stock_tracks == true) {
+            useCupDC = false;
         }
     } else {
         Logger::TimestampLogf("[Randomizer] Failed to load or parse configuration. Mod will remain inactive.");
@@ -445,16 +450,28 @@ void Hook_LoadVanillaTracks() {
         if (i < 14) {
             // 1. Create a deep copy of the hardcoded data
             trackInfoBackup[i] = *currentTrack;
+
+            // Skip if cupDC is false and we're in index 4 (Rooftops)
+            if (i == 4 && !useCupDC) {
+                Logger::TimestampLogf("[LoadVanillaTracks] Skipping folder patch for track %d (cupDC disabled)", i+1);
+                continue;
+            }
             
             std::string folderName = currentTrack->folderName;
 
-            // 2. Apply randomization
-            if (g_ActiveConfig.has_value() && i < g_ActiveConfig->tracks.size()) {
+            int actualIdx = i;
+            // If cupDC is disabled and we're at index 4 or above, shift the index
+            if (!useCupDC && i >= 4) {
+                actualIdx = i - 1; // Shift back by one to skip the rooftops track config
+            }
 
-                folderName = g_ActiveConfig->tracks[i].folder;
+            // 2. Apply randomization
+            if (g_ActiveConfig.has_value() && actualIdx < g_ActiveConfig->tracks.size()) {
+                folderName = g_ActiveConfig->tracks[actualIdx].folder;
             }
             else {
-                folderName = defaultTracks[i];
+                // Default tracks array includes rooftops, so the index doesn't need to be shifted here
+                folderName = defaultTracks[i]; 
             }
             strncpy_s(currentTrack->folderName, 16, folderName.c_str(), _TRUNCATE);
         }
@@ -481,10 +498,16 @@ void Hook_LoadVanillaTracks() {
         // Apply missing hardcoded data
         ApplyStockTrackData(currentTrack);
 
+        int actualIdx = i;
+        // If cupDC is disabled and we're at index 4 or above, shift the index
+        if (!useCupDC && i >= 4) {
+            actualIdx = i - 1; // Shift back by one to skip the rooftops track config
+        }
+
         // Apply difficulty rating from config
-        if (g_ActiveConfig.has_value() && i < g_ActiveConfig->tracks.size()) {
-            currentTrack->difficultyRating = g_ActiveConfig->tracks[i].difficulty;
-            currentTrack->obtainCondition = g_ActiveConfig->tracks[i].obtain;
+        if (g_ActiveConfig.has_value() && actualIdx < g_ActiveConfig->tracks.size()) {
+            currentTrack->difficultyRating = g_ActiveConfig->tracks[actualIdx].difficulty;
+            currentTrack->obtainCondition = g_ActiveConfig->tracks[actualIdx].obtain;
         }
     }
 }
@@ -667,8 +690,7 @@ void Hook_Profile_LoadAndReset(char* profileName) {
 void Hook_LoadSettingsFromIni(char* profileName) {
     Orig_LoadSettingsFromIni(profileName);
 
-    bool useCupDC = !(g_ActiveConfig.has_value() && g_ActiveConfig->global_options.is_stock_tracks == true);
-    // Force CupDC flag to true so DC cups are loaded and selectable in championships.
+    // Set CupDC flag according to the config info.
     bool* cupDCFlag = reinterpret_cast<bool*>(AbsFromRva(RVA_CUP_DC));
     *cupDCFlag = useCupDC;
 }
