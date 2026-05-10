@@ -2,9 +2,9 @@ import { DEFAULT_CAR_OPTIONS, DEFAULT_TRACK_OPTIONS } from "../../utils/constant
 import { makeDefaultCupSpecState } from "../cupSpec/CupSpecTab";
 import { getStockModePresetErrors } from "./presetValidation";
 
-export const STOCK_LIKE_PRESET = {
-  id: "stock-like",
-  label: "Stock-like",
+export const BALANCED_PRESET = {
+  id: "balanced",
+  label: "Balanced",
   tag: "Standard",
   description:
     "This preset uses the original game's progression for cars, tracks and cups, while randomizing the list of cars and tracks available.",

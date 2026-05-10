@@ -101,7 +101,7 @@ function makeStockTracksScan() {
 
 const CURRENT_PRESET_FIXTURES = [
   {
-    id: "stock-like",
+    id: "balanced",
     validateSelection: ({ scanResult }) => getStockModePresetErrors(scanResult),
   },
   {
