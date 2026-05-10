@@ -9,7 +9,9 @@ export function getStockModePresetErrors(scanResult, presetId) {
   const supportsStockTracksMode = !isStockTracksMode || preset?.stockMode?.tracks;
 
   if (!supportsStockCarsMode || !supportsStockTracksMode) {
-    return ["This preset cannot be used when Stock Content Mode is active."];
+    const carCount = getAllCarsFromScan(scanResult).length;
+    const trackCount = getAllTracksFromScan(scanResult).length;
+    return [`Stock Mode is active. This preset requires at least 42 cars and 14 tracks, but only ${carCount} cars and ${trackCount} tracks are available.`];
   }
 
   return [];
