@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 
 import {
+  countEligibleCarsByFolderNames,
   countEligibleCarsByRating,
+  countEligibleTracksByFolderNames,
   evaluatePresetSelection,
   getStockModePresetErrors,
 } from "../configure/presets/presetValidation.js";
@@ -99,6 +101,8 @@ function makeStockTracksScan() {
   });
 }
 
+const RANDOM_STOCKS_REQUIRED_TRACKS = STOCK_TRACKS.filter((track) => track !== "roof");
+
 const CURRENT_PRESET_FIXTURES = [
   {
     id: "balanced",
@@ -147,7 +151,27 @@ const CURRENT_PRESET_FIXTURES = [
       return errors;
     },
   },
+  {
+    id: "random-stocks",
+    validateSelection: ({ scanResult }) => {
+      const errors = [];
+      const availableStockCars = countEligibleCarsByFolderNames(scanResult, STOCK_CARS);
+      const availableStockTracks = countEligibleTracksByFolderNames(scanResult, RANDOM_STOCKS_REQUIRED_TRACKS);
+
+      if (availableStockCars < STOCK_CARS.length) {
+        errors.push(`This preset requires all ${STOCK_CARS.length} stock cars, but only ${availableStockCars} are currently available.`);
+      }
+
+      if (availableStockTracks < RANDOM_STOCKS_REQUIRED_TRACKS.length) {
+        errors.push(`This preset requires all ${RANDOM_STOCKS_REQUIRED_TRACKS.length} stock tracks, but only ${availableStockTracks} are currently available.`);
+      }
+
+      return errors;
+    },
+  },
 ];
+
+const STOCK_MODE_BLOCKED_PRESET_FIXTURES = CURRENT_PRESET_FIXTURES.filter((preset) => preset.id !== "random-stocks");
 
 runTest("a preset without validateSelection is always selectable", () => {
   const result = evaluatePresetSelection(
@@ -162,7 +186,7 @@ runTest("a preset without validateSelection is always selectable", () => {
 runTest("stock cars mode invalidates each current named preset", () => {
   const scanResult = makeStockCarsScan();
 
-  CURRENT_PRESET_FIXTURES.forEach((preset) => {
+  STOCK_MODE_BLOCKED_PRESET_FIXTURES.forEach((preset) => {
     const result = evaluatePresetSelection(preset, scanResult);
     assert.equal(result.isSelectable, false, `${preset.id} should be invalid`);
     assert.ok(
@@ -175,7 +199,7 @@ runTest("stock cars mode invalidates each current named preset", () => {
 runTest("stock tracks mode invalidates each current named preset", () => {
   const scanResult = makeStockTracksScan();
 
-  CURRENT_PRESET_FIXTURES.forEach((preset) => {
+  STOCK_MODE_BLOCKED_PRESET_FIXTURES.forEach((preset) => {
     const result = evaluatePresetSelection(preset, scanResult);
     assert.equal(result.isSelectable, false, `${preset.id} should be invalid`);
     assert.ok(
@@ -254,6 +278,60 @@ runTest("Long Cups requires at least 7 Super Pro cars", () => {
 
   assert.equal(failingResult.isSelectable, false);
   assert.ok(failingResult.errors.some((error) => error.includes("at least 7 eligible Super Pro cars")));
+  assert.equal(passingResult.isSelectable, true);
+});
+
+runTest("Random Stocks requires all 28 stock cars", () => {
+  const preset = CURRENT_PRESET_FIXTURES.find((entry) => entry.id === "random-stocks");
+
+  const failingResult = evaluatePresetSelection(
+    preset,
+    makeClassicScan({
+      cars: [
+        ...STOCK_CARS.slice(0, STOCK_CARS.length - 1).map((folderName) => makeCar(folderName, 0)),
+        makeCar("custom_car_1", 0),
+      ],
+      tracks: RANDOM_STOCKS_REQUIRED_TRACKS.map((folderName) => makeTrack(folderName)),
+    })
+  );
+
+  const passingResult = evaluatePresetSelection(
+    preset,
+    makeClassicScan({
+      cars: STOCK_CARS.map((folderName) => makeCar(folderName, 0)),
+      tracks: RANDOM_STOCKS_REQUIRED_TRACKS.map((folderName) => makeTrack(folderName)),
+    })
+  );
+
+  assert.equal(failingResult.isSelectable, false);
+  assert.ok(failingResult.errors.some((error) => error.includes("all 28 stock cars")));
+  assert.equal(passingResult.isSelectable, true);
+});
+
+runTest("Random Stocks requires all 13 stock tracks", () => {
+  const preset = CURRENT_PRESET_FIXTURES.find((entry) => entry.id === "random-stocks");
+
+  const failingResult = evaluatePresetSelection(
+    preset,
+    makeClassicScan({
+      cars: STOCK_CARS.map((folderName) => makeCar(folderName, 0)),
+      tracks: [
+        ...RANDOM_STOCKS_REQUIRED_TRACKS.slice(0, RANDOM_STOCKS_REQUIRED_TRACKS.length - 1).map((folderName) => makeTrack(folderName)),
+        makeTrack("custom_track_1"),
+      ],
+    })
+  );
+
+  const passingResult = evaluatePresetSelection(
+    preset,
+    makeClassicScan({
+      cars: STOCK_CARS.map((folderName) => makeCar(folderName, 0)),
+      tracks: RANDOM_STOCKS_REQUIRED_TRACKS.map((folderName) => makeTrack(folderName)),
+    })
+  );
+
+  assert.equal(failingResult.isSelectable, false);
+  assert.ok(failingResult.errors.some((error) => error.includes("all 13 stock tracks")));
   assert.equal(passingResult.isSelectable, true);
 });
 

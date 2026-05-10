@@ -3,9 +3,11 @@ import { FULL_RANDOM_PRESET } from "./full-random";
 import { ALL_ROOKIES_PRESET } from "./all-rookies";
 import { CHALLENGE_PRESET } from "./challenge";
 import { LONG_CUPS_PRESET } from "./long-cups";
+import { RANDOM_STOCKS_PRESET } from "./random-stocks";
 
 export const PRESETS = [
   BALANCED_PRESET,
+  RANDOM_STOCKS_PRESET,
   ALL_ROOKIES_PRESET,
   FULL_RANDOM_PRESET,
   CHALLENGE_PRESET,

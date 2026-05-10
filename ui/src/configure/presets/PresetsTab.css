@@ -116,6 +116,10 @@
   background: #c2410c; /* Red */
 }
 
+.preset-card-tag.unmodded {
+  background: #8b5e34; /* Warm vanilla brown with strong contrast for white text */
+}
+
 /* ── Short description blurb ── */
 .preset-card-desc {
   font-size: 0.82rem;

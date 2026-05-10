@@ -1,4 +1,4 @@
-import { getAllCarsFromScan, getIsStockCars, getIsStockTracks } from "../../validation/validationUtils.js";
+import { getAllCarsFromScan, getAllTracksFromScan, getIsStockCars, getIsStockTracks } from "../../validation/validationUtils.js";
 
 export function getStockModePresetErrors(scanResult) {
   const isStockCarsMode = getIsStockCars(scanResult);
@@ -13,6 +13,22 @@ export function getStockModePresetErrors(scanResult) {
 
 export function countEligibleCarsByRating(scanResult, rating) {
   return getAllCarsFromScan(scanResult).filter((car) => car.rating === rating).length;
+}
+
+function countAvailableFolderNames(entries, folderNames) {
+  const availableFolderNames = new Set(
+    (entries || []).map((entry) => entry.folderName?.toLowerCase()).filter(Boolean)
+  );
+
+  return (folderNames || []).filter((folderName) => availableFolderNames.has(folderName.toLowerCase())).length;
+}
+
+export function countEligibleCarsByFolderNames(scanResult, folderNames) {
+  return countAvailableFolderNames(getAllCarsFromScan(scanResult), folderNames);
+}
+
+export function countEligibleTracksByFolderNames(scanResult, folderNames) {
+  return countAvailableFolderNames(getAllTracksFromScan(scanResult), folderNames);
 }
 
 export function evaluatePresetSelection(preset, scanResult) {
