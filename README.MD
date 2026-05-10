@@ -128,9 +128,9 @@ To uninstall, run the `uninstall.exe` provided in the installation folder.
 
 ## Credits and Special Thanks
 
-* Theman and Sinaosal, they shared their modding knowledge without which this work wouldn't be possible.
-* Xarc, he created the [HD stock carboxes](https://www.revoltworld.net/dl/256x256-stock-carboxes-remake/) the randomizer uses to present stock and DC cars.
-* Jan and Bourdain, their testing and feedback was invaluable to iterate and improve the app.
+* [Theman](https://www.revoltworld.net/user/ilarihalonen/) and [Sinaosal](https://www.revoltworld.net/user/sinaosal/), they shared their modding knowledge without which this work wouldn't be possible.
+* [Xarc](https://www.revoltworld.net/user/xarcfd/), he created the [HD stock carboxes](https://www.revoltworld.net/dl/256x256-stock-carboxes-remake/) the randomizer uses to present stock and DC cars.
+* [Bourdain](https://github.com/Bourdain) and [Jan](https://github.com/joaomlsantos/), their testing and feedback was invaluable to iterate and improve the app.
 * All the friends who've been supporting this project!
 
 ## Contact
