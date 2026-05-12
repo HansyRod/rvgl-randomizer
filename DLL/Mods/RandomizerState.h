@@ -37,10 +37,6 @@ struct TrackRuntimeState {
     int trackCount = 0;
 };
 
-struct ProfileRuntimeState {
-    bool skipNextProfileLoad = false;
-};
-
 struct PhysicsPatchState {
     // Panga / panga slot state
     int spinnerType = 0;
@@ -61,7 +57,6 @@ struct RandomizerContext {
     ConfigState config;
     CarRuntimeState carState;
     TrackRuntimeState trackState;
-    ProfileRuntimeState profileState;
     PhysicsPatchState physicsState;
     FileReadState fileState;
 };
