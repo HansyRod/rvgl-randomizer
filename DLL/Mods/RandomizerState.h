@@ -33,11 +33,8 @@ struct TrackRuntimeState {
     // Track pool snapshot
     TrackInfo trackInfoBackup[14] = {};
     std::vector<TrackInfo> vanillaTrackPool;
+    std::vector<TrackInfo> customTrackPool;
     int trackCount = 0;
-
-    // Flag to enable/disable difficulty manipulation in unlock checks.
-    // Enabled only when we do a track check, since the check functions are shared between cars and tracks.
-    bool checkingTrackUnlocks = false;
 };
 
 struct ProfileRuntimeState {

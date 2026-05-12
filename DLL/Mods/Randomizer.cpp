@@ -37,164 +37,23 @@ namespace Randomizer {
 // Original function pointers
 // MinHook writes the trampoline addresses into these during InstallAll().
 // ----------------------------------------------------------------------------
-FnLoadVanillaTracks      Orig_LoadVanillaTracks      = nullptr;
-FnLoadCustomTracks       Orig_LoadCustomTracks       = nullptr;
 FnLoadVanillaCups        Orig_LoadVanillaCups        = nullptr;
 FnLoadCustomCups         Orig_LoadCustomCups         = nullptr;
 FnGetProfileIndex        Orig_GetProfileIndex        = nullptr;
 FnProfile_CreateOrLoad   Orig_Profile_CreateOrLoad   = nullptr;
 FnProfile_LoadAndReset   Orig_Profile_LoadAndReset   = nullptr;
 FnLoadSettingsFromIni    Orig_LoadSettingsFromIni    = nullptr;
-FnTrack_ApplyCustomUnlock Orig_Track_ApplyCustomUnlock = nullptr;
-FnCheckIfTierChampionshipWon Orig_CheckIfTierChampionshipWon = nullptr;
-FnCheckIfTierTimeTrialsBeaten Orig_CheckIfTierTimeTrialsBeaten = nullptr;
-FnCheckIfTierPracticeStarsFound Orig_CheckIfTierPracticeStarsFound = nullptr;
-FnCheckIfTierSingleRacesWon Orig_CheckIfTierSingleRacesWon = nullptr;
 FnInitCarPhysicsBlock       Orig_InitCarPhysicsBlock       = nullptr;
 FnToken_Matches             Orig_Token_Matches             = nullptr;
 FnReadTokenFloat            Orig_ReadTokenFloat            = nullptr;
 FnReadTokenInt              Orig_ReadTokenInt              = nullptr;
 FnReadTokenBool             Orig_ReadTokenBool             = nullptr;
 
-// ----------------------------------------------------------------------------
-// Track pool snapshot
-// 
-// ----------------------------------------------------------------------------
-static TrackInfo trackInfoBackup[14] = {};
-static std::vector<TrackInfo> s_vanillaTrackPool;
-static std::vector<TrackInfo> s_customTrackPool;
-static int s_trackCount = 0;
-
-// Flag to enable/disable difficulty manipulation in unlock checks.
-// Enabled only when we do a track check, since the check functions are shared between cars and tracks.
-static bool checkingTrackUnlocks = false;
-
-void Hook_LoadVanillaTracks() {
-
-    ConfigData* config = GetActiveConfig();
-    RandomizerContext& ctx = GetRandomizerContext();
-    bool useCupDC = ctx.config.useCupDC;
-
-    TrackInfo* vanillaTracks = reinterpret_cast<TrackInfo*>(AbsFromRva(RVA_VANILLA_TRACKS_TABLE));
-    
-    // You can now access it like a standard array
-    for (int i = 0; i < 21; i++) {
-        TrackInfo* currentTrack = &vanillaTracks[i];
-
-        if (i < 14) {
-            // 1. Create a deep copy of the hardcoded data
-            trackInfoBackup[i] = *currentTrack;
-
-            // Skip if cupDC is false and we're in index 4 (Rooftops)
-            if (i == 4 && !useCupDC) {
-                Logger::TimestampLogf("[LoadVanillaTracks] Skipping folder patch for track %d (cupDC disabled)", i+1);
-                continue;
-            }
-            
-            std::string folderName = currentTrack->folderName;
-
-            int actualIdx = i;
-            // If cupDC is disabled and we're at index 4 or above, shift the index
-            if (!useCupDC && i >= 4) {
-                actualIdx = i - 1; // Shift back by one to skip the rooftops track config
-            }
-
-            // 2. Apply randomization
-            if (config != nullptr && actualIdx < config->tracks.size()) {
-                folderName = config->tracks[actualIdx].folder;
-            }
-            else {
-                // Default tracks array includes rooftops, so the index doesn't need to be shifted here
-                folderName = defaultTracks[i]; 
-            }
-            strncpy_s(currentTrack->folderName, 16, folderName.c_str(), _TRUNCATE);
-        }
-        else {
-            Logger::TimestampLogf("[LoadVanillaTracks] Track %d: %s", i+1, currentTrack->displayName);
-        }
-    }
-
-    Orig_LoadVanillaTracks();
-
-    // Get track count
-    s_trackCount = *reinterpret_cast<int*>(AbsFromRva(RVA_TRACK_COUNT));
-
-    // Copy references to vanilla tracks
-    s_vanillaTrackPool.clear();
-    if (vanillaTracks != nullptr && s_trackCount > 0) {
-        s_vanillaTrackPool.assign(vanillaTracks, vanillaTracks + s_trackCount);
-    }
-
-    for (int i = 0; i < 14; i++) {
-        TrackInfo* currentTrack = &vanillaTracks[i];
-        Logger::TimestampLogf("[LoadVanillaTracks] Track %d: %s", i+1, currentTrack->displayName);
-        
-        // Apply missing hardcoded data
-        ApplyStockTrackData(currentTrack);
-
-        int actualIdx = i;
-        // If cupDC is disabled and we're at index 4 or above, shift the index
-        if (!useCupDC && i >= 4) {
-            actualIdx = i - 1; // Shift back by one to skip the rooftops track config
-        }
-
-        // Apply difficulty rating from config
-        if (config != nullptr && actualIdx < config->tracks.size()) {
-            currentTrack->difficultyRating = config->tracks[actualIdx].difficulty;
-            currentTrack->obtainCondition = config->tracks[actualIdx].obtain;
-        }
-    }
-}
-
-void Hook_LoadCustomTracks() {
-
-    ConfigData* config = GetActiveConfig();
-
-    // If the config explicitly says not to load extra tracks,
-    // skip calling the original function which loads them from disk.
-    if (config != nullptr && !config->global_options.load_extra_tracks) {
-        return;
-    }
-
-    Orig_LoadCustomTracks();
-
-    TrackInfo* customTracksPool = *reinterpret_cast<TrackInfo**>(AbsFromRva(RVA_CUSTOM_TRACKS_TABLE));
-    int trackCount = *reinterpret_cast<int*>(AbsFromRva(RVA_TRACK_COUNT));
-
-    for (int i = 21; i < trackCount; i++) {
-        TrackInfo* currentTrack = &customTracksPool[i-21];
-        Logger::TimestampLogf("[LoadCustomTracks] Track %d: %s", i+1, currentTrack->displayName);
-        ApplyStockTrackData(currentTrack);
-    }
-}
-
-
-void ApplyStockTrackData(TrackInfo* track) {
-
-    std::string folderName = track->folderName;
-    TrackInfo* backup = nullptr;
-
-    for (int j = 0; j < 14; j++) {
-        if (trackInfoBackup[j].folderName == folderName) {
-            backup = &trackInfoBackup[j];
-            break;
-        }
-    }
-
-    if (backup != nullptr) {
-        // Copy relevant data
-        track->challengeTime = backup->challengeTime;
-        track->challengeReverseTime = backup->challengeReverseTime;
-        track->trackLengthNormal = backup->trackLengthNormal;
-        track->trackLengthReverse = backup->trackLengthReverse;
-    }
-
-}
-
-
 void Hook_LoadVanillaCups() {
 
     ConfigData* config = GetActiveConfig();
+    RandomizerContext& ctx = GetRandomizerContext();
+    TrackRuntimeState& trackState = ctx.trackState;
 
     CupProfile* vanillaCups = reinterpret_cast<CupProfile*>(AbsFromRva(RVA_VANILLA_CUP_ARRAY));
     CupProfile* dcCups = reinterpret_cast<CupProfile*>(AbsFromRva(RVA_DC_CUP_ARRAY));
@@ -240,8 +99,8 @@ void Hook_LoadVanillaCups() {
                 const char* trackName = stageConfig.trackFolder.c_str();
 
                 int trackId = -1;
-                for (int t = 0; t < s_trackCount; t++) {
-                    if (strcmp(s_vanillaTrackPool[t].folderName, trackName) == 0) {
+                for (int t = 0; t < trackState.trackCount; t++) {
+                    if (strcmp(trackState.vanillaTrackPool[t].folderName, trackName) == 0) {
                         trackId = t;
                         break;
                     }
@@ -312,36 +171,6 @@ void Hook_LoadSettingsFromIni(char* profileName) {
     // Set CupDC flag according to the config info.
     bool* cupDCFlag = reinterpret_cast<bool*>(AbsFromRva(RVA_CUP_DC));
     *cupDCFlag = useCupDC;
-}
-
-void Hook_Track_ApplyCustomUnlock(int trackIndex) {
-    checkingTrackUnlocks = true; // Set the flag to indicate we're in a track unlock check
-    Orig_Track_ApplyCustomUnlock(trackIndex);
-    checkingTrackUnlocks = false; // Reset the flag after the unlock check
-}
-
-bool Hook_CheckIfTierChampionshipWon(int difficultyRating) {
-    int actualDifficulty = checkingTrackUnlocks ? difficultyRating - 1 : difficultyRating;
-    bool result = Orig_CheckIfTierChampionshipWon(actualDifficulty);
-    return result;
-}
-
-bool Hook_CheckIfTierTimeTrialsBeaten(int difficultyRating) {
-    int actualDifficulty = checkingTrackUnlocks ? difficultyRating - 1 : difficultyRating;
-    bool result = Orig_CheckIfTierTimeTrialsBeaten(actualDifficulty);
-    return result;
-}
-
-bool Hook_CheckIfTierPracticeStarsFound(int difficultyRating) {
-    int actualDifficulty = checkingTrackUnlocks ? difficultyRating - 1 : difficultyRating;
-    bool result = Orig_CheckIfTierPracticeStarsFound(actualDifficulty);
-    return result;
-}
-
-bool Hook_CheckIfTierSingleRacesWon(int difficultyRating) {
-    int actualDifficulty = checkingTrackUnlocks ? difficultyRating - 1 : difficultyRating;
-    bool result = Orig_CheckIfTierSingleRacesWon(actualDifficulty);
-    return result;
 }
 
 int spinnerType = 0;
