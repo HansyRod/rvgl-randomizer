@@ -48,15 +48,10 @@ namespace Randomizer {
     // MinHook writes the trampoline addresses into these during InstallAll().
     // Call these from inside the detours to invoke the real RVGL functions.
     // ------------------------------------------------------------------------
-    extern FnLoadVanillaCarPool     Orig_LoadVanillaCarPool;
-    extern FnLoadCustomCarPool      Orig_LoadCustomCarPool;
-    extern FnLoadTextureByName      Orig_LoadTextureByName;
-    extern FnSyncCarInfoFromPhysics Orig_SyncCarInfoFromPhysics;
     extern FnLoadVanillaTracks      Orig_LoadVanillaTracks;
     extern FnLoadCustomTracks       Orig_LoadCustomTracks;
     extern FnLoadVanillaCups        Orig_LoadVanillaCups;
     extern FnLoadCustomCups         Orig_LoadCustomCups;
-    extern FnUpdateCarSelectability Orig_UpdateCarSelectability;
     extern FnGetProfileIndex        Orig_GetProfileIndex;
     extern FnProfile_CreateOrLoad   Orig_Profile_CreateOrLoad;
     extern FnProfile_LoadAndReset   Orig_Profile_LoadAndReset;
@@ -75,15 +70,10 @@ namespace Randomizer {
     // ------------------------------------------------------------------------
     // Detour functions — registered in HookManager.cpp → RegisterHooks().
     // ------------------------------------------------------------------------
-    bool Hook_LoadVanillaCarPool();
-    void Hook_LoadCustomCarPool();
-    unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLevel, bool enableMips, int param_5, unsigned int flags);
-    void Hook_SyncCarInfoFromPhysics(int carIndex, CarPhysicsData *physData);
     void Hook_LoadVanillaTracks();
     void Hook_LoadCustomTracks();
     void Hook_LoadVanillaCups();
     void Hook_LoadCustomCups();
-    void Hook_UpdateCarSelectability();
     int Hook_GetProfileIndex(char* profileName);
     bool Hook_Profile_CreateOrLoad(char* displayName);
     void Hook_Profile_LoadAndReset(char* profileName);
@@ -100,6 +90,5 @@ namespace Randomizer {
     bool Hook_ReadTokenBool(bool* outValue, FILE* file);
 
     // Utils functions
-    void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData);
     void ApplyStockTrackData(TrackInfo* track);
 } // namespace Randomizer
