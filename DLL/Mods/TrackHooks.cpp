@@ -4,11 +4,9 @@
 #include "Logger.h"
 
 // ============================================================================
-// Randomizer.cpp
+// TrackHooks.cpp
 //
-// Mod logic for randomizing the car grid.
-// This file is responsible only for what the hooks do — not how they are
-// installed. See HookManager.cpp for installation.
+// All hooks related to track loading and track unlock conditions.
 // ============================================================================
 
 namespace {

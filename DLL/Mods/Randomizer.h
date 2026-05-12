@@ -18,8 +18,6 @@ namespace Randomizer {
     // Ghidra signatures (x64, __fastcall is noise and is dropped):
     //   LoadVanillaCarPool:  bool ()
     // ------------------------------------------------------------------------
-    using FnLoadVanillaCups         = void(*)();
-    using FnLoadCustomCups          = void(*)();
     using FnUpdateCarSelectability  = void(*)();
     using FnGetProfileIndex         = int(*)(char* profileName);
     using FnProfile_CreateOrLoad    = bool(*)(char* displayName);
@@ -37,8 +35,6 @@ namespace Randomizer {
     // MinHook writes the trampoline addresses into these during InstallAll().
     // Call these from inside the detours to invoke the real RVGL functions.
     // ------------------------------------------------------------------------
-    extern FnLoadVanillaCups        Orig_LoadVanillaCups;
-    extern FnLoadCustomCups         Orig_LoadCustomCups;
     extern FnGetProfileIndex        Orig_GetProfileIndex;
     extern FnProfile_CreateOrLoad   Orig_Profile_CreateOrLoad;
     extern FnProfile_LoadAndReset   Orig_Profile_LoadAndReset;
@@ -52,8 +48,6 @@ namespace Randomizer {
     // ------------------------------------------------------------------------
     // Detour functions — registered in HookManager.cpp → RegisterHooks().
     // ------------------------------------------------------------------------
-    void Hook_LoadVanillaCups();
-    void Hook_LoadCustomCups();
     int Hook_GetProfileIndex(char* profileName);
     bool Hook_Profile_CreateOrLoad(char* displayName);
     void Hook_Profile_LoadAndReset(char* profileName);
