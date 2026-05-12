@@ -1,4 +1,5 @@
 #include "Randomizer.h"
+#include "RandomizerState.h"
 #include "Addresses.h"
 #include "RVGLStructs.h"
 #include "Carbox.h"
@@ -54,6 +55,10 @@ static std::string s_patchedStrings[49];
 static const char* s_patchedPtrs[49];
 
 void InitHardcodedCarPath(int index) {
+
+    Randomizer::RandomizerContext& ctx = Randomizer::GetRandomizerContext();
+    const char** patchedPtrs = ctx.carState.patchedPtrs;
+
     std::string carPath = defaultCars[index];
 
     // Note: Using standard .find() == 0 is safer and more portable across compilers 
@@ -66,7 +71,7 @@ void InitHardcodedCarPath(int index) {
     s_patchedStrings[index] = carPath;
     
     // 3. Point the raw char array to the safely stored string
-    s_patchedPtrs[index] = s_patchedStrings[index].c_str();
+    patchedPtrs[index] = s_patchedStrings[index].c_str();
 }
 
 void InitStockCarPaths() {
@@ -90,63 +95,6 @@ void InitSpecialCarPaths() {
 } // anonymous namespace
 
 namespace Randomizer {
-
-// Global or class-member variable to hold the active configuration
-std::optional<ConfigData> g_ActiveConfig = std::nullopt;
-bool useCupDC = true;
-
-void Initialize() {
-    Logger::TimestampLogf("[Randomizer] Initializing Randomizer module...");
-
-    // 1. Attempt to load the configuration file
-    // Make sure the path matches where you place the test JSON relative to rvgl.exe
-    // Replaced by environment variable passed from the Rust module
-    //const std::string configPath = "randomizer_config.json"; 
-    
-    g_ActiveConfig = LoadConfiguration();
-
-    // 2. Verify successful load and output test data
-    if (g_ActiveConfig.has_value()) {
-        Logger::TimestampLogf("[Randomizer] Successfully loaded configuration!");
-        Logger::TimestampLogf("[Randomizer] Seed: %s", g_ActiveConfig->metadata.seed.c_str());
-        Logger::TimestampLogf("[Randomizer] Parsed %zu stock cars, %zu DC cars, and %zu tracks.", 
-            g_ActiveConfig->stockCars.size(), 
-            g_ActiveConfig->dcCars.size(), 
-            g_ActiveConfig->tracks.size());
-        
-        // Example of accessing nested data
-        if (!g_ActiveConfig->stockCars.empty()) {
-            Logger::TimestampLogf("[Randomizer] First stock car folder: %s (Rating: %d)", 
-                g_ActiveConfig->stockCars[0].folder.c_str(), 
-                g_ActiveConfig->stockCars[0].rating);
-        }
-            
-        // Init s_patchedPtrs based on config
-        for (size_t i = 0; i < g_ActiveConfig->stockCars.size() && i <= 27; ++i) {
-            std::string carPath = g_ActiveConfig->stockCars[i].folder;
-            if (!carPath._Starts_with("cars/")) {
-                carPath = "cars/" + carPath; // Ensure the path has the correct prefix
-            }
-            g_ActiveConfig->stockCars[i].folder = carPath; // Update the folder in the config struct
-            s_patchedPtrs[i] = g_ActiveConfig->stockCars[i].folder.c_str();
-        }
-        for (size_t i = 0; i < g_ActiveConfig->dcCars.size() && i <= 13; ++i) {
-            std::string carPath = g_ActiveConfig->dcCars[i].folder;
-            if (!carPath._Starts_with("cars/")) {
-                carPath = "cars/" + carPath; // Ensure the path has the correct prefix
-            }
-            g_ActiveConfig->dcCars[i].folder = carPath; // Update the folder in the config struct
-            s_patchedPtrs[35 + i] = g_ActiveConfig->dcCars[i].folder.c_str();
-        }
-        // Apply cupDC flag
-        if (g_ActiveConfig->global_options.is_stock_tracks == true) {
-            useCupDC = false;
-        }
-    } else {
-        Logger::TimestampLogf("[Randomizer] Failed to load or parse configuration. Mod will remain inactive.");
-        // Depending on architecture, you might want to disable further hooks here
-    }
-}
 
 // ----------------------------------------------------------------------------
 // Original function pointers
@@ -205,9 +153,12 @@ static bool checkingTrackUnlocks = false;
 // ============================================================================
 bool Hook_LoadVanillaCarPool() {
 
+    ConfigData* config = GetActiveConfig();
+    RandomizerContext& ctx = GetRandomizerContext();
+
     size_t initialCarCount = 49; // Vanilla RVGL has 49 cars in the pool, so we expect this many to be loaded before our mods apply.
 
-    if (g_ActiveConfig.has_value() && !g_ActiveConfig->stockCars.empty()) {
+    if (config != nullptr && !config->stockCars.empty()) {
         Logger::TimestampLogf("[Randomizer] Using initialized stock cars from config.");
     }
     else {
@@ -218,7 +169,7 @@ bool Hook_LoadVanillaCarPool() {
     Logger::TimestampLogf("[Randomizer] Initializing special car paths for cars 28-34.");
     InitSpecialCarPaths();
 
-    if (g_ActiveConfig.has_value() && !g_ActiveConfig->dcCars.empty()) {
+    if (config != nullptr && !config->dcCars.empty()) {
         Logger::TimestampLogf("[Randomizer] Using initialized DC cars from config.");
     }
     else {
@@ -232,7 +183,7 @@ bool Hook_LoadVanillaCarPool() {
     // makes the pages writable, saves the original flags into `old`
     VirtualProtect((void*)tableAddr, tableSize, PAGE_READWRITE, &old);
     // now safe to write
-    memcpy((void*)tableAddr, s_patchedPtrs, tableSize);
+    memcpy((void*)tableAddr, ctx.carState.patchedPtrs, tableSize);
     // restores the original protection (read-only again)
     VirtualProtect((void*)tableAddr, tableSize, old, &old);
 
@@ -340,9 +291,11 @@ unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLeve
 
 void Hook_LoadCustomCarPool() {
 
+    ConfigData* config = GetActiveConfig();
+
     // If the config explicitly says not to load extra cars,
     // skip calling the original function which loads them from disk.
-    if (g_ActiveConfig.has_value() && !g_ActiveConfig->global_options.load_extra_cars) {
+    if (config != nullptr && !config->global_options.load_extra_cars) {
         return;
     }
 
@@ -384,6 +337,8 @@ void Hook_SyncCarInfoFromPhysics(int carIndex, CarPhysicsData *physData) {
 
 void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
 
+    ConfigData* config = GetActiveConfig();
+
     std::string carName = car->internalName;
 
     // Apply these only to cars in custom pool
@@ -407,16 +362,16 @@ void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
         }
     }
 
-    if (g_ActiveConfig.has_value()) {
+    if (config != nullptr) {
         RandomizedCar* carConfigPtr = nullptr;
         if (carIndex >= 0 && carIndex <= 27) {
-            if (carIndex < g_ActiveConfig->stockCars.size()) {
-                carConfigPtr = &g_ActiveConfig->stockCars[carIndex];
+            if (carIndex < config->stockCars.size()) {
+                carConfigPtr = &config->stockCars[carIndex];
             }
         } else if (carIndex >= 35 && carIndex <= 48) {
             int dcIndex = carIndex - 35;
-            if (dcIndex < g_ActiveConfig->dcCars.size()) {
-                carConfigPtr = &g_ActiveConfig->dcCars[dcIndex];
+            if (dcIndex < config->dcCars.size()) {
+                carConfigPtr = &config->dcCars[dcIndex];
             }
         }
 
@@ -440,6 +395,10 @@ void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
 
 
 void Hook_LoadVanillaTracks() {
+
+    ConfigData* config = GetActiveConfig();
+    RandomizerContext& ctx = GetRandomizerContext();
+    bool useCupDC = ctx.config.useCupDC;
 
     TrackInfo* vanillaTracks = reinterpret_cast<TrackInfo*>(AbsFromRva(RVA_VANILLA_TRACKS_TABLE));
     
@@ -466,8 +425,8 @@ void Hook_LoadVanillaTracks() {
             }
 
             // 2. Apply randomization
-            if (g_ActiveConfig.has_value() && actualIdx < g_ActiveConfig->tracks.size()) {
-                folderName = g_ActiveConfig->tracks[actualIdx].folder;
+            if (config != nullptr && actualIdx < config->tracks.size()) {
+                folderName = config->tracks[actualIdx].folder;
             }
             else {
                 // Default tracks array includes rooftops, so the index doesn't need to be shifted here
@@ -505,18 +464,20 @@ void Hook_LoadVanillaTracks() {
         }
 
         // Apply difficulty rating from config
-        if (g_ActiveConfig.has_value() && actualIdx < g_ActiveConfig->tracks.size()) {
-            currentTrack->difficultyRating = g_ActiveConfig->tracks[actualIdx].difficulty;
-            currentTrack->obtainCondition = g_ActiveConfig->tracks[actualIdx].obtain;
+        if (config != nullptr && actualIdx < config->tracks.size()) {
+            currentTrack->difficultyRating = config->tracks[actualIdx].difficulty;
+            currentTrack->obtainCondition = config->tracks[actualIdx].obtain;
         }
     }
 }
 
 void Hook_LoadCustomTracks() {
 
+    ConfigData* config = GetActiveConfig();
+
     // If the config explicitly says not to load extra tracks,
     // skip calling the original function which loads them from disk.
-    if (g_ActiveConfig.has_value() && !g_ActiveConfig->global_options.load_extra_tracks) {
+    if (config != nullptr && !config->global_options.load_extra_tracks) {
         return;
     }
 
@@ -558,6 +519,8 @@ void ApplyStockTrackData(TrackInfo* track) {
 
 void Hook_LoadVanillaCups() {
 
+    ConfigData* config = GetActiveConfig();
+
     CupProfile* vanillaCups = reinterpret_cast<CupProfile*>(AbsFromRva(RVA_VANILLA_CUP_ARRAY));
     CupProfile* dcCups = reinterpret_cast<CupProfile*>(AbsFromRva(RVA_DC_CUP_ARRAY));
 
@@ -565,8 +528,8 @@ void Hook_LoadVanillaCups() {
 
     // Apply init data after loading the original files
     for (int i = 0; i < 4; i++) {
-        if (g_ActiveConfig.has_value() && i < g_ActiveConfig->cups.size()) {
-            RandomizedCup& cupConfig = g_ActiveConfig->cups[i];
+        if (config != nullptr && i < config->cups.size()) {
+            RandomizedCup& cupConfig = config->cups[i];
 
             CupProfile* vanillaCup = &vanillaCups[i+1]; // +1 because index 0 is empty in the vanilla array
             CupProfile* dcCup = &dcCups[i]; // DC array is 0-indexed
@@ -626,7 +589,8 @@ void Hook_LoadCustomCups() {
 
     // If the config explicitly says not to load extra cups,
     // skip calling the original function which loads them from disk.
-    if (g_ActiveConfig.has_value() && !g_ActiveConfig->global_options.load_extra_cups) {
+    ConfigData* config = GetActiveConfig();
+    if (config != nullptr && !config->global_options.load_extra_cups) {
         return;
     }
 
@@ -688,6 +652,10 @@ void Hook_Profile_LoadAndReset(char* profileName) {
 }
 
 void Hook_LoadSettingsFromIni(char* profileName) {
+
+    RandomizerContext& ctx = GetRandomizerContext();
+    bool useCupDC = ctx.config.useCupDC;
+
     Orig_LoadSettingsFromIni(profileName);
 
     // Set CupDC flag according to the config info.

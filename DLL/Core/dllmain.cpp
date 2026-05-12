@@ -1,7 +1,7 @@
 #include <windows.h>
 #include "HookManager.h"
 #include "Logger.h"
-#include "Randomizer.h"
+#include "RandomizerInit.h"
 
 // ============================================================================
 // DllMain

@@ -49,6 +49,7 @@ add_library(randomizer SHARED
     # Mods — individual mod logic
     Mods/Randomizer.cpp
     Mods/RandomizerState.cpp
+    Mods/RandomizerInit.cpp
     Mods/Carbox.cpp
 
     # DebugUtils — debug tools

@@ -100,7 +100,6 @@ namespace Randomizer {
     bool Hook_ReadTokenBool(bool* outValue, FILE* file);
 
     // Utils functions
-    void Initialize();
     void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData);
     void ApplyStockTrackData(TrackInfo* track);
 } // namespace Randomizer
