@@ -37,28 +37,10 @@ struct TrackRuntimeState {
     int trackCount = 0;
 };
 
-struct PhysicsPatchState {
-    // Panga / panga slot state
-    int spinnerType = 0;
-    float spinnerAngVel = 0.0f;
-    // Rotor / rotor slot state
-    bool flippable = false;
-};
-
-struct FileReadState {
-    bool checkSpinner = false;
-    bool checkFlippable = false;
-    bool storeNextFloat = false;
-    bool storeNextInt = false;
-    bool storeNextBool = false;
-};
-
 struct RandomizerContext {
     ConfigState config;
     CarRuntimeState carState;
     TrackRuntimeState trackState;
-    PhysicsPatchState physicsState;
-    FileReadState fileState;
 };
 
 RandomizerContext& GetRandomizerContext();

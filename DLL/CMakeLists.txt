@@ -47,7 +47,6 @@ add_library(randomizer SHARED
     Core/HookManager.cpp
 
     # Mods — individual mod logic
-    Mods/Randomizer.cpp
     Mods/RandomizerState.cpp
     Mods/RandomizerInit.cpp
     Mods/CarHooks.cpp
@@ -55,6 +54,7 @@ add_library(randomizer SHARED
     Mods/TrackHooks.cpp
     Mods/CupHooks.cpp
     Mods/ProfileHooks.cpp
+    Mods/CarPhysicsHooks.cpp
 
     # DebugUtils — debug tools
     DebugUtils/Logger.cpp        # OutputDebugStringA + file logging

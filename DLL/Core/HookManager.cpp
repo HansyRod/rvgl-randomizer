@@ -1,11 +1,11 @@
 #include "HookManager.h"
 #include "MinHook.h"
 #include "Addresses.h"
-#include "Randomizer.h"   // declares Randomizer::Hook_LoadCars, Hook_BuildGrid, etc.
 #include "CarHooks.h"
 #include "TrackHooks.h"
 #include "CupHooks.h"
 #include "ProfileHooks.h"
+#include "CarPhysicsHooks.h"
 #include "CallLogger.h"
 #include "Logger.h"
 #include <string>

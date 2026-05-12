@@ -1,24 +1,6 @@
-#include "Randomizer.h"
+#include "CarPhysicsHooks.h"
 #include "RandomizerState.h"
-#include "Addresses.h"
-#include "RVGLStructs.h"
-#include "Carbox.h"
-#include "GameUtils.h"
-#include "ConfigManager.h"
-#include "Image.h"
-#include "Logger.h"
-#include <windows.h>
 #include <string>
-#include <cstdint>
-#include <vector>
-
-// ============================================================================
-// Randomizer.cpp
-//
-// Mod logic for randomizing the car grid.
-// This file is responsible only for what the hooks do — not how they are
-// installed. See HookManager.cpp for installation.
-// ============================================================================
 
 namespace Randomizer {
 

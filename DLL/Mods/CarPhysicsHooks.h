@@ -2,15 +2,6 @@
 #include "RVGLStructs.h"
 #include <cstdio>
 
-// ============================================================================
-// Randomizer
-//
-// Hooks into the car loading pipeline to randomize the car selection.
-//
-// Hook_LoadVanillaCarPool  — fires after RVGL builds the vanilla car pool. 
-//                 Used to snapshot which cars are available for selection.
-// ============================================================================
-
 namespace Randomizer {
 
     // ------------------------------------------------------------------------
