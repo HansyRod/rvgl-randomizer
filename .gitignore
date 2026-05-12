@@ -54,3 +54,6 @@ AGENTS.MD
 # docx and pdf files converted from markdown for easier sharing
 *.docx
 *.pdf
+
+# Release folder with resulting .zip files
+releases/
