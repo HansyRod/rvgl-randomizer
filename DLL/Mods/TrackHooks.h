@@ -52,5 +52,6 @@ namespace Randomizer {
     bool Hook_CheckIfTierSingleRacesWon(int difficulty);
 
     // Utils functions
+    int FindTrackIdByFolderName(const char* trackName);
     void ApplyStockTrackData(TrackInfo* track);
 } // namespace Randomizer

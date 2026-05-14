@@ -1,7 +1,9 @@
 #include "TrackHooks.h"
+#include "CupHooks.h"
 #include "RandomizerState.h"
 #include "Addresses.h"
 #include "Logger.h"
+#include <cstring>
 
 // ============================================================================
 // TrackHooks.cpp
@@ -33,6 +35,30 @@ FnCheckIfTierChampionshipWon Orig_CheckIfTierChampionshipWon = nullptr;
 FnCheckIfTierTimeTrialsBeaten Orig_CheckIfTierTimeTrialsBeaten = nullptr;
 FnCheckIfTierPracticeStarsFound Orig_CheckIfTierPracticeStarsFound = nullptr;
 FnCheckIfTierSingleRacesWon Orig_CheckIfTierSingleRacesWon = nullptr;
+
+int FindTrackIdByFolderName(const char* trackName) {
+    if (trackName == nullptr || trackName[0] == '\0') {
+        return -1;
+    }
+
+    const TrackRuntimeState& trackState = GetRandomizerContext().trackState;
+
+    for (size_t trackId = 0; trackId < trackState.vanillaTrackPool.size(); trackId++) {
+        const TrackInfo& currentTrack = trackState.vanillaTrackPool[trackId];
+        if (_stricmp(currentTrack.folderName, trackName) == 0) {
+            return static_cast<int>(trackId);
+        }
+    }
+
+    for (size_t customIndex = 0; customIndex < trackState.customTrackPool.size(); customIndex++) {
+        const TrackInfo& currentTrack = trackState.customTrackPool[customIndex];
+        if (_stricmp(currentTrack.folderName, trackName) == 0) {
+            return static_cast<int>(customIndex + 21);
+        }
+    }
+
+    return -1;
+}
 
 void Hook_LoadVanillaTracks() {
 
@@ -115,6 +141,8 @@ void Hook_LoadVanillaTracks() {
 void Hook_LoadCustomTracks() {
 
     ConfigData* config = GetActiveConfig();
+    RandomizerContext& ctx = GetRandomizerContext();
+    TrackRuntimeState& trackState = ctx.trackState;
 
     // If the config explicitly says not to load extra tracks,
     // skip calling the original function which loads them from disk.
@@ -126,11 +154,25 @@ void Hook_LoadCustomTracks() {
 
     TrackInfo* customTracksPool = *reinterpret_cast<TrackInfo**>(AbsFromRva(RVA_CUSTOM_TRACKS_TABLE));
     int trackCount = *reinterpret_cast<int*>(AbsFromRva(RVA_TRACK_COUNT));
+    trackState.trackCount = trackCount;
+    trackState.customTrackPool.clear();
 
     for (int i = 21; i < trackCount; i++) {
         TrackInfo* currentTrack = &customTracksPool[i-21];
         Logger::TimestampLogf("[LoadCustomTracks] Track %d: %s", i+1, currentTrack->displayName);
         ApplyStockTrackData(currentTrack);
+    }
+
+    // Copy the custom tracks pool only after stock track data is updated
+    if (customTracksPool != nullptr && trackCount > 21) {
+        trackState.customTrackPool.assign(customTracksPool, customTracksPool + (trackCount - 21));
+    }
+
+    // Default cups are first parsed before custom tracks exist. Re-parse them now
+    // so cup stages can resolve custom track folder names to valid track IDs.
+    if (Orig_LoadVanillaCups != nullptr) {
+        Logger::TimestampLog("[LoadCustomTracks] Reloading default cups after custom tracks");
+        Hook_LoadVanillaCups();
     }
 }
 

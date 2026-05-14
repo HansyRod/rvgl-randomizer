@@ -1,4 +1,5 @@
 #include "CupHooks.h"
+#include "TrackHooks.h"
 #include "RandomizerState.h"
 #include "Addresses.h"
 #include "Logger.h"
@@ -21,8 +22,6 @@ FnLoadCustomCups         Orig_LoadCustomCups         = nullptr;
 void Hook_LoadVanillaCups() {
 
     ConfigData* config = GetActiveConfig();
-    RandomizerContext& ctx = GetRandomizerContext();
-    TrackRuntimeState& trackState = ctx.trackState;
 
     CupProfile* vanillaCups = reinterpret_cast<CupProfile*>(AbsFromRva(RVA_VANILLA_CUP_ARRAY));
     CupProfile* dcCups = reinterpret_cast<CupProfile*>(AbsFromRva(RVA_DC_CUP_ARRAY));
@@ -66,14 +65,7 @@ void Hook_LoadVanillaCups() {
                 CupStage* dcStage = &dcCup->stages[stageIndex];
 
                 const char* trackName = stageConfig.trackFolder.c_str();
-
-                int trackId = -1;
-                for (int t = 0; t < trackState.trackCount; t++) {
-                    if (strcmp(trackState.vanillaTrackPool[t].folderName, trackName) == 0) {
-                        trackId = t;
-                        break;
-                    }
-                }
+                int trackId = FindTrackIdByFolderName(trackName);
 
                 if (trackId != -1) {
                     vanillaStage->trackID = dcStage->trackID = trackId;
