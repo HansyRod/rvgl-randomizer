@@ -283,6 +283,7 @@ pub fn build_randomized_car(car: &Car, spec: &CarSpec, rng: &mut Rng, car_option
         obtain: resolve_obtain(&spec.attr_obtain, car.obtain_method, rng, car_options),
         selectable_player: true,
         selectable_cpu: true,
+        custom_unlock: None,
     }
 }
 

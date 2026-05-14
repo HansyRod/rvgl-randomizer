@@ -131,6 +131,14 @@ pub struct PresetStockModeInput {
 // Output types — match ConfigData / ConfigManager.cpp field names exactly
 // ============================================================================
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomUnlockCondition {
+    pub track_folder: String,
+    pub required_count: i32,
+    pub archipelago_item: String,
+}
+
 #[derive(Serialize, Debug, Clone)]
 pub struct RandomizedCar {
     pub folder: String,
@@ -138,6 +146,8 @@ pub struct RandomizedCar {
     pub obtain: i32,
     pub selectable_player: bool,
     pub selectable_cpu: bool,
+    #[serde(rename = "customUnlock", skip_serializing_if = "Option::is_none")]
+    pub custom_unlock: Option<CustomUnlockCondition>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -145,6 +155,8 @@ pub struct RandomizedTrack {
     pub folder: String,
     pub difficulty: i32,
     pub obtain: i32,
+    #[serde(rename = "customUnlock", skip_serializing_if = "Option::is_none")]
+    pub custom_unlock: Option<CustomUnlockCondition>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -392,4 +404,6 @@ pub struct RandomizedCup {
     #[serde(rename = "pointsTable")]
     pub points_table: Vec<i32>,
     pub stages: Vec<RandomizedCupStage>,
+    #[serde(rename = "customUnlock", skip_serializing_if = "Option::is_none")]
+    pub custom_unlock: Option<CustomUnlockCondition>,
 }

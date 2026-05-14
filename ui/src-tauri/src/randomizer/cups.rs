@@ -635,6 +635,7 @@ pub fn generate_cups(
             cars_per_class,
             points_table: pad_points(&points),
             stages,
+            custom_unlock: None,
         });
     }
 
@@ -660,6 +661,7 @@ fn default_cups(
         cars_per_class: default_cars_per_class(i),
         points_table: pad_points(&cup_state.points_table),
         stages: build_default_stages(i, resolved_tracks, scan, rng),
+        custom_unlock: None,
     }).collect()
 }
 

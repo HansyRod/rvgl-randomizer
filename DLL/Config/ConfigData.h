@@ -6,10 +6,31 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include "RVGLStructs.h"
+#include "CustomUnlocks.h"
 
 using json = nlohmann::json;
 
 namespace Randomizer {
+
+    inline void to_json(json& j, const CustomUnlockCondition& p) {
+        j = json{
+            {"trackFolder", p.trackFolder},
+            {"requiredCount", p.requiredCount},
+            {"archipelagoItem", p.archipelagoItem}
+        };
+    }
+
+    inline void from_json(const json& j, CustomUnlockCondition& p) {
+        if (j.contains("trackFolder") && !j.at("trackFolder").is_null()) {
+            p.trackFolder = j.at("trackFolder").get<std::string>();
+        }
+        if (j.contains("requiredCount") && !j.at("requiredCount").is_null()) {
+            p.requiredCount = j.at("requiredCount").get<int>();
+        }
+        if (j.contains("archipelagoItem") && !j.at("archipelagoItem").is_null()) {
+            p.archipelagoItem = j.at("archipelagoItem").get<std::string>();
+        }
+    }
 
     // Represents the "metadata" block
     struct ConfigMetadata {
@@ -81,16 +102,64 @@ namespace Randomizer {
         Obtain obtain;
         bool selectable_player;
         bool selectable_cpu;
+        std::optional<CustomUnlockCondition> customUnlock;
     };
-    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RandomizedCar, folder, rating, obtain, selectable_player, selectable_cpu)
+
+    inline void to_json(json& j, const RandomizedCar& p) {
+        j = json{
+            {"folder", p.folder},
+            {"rating", p.rating},
+            {"obtain", p.obtain},
+            {"selectable_player", p.selectable_player},
+            {"selectable_cpu", p.selectable_cpu}
+        };
+        if (p.customUnlock.has_value()) {
+            j["customUnlock"] = p.customUnlock.value();
+        }
+    }
+
+    inline void from_json(const json& j, RandomizedCar& p) {
+        j.at("folder").get_to(p.folder);
+        j.at("rating").get_to(p.rating);
+        j.at("obtain").get_to(p.obtain);
+        j.at("selectable_player").get_to(p.selectable_player);
+        j.at("selectable_cpu").get_to(p.selectable_cpu);
+        if (j.contains("customUnlock") && !j.at("customUnlock").is_null()) {
+            p.customUnlock = j.at("customUnlock").get<CustomUnlockCondition>();
+        } else {
+            p.customUnlock = std::nullopt;
+        }
+    }
 
     // Represents an entry in the "tracks" array
     struct RandomizedTrack {
         std::string folder;
         int difficulty;
         Obtain obtain;
+        std::optional<CustomUnlockCondition> customUnlock;
     };
-    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RandomizedTrack, folder, difficulty, obtain)
+
+    inline void to_json(json& j, const RandomizedTrack& p) {
+        j = json{
+            {"folder", p.folder},
+            {"difficulty", p.difficulty},
+            {"obtain", p.obtain}
+        };
+        if (p.customUnlock.has_value()) {
+            j["customUnlock"] = p.customUnlock.value();
+        }
+    }
+
+    inline void from_json(const json& j, RandomizedTrack& p) {
+        j.at("folder").get_to(p.folder);
+        j.at("difficulty").get_to(p.difficulty);
+        j.at("obtain").get_to(p.obtain);
+        if (j.contains("customUnlock") && !j.at("customUnlock").is_null()) {
+            p.customUnlock = j.at("customUnlock").get<CustomUnlockCondition>();
+        } else {
+            p.customUnlock = std::nullopt;
+        }
+    }
 
     // Represents an entry in the "stages" array within a cup
     struct RandomizedCupStage {
@@ -112,8 +181,44 @@ namespace Randomizer {
         std::vector<int> carsPerClass; // Max number of AI allowed from each class (Rookie, Amateur, etc.)
         std::vector<int> pointsTable; // Points for each position (1st to 16th)
         std::vector<RandomizedCupStage> stages;
+        std::optional<CustomUnlockCondition> customUnlock;
     };
-    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RandomizedCup, name, difficulty, obtainCondition, numCars, numTries, perRaceRequiredPlace, overallRequiredPlace, carsPerClass, pointsTable, stages)
+
+    inline void to_json(json& j, const RandomizedCup& p) {
+        j = json{
+            {"name", p.name},
+            {"difficulty", p.difficulty},
+            {"obtainCondition", p.obtainCondition},
+            {"numCars", p.numCars},
+            {"numTries", p.numTries},
+            {"perRaceRequiredPlace", p.perRaceRequiredPlace},
+            {"overallRequiredPlace", p.overallRequiredPlace},
+            {"carsPerClass", p.carsPerClass},
+            {"pointsTable", p.pointsTable},
+            {"stages", p.stages}
+        };
+        if (p.customUnlock.has_value()) {
+            j["customUnlock"] = p.customUnlock.value();
+        }
+    }
+
+    inline void from_json(const json& j, RandomizedCup& p) {
+        j.at("name").get_to(p.name);
+        j.at("difficulty").get_to(p.difficulty);
+        j.at("obtainCondition").get_to(p.obtainCondition);
+        j.at("numCars").get_to(p.numCars);
+        j.at("numTries").get_to(p.numTries);
+        j.at("perRaceRequiredPlace").get_to(p.perRaceRequiredPlace);
+        j.at("overallRequiredPlace").get_to(p.overallRequiredPlace);
+        j.at("carsPerClass").get_to(p.carsPerClass);
+        j.at("pointsTable").get_to(p.pointsTable);
+        j.at("stages").get_to(p.stages);
+        if (j.contains("customUnlock") && !j.at("customUnlock").is_null()) {
+            p.customUnlock = j.at("customUnlock").get<CustomUnlockCondition>();
+        } else {
+            p.customUnlock = std::nullopt;
+        }
+    }
 
     // The root structure containing all randomizer data
     struct ConfigData {

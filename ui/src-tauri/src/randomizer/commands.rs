@@ -243,6 +243,7 @@ pub fn generate_result(
                         &track_opts,
                         &mut rng,
                     ),
+                    custom_unlock: None,
                 });
             }
         }
@@ -266,6 +267,7 @@ pub fn generate_result(
                 folder: track.folder_name,
                 difficulty: track.difficulty,
                 obtain: 0,
+                custom_unlock: None,
             })
             .collect()
     };
