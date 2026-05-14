@@ -197,6 +197,11 @@ void ApplyStockTrackData(TrackInfo* track) {
         track->challengeReverseTime = backup->challengeReverseTime;
         track->trackLengthNormal = backup->trackLengthNormal;
         track->trackLengthReverse = backup->trackLengthReverse;
+
+        // Copy difficulty rating
+        // TO DO: Distinguish between custom tracks with randomized attributes and
+        // custom tracks which are being loaded as extra tracks
+        track->difficultyRating = backup->difficultyRating;
     }
 
 }
