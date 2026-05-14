@@ -57,6 +57,7 @@ add_library(randomizer SHARED
     Mods/CarPhysicsHooks.cpp
     Mods/RaceInitHooks.cpp
     Mods/30CarMod.cpp
+    Mods/Fob.cpp
 
     # DebugUtils — debug tools
     DebugUtils/Logger.cpp        # OutputDebugStringA + file logging

@@ -7,6 +7,7 @@
 #include "ProfileHooks.h"
 #include "CarPhysicsHooks.h"
 #include "RaceInitHooks.h"
+#include "Fob.h"
 #include "CallLogger.h"
 #include "Logger.h"
 #include <string>
@@ -308,6 +309,14 @@ static void RegisterHooks() {
         reinterpret_cast<void**>(&Randomizer::Orig_UpdateRacePositions),
         "UpdateRacePositions"
     );
+
+    HookManager::Add(
+        AbsFromRva(RVA_LOAD_OBJECTS_FROM_FOB),
+        reinterpret_cast<void*>(Randomizer::Hook_LoadObjectsFromFob),
+        reinterpret_cast<void**>(&Randomizer::Orig_LoadObjectsFromFob),
+        "LoadObjectsFromFob"
+    );
+
 
     /* HookManager::Add(
         AbsFromRva(RVA_PARSE_PARAMETERS_TXT),

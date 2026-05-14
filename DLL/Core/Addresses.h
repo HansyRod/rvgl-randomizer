@@ -117,6 +117,8 @@ constexpr uint32_t RVA_CREATE_CAR_ENTITY       = 0x000F03A0;
 constexpr uint32_t RVA_COMPUTE_SPAWN_ORIENT    = 0x000A71D0;
 constexpr uint32_t RVA_SET_CAR_TRANSFORM       = 0x000A76F0;
 
+constexpr uint32_t RVA_LOAD_OBJECTS_FROM_FOB = 0x000eb940;
+constexpr uint32_t RVA_CREATE_OBJECT_FROM_FOB = 0x000eb740;
 
 // ----------------------------------------------------------------------------
 // Globals
