@@ -318,4 +318,12 @@ struct CarPhysicsData {         // ~0xAAC bytes
     int32_t     transmission;     // +0xaa8
 };  // Total: ~0xAAC bytes
 
+struct NumericMenuValue { // Examples for NCars
+    int* value;      // +0x00 currently &g_gameSettings.NCars, 0x0ae8e930
+    int minValue;    // +0x08 = 2
+    int maxValue;    // +0x0C = 16
+    int step;        // +0x10 = 1
+    uint8_t slider;  // +0x14 = 0, numeric text display
+};
+
 #pragma pack(pop)

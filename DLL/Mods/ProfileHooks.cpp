@@ -1,6 +1,8 @@
 #include "ProfileHooks.h"
 #include "RandomizerState.h"
 #include "Addresses.h"
+#include "RVGLStructs.h"
+#include "MenuMod.h"
 
 namespace Randomizer {
 
@@ -53,6 +55,14 @@ void Hook_LoadSettingsFromIni(char* profileName) {
     // Set CupDC flag according to the config info.
     bool* cupDCFlag = reinterpret_cast<bool*>(AbsFromRva(RVA_CUP_DC));
     *cupDCFlag = useCupDC;
+
+    // Sync our cars per race count with the stored cars per race
+    int nCars = *reinterpret_cast<int*>(AbsFromRva(RVA_SETTINGS_NCARS));
+    ctx.carState.carsPerRace = nCars;
+
+    // Change the NCars settings row so it uses our functions
+    PatchCarCountMenuDescriptor();
+
 }
 
 } // namespace Randomizer

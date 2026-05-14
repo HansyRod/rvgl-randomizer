@@ -164,6 +164,8 @@ constexpr uint32_t RVA_GAME_MODE = 0x002e34c0;
 constexpr uint32_t RVA_RACE_FINISHED_FLAG = 0x0a8ee7e0;
 
 constexpr uint32_t RVA_SETTINGS_NCARS = 0x0aa8e930;
+constexpr uint32_t RVA_NCARS = 0x00b43488;
+constexpr uint32_t RVA_SETTINGS_NCARS_MENU_ITEM = 0x00264280;
 
 constexpr uint32_t RVA_RACE_PARTICIPANT_COUNT = 0x00b3eb04;
 constexpr uint32_t RVA_RACE_PARTICIPANT_RECORDS = 0x00b3eb50;
@@ -171,6 +173,14 @@ constexpr uint32_t RVA_RACE_PARTICIPANT_RECORDS = 0x00b3eb50;
 // Head of the active CarEntity linked list. Each node is a live car instance;
 // this is separate from the CarInfo model metadata table.
 constexpr uint32_t RVA_CAR_LIST_HEAD = 0x0a8ee9e8;
+
+// Numeric value menu controls
+constexpr uint32_t RVA_DRAW_NUMERIC_MENU_VALUE = 0x0014c2e0;
+constexpr uint32_t RVA_DECREMENT_NUMERIC_MENU_VALUE = 0x00147000;
+constexpr uint32_t RVA_INCREMENT_NUMERIC_MENU_VALUE = 0x00146fb0;
+
+
+
 
 // ----------------------------------------------------------------------------
 // AbsFromRva

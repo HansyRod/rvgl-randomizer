@@ -6,5 +6,6 @@ void ApplyThirtyCarGrid();
 void ExpandRaceParticipantsToThirty();
 void MovePlayersToBackAfterRacePositions();
 void ResetThirtyCarModState();
+void SyncCarCountToVanillaSettings();
 
 }

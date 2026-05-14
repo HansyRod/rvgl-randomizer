@@ -27,6 +27,9 @@ struct CarRuntimeState {
     // Populated in Hook_LoadCars once the pool is built.
     std::vector<CarInfo> carPool;
     int carCount = 0;
+
+    // Number of cars per race
+    int carsPerRace = 0;
 };
 
 struct TrackRuntimeState {

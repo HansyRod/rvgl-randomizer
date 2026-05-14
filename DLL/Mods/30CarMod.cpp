@@ -1,4 +1,5 @@
 #include <array>
+#include <algorithm>
 #include <cstddef>
 #include <cstdio>
 #include <random>
@@ -6,6 +7,7 @@
 #include <vector>
 #include "RVGLStructs.h"
 #include "Addresses.h"
+#include "RandomizerState.h"
 
 namespace Randomizer {
 
@@ -102,6 +104,8 @@ using FnAddParticipantAndCount = bool (__cdecl *)(
     char* playerName
 );
 
+constexpr int kMinCarCount = 2;
+constexpr int kVanillaMaxCarCount = 16;
 constexpr int kTargetCarCount = 30;
 constexpr int kGridCols = 5;
 constexpr int kGridRows = 6;
@@ -168,6 +172,11 @@ RaceParticipantRuntime* GetParticipantRecords() {
     return reinterpret_cast<RaceParticipantRuntime*>(
         AbsFromRva(RVA_RACE_PARTICIPANT_RECORDS)
     );
+}
+
+int GetTargetRaceCarCount() {
+    const RandomizerContext& ctx = GetRandomizerContext();
+    return std::clamp(ctx.carState.carsPerRace, kMinCarCount, kTargetCarCount);
 }
 
 int GetParticipantCount() {
@@ -371,7 +380,8 @@ void CacheRandomModels(int carCount) {
 
     const int targetRating = GetCarModelRating(playerModelId >= 0 ? playerModelId : 0);
 
-    for (int carId = carCount; carId < kTargetCarCount; ++carId) {
+    const int targetCarCount = GetTargetRaceCarCount();
+    for (int carId = carCount; carId < targetCarCount; ++carId) {
         g_extraCars.cachedModels[carId] = PickRandomModel(targetRating, usedModels);
     }
 
@@ -422,7 +432,8 @@ void ExpandRaceParticipantsToThirty() {
         return;
     }
 
-    if (participantCount >= kTargetCarCount) {
+    const int targetCarCount = GetTargetRaceCarCount();
+    if (participantCount >= targetCarCount) {
         g_extraCars.originalParticipantCount = participantCount;
         g_extraCars.participantsExpanded = true;
         return;
@@ -434,7 +445,7 @@ void ExpandRaceParticipantsToThirty() {
 
     g_extraCars.originalParticipantCount = participantCount;
 
-    for (int participantIndex = participantCount; participantIndex < kTargetCarCount; ++participantIndex) {
+    for (int participantIndex = participantCount; participantIndex < targetCarCount; ++participantIndex) {
         const int modelId = g_extraCars.cachedModels[participantIndex];
         char playerName[16] = {};
         BuildParticipantNameFromModel(modelId, playerName);
@@ -458,8 +469,9 @@ void ApplyThirtyCarGrid() {
         return;
     }
 
+    const int targetCarCount = GetTargetRaceCarCount();
     const int carCount = GetParticipantCount();
-    if (carCount <= 0 || carCount > kTargetCarCount) {
+    if (carCount <= 0 || carCount > targetCarCount) {
         return;
     }
 
@@ -482,7 +494,7 @@ void ApplyThirtyCarGrid() {
     const float gridCenterCol = static_cast<float>(kGridCols - 1) / 2.0f;
     const float gridCenterRow = static_cast<float>(kGridRows - 1) / 2.0f;
 
-    for (int gridIndex = 0; gridIndex < kTargetCarCount; ++gridIndex) {
+    for (int gridIndex = 0; gridIndex < targetCarCount; ++gridIndex) {
         const int row = gridIndex / kGridCols;
         const int col = gridIndex % kGridCols;
 
@@ -512,9 +524,10 @@ void MovePlayersToBackAfterRacePositions() {
     std::array<int, kTargetCarCount + 1> rankToCar;
     rankToCar.fill(-1);
 
-    for (int carId = 0; carId < kTargetCarCount; ++carId) {
+    const int targetCarCount = GetTargetRaceCarCount();
+    for (int carId = 0; carId < targetCarCount; ++carId) {
         const int rank = GetCarRankingPosition(carId);
-        if (rank >= 1 && rank <= kTargetCarCount) {
+        if (rank >= 1 && rank <= targetCarCount) {
             rankToCar[rank] = carId;
         }
     }
@@ -524,7 +537,7 @@ void MovePlayersToBackAfterRacePositions() {
 
     for (int i = 0; i < 1; ++i) {
         const int playerCarId = playerCars[i];
-        const int lastPlaceCarId = rankToCar[kTargetCarCount - i];
+        const int lastPlaceCarId = rankToCar[targetCarCount - i];
 
         if (lastPlaceCarId < 0) {
             continue;
@@ -550,6 +563,22 @@ void ResetThirtyCarModState() {
     g_extraCars.playersMovedToBack = false;
     g_extraCars.originalParticipantCount = 0;
     g_extraCars.cachedModels.fill(0);
+}
+
+void SyncCarCountToVanillaSettings() {
+
+    RandomizerContext& ctx = GetRandomizerContext();
+    int carsPerRace = std::clamp(ctx.carState.carsPerRace, kMinCarCount, kTargetCarCount);
+    ctx.carState.carsPerRace = carsPerRace;
+
+    int& nCars = *reinterpret_cast<int*>(AbsFromRva(RVA_NCARS));
+    int& nCarsSetting = *reinterpret_cast<int*>(AbsFromRva(RVA_SETTINGS_NCARS));
+    const int vanillaCarCount = carsPerRace < kVanillaMaxCarCount
+        ? carsPerRace
+        : kVanillaMaxCarCount;
+
+    nCars = vanillaCarCount;
+    nCarsSetting = vanillaCarCount;
 }
 
 }
