@@ -23,6 +23,7 @@ enum Obtain : int32_t {
     TIME_TRIAL = 2,  // Unlocked by beating all challenge times on a tier
     PRACTICE = 3,    // Unlocked by finding all practice stars on a tier
     RACES = 4,       // Unlocked by winning all single races on a tier
+    STUNT_ARENA = 5  // Unlocked by finding all stars in Stunt Arena
 };
 
 enum CarRating : int32_t {
