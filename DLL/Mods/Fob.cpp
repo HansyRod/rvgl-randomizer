@@ -5,7 +5,9 @@
 #include "RVGLStructs.h"
 #include <array>
 #include <fstream>
+#include <random>
 #include <string>
+#include <vector>
 
 // ============================================================================
 // Fob.cpp
@@ -19,6 +21,22 @@ constexpr int kFobObjectPickup = 30;
 constexpr int kFobObjectStar = 50;
 constexpr int kStarSubtypeGlobalWeapon = 0;
 constexpr int kStarSubtypePracticeStar = 1;
+constexpr int kCandidateSourceNone = 0;
+constexpr int kCandidateSourcePickup = kFobObjectPickup;
+constexpr int kCandidateSourceGlobalStar = kFobObjectStar;
+constexpr int kCandidateSourceRouteNode = -1;
+constexpr float kRouteNodeStarYLift = -30.0f;
+
+std::mt19937& Rng() {
+    static std::mt19937 rng{ std::random_device{}() };
+    return rng;
+}
+
+template <typename T>
+const T& PickRandom(const std::vector<T>& items) {
+    std::uniform_int_distribution<size_t> dist(0, items.size() - 1);
+    return items[dist(Rng())];
+}
 
 struct FobRecord {
     int objectId = 0;
@@ -36,6 +54,32 @@ bool ReadFobRecord(std::ifstream& file, FobRecord& record) {
     file.read(reinterpret_cast<char*>(record.position.data()), sizeof(float) * record.position.size());
     file.read(reinterpret_cast<char*>(record.rotation.data()), sizeof(float) * record.rotation.size());
     return file.good();
+}
+
+std::string ResolveGameFilePath(const std::string& filePath) {
+    std::ifstream directFile(filePath, std::ios::binary);
+    if (directFile.is_open()) {
+        return filePath;
+    }
+
+    return Randomizer::GetAbsoluteFilePath(filePath);
+}
+
+std::string MakeSiblingPanPath(const char* fobFilePath) {
+    if (fobFilePath == nullptr) {
+        return {};
+    }
+
+    std::string panPath = fobFilePath;
+    const size_t lastSlash = panPath.find_last_of("\\/");
+    const size_t lastDot = panPath.find_last_of('.');
+    if (lastDot != std::string::npos && (lastSlash == std::string::npos || lastSlash < lastDot)) {
+        panPath.replace(lastDot, std::string::npos, ".pan");
+    }
+    else {
+        panPath += ".pan";
+    }
+    return panPath;
 }
 
 std::array<float, 9> BuildRotationMatrix(const FobRecord& record) {
@@ -59,6 +103,73 @@ std::array<float, 9> BuildRotationMatrix(const FobRecord& record) {
     };
 }
 
+FobRecord MakeRouteNodeCandidate(const std::array<float, 3>& position) {
+    FobRecord candidate{};
+    candidate.objectId = kCandidateSourceRouteNode;
+    candidate.position = position;
+    candidate.position[1] += kRouteNodeStarYLift;
+    candidate.rotation = { 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f };
+    return candidate;
+}
+
+bool TryReadRandomRouteNodeCandidate(const char* fobFilePath, FobRecord& candidate) {
+    const std::string panPath = MakeSiblingPanPath(fobFilePath);
+    if (panPath.empty()) {
+        return false;
+    }
+
+    const std::string resolvedPath = ResolveGameFilePath(panPath);
+    std::ifstream file(resolvedPath, std::ios::binary);
+    if (!file.is_open()) {
+        Logger::TimestampLogf("[Fob] Could not open PAN route nodes for fallback: %s", resolvedPath.c_str());
+        return false;
+    }
+
+    int nodeCount = 0;
+    int startNode = 0;
+    float totalDistance = 0.0f;
+    file.read(reinterpret_cast<char*>(&nodeCount), sizeof(nodeCount));
+    file.read(reinterpret_cast<char*>(&startNode), sizeof(startNode));
+    file.read(reinterpret_cast<char*>(&totalDistance), sizeof(totalDistance));
+
+    if (!file.good() || nodeCount <= 0) {
+        Logger::TimestampLogf("[Fob] Invalid PAN header: %s", resolvedPath.c_str());
+        return false;
+    }
+
+    std::vector<std::array<float, 3>> routeNodePositions;
+    routeNodePositions.reserve(static_cast<size_t>(nodeCount));
+
+    for (int i = 0; i < nodeCount; ++i) {
+        std::array<float, 3> position{};
+        float distanceToFinish = 0.0f;
+        std::array<int, 4> previous{};
+        std::array<int, 4> next{};
+
+        file.read(reinterpret_cast<char*>(position.data()), sizeof(float) * position.size());
+        file.read(reinterpret_cast<char*>(&distanceToFinish), sizeof(distanceToFinish));
+        file.read(reinterpret_cast<char*>(previous.data()), sizeof(int) * previous.size());
+        file.read(reinterpret_cast<char*>(next.data()), sizeof(int) * next.size());
+
+        if (!file.good()) {
+            Logger::TimestampLogf("[Fob] Stopped reading malformed PAN after %d node(s): %s", i, resolvedPath.c_str());
+            break;
+        }
+
+        routeNodePositions.push_back(position);
+    }
+
+    if (routeNodePositions.empty()) {
+        return false;
+    }
+
+    std::array<float, 3> chosenRouteNode = PickRandom(routeNodePositions);
+
+    candidate = MakeRouteNodeCandidate(chosenRouteNode);
+    Logger::TimestampLogf("[Fob] Using random PAN route node fallback from %zu node(s): %s", routeNodePositions.size(), resolvedPath.c_str());
+    return true;
+}
+
 bool TryFindPracticeStarCandidate(const char* fobFilePath, FobRecord& candidate, bool& hasPracticeStar) {
     hasPracticeStar = false;
 
@@ -67,7 +178,7 @@ bool TryFindPracticeStarCandidate(const char* fobFilePath, FobRecord& candidate,
         return false;
     }
 
-    const std::string resolvedPath = Randomizer::GetAbsoluteFilePath(fobFilePath);
+    const std::string resolvedPath = ResolveGameFilePath(fobFilePath);
     std::ifstream file(resolvedPath, std::ios::binary);
     if (!file.is_open()) {
         Logger::TimestampLogf("[Fob] Could not open FOB for inspection: %s", resolvedPath.c_str());
@@ -82,8 +193,7 @@ bool TryFindPracticeStarCandidate(const char* fobFilePath, FobRecord& candidate,
     }
 
     bool hasGlobalStarCandidate = false;
-    bool hasPickupCandidate = false;
-    FobRecord pickupCandidate{};
+    std::vector<FobRecord> pickupCandidates;
 
     for (int i = 0; i < objectCount; ++i) {
         FobRecord record{};
@@ -104,9 +214,8 @@ bool TryFindPracticeStarCandidate(const char* fobFilePath, FobRecord& candidate,
             hasGlobalStarCandidate = true;
         }
 
-        if (!hasPickupCandidate && record.objectId == kFobObjectPickup) {
-            pickupCandidate = record;
-            hasPickupCandidate = true;
+        if (record.objectId == kFobObjectPickup) {
+            pickupCandidates.push_back(record);
         }
     }
 
@@ -114,11 +223,13 @@ bool TryFindPracticeStarCandidate(const char* fobFilePath, FobRecord& candidate,
         return true;
     }
 
-    if (hasPickupCandidate) {
-        candidate = pickupCandidate;
+    if (!pickupCandidates.empty()) {
+        candidate = PickRandom(pickupCandidates);
+        Logger::TimestampLogf("[Fob] Using random pickup fallback from %zu pickup(s): %s", pickupCandidates.size(), resolvedPath.c_str());
         return true;
     }
 
+    TryReadRandomRouteNodeCandidate(fobFilePath, candidate);
     return true;
 }
 
@@ -153,7 +264,7 @@ void Hook_LoadObjectsFromFob(char* fobFilePath) {
         return;
     }
 
-    if (candidate.objectId == 0) {
+    if (candidate.objectId == kCandidateSourceNone) {
         Logger::TimestampLogf("[Fob] No practice star candidate found: %s", fobFilePath);
         return;
     }
