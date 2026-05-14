@@ -103,6 +103,21 @@ constexpr uint32_t RVA_READ_TOKEN_INT = 0x001346e0;
 // ReadTokenBool - Reads a boolean value from a file
 constexpr uint32_t RVA_READ_TOKEN_BOOL = 0x001343c0;
 
+// DrawPostRaceLeaderboard - Draws the results table after finishing a race.
+constexpr uint32_t RVA_DRAW_POST_RACE_LEADERBOARD = 0x00061370;
+
+constexpr uint32_t RVA_RACE_SESSION_SETUP = 0x00050700;
+constexpr uint32_t RVA_SETUP_ALL_RACE_CARS = 0x0004F7B0;
+constexpr uint32_t RVA_RANDOMIZE_CAR_PICKS = 0x0004FB30;
+constexpr uint32_t RVA_ASSIGN_START_POSITIONS = 0x0004F980;
+constexpr uint32_t RVA_ADD_PARTICIPANT_AND_COUNT = 0x0004f1f0;
+constexpr uint32_t RVA_UPDATE_RACE_POSITIONS = 0x000075F0;
+
+constexpr uint32_t RVA_CREATE_CAR_ENTITY       = 0x000F03A0;
+constexpr uint32_t RVA_COMPUTE_SPAWN_ORIENT    = 0x000A71D0;
+constexpr uint32_t RVA_SET_CAR_TRANSFORM       = 0x000A76F0;
+
+
 // ----------------------------------------------------------------------------
 // Globals
 // ----------------------------------------------------------------------------
@@ -140,6 +155,20 @@ constexpr uint32_t RVA_VANILLA_CUP_ARRAY = 0x0025f4a0;
 
 // Global variable for CupDC setting. If enabled, DC Cups are used and DC Cars can be loaded into championships.
 constexpr uint32_t RVA_CUP_DC = 0x00b4349e;
+
+// Global variable for the current game mode
+constexpr uint32_t RVA_GAME_MODE = 0x002e34c0;
+
+constexpr uint32_t RVA_RACE_FINISHED_FLAG = 0x0a8ee7e0;
+
+constexpr uint32_t RVA_SETTINGS_NCARS = 0x0aa8e930;
+
+constexpr uint32_t RVA_RACE_PARTICIPANT_COUNT = 0x00b3eb04;
+constexpr uint32_t RVA_RACE_PARTICIPANT_RECORDS = 0x00b3eb50;
+
+// Head of the active CarEntity linked list. Each node is a live car instance;
+// this is separate from the CarInfo model metadata table.
+constexpr uint32_t RVA_CAR_LIST_HEAD = 0x0a8ee9e8;
 
 // ----------------------------------------------------------------------------
 // AbsFromRva

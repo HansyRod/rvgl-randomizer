@@ -90,6 +90,26 @@ enum TrackProgressFlags : uint32_t {
     TRACKPROGRESS_PROGRESS_LOADED           = 0x80000000, // Progress file already loaded this session
 };
 
+// Game Mode Codes (DAT_006e34c0)
+enum GameMode : uint32_t {
+    MODE_TIME_TRIAL         	 = 0x01, // Confirmed
+    MODE_SINGLE_RACE        	 = 0x02, // Confirmed
+    MODE_CLOCKWORK_CARNAGE  	 = 0x03, // Solo time attack [cite: 47] ??
+    MODE_MULTIPLAYER_SINGLE_RACE = 0x04, // Waiting for MP sync [cite: 47]
+    MODE_REPLAY             	 = 0x05, // Confirmed
+    MODE_MULTIPLAYER_BATTLE_TAG  = 0x06, // Secondary MP wait [cite: 47]
+    MODE_CHAMPIONSHIP       	 = 0x07, // Confirmed
+    MODE_PRACTICE           	 = 0x08, // Confirmed
+    MODE_STUNT_ARENA       	  	 = 0x09, // Confirmed
+	MODE_SELECT_FRONTEND		 = 0x0A,
+    MODE_MAKEITGOOD_EDIT         = 0x0B, // Timed racing mode [cite: 48]
+	MODE_PROBE_INTRO			 = 0x0C,
+    MODE_CALCULATE_CAR_STATS     = 0x0D, // Standard race (alt code) [cite: 48]
+    MODE_SPLITSCREEN_SINGLE_RACE = 0x0F, // Championship mode [cite: 48]
+    MODE_SPLITSCREEN_BATTLE_TAG  = 0x10  // Casual race mode [cite: 48]
+};
+
+
 struct TrackInfo {
     char               folderName[16];          // +0x00
     char               displayName[64];          // +0x10

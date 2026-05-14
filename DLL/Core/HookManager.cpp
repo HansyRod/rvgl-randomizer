@@ -6,6 +6,7 @@
 #include "CupHooks.h"
 #include "ProfileHooks.h"
 #include "CarPhysicsHooks.h"
+#include "RaceInitHooks.h"
 #include "CallLogger.h"
 #include "Logger.h"
 #include <string>
@@ -257,6 +258,55 @@ static void RegisterHooks() {
         reinterpret_cast<void*>(Randomizer::Hook_ReadTokenBool),
         reinterpret_cast<void**>(&Randomizer::Orig_ReadTokenBool),
         "ReadTokenBool"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_DRAW_POST_RACE_LEADERBOARD),
+        reinterpret_cast<void*>(Randomizer::Hook_DrawPostRaceLeaderboard),
+        reinterpret_cast<void**>(&Randomizer::Orig_DrawPostRaceLeaderboard),
+        "DrawPostRaceLeaderboard"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_RACE_SESSION_SETUP),
+        reinterpret_cast<void*>(Randomizer::Hook_RaceSessionSetup),
+        reinterpret_cast<void**>(&Randomizer::Orig_RaceSessionSetup),
+        "RaceSessionSetup"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_SETUP_ALL_RACE_CARS),
+        reinterpret_cast<void*>(Randomizer::Hook_SetupAllRaceCars),
+        reinterpret_cast<void**>(&Randomizer::Orig_SetupAllRaceCars),
+        "SetupAllRaceCars"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_RANDOMIZE_CAR_PICKS),
+        reinterpret_cast<void*>(Randomizer::Hook_RandomizeCarPicks),
+        reinterpret_cast<void**>(&Randomizer::Orig_RandomizeCarPicks),
+        "RandomizeCarPicks"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_ASSIGN_START_POSITIONS),
+        reinterpret_cast<void*>(Randomizer::Hook_AssignStartPositions),
+        reinterpret_cast<void**>(&Randomizer::Orig_AssignStartPositions),
+        "AssignStartPositions"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_ADD_PARTICIPANT_AND_COUNT),
+        reinterpret_cast<void*>(Randomizer::Hook_AddParticipantAndCount),
+        reinterpret_cast<void**>(&Randomizer::Orig_AddParticipantAndCount),
+        "AddParticipantAndCount"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_UPDATE_RACE_POSITIONS),
+        reinterpret_cast<void*>(Randomizer::Hook_UpdateRacePositions),
+        reinterpret_cast<void**>(&Randomizer::Orig_UpdateRacePositions),
+        "UpdateRacePositions"
     );
 
     /* HookManager::Add(
