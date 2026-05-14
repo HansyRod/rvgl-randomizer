@@ -2,11 +2,16 @@
 
 #include "ConfigData.h"
 #include "RVGLStructs.h"
+#include <array>
 #include <optional>
 #include <string>
 #include <vector>
 
 namespace Randomizer {
+
+constexpr int randomizerMinCarCount = 2;
+constexpr int vanillaMaxCarCount = 16;
+constexpr int randomizerMaxCarCount = 30;
 
 struct ConfigState {
     // Global or class-member variable to hold the active configuration
@@ -32,6 +37,21 @@ struct CarRuntimeState {
     int carsPerRace = 0;
 };
 
+struct ThirtyCarRuntimeState {
+    bool cacheValid = false;
+    bool participantsExpanded = false;
+    bool gridApplied = false;
+    bool playersMovedToBack = false;
+    int originalParticipantCount = 0;
+    std::array<int, randomizerMaxCarCount> generatedModelIds = {};
+    std::array<int, randomizerMaxCarCount> runtimeCarIds = {};
+
+    ThirtyCarRuntimeState() {
+        generatedModelIds.fill(-1);
+        runtimeCarIds.fill(-1);
+    }
+};
+
 struct TrackRuntimeState {
     // Track pool snapshot
     TrackInfo trackInfoBackup[14] = {};
@@ -43,6 +63,7 @@ struct TrackRuntimeState {
 struct RandomizerContext {
     ConfigState config;
     CarRuntimeState carState;
+    ThirtyCarRuntimeState thirtyCarState;
     TrackRuntimeState trackState;
 };
 

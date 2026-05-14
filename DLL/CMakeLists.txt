@@ -68,6 +68,7 @@ add_library(randomizer SHARED
     Image/Image.cpp
 
     # Game - Game data or other utils
+    Game/RVGLFunctions.cpp
     Game/GameUtils.cpp
 
     #Config - Handles loading the JSON configuration with the randomization data

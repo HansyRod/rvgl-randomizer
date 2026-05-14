@@ -2,6 +2,7 @@
 #include "Addresses.h"
 #include "FileUtils.h"
 #include "Logger.h"
+#include "RVGLFunctions.h"
 #include "RVGLStructs.h"
 #include <array>
 #include <fstream>
@@ -241,8 +242,7 @@ namespace Randomizer {
 // Original function pointers
 // MinHook writes the trampoline addresses into these during InstallAll().
 // ----------------------------------------------------------------------------
-FnLoadObjectsFromFob        Orig_LoadObjectsFromFob        = nullptr;
-FnCreateObjectFromFob       Orig_CreateObjectFromFob       = reinterpret_cast<FnCreateObjectFromFob>(AbsFromRva(RVA_CREATE_OBJECT_FROM_FOB));
+FnLoadObjectsFromFob Orig_LoadObjectsFromFob = nullptr;
 
 void Hook_LoadObjectsFromFob(char* fobFilePath) {
 
@@ -271,7 +271,7 @@ void Hook_LoadObjectsFromFob(char* fobFilePath) {
 
     auto rotationMatrix = BuildRotationMatrix(candidate);
     std::array<int, 4> practiceStarSubinfos{ kStarSubtypePracticeStar, 0, 0, 0 };
-    void* createdObject = Orig_CreateObjectFromFob(
+    void* createdObject = RVGL_CreateObjectFromFob(
         candidate.position.data(),
         rotationMatrix.data(),
         kFobObjectStar,

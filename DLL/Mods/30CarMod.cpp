@@ -1,112 +1,17 @@
-#include <array>
 #include <algorithm>
-#include <cstddef>
+#include <array>
 #include <cstdio>
 #include <random>
 #include <unordered_map>
 #include <vector>
+#include "RVGLFunctions.h"
 #include "RVGLStructs.h"
 #include "Addresses.h"
+#include "RaceInitHooks.h"
 #include "RandomizerState.h"
 
 namespace Randomizer {
 
-struct Vec3 {
-    float x;
-    float y;
-    float z;
-};
-
-#pragma pack(push, 1)
-struct PhysicsBodyRuntime {
-    uint8_t _pad_00[20];
-    Vec3 position;                  // +0x14
-    Vec3 velocity;                  // +0x20
-    uint8_t _pad_2C[40];
-    float orientationMatrix[9];     // +0x54
-};
-
-struct CarTransformRuntime {
-    int32_t modelId;                // +0x000
-    uint8_t _pad_004[124];
-    PhysicsBodyRuntime* physicsBody; // +0x080
-    uint8_t _pad_088[3416];
-    Vec3 cachedPosition;            // +0xDE0
-    uint8_t _pad_DEC[204];
-};
-
-struct CarEntityRuntime {
-    int32_t nCarArrayIndex;         // +0x0000
-    int32_t carState;               // +0x0004
-    CarEntityRuntime* pPrev;        // +0x0008
-    CarEntityRuntime* pNext;        // +0x0010
-    uint8_t _pad_018[48];
-    CarTransformRuntime transform;  // +0x0048
-    uint8_t _pad_0F00[23232];
-    int32_t racePositionIndex;      // +0x69C0, zero-based
-};
-
-struct RaceParticipantRuntime {
-    int32_t carType;                // +0x00
-    int32_t startSlot;              // +0x04
-    int32_t modelId;                // +0x08
-    int32_t skinId;                 // +0x0C
-    int32_t reserved10;             // +0x10
-    int32_t isLocal;                // +0x14
-    int32_t networkId;              // +0x18
-    int32_t hasCheated;             // +0x1C
-    char carName[20];               // +0x20
-    char skinName[12];              // +0x34
-    char playerName[16];            // +0x40
-};
-#pragma pack(pop)
-
-static_assert(sizeof(void*) == 8, "RVGL runtime layouts here assume a 64-bit process.");
-static_assert(offsetof(PhysicsBodyRuntime, position) == 0x14, "PhysicsBodyRuntime::position offset mismatch.");
-static_assert(offsetof(PhysicsBodyRuntime, orientationMatrix) == 0x54, "PhysicsBodyRuntime::orientationMatrix offset mismatch.");
-static_assert(offsetof(CarTransformRuntime, physicsBody) == 0x80, "CarTransformRuntime::physicsBody offset mismatch.");
-static_assert(offsetof(CarTransformRuntime, cachedPosition) == 0xDE0, "CarTransformRuntime::cachedPosition offset mismatch.");
-static_assert(sizeof(CarTransformRuntime) == 0xEB8, "CarTransformRuntime size mismatch.");
-static_assert(offsetof(CarEntityRuntime, transform) == 0x48, "CarEntityRuntime::transform offset mismatch.");
-static_assert(offsetof(CarEntityRuntime, racePositionIndex) == 0x69C0, "CarEntityRuntime::racePositionIndex offset mismatch.");
-static_assert(sizeof(RaceParticipantRuntime) == 0x50, "RaceParticipantRuntime size mismatch.");
-static_assert(offsetof(RaceParticipantRuntime, modelId) == 0x08, "RaceParticipantRuntime::modelId offset mismatch.");
-static_assert(offsetof(RaceParticipantRuntime, playerName) == 0x40, "RaceParticipantRuntime::playerName offset mismatch.");
-
-using FnCreateCarEntity = CarEntityRuntime* (__cdecl *)(
-    int initialState,
-    int controllerType,
-    int carModelId,
-    uint64_t skinIdAndFlags,
-    float* spawnPosition,
-    float* spawnOrientation
-);
-
-using FnComputeSpawnOrientation = void (__cdecl *)(
-    int startSlot,
-    float* outPosition,
-    float* outOrientation
-);
-
-using FnSetCarTransform = void (__cdecl *)(
-    CarTransformRuntime* transform,
-    float* position,
-    float* orientation
-);
-
-using FnAddParticipantAndCount = bool (__cdecl *)(
-    int carType,
-    int startSlot,
-    int modelId,
-    int skinId,
-    int isLocal,
-    int networkId,
-    char* playerName
-);
-
-constexpr int kMinCarCount = 2;
-constexpr int kVanillaMaxCarCount = 16;
-constexpr int kTargetCarCount = 30;
 constexpr int kGridCols = 5;
 constexpr int kGridRows = 6;
 constexpr float kColumnSpacing = 150.0f;
@@ -114,24 +19,16 @@ constexpr float kRowSpacing = 150.0f;
 constexpr int kCpuRaceCarState = 3;
 constexpr int kNoInputController = 0;
 
-
-struct ExtraCarsState {
-    bool cacheValid = false;
-    bool participantsExpanded = false;
-    bool gridApplied = false;
-    bool playersMovedToBack = false;
-    int originalParticipantCount = 0;
-    std::array<int, kTargetCarCount> cachedModels = {};
-};
-
-ExtraCarsState g_extraCars;
-
 std::mt19937& Rng() {
     static std::mt19937 rng{ std::random_device{}() };
     return rng;
 }
 
 namespace {
+
+ThirtyCarRuntimeState& GetThirtyCarState() {
+    return GetRandomizerContext().thirtyCarState;
+}
 
 CarInfo* GetCarInfoTable() {
     return *reinterpret_cast<CarInfo**>(AbsFromRva(RVA_CAR_TABLE));
@@ -176,7 +73,7 @@ RaceParticipantRuntime* GetParticipantRecords() {
 
 int GetTargetRaceCarCount() {
     const RandomizerContext& ctx = GetRandomizerContext();
-    return std::clamp(ctx.carState.carsPerRace, kMinCarCount, kTargetCarCount);
+    return std::clamp(ctx.carState.carsPerRace, randomizerMinCarCount, randomizerMaxCarCount);
 }
 
 int GetParticipantCount() {
@@ -201,11 +98,7 @@ bool AddRaceParticipant(
     int networkId,
     char* playerName
 ) {
-    auto AddParticipantAndCount = reinterpret_cast<FnAddParticipantAndCount>(
-        AbsFromRva(RVA_ADD_PARTICIPANT_AND_COUNT)
-    );
-
-    return AddParticipantAndCount(
+    return Orig_AddParticipantAndCount(
         carType,
         startSlot,
         modelId,
@@ -258,10 +151,7 @@ void SetCarPos(int carId, const Vec3& pos) {
         spawnOrientation[i] = car->transform.physicsBody->orientationMatrix[i];
     }
 
-    auto SetCarTransform = reinterpret_cast<FnSetCarTransform>(
-        AbsFromRva(RVA_SET_CAR_TRANSFORM)
-    );
-    SetCarTransform(&car->transform, spawnPosition, spawnOrientation);
+    RVGL_SetCarTransform(&car->transform, spawnPosition, spawnOrientation);
 }
 
 int GetCarModel(int carId) {
@@ -360,43 +250,39 @@ int PickRandomModel(int targetRating, std::unordered_map<int, bool>& usedModels)
 }
 
 void CacheRandomModels(int carCount) {
+    ThirtyCarRuntimeState& state = GetThirtyCarState();
     std::unordered_map<int, bool> usedModels;
 
-    for (int carId = 0; carId < carCount; ++carId) {
+    state.generatedModelIds.fill(-1);
+
+    const int targetCarCount = GetTargetRaceCarCount();
+    const int cachedCarCount = carCount < targetCarCount ? carCount : targetCarCount;
+    for (int carId = 0; carId < cachedCarCount; ++carId) {
         int modelId = GetParticipantModelId(carId);
         if (modelId < 0) {
             modelId = GetCarModel(carId);
         }
 
+        state.generatedModelIds[carId] = modelId;
         if (modelId >= 0) {
             usedModels[modelId] = true;
         }
     }
 
-    int playerModelId = GetParticipantModelId(0);
+    int playerModelId = cachedCarCount > 0 ? state.generatedModelIds[0] : -1;
     if (playerModelId < 0) {
         playerModelId = GetCarModel(0);
     }
 
     const int targetRating = GetCarModelRating(playerModelId >= 0 ? playerModelId : 0);
-
-    const int targetCarCount = GetTargetRaceCarCount();
-    for (int carId = carCount; carId < targetCarCount; ++carId) {
-        g_extraCars.cachedModels[carId] = PickRandomModel(targetRating, usedModels);
+    for (int carId = cachedCarCount; carId < targetCarCount; ++carId) {
+        state.generatedModelIds[carId] = PickRandomModel(targetRating, usedModels);
     }
 
-    g_extraCars.cacheValid = true;
+    state.cacheValid = true;
 }
 
 int SpawnCar(int modelId, int skinId, const Vec3& pos) {
-    auto CreateCarEntity = reinterpret_cast<FnCreateCarEntity>(
-        AbsFromRva(RVA_CREATE_CAR_ENTITY)
-    );
-
-    auto ComputeSpawnOrientation = reinterpret_cast<FnComputeSpawnOrientation>(
-        AbsFromRva(RVA_COMPUTE_SPAWN_ORIENT)
-    );
-
     float spawnPosition[3] = { pos.x, pos.y, pos.z };
 
     float ignoredNativePos[3];
@@ -404,9 +290,9 @@ int SpawnCar(int modelId, int skinId, const Vec3& pos) {
 
     // Use slot 0 only for orientation. Do not pass gridIndex >= 16 here:
     // the normal race path indexes a 16-entry start-position table.
-    ComputeSpawnOrientation(0, ignoredNativePos, spawnOrientation);
+    RVGL_ComputeSpawnOrientation(0, ignoredNativePos, spawnOrientation);
 
-    CarEntityRuntime* car = CreateCarEntity(
+    CarEntityRuntime* car = RVGL_CreateCarEntity(
         kCpuRaceCarState,
         kNoInputController,
         modelId,
@@ -423,7 +309,8 @@ int SpawnCar(int modelId, int skinId, const Vec3& pos) {
 }
 
 void ExpandRaceParticipantsToThirty() {
-    if (!IsSupportedMode() || g_extraCars.participantsExpanded) {
+    ThirtyCarRuntimeState& state = GetThirtyCarState();
+    if (!IsSupportedMode() || state.participantsExpanded) {
         return;
     }
 
@@ -433,20 +320,20 @@ void ExpandRaceParticipantsToThirty() {
     }
 
     const int targetCarCount = GetTargetRaceCarCount();
-    if (participantCount >= targetCarCount) {
-        g_extraCars.originalParticipantCount = participantCount;
-        g_extraCars.participantsExpanded = true;
-        return;
-    }
-
-    if (!g_extraCars.cacheValid) {
+    if (!state.cacheValid) {
         CacheRandomModels(participantCount);
     }
 
-    g_extraCars.originalParticipantCount = participantCount;
+    if (participantCount >= targetCarCount) {
+        state.originalParticipantCount = participantCount;
+        state.participantsExpanded = true;
+        return;
+    }
+
+    state.originalParticipantCount = participantCount;
 
     for (int participantIndex = participantCount; participantIndex < targetCarCount; ++participantIndex) {
-        const int modelId = g_extraCars.cachedModels[participantIndex];
+        const int modelId = state.generatedModelIds[participantIndex];
         char playerName[16] = {};
         BuildParticipantNameFromModel(modelId, playerName);
 
@@ -461,10 +348,11 @@ void ExpandRaceParticipantsToThirty() {
         );
     }
 
-    g_extraCars.participantsExpanded = true;
+    state.participantsExpanded = true;
 }
 
 void ApplyThirtyCarGrid() {
+    ThirtyCarRuntimeState& state = GetThirtyCarState();
     if (!IsSupportedMode()) {
         return;
     }
@@ -487,9 +375,11 @@ void ApplyThirtyCarGrid() {
     center.y /= static_cast<float>(carCount);
     center.z /= static_cast<float>(carCount);
 
-    if (!g_extraCars.cacheValid) {
+    if (!state.cacheValid) {
         CacheRandomModels(carCount);
     }
+
+    state.runtimeCarIds.fill(-1);
 
     const float gridCenterCol = static_cast<float>(kGridCols - 1) / 2.0f;
     const float gridCenterRow = static_cast<float>(kGridRows - 1) / 2.0f;
@@ -505,34 +395,42 @@ void ApplyThirtyCarGrid() {
 
         if (gridIndex < carCount) {
             SetCarPos(gridIndex, pos);
+            state.runtimeCarIds[gridIndex] = gridIndex;
             continue;
         }
 
-        const int modelId = g_extraCars.cachedModels[gridIndex];
-        const int newCarId = SpawnCar(modelId, 0, pos);
-        (void)newCarId;
+        const int modelId = state.generatedModelIds[gridIndex];
+        state.runtimeCarIds[gridIndex] = SpawnCar(modelId, 0, pos);
     }
 
-    g_extraCars.gridApplied = true;
+    state.gridApplied = true;
 }
 
 void MovePlayersToBackAfterRacePositions() {
-    if (!IsSupportedMode() || !g_extraCars.gridApplied || g_extraCars.playersMovedToBack) {
+    ThirtyCarRuntimeState& state = GetThirtyCarState();
+    if (!IsSupportedMode() || !state.gridApplied || state.playersMovedToBack) {
         return;
     }
 
-    std::array<int, kTargetCarCount + 1> rankToCar;
+    std::array<int, randomizerMaxCarCount + 1> rankToCar;
     rankToCar.fill(-1);
 
     const int targetCarCount = GetTargetRaceCarCount();
-    for (int carId = 0; carId < targetCarCount; ++carId) {
-        const int rank = GetCarRankingPosition(carId);
+    for (int slot = 0; slot < targetCarCount; ++slot) {
+        const int runtimeCarId = state.runtimeCarIds[slot];
+        if (runtimeCarId < 0) {
+            continue;
+        }
+
+        const int rank = GetCarRankingPosition(runtimeCarId);
         if (rank >= 1 && rank <= targetCarCount) {
-            rankToCar[rank] = carId;
+            rankToCar[rank] = runtimeCarId;
         }
     }
 
-    const int playerCars[1] = { 0 };
+    const int playerCars[1] = {
+        state.runtimeCarIds[0] >= 0 ? state.runtimeCarIds[0] : 0
+    };
     bool swappedAnyCar = false;
 
     for (int i = 0; i < 1; ++i) {
@@ -552,33 +450,19 @@ void MovePlayersToBackAfterRacePositions() {
     }
 
     if (swappedAnyCar) {
-        g_extraCars.playersMovedToBack = true;
+        state.playersMovedToBack = true;
     }
 }
 
 void ResetThirtyCarModState() {
-    g_extraCars.cacheValid = false;
-    g_extraCars.participantsExpanded = false;
-    g_extraCars.gridApplied = false;
-    g_extraCars.playersMovedToBack = false;
-    g_extraCars.originalParticipantCount = 0;
-    g_extraCars.cachedModels.fill(0);
+    ThirtyCarRuntimeState& state = GetThirtyCarState();
+    state.cacheValid = false;
+    state.participantsExpanded = false;
+    state.gridApplied = false;
+    state.playersMovedToBack = false;
+    state.originalParticipantCount = 0;
+    state.generatedModelIds.fill(-1);
+    state.runtimeCarIds.fill(-1);
 }
 
-void SyncCarCountToVanillaSettings() {
-
-    RandomizerContext& ctx = GetRandomizerContext();
-    int carsPerRace = std::clamp(ctx.carState.carsPerRace, kMinCarCount, kTargetCarCount);
-    ctx.carState.carsPerRace = carsPerRace;
-
-    int& nCars = *reinterpret_cast<int*>(AbsFromRva(RVA_NCARS));
-    int& nCarsSetting = *reinterpret_cast<int*>(AbsFromRva(RVA_SETTINGS_NCARS));
-    const int vanillaCarCount = carsPerRace < kVanillaMaxCarCount
-        ? carsPerRace
-        : kVanillaMaxCarCount;
-
-    nCars = vanillaCarCount;
-    nCarsSetting = vanillaCarCount;
-}
-
-}
+} // namespace Randomizer

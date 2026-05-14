@@ -2,26 +2,12 @@
 
 namespace Randomizer {
 
-    // ------------------------------------------------------------------------
-    // Function pointer types — must exactly match the RVGL originals.
-    // Ghidra signatures (x64, __fastcall is noise and is dropped):
-    //   LoadVanillaCarPool:  bool ()
-    // ------------------------------------------------------------------------
-    using FnLoadObjectsFromFob      = void(*)(char* fobFilePath);
-    using FnCreateObjectFromFob     = void*(*)(float* position, float* rotationMatrix, unsigned int objectId, int* subinfos);
+// Hooked RVGL FOB loader.
+using FnLoadObjectsFromFob = void(*)(char* fobFilePath);
 
-    // ------------------------------------------------------------------------
-    // Original function pointers.
-    // Declared here, defined in Randomizer.cpp.
-    // MinHook writes the trampoline addresses into these during InstallAll().
-    // Call these from inside the detours to invoke the real RVGL functions.
-    // ------------------------------------------------------------------------
-    extern FnLoadObjectsFromFob     Orig_LoadObjectsFromFob;
-    extern FnCreateObjectFromFob    Orig_CreateObjectFromFob;
+// MinHook writes the trampoline address into this during InstallAll().
+extern FnLoadObjectsFromFob Orig_LoadObjectsFromFob;
 
-    // ------------------------------------------------------------------------
-    // Detour functions — registered in HookManager.cpp → RegisterHooks().
-    // ------------------------------------------------------------------------
-    void Hook_LoadObjectsFromFob(char* fobFilePath);
+void Hook_LoadObjectsFromFob(char* fobFilePath);
 
 } // namespace Randomizer
