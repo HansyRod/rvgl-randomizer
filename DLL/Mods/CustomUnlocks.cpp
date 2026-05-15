@@ -7,6 +7,18 @@
 
 namespace Randomizer {
 
+int GetConditionTrackIndex(const CustomUnlockCondition* condition) {
+    if (condition == nullptr || condition->trackFolder.empty()) {
+        return -1;
+    }
+
+    return FindTrackIdByFolderName(condition->trackFolder);
+}
+
+bool HasRequiredCount(const CustomUnlockCondition* condition, int currentCount) {
+    return condition != nullptr && condition->requiredCount > 0 && currentCount >= condition->requiredCount;
+}
+
 bool HasTrackProgressFlag(int trackIndex, TrackProgressFlags flag) {
     TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
     return track != nullptr && (track->trackProgressFlags & flag) != 0;
@@ -97,11 +109,23 @@ bool EvaluateCustomUnlock(
     (void)targetIndex;
 
     switch (static_cast<CustomUnlockMethod>(obtain)) {
+    case CustomUnlockMethod::SpecificRaceWin:
+        return HasRaceWin(GetConditionTrackIndex(condition));
+    case CustomUnlockMethod::SpecificPracticeStar:
+        return HasPracticeStar(GetConditionTrackIndex(condition));
+    case CustomUnlockMethod::SpecificTimeTrial:
+        return HasNormalTimeTrialBeaten(GetConditionTrackIndex(condition));
+    case CustomUnlockMethod::RaceWinCount:
+        return HasRequiredCount(condition, CountRaceWins());
+    case CustomUnlockMethod::PracticeStarCount:
+        return HasRequiredCount(condition, CountPracticeStars());
+    case CustomUnlockMethod::TimeTrialCount:
+        return HasRequiredCount(condition, CountNormalTimeTrialsBeaten());
+    case CustomUnlockMethod::StuntArenaStarCount:
+        return HasRequiredCount(condition, GetStuntArenaStarsFound());
     case CustomUnlockMethod::ArchipelagoItem:
         return condition != nullptr && HasArchipelagoItem(condition->archipelagoItem);
     default:
-        // Other custom unlock methods are intentionally locked until their
-        // progress/query implementations are wired into the evaluator.
         return false;
     }
 }
