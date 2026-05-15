@@ -14,7 +14,6 @@ FnDrawProgressTable Orig_DrawProgressTable = nullptr;
 
 namespace {
 
-constexpr int kStockRowsPerPage = 14;
 constexpr int kCustomRowsPerPage = 21;
 constexpr int kFirstCustomTrackIndex = 21;
 
@@ -70,10 +69,6 @@ const char* LocaleStringAtIndex(int index) {
     return localeStrings[index];
 }
 
-const char* CupLabel(int difficulty) {
-    return LocaleStringAtIndex(difficulty + 0x13b);
-}
-
 float TextWidth(const char* text) {
     if (text == nullptr || text[0] == '\0') {
         return 0.0f;
@@ -108,26 +103,11 @@ bool IsRaceTrack(const TrackInfo& track) {
     return track.gameType == 0 || track.gameType == 4;
 }
 
-bool ShouldShowStockSlot(int trackIndex) {
-    if (trackIndex != 4) {
-        return true;
-    }
-
-    return (RVGL_TrackIsAvailableForFrontend(trackIndex, true) & 0xff) != 0;
-}
-
 void RebuildProgressTableCache() {
     RandomizerContext& ctx = GetRandomizerContext();
     ProgressTableRuntimeState& state = ctx.progressTableState;
 
-    state.stockTrackIndices.clear();
     state.customTrackIndices.clear();
-
-    for (int trackIndex = 0; trackIndex < kStockRowsPerPage; ++trackIndex) {
-        if (ShouldShowStockSlot(trackIndex)) {
-            state.stockTrackIndices.push_back(trackIndex);
-        }
-    }
 
     std::vector<int> customTracks;
     const int trackCount = GetRuntimeTrackCount();
@@ -186,12 +166,10 @@ std::vector<int> BuildVisibleTracksForPage(int page) {
     EnsureProgressTableCache();
 
     std::vector<int> tracks;
-    tracks.reserve(page == 0 ? kStockRowsPerPage : kCustomRowsPerPage);
-
     if (page == 0) {
-        tracks = GetRandomizerContext().progressTableState.stockTrackIndices;
         return tracks;
     }
+    tracks.reserve(kCustomRowsPerPage);
 
     const std::vector<int>& customTracks = GetRandomizerContext().progressTableState.customTrackIndices;
     const int start = (page - 1) * kCustomRowsPerPage;
@@ -252,15 +230,15 @@ bool IsTierComplete(int difficulty) {
 }
 
 void DrawColumnHeaders(float panelX, float currentX, float currentY) {
-    DrawText(currentX, currentY, kHeaderColor, LocaleStringAtByteOffset(0x858), 128.0f);
+    DrawText(currentX, currentY, kHeaderColor, LocaleStringAtByteOffset(0x858), 128.0f);                             // Tracks
 
-    const float iconX = panelX + 176.0f;
-    DrawCenteredText(iconX - 20.0f, currentY, 80.0f, kHeaderColor, LocaleStringAtByteOffset(0x860));
-    DrawCenteredText(iconX - 20.0f, currentY + kGlyphHeight, 80.0f, kHeaderColor, LocaleStringAtByteOffset(0x868));
-    DrawCenteredText(iconX + 60.0f, currentY, 80.0f, kHeaderColor, LocaleStringAtByteOffset(0x870));
-    DrawCenteredText(iconX + 140.0f, currentY, 80.0f, kHeaderColor, LocaleStringAtByteOffset(0x878));
-    DrawCenteredText(iconX + 220.0f, currentY, 80.0f, kHeaderColor, LocaleStringAtByteOffset(0x880));
-    DrawCenteredText(iconX + 300.0f, currentY, 80.0f, kHeaderColor, LocaleStringAtByteOffset(0x888));
+    const float iconX = panelX + 140.0f;
+    DrawCenteredText(iconX,          currentY,                80.0f, kHeaderColor, LocaleStringAtByteOffset(0x860)); // Won
+    DrawCenteredText(iconX,          currentY + kGlyphHeight, 80.0f, kHeaderColor, LocaleStringAtByteOffset(0x868)); // Race
+    DrawCenteredText(iconX + 80.0f,  currentY,                80.0f, kHeaderColor, LocaleStringAtByteOffset(0x870)); // Norm.
+    DrawCenteredText(iconX + 160.0f, currentY,                80.0f, kHeaderColor, LocaleStringAtByteOffset(0x878)); // Rev.
+    DrawCenteredText(iconX + 240.0f, currentY,                80.0f, kHeaderColor, LocaleStringAtByteOffset(0x880)); // Mirr.
+    DrawCenteredText(iconX + 320.0f, currentY,                80.0f, kHeaderColor, LocaleStringAtByteOffset(0x888)); // Stars
 }
 
 void DrawTrackRow(float panelX, float currentX, float y, int trackIndex) {
@@ -283,6 +261,13 @@ void DrawTrackRow(float panelX, float currentX, float y, int trackIndex) {
 
 int ReadMenuAction() {
     return *reinterpret_cast<int*>(AbsFromRva(RVA_MENU_ACTION));
+}
+
+void DrawPageText(float panelX, float y, int page, int pageCount) {
+    char pageText[32] = {};
+    std::snprintf(pageText, sizeof(pageText), "Page %d / %d", page + 1, pageCount);
+    const float pageTextX = panelX + kPanelWidth - TextWidth(pageText) - kPanelPadding;
+    DrawText(pageTextX, y, pageCount > 1 ? kPageTextColor : kDimTextColor, pageText, 128.0f);
 }
 
 void DrawFooter(float panelX, float currentX, float y, int page, int pageCount) {
@@ -310,10 +295,7 @@ void DrawFooter(float panelX, float currentX, float y, int page, int pageCount) 
     );
     DrawText(currentX + stuntTextWidth + kGlyphWidth, y, kStarsColor, starsText, 84.0f);
 
-    char pageText[32] = {};
-    std::snprintf(pageText, sizeof(pageText), "Page %d / %d", page + 1, pageCount);
-    const float pageTextX = panelX + kPanelWidth - TextWidth(pageText) - kPanelPadding;
-    DrawText(pageTextX, y, pageCount > 1 ? kPageTextColor : kDimTextColor, pageText, 128.0f);
+    DrawPageText(panelX, y, page, pageCount);
 }
 
 } // anonymous namespace
@@ -361,6 +343,12 @@ bool IncrementProgressTablePage(int) {
 }
 
 void Hook_DrawProgressTable(int slotIndex) {
+
+    const int trackCount = GetRuntimeTrackCount();
+    if (trackCount <= kFirstCustomTrackIndex) {
+        return Orig_DrawProgressTable(slotIndex);
+    }
+
     ClampProgressTablePage();
 
     const int action = ReadMenuAction();
@@ -371,13 +359,23 @@ void Hook_DrawProgressTable(int slotIndex) {
         IncrementProgressTablePage(slotIndex);
     }
 
-    const int page = GetRandomizerContext().progressTableState.currentPage;
-    const int pageCount = GetProgressTablePageCount();
-    const std::vector<int> tracks = BuildVisibleTracksForPage(page);
-    const bool isCustomPage = page > 0;
-
     const float panelX = ReadSlotFloat(slotIndex, 0x114) + kPanelOffsetX;
     const float panelY = ReadSlotFloat(slotIndex, 0x118) + kPanelOffsetY;
+
+    const int page = GetRandomizerContext().progressTableState.currentPage;
+    const int pageCount = GetProgressTablePageCount();
+
+    const bool isFirstPage = page == 0;
+    if (isFirstPage) {
+        Orig_DrawProgressTable(slotIndex);
+        
+        float pageTextY = panelY + kPanelPadding + kHeaderYOffset + (kCustomRowsPerPage + 2) * kRowHeight;
+        DrawPageText(panelX, pageTextY, page, pageCount);
+        return;
+    }
+
+    const std::vector<int> tracks = BuildVisibleTracksForPage(page);
+
     const int panelId = ReadSlotInt(slotIndex, 0x110);
 
     RVGL_UIDrawRoundedRect(panelX, panelY, kPanelWidth, kPanelHeight, panelId, 0, kPanelColor, 0xff, 1);
@@ -391,42 +389,18 @@ void Hook_DrawProgressTable(int slotIndex) {
 
     DrawColumnHeaders(panelX, currentX, currentY);
 
-    if (isCustomPage) {
-        rowY += kRowHeight;
-    }
-
+    rowY += kRowHeight;
     for (int trackIndex : tracks) {
         TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
         if (track == nullptr) {
             continue;
         }
 
-        if (!isCustomPage) {
-            const int difficulty = track->difficultyRating;
-            if (difficulty != currentDifficulty) {
-                if (currentDifficulty != -1) {
-                    rowY += kDifficultyGap;
-                }
-
-                const char* cupLabel = CupLabel(difficulty);
-                DrawText(currentX, rowY, kHeaderColor, cupLabel, 128.0f);
-                DrawProgressIcon(currentX + TextWidth(cupLabel) + kPanelPadding, rowY, IsTierComplete(difficulty));
-                rowY += kRowHeight;
-                currentDifficulty = difficulty;
-            }
-        }
-
         DrawTrackRow(panelX, currentX, rowY, trackIndex);
         rowY += kRowHeight;
     }
 
-    if (!isCustomPage && !ShouldShowStockSlot(4)) {
-        rowY += kRowHeight;
-    }
-
-    const float footerY = isCustomPage
-        ? currentY + kHeaderYOffset + kRowHeight + static_cast<float>(kCustomRowsPerPage) * kRowHeight + kRowHeight
-        : rowY + kHeaderYOffset;
+    const float footerY = currentY + kHeaderYOffset + (kCustomRowsPerPage + 2) * kRowHeight;
     DrawFooter(panelX, currentX, footerY, page, pageCount);
 }
 
