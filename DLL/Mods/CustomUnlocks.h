@@ -45,6 +45,10 @@ int CountNormalTimeTrialsBeaten();
 
 int GetStuntArenaStarsFound();
 
+void MarkArchipelagoItemReceived(const std::string& itemName);
+bool HasArchipelagoItem(const std::string& itemName);
+void ClearArchipelagoItems();
+
 bool EvaluateCustomUnlock(
     UnlockTargetKind targetKind,
     int targetIndex,

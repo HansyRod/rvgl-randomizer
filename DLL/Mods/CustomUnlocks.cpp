@@ -1,5 +1,6 @@
 #include "CustomUnlocks.h"
 #include "Addresses.h"
+#include "RandomizerState.h"
 #include "TrackHooks.h"
 
 namespace Randomizer {
@@ -58,6 +59,32 @@ int GetStuntArenaStarsFound() {
     return *reinterpret_cast<int*>(AbsFromRva(RVA_TOTAL_STARS_EARNED));
 }
 
+void MarkArchipelagoItemReceived(const std::string& itemName) {
+    if (itemName.empty()) {
+        return;
+    }
+
+    ArchipelagoRuntimeState& archipelagoState = GetRandomizerContext().archipelagoState;
+    std::lock_guard<std::mutex> lock(archipelagoState.itemMutex);
+    archipelagoState.receivedItems.insert(itemName);
+}
+
+bool HasArchipelagoItem(const std::string& itemName) {
+    if (itemName.empty()) {
+        return false;
+    }
+
+    ArchipelagoRuntimeState& archipelagoState = GetRandomizerContext().archipelagoState;
+    std::lock_guard<std::mutex> lock(archipelagoState.itemMutex);
+    return archipelagoState.receivedItems.find(itemName) != archipelagoState.receivedItems.end();
+}
+
+void ClearArchipelagoItems() {
+    ArchipelagoRuntimeState& archipelagoState = GetRandomizerContext().archipelagoState;
+    std::lock_guard<std::mutex> lock(archipelagoState.itemMutex);
+    archipelagoState.receivedItems.clear();
+}
+
 bool EvaluateCustomUnlock(
     UnlockTargetKind targetKind,
     int targetIndex,
@@ -66,12 +93,15 @@ bool EvaluateCustomUnlock(
 ) {
     (void)targetKind;
     (void)targetIndex;
-    (void)obtain;
-    (void)condition;
 
-    // Custom unlock methods are intentionally locked until their
-    // progress/query implementations are added in later steps.
-    return false;
+    switch (static_cast<CustomUnlockMethod>(obtain)) {
+    case CustomUnlockMethod::ArchipelagoItem:
+        return condition != nullptr && HasArchipelagoItem(condition->archipelagoItem);
+    default:
+        // Other custom unlock methods are intentionally locked until their
+        // progress/query implementations are wired into the evaluator.
+        return false;
+    }
 }
 
 } // namespace Randomizer

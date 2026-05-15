@@ -3,8 +3,10 @@
 #include "ConfigData.h"
 #include "RVGLStructs.h"
 #include <array>
+#include <mutex>
 #include <optional>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace Randomizer {
@@ -60,11 +62,17 @@ struct TrackRuntimeState {
     int trackCount = 0;
 };
 
+struct ArchipelagoRuntimeState {
+    std::mutex itemMutex;
+    std::unordered_set<std::string> receivedItems;
+};
+
 struct RandomizerContext {
     ConfigState config;
     CarRuntimeState carState;
     ThirtyCarRuntimeState thirtyCarState;
     TrackRuntimeState trackState;
+    ArchipelagoRuntimeState archipelagoState;
 };
 
 RandomizerContext& GetRandomizerContext();
