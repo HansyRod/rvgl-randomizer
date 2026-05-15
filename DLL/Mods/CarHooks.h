@@ -1,5 +1,6 @@
 #pragma once
 #include "RVGLStructs.h"
+#include "ConfigData.h"
 #include <cstdio>
 
 // ============================================================================
@@ -47,5 +48,11 @@ namespace Randomizer {
 
     // Utils functions
     void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData);
+    RandomizedCar* GetCarConfigByRuntimeIndex(int carIndex);
+    int GetRuntimeCarCount();
+
+    // Returns the live RVGL car array. RVA_CAR_TABLE stores a pointer, so this
+    // helper intentionally dereferences the global pointer slot.
+    CarInfo* GetCarPool();
 
 } // namespace Randomizer

@@ -161,6 +161,12 @@ constexpr uint32_t RVA_CUP_DC = 0x00b4349e;
 // Global variable for the current game mode
 constexpr uint32_t RVA_GAME_MODE = 0x002e34c0;
 
+// Controls whether unlock checks are active. 0 means everything is unlocked.
+constexpr uint32_t RVA_UNLOCK_CHECKS_ENABLED = 0x0025c0f8;
+
+// Car-specific force-unlock flag used by UpdateCarSelectability.
+constexpr uint32_t RVA_FORCE_UNLOCK_ALL_CARS = 0x002fb64a;
+
 // Current Stunt Arena stars earned in the active profile.
 constexpr uint32_t RVA_TOTAL_STARS_EARNED = 0x00b42494;
 

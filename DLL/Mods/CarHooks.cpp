@@ -5,6 +5,8 @@
 #include "Carbox.h"
 #include "Image.h"
 #include "GameUtils.h"
+#include "CustomUnlocks.h"
+#include <unordered_set>
 
 namespace {
 
@@ -79,6 +81,36 @@ FnLoadCustomCarPool      Orig_LoadCustomCarPool      = nullptr;
 FnSyncCarInfoFromPhysics Orig_SyncCarInfoFromPhysics = nullptr;
 FnUpdateCarSelectability Orig_UpdateCarSelectability = nullptr;
 
+RandomizedCar* GetCarConfigByRuntimeIndex(int carIndex) {
+    ConfigData* config = GetActiveConfig();
+    if (config == nullptr) {
+        return nullptr;
+    }
+
+    if (carIndex >= 0 && carIndex <= 27) {
+        if (carIndex < static_cast<int>(config->stockCars.size())) {
+            return &config->stockCars[carIndex];
+        }
+    }
+    else if (carIndex >= 35 && carIndex <= 48) {
+        const int dcIndex = carIndex - 35;
+        if (dcIndex < static_cast<int>(config->dcCars.size())) {
+            return &config->dcCars[dcIndex];
+        }
+    }
+
+    return nullptr;
+}
+
+int GetRuntimeCarCount() {
+    return *reinterpret_cast<int*>(AbsFromRva(RVA_CAR_COUNT));
+}
+
+CarInfo* GetCarPool() {
+    return *reinterpret_cast<CarInfo**>(AbsFromRva(RVA_CAR_TABLE));
+}
+
+
 // ============================================================================
 // Hook_LoadCars
 //
@@ -129,8 +161,8 @@ bool Hook_LoadVanillaCarPool() {
     // Read the pool pointer and count that RVGL just populated.
     // AbsFromRva resolves the RVA to the actual runtime address, then we
     // dereference it to get the value stored at that address.
-    CarInfo* rawPool = *reinterpret_cast<CarInfo**>(AbsFromRva(RVA_CAR_TABLE));
-    carState.carCount = *reinterpret_cast<int*>(AbsFromRva(RVA_CAR_COUNT));
+    CarInfo* rawPool = GetCarPool();
+    carState.carCount = GetRuntimeCarCount();
 
     // Copy cars to s_carPool vector to keep them in the DLL memory
     carState.carPool.clear();
@@ -243,8 +275,8 @@ void Hook_LoadCustomCarPool() {
     // Let RVGL load the custom cars from disk into memory first
     Orig_LoadCustomCarPool();
 
-    CarInfo* customPool = *reinterpret_cast<CarInfo**>(AbsFromRva(RVA_CAR_TABLE));
-    int customCount     = *reinterpret_cast<int*>(AbsFromRva(RVA_CAR_COUNT));
+    CarInfo* customPool = GetCarPool();
+    int customCount     = GetRuntimeCarCount();
 
     // Check if any cars were added to the car table
     if (customPool != nullptr && customCount > carState.carCount) {
@@ -305,17 +337,7 @@ void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
     }
 
     if (config != nullptr) {
-        RandomizedCar* carConfigPtr = nullptr;
-        if (carIndex >= 0 && carIndex <= 27) {
-            if (carIndex < config->stockCars.size()) {
-                carConfigPtr = &config->stockCars[carIndex];
-            }
-        } else if (carIndex >= 35 && carIndex <= 48) {
-            int dcIndex = carIndex - 35;
-            if (dcIndex < config->dcCars.size()) {
-                carConfigPtr = &config->dcCars[dcIndex];
-            }
-        }
+        RandomizedCar* carConfigPtr = GetCarConfigByRuntimeIndex(carIndex);
 
         if (carConfigPtr != nullptr) {
             RandomizedCar& carConfig = *carConfigPtr;
@@ -338,12 +360,12 @@ void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
 void Hook_UpdateCarSelectability() {
 
     // Inside your hook function:
-    CarInfo* rawPool = *reinterpret_cast<CarInfo**>(AbsFromRva(RVA_CAR_TABLE));
-    int32_t carCount = *reinterpret_cast<int32_t*>(AbsFromRva(RVA_CAR_COUNT));
+    CarInfo* rawPool = GetCarPool();
+    int carCount = GetRuntimeCarCount();
 
     // Guard against accessing the pool before it is allocated by the game
     if (rawPool != nullptr && carCount > 0) {
-        for (int32_t i = 0; i < carCount; ++i) {
+        for (int i = 0; i < carCount; ++i) {
             CarInfo& currentCar = rawPool[i];
             
             // Reapply rating and obtain condition to make sure
@@ -357,6 +379,7 @@ void Hook_UpdateCarSelectability() {
 
     Orig_UpdateCarSelectability();
 
+    UpdateCarCustomUnlocks();
 }
 
 }

@@ -56,4 +56,9 @@ bool EvaluateCustomUnlock(
     const CustomUnlockCondition* condition
 );
 
+const CustomUnlockCondition* GetCarCustomUnlockCondition(int carIndex);
+bool ShouldBypassCustomCarUnlocks();
+void LogMissingCustomCarUnlockOnce(int carIndex, const CarInfo& car);
+void UpdateCarCustomUnlocks();
+
 } // namespace Randomizer
