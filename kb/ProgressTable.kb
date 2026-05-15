@@ -1,0 +1,420 @@
+# Progress Table Knowledge Base
+
+> Scope: paginated Progress Table rendering for randomized and custom race
+> tracks in the DLL.
+
+---
+
+## Overview
+
+RVGL's original Progress Table only renders the first 14 race rows. The
+randomizer replaces that draw path with a paginated renderer so the first page
+keeps the original Progress Table behavior, while later pages expose all active
+custom race tracks.
+
+The implementation is display-only:
+
+- It does not change save formats.
+- It does not alter track progress flags.
+- It does not alter unlock logic.
+- Page state is runtime-only.
+
+The main implementation lives in:
+
+- `DLL/Mods/ProgressTableHooks.cpp`
+- `DLL/Mods/ProgressTableHooks.h`
+
+The hook is registered from:
+
+- `DLL/Core/HookManager.cpp`
+
+---
+
+## Ghidra Findings
+
+The original function:
+
+| Symbol | Address |
+| --- | ---: |
+| `DrawProgressTable` | `0x00554870` |
+| RVA | `0x00154870` |
+
+Ghidra showed that the original renderer hard-codes the displayed race rows to
+track indices `0..13`, stopping at `0xe`.
+
+The game already has runtime track access through `GetTrackInfo(index)`.
+Runtime indices are used as follows:
+
+| Range | Meaning |
+| ---: | --- |
+| `0..20` | Vanilla track slots |
+| `21..trackCount-1` | Custom/runtime tracks |
+
+The Progress Table implementation intentionally skips vanilla special slots
+`14..20` and uses only race-eligible custom tracks on custom pages.
+
+---
+
+## Files Changed
+
+### New Module
+
+`DLL/Mods/ProgressTableHooks.cpp`
+
+Owns the replacement Progress Table renderer, pagination, cache rebuilds,
+footer rendering, and left/right page handling.
+
+`DLL/Mods/ProgressTableHooks.h`
+
+Exposes runtime helpers:
+
+- `ResetProgressTablePage()`
+- `ClampProgressTablePage()`
+- `InvalidateProgressTableCache()`
+
+### Hook Registration
+
+`DLL/Core/HookManager.cpp`
+
+Registers a MinHook detour for:
+
+```cpp
+RVA_DRAW_PROGRESS_TABLE
+```
+
+The detour target is:
+
+```cpp
+Hook_DrawProgressTable
+```
+
+### Address Declarations
+
+`DLL/Core/Addresses.h`
+
+Adds RVAs used by the renderer:
+
+| RVA constant | Purpose |
+| --- | --- |
+| `RVA_DRAW_PROGRESS_TABLE` | Original Progress Table draw function |
+| `RVA_TRACK_LOAD_PROGRESS_FROM_FILE` | Loads track progress before rendering icons |
+| `RVA_MENU_ACTION` | Reads current frontend left/right action |
+| `RVA_LOCALE_STRINGS_PTR` | Reads localized UI strings |
+| `RVA_GALLERY_SLOTS_PTR` | Reuses original frontend slot positioning data |
+| `RVA_DRAW_TEXTURED_QUAD` | Draws panel and icon textures |
+| `RVA_TRACK_IS_AVAILABLE_FOR_FRONTEND` | Preserves original availability behavior |
+
+### RVGL Function Wrappers
+
+`DLL/Game/RVGLFunctions.h`
+
+`DLL/Game/RVGLFunctions.cpp`
+
+Expose function pointers for RVGL helpers needed by the replacement renderer,
+including progress loading, drawing, UTF-8 visible character counting, and
+championship status checks.
+
+### Runtime State
+
+`DLL/Mods/RandomizerState.h`
+
+Adds `ProgressTableRuntimeState` to `RandomizerContext`.
+
+The state stores:
+
+- current page
+- cached stock page tracks
+- cached custom page tracks
+- cached runtime track count
+- cache validity
+
+### Cache Reset Points
+
+`DLL/Mods/ProfileHooks.cpp`
+
+Resets the current page on profile load.
+
+`DLL/Mods/TrackHooks.cpp`
+
+Invalidates and clamps the Progress Table cache after vanilla and custom track
+loading.
+
+### Build Integration
+
+`DLL/CMakeLists.txt`
+
+Adds `Mods/ProgressTableHooks.cpp` to the DLL build.
+
+---
+
+## Pagination Rules
+
+The renderer uses two different page layouts.
+
+### Page 1
+
+Page 1 preserves the original Progress Table layout:
+
+- 14 race rows.
+- Original cup grouping rows.
+- Original localized cup names.
+- Original Stunt Arena footer placement.
+- Existing CupDC/Rooftops availability behavior.
+
+The page size is:
+
+```cpp
+kStockRowsPerPage = 14;
+```
+
+### Custom Pages
+
+Pages after page 1 show custom runtime race tracks:
+
+- Runtime indices `21..GetRuntimeTrackCount()-1`.
+- Only existing tracks.
+- Only race-eligible tracks.
+- No cup/difficulty grouping rows.
+- Tracks sorted alphabetically.
+- 21 tracks per page.
+
+The page size is:
+
+```cpp
+kCustomRowsPerPage = 21;
+```
+
+The total page count is:
+
+```text
+1 + ceil(customRaceTrackCount / 21)
+```
+
+Page 1 is always present. If there are no custom race tracks, left/right page
+controls do nothing.
+
+---
+
+## Track Selection
+
+The cached track list is rebuilt by `RebuildProgressTableCache()`.
+
+Page 1 is populated from the same first 14 randomized display slots used by the
+original table.
+
+Custom pages are populated by scanning runtime track indices starting at `21`.
+The implementation filters out:
+
+- missing track entries
+- non-existing track entries
+- battle/stunt/frontend-only entries
+- vanilla special tracks
+
+Custom tracks are sorted by display name so the extra pages are stable and easy
+to scan.
+
+---
+
+## Performance
+
+An early version rebuilt and sorted the custom track list while drawing the
+Progress Table. With many custom tracks, that caused a visible lag spike when
+opening the panel.
+
+The current version caches the track lists in `ProgressTableRuntimeState`.
+
+The cache is rebuilt only when:
+
+- it is invalid
+- the runtime track count changed
+
+The cache is invalidated when track loading changes the runtime track set. The
+current page is clamped after invalidation so it cannot point past the new page
+count.
+
+---
+
+## Controls
+
+The first control implementation patched a shared frontend menu descriptor.
+That allowed page navigation, but it also broke unrelated left/right UI, such
+as Yes/No dialogs.
+
+The final implementation does not patch shared menu descriptors.
+
+Instead, `Hook_DrawProgressTable()` reads `RVA_MENU_ACTION` only while the
+Progress Table is being drawn.
+
+Actions:
+
+| Action | Meaning |
+| ---: | --- |
+| `2` | Previous page |
+| `3` | Next page |
+
+The page changes only when the target page is within bounds.
+
+Because the action handling is scoped to the Progress Table draw hook, other
+frontend panels keep their original left/right behavior.
+
+---
+
+## Rendering
+
+The replacement renderer reuses RVGL's existing drawing helpers and localized
+strings wherever possible.
+
+It renders:
+
+- panel background
+- original localized column headers
+- two-line Time Trial style headers
+- original cup labels on page 1
+- track rows
+- progress icons
+- Stunt Arena footer
+- page counter
+
+Custom pages intentionally do not render difficulty/cup labels. They display
+only alphabetized custom race rows.
+
+For custom pages, the layout leaves one blank row between the header area and
+the first track row.
+
+The Stunt Arena row is kept at the same vertical position as the original page.
+On custom pages, this is achieved by using 21 track rows and leaving one blank
+row between the final race row and the Stunt Arena footer.
+
+The page counter is drawn in the bottom-right area, separate from the original
+Stunt Arena text.
+
+---
+
+## Localization
+
+User-visible labels are read from RVGL's locale string table through
+`RVA_LOCALE_STRINGS_PTR`.
+
+This applies to:
+
+- cup labels such as `Bronze`, `Silver`, `Gold`, and `Platinum`
+- Progress Table column labels
+- Stunt Arena footer text
+
+The Stunt Arena footer keeps the original game format. For example:
+
+```text
+Stunt Arena - Stars Collected: 0 of 20
+```
+
+The progress value portion remains green, matching the original behavior.
+
+---
+
+## Progress Loading
+
+Before rendering a track row, the hook checks whether that track's progress is
+loaded.
+
+If `TRACKPROGRESS_PROGRESS_LOADED` is not set, it calls:
+
+```cpp
+Track_LoadProgressFromFile
+```
+
+This keeps progress icons correct for custom pages after restarting the game or
+loading a profile.
+
+The hook does not create new progress fields or rewrite save data.
+
+---
+
+## Important Implementation Points
+
+`Hook_DrawProgressTable()`
+
+Main detour. Handles page navigation, obtains visible tracks, draws the panel,
+draws headers, draws track rows, and draws the footer.
+
+`BuildVisibleTracksForPage()`
+
+Returns the track rows visible on the current page. Page 1 uses stock rows;
+custom pages use slices of the sorted custom track cache.
+
+`GetProgressTablePageCount()`
+
+Computes the current total page count from the cached custom track list.
+
+`EnsureProgressLoaded()`
+
+Loads progress for a track before its icons are rendered.
+
+`DrawColumnHeaders()`
+
+Draws the localized Progress Table column headers.
+
+`DrawTrackRow()`
+
+Draws one track row and its progress icons.
+
+`DrawFooter()`
+
+Draws the localized Stunt Arena footer and page counter.
+
+---
+
+## Test Expectations
+
+### Exactly 14 randomized tracks
+
+Expected behavior:
+
+- Page 1 matches the original table.
+- Page count is 1.
+- Left/right controls do not change the page.
+
+### More than 14 custom race tracks
+
+Expected behavior:
+
+- Page 1 shows the original randomized rows.
+- Later pages show all custom race tracks.
+- Custom pages are sorted alphabetically.
+- Battle, stunt, and frontend-only tracks are not shown.
+
+### Profile progress
+
+Expected behavior:
+
+- race win icons persist
+- time trial icons persist
+- reverse icons persist
+- mirror icons persist
+- practice star icons persist
+- later custom pages still show progress after restart
+
+### CupDC disabled
+
+Expected behavior:
+
+- Page 1 keeps the original availability behavior.
+- The skipped Rooftops behavior remains unchanged.
+
+### New or empty profile
+
+Expected behavior:
+
+- Opening the Progress Table does not crash.
+- Missing progress files are handled by the existing RVGL progress loading path.
+
+---
+
+## Design Constraints
+
+- Keep the feature display/navigation only.
+- Keep page state runtime-only.
+- Preserve original page 1 behavior.
+- Use localized RVGL strings instead of hard-coded labels.
+- Avoid shared frontend menu descriptor patches.
+- Avoid rebuilding or sorting custom track lists during every draw.
+- Keep the Stunt Arena footer aligned with the original page.

@@ -62,6 +62,14 @@ struct TrackRuntimeState {
     int trackCount = 0;
 };
 
+struct ProgressTableRuntimeState {
+    int currentPage = 0;
+    bool cacheValid = false;
+    int cachedTrackCount = -1;
+    std::vector<int> stockTrackIndices;
+    std::vector<int> customTrackIndices;
+};
+
 struct ArchipelagoRuntimeState {
     std::mutex itemMutex;
     std::unordered_set<std::string> receivedItems;
@@ -72,6 +80,7 @@ struct RandomizerContext {
     CarRuntimeState carState;
     ThirtyCarRuntimeState thirtyCarState;
     TrackRuntimeState trackState;
+    ProgressTableRuntimeState progressTableState;
     ArchipelagoRuntimeState archipelagoState;
 };
 

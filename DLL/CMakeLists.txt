@@ -55,6 +55,7 @@ add_library(randomizer SHARED
     Mods/TrackHooks.cpp
     Mods/CupHooks.cpp
     Mods/ProfileHooks.cpp
+    Mods/ProgressTableHooks.cpp
     Mods/CarPhysicsHooks.cpp
     Mods/RaceInitHooks.cpp
     Mods/30CarMod.cpp

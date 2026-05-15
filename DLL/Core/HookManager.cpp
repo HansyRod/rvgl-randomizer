@@ -5,6 +5,7 @@
 #include "TrackHooks.h"
 #include "CupHooks.h"
 #include "ProfileHooks.h"
+#include "ProgressTableHooks.h"
 #include "CarPhysicsHooks.h"
 #include "RaceInitHooks.h"
 #include "Fob.h"
@@ -273,6 +274,13 @@ static void RegisterHooks() {
         reinterpret_cast<void*>(Randomizer::Hook_DrawPostRaceLeaderboard),
         reinterpret_cast<void**>(&Randomizer::Orig_DrawPostRaceLeaderboard),
         "DrawPostRaceLeaderboard"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_DRAW_PROGRESS_TABLE),
+        reinterpret_cast<void*>(Randomizer::Hook_DrawProgressTable),
+        reinterpret_cast<void**>(&Randomizer::Orig_DrawProgressTable),
+        "DrawProgressTable"
     );
 
     HookManager::Add(

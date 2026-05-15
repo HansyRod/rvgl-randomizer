@@ -118,6 +118,12 @@ constexpr uint32_t RVA_READ_TOKEN_BOOL = 0x001343c0;
 // DrawPostRaceLeaderboard - Draws the results table after finishing a race.
 constexpr uint32_t RVA_DRAW_POST_RACE_LEADERBOARD = 0x00061370;
 
+// DrawProgressTable - draws the frontend profile progress table panel.
+constexpr uint32_t RVA_DRAW_PROGRESS_TABLE = 0x00154870;
+
+// Track_LoadProgressFromFile - loads one track's profile progress flags.
+constexpr uint32_t RVA_TRACK_LOAD_PROGRESS_FROM_FILE = 0x00074db0;
+
 constexpr uint32_t RVA_RACE_SESSION_SETUP = 0x00050700;
 constexpr uint32_t RVA_SETUP_ALL_RACE_CARS = 0x0004F7B0;
 constexpr uint32_t RVA_RANDOMIZE_CAR_PICKS = 0x0004FB30;
@@ -131,6 +137,26 @@ constexpr uint32_t RVA_SET_CAR_TRANSFORM       = 0x000A76F0;
 
 constexpr uint32_t RVA_LOAD_OBJECTS_FROM_FOB = 0x000eb940;
 constexpr uint32_t RVA_CREATE_OBJECT_FROM_FOB = 0x000eb740;
+
+// Numeric value menu controls
+constexpr uint32_t RVA_DRAW_NUMERIC_MENU_VALUE = 0x0014c2e0;
+constexpr uint32_t RVA_DECREMENT_NUMERIC_MENU_VALUE = 0x00147000;
+constexpr uint32_t RVA_INCREMENT_NUMERIC_MENU_VALUE = 0x00146fb0;
+
+// Render functions
+constexpr uint32_t RVA_DRAW_TEXTURED_QUAD = 0x00092150;
+constexpr uint32_t RVA_DRAW_SPRITE_2D = 0x000628b0;
+constexpr uint32_t RVA_UI_DRAW_ROUNDED_RECT = 0x00148640;
+constexpr uint32_t RVA_SETUP_GL_RENDER_STATE = 0x00091f60;
+
+// Checks whether a track should be selectable/visible in the current frontend mode.
+constexpr uint32_t RVA_TRACK_IS_AVAILABLE_FOR_FRONTEND = 0x000548d0;
+
+// Counts visible UTF-8 characters while ignoring combining marks.
+constexpr uint32_t RVA_UTF8_VISIBLE_CHAR_COUNT = 0x00133aa0;
+
+constexpr uint32_t RVA_NETWORK_RENDER_STUB = 0x00082e40;
+
 
 // ----------------------------------------------------------------------------
 // Globals
@@ -189,13 +215,22 @@ constexpr uint32_t RVA_FORCE_UNLOCK_ALL_CARS = 0x002fb64a;
 constexpr uint32_t RVA_TOTAL_STARS_EARNED = 0x00b424f0;
 
 // Maximum possible Stunt Arena stars for the active profile/content set.
-constexpr uint32_t RVA_MAX_POSSIBLE_STARS = 0x00b42490;
+constexpr uint32_t RVA_MAX_POSSIBLE_STARS = 0x00b42494;
 
 constexpr uint32_t RVA_RACE_FINISHED_FLAG = 0x0a8ee7e0;
 
 constexpr uint32_t RVA_SETTINGS_NCARS = 0x0aa8e930;
 constexpr uint32_t RVA_NCARS = 0x00b43488;
 constexpr uint32_t RVA_SETTINGS_NCARS_MENU_ITEM = 0x00264280;
+
+// Current frontend menu action code. Values 2/3 are left/right.
+constexpr uint32_t RVA_MENU_ACTION = 0x002637f4;
+
+// Pointer to the active locale string table.
+constexpr uint32_t RVA_LOCALE_STRINGS_PTR = 0x002a79a0;
+
+// Pointer to frontend gallery/menu slot runtime storage.
+constexpr uint32_t RVA_GALLERY_SLOTS_PTR = 0x002a6860;
 
 constexpr uint32_t RVA_RACE_PARTICIPANT_COUNT = 0x00b3eb04;
 constexpr uint32_t RVA_RACE_PARTICIPANT_RECORDS = 0x00b3eb50;
@@ -204,10 +239,6 @@ constexpr uint32_t RVA_RACE_PARTICIPANT_RECORDS = 0x00b3eb50;
 // this is separate from the CarInfo model metadata table.
 constexpr uint32_t RVA_CAR_LIST_HEAD = 0x0a8ee9e8;
 
-// Numeric value menu controls
-constexpr uint32_t RVA_DRAW_NUMERIC_MENU_VALUE = 0x0014c2e0;
-constexpr uint32_t RVA_DECREMENT_NUMERIC_MENU_VALUE = 0x00147000;
-constexpr uint32_t RVA_INCREMENT_NUMERIC_MENU_VALUE = 0x00146fb0;
 
 
 
