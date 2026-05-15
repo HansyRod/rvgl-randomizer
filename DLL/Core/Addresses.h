@@ -57,6 +57,12 @@ constexpr uint32_t RVA_LOAD_VANILLA_CUPS = 0x0004bae0;
 // Ghidra signature: void LoadCustomCups(void)
 constexpr uint32_t RVA_LOAD_CUSTOM_CUPS = 0x0004bb80;
 
+// Cup_InitializeAndValidateAll - validates and updates unlock state for all cups.
+constexpr uint32_t RVA_CUP_INITIALIZE_AND_VALIDATE_ALL = 0x0004bf30;
+
+// Cup_ValidateAndCheckUnlock - validates one cup and updates its isUnlocked flag.
+constexpr uint32_t RVA_CUP_VALIDATE_AND_CHECK_UNLOCK = 0x00048840;
+
 // UpdateCarSelectability - Based on the obtainCondition of each car,
 // manipulates the "selectableByPlayer" flag.
 constexpr uint32_t RVA_UPDATE_CAR_SELECTABILITY = 0x0003bdf0;
@@ -163,6 +169,12 @@ constexpr uint32_t RVA_VANILLA_CUP_ARRAY = 0x0025f4a0;
 
 // Global variable for CupDC setting. If enabled, DC Cups are used and DC Cars can be loaded into championships.
 constexpr uint32_t RVA_CUP_DC = 0x00b4349e;
+
+// Number of loaded custom cup profiles.
+constexpr uint32_t RVA_CUSTOM_CUPS_COUNT = 0x002fbbc0;
+
+// Pointer to the dynamically allocated custom cup profile array.
+constexpr uint32_t RVA_CUSTOM_CUP_ARRAY = 0x002fbbc8;
 
 // Global variable for the current game mode
 constexpr uint32_t RVA_GAME_MODE = 0x002e34c0;

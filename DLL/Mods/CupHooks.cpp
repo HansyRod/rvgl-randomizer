@@ -1,8 +1,10 @@
 #include "CupHooks.h"
 #include "TrackHooks.h"
+#include "CustomUnlocks.h"
 #include "RandomizerState.h"
 #include "Addresses.h"
 #include "Logger.h"
+#include <unordered_set>
 
 // ============================================================================
 // CupHooks.cpp
@@ -18,6 +20,77 @@ namespace Randomizer {
 // ----------------------------------------------------------------------------
 FnLoadVanillaCups        Orig_LoadVanillaCups        = nullptr;
 FnLoadCustomCups         Orig_LoadCustomCups         = nullptr;
+FnCup_ValidateAndCheckUnlock Orig_Cup_ValidateAndCheckUnlock = nullptr;
+
+int GetCustomCupCount() {
+    return *reinterpret_cast<int*>(AbsFromRva(RVA_CUSTOM_CUPS_COUNT));
+}
+
+CupProfile* GetCustomCupArray() {
+    return *reinterpret_cast<CupProfile**>(AbsFromRva(RVA_CUSTOM_CUP_ARRAY));
+}
+
+CupProfile* GetCupProfileByCupID(int cupID) {
+    if (cupID < 1) {
+        return nullptr;
+    }
+
+    if (cupID < 5) {
+        const bool useCupDC = *reinterpret_cast<bool*>(AbsFromRva(RVA_CUP_DC));
+        if (useCupDC) {
+            CupProfile* dcCups = reinterpret_cast<CupProfile*>(AbsFromRva(RVA_DC_CUP_ARRAY));
+            return &dcCups[cupID - 1];
+        }
+
+        CupProfile* vanillaCups = reinterpret_cast<CupProfile*>(AbsFromRva(RVA_VANILLA_CUP_ARRAY));
+        return &vanillaCups[cupID];
+    }
+
+    const int customIndex = cupID - 5;
+    if (customIndex < 0 || customIndex >= GetCustomCupCount()) {
+        return nullptr;
+    }
+
+    CupProfile* customCups = GetCustomCupArray();
+    return customCups != nullptr ? &customCups[customIndex] : nullptr;
+}
+
+RandomizedCup* GetCupConfigByCupID(int cupID) {
+    ConfigData* config = GetActiveConfig();
+    if (config == nullptr || cupID < 1) {
+        return nullptr;
+    }
+
+    const int configIndex = cupID - 1;
+    if (configIndex < 0 || configIndex >= static_cast<int>(config->cups.size())) {
+        return nullptr;
+    }
+
+    return &config->cups[configIndex];
+}
+
+const CustomUnlockCondition* GetCupCustomUnlockCondition(int cupID) {
+    RandomizedCup* cupConfig = GetCupConfigByCupID(cupID);
+    if (cupConfig == nullptr || !cupConfig->customUnlock.has_value()) {
+        return nullptr;
+    }
+
+    return &cupConfig->customUnlock.value();
+}
+
+void LogMissingCustomCupUnlockOnce(int cupID, const CupProfile& cup) {
+    static std::unordered_set<int> loggedCupIDs;
+    if (!loggedCupIDs.insert(cupID).second) {
+        return;
+    }
+
+    Logger::TimestampLogf(
+        "[Cup_ValidateAndCheckUnlock] Warning: Custom unlock obtain %d for cup %d ('%s') has no customUnlock config.",
+        static_cast<int>(cup.obtainCondition),
+        cupID,
+        cup.internalName
+    );
+}
 
 void Hook_LoadVanillaCups() {
 
@@ -90,6 +163,47 @@ void Hook_LoadCustomCups() {
     }
 
     Orig_LoadCustomCups();
+}
+
+void Hook_Cup_ValidateAndCheckUnlock(int cupID) {
+    CupProfile* cup = GetCupProfileByCupID(cupID);
+    if (cup == nullptr) {
+        Orig_Cup_ValidateAndCheckUnlock(cupID);
+        return;
+    }
+
+    const int32_t originalObtain = static_cast<int32_t>(cup->obtainCondition);
+    if (IsDefaultObtain(originalObtain)) {
+        Orig_Cup_ValidateAndCheckUnlock(cupID);
+        return;
+    }
+
+    int* unlockChecksEnabled = reinterpret_cast<int*>(AbsFromRva(RVA_UNLOCK_CHECKS_ENABLED));
+    const int savedUnlockChecksEnabled = *unlockChecksEnabled;
+
+    cup->obtainCondition = UNLOCKED;
+    *unlockChecksEnabled = 0;
+    Orig_Cup_ValidateAndCheckUnlock(cupID);
+    *unlockChecksEnabled = savedUnlockChecksEnabled;
+    cup->obtainCondition = static_cast<Obtain>(originalObtain);
+
+    if (!cup->isUnlocked) {
+        return;
+    }
+
+    const CustomUnlockCondition* customUnlock = GetCupCustomUnlockCondition(cupID);
+    if (customUnlock == nullptr) {
+        cup->isUnlocked = false;
+        LogMissingCustomCupUnlockOnce(cupID, *cup);
+        return;
+    }
+
+    cup->isUnlocked = EvaluateCustomUnlock(
+        UnlockTargetKind::Cup,
+        cupID,
+        originalObtain,
+        customUnlock
+    );
 }
 
 } // namespace Randomizer

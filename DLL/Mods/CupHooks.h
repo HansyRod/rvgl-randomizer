@@ -11,6 +11,7 @@ namespace Randomizer {
     // ------------------------------------------------------------------------
     using FnLoadVanillaCups         = void(*)();
     using FnLoadCustomCups          = void(*)();
+    using FnCup_ValidateAndCheckUnlock = void(*)(int cupID);
 
     // ------------------------------------------------------------------------
     // Original function pointers.
@@ -20,10 +21,12 @@ namespace Randomizer {
     // ------------------------------------------------------------------------
     extern FnLoadVanillaCups        Orig_LoadVanillaCups;
     extern FnLoadCustomCups         Orig_LoadCustomCups;
+    extern FnCup_ValidateAndCheckUnlock Orig_Cup_ValidateAndCheckUnlock;
     // ------------------------------------------------------------------------
     // Detour functions — registered in HookManager.cpp → RegisterHooks().
     // ------------------------------------------------------------------------
     void Hook_LoadVanillaCups();
     void Hook_LoadCustomCups();
+    void Hook_Cup_ValidateAndCheckUnlock(int cupID);
 
 } // namespace Randomizer

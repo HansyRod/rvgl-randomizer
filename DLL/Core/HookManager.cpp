@@ -157,6 +157,13 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
+        AbsFromRva(RVA_CUP_VALIDATE_AND_CHECK_UNLOCK),
+        reinterpret_cast<void*>(Randomizer::Hook_Cup_ValidateAndCheckUnlock),
+        reinterpret_cast<void**>(&Randomizer::Orig_Cup_ValidateAndCheckUnlock),
+        "Cup_ValidateAndCheckUnlock"
+    );
+
+    HookManager::Add(
         AbsFromRva(RVA_UPDATE_CAR_SELECTABILITY),
         reinterpret_cast<void*>(Randomizer::Hook_UpdateCarSelectability),
         reinterpret_cast<void**>(&Randomizer::Orig_UpdateCarSelectability),
