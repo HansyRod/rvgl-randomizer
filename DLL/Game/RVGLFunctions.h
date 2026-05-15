@@ -11,6 +11,8 @@ using FnDrawNumericMenuValue = void(*)(int panelIndex, int itemIndex, void* unus
 using FnDecrementNumericMenuValue = bool(*)(int panelIndex);
 using FnIncrementNumericMenuValue = bool(*)(int panelIndex);
 using FnCreateObjectFromFob = void*(*)(float* position, float* rotationMatrix, unsigned int objectId, int* subinfos);
+using FnTrackFileExists = char(*)(int trackIndex);
+using FnTrackReversedDirExists = bool(*)(int trackIndex);
 
 extern FnCreateCarEntity RVGL_CreateCarEntity;
 extern FnComputeSpawnOrientation RVGL_ComputeSpawnOrientation;
@@ -19,5 +21,7 @@ extern FnDrawNumericMenuValue RVGL_DrawNumericMenuValue;
 extern FnDecrementNumericMenuValue RVGL_DecrementNumericMenuValue;
 extern FnIncrementNumericMenuValue RVGL_IncrementNumericMenuValue;
 extern FnCreateObjectFromFob RVGL_CreateObjectFromFob;
+extern FnTrackFileExists RVGL_TrackFileExists;
+extern FnTrackReversedDirExists RVGL_TrackReversedDirExists;
 
 } // namespace Randomizer

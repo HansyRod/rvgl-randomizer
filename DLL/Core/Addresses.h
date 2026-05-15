@@ -76,6 +76,12 @@ constexpr uint32_t RVA_LOAD_SETTINGS_FROM_INI = 0x0007a6a0;
 // Track_ApplyCustomUnlock - Update a track's unlock status based on its obtain condition and the player's profile.
 constexpr uint32_t RVA_TRACK_APPLY_CUSTOM_UNLOCK = 0x00053ba0;
 
+// Track_FileExists - returns true when the track's .inf exists in the VFS.
+constexpr uint32_t RVA_TRACK_FILE_EXISTS = 0x00053470;
+
+// Track_ReversedDirExists - returns true when levels/<folder>/reversed exists.
+constexpr uint32_t RVA_TRACK_REVERSED_DIR_EXISTS = 0x000526a0;
+
 // CheckIfTierChampionshipWon - returns true if championship for given difficulty has been beaten
 constexpr uint32_t RVA_CHECK_IF_TIER_CHAMPIONSHIP_WON = 0x0004a250;
 

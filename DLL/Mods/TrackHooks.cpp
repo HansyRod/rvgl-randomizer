@@ -1,9 +1,12 @@
 #include "TrackHooks.h"
 #include "CupHooks.h"
+#include "CustomUnlocks.h"
 #include "RandomizerState.h"
 #include "Addresses.h"
+#include "RVGLFunctions.h"
 #include "Logger.h"
 #include <cstring>
+#include <unordered_set>
 
 // ============================================================================
 // TrackHooks.cpp
@@ -89,6 +92,93 @@ int FindTrackIdByFolderName(const char* trackName) {
     }
 
     return -1;
+}
+
+bool TrackFileExists(int trackIndex) {
+    return RVGL_TrackFileExists(trackIndex) != 0;
+}
+
+RandomizedTrack* GetTrackConfigByRuntimeIndex(int trackIndex) {
+    ConfigData* config = GetActiveConfig();
+    if (config == nullptr || trackIndex < 0 || trackIndex >= 14) {
+        return nullptr;
+    }
+
+    const bool useCupDC = GetRandomizerContext().config.useCupDC;
+    if (!useCupDC && trackIndex == 4) {
+        return nullptr;
+    }
+
+    int configIndex = trackIndex;
+    if (!useCupDC && trackIndex > 4) {
+        configIndex = trackIndex - 1;
+    }
+
+    if (configIndex < 0 || configIndex >= static_cast<int>(config->tracks.size())) {
+        return nullptr;
+    }
+
+    return &config->tracks[configIndex];
+}
+
+const CustomUnlockCondition* GetTrackCustomUnlockCondition(int trackIndex) {
+    RandomizedTrack* trackConfig = GetTrackConfigByRuntimeIndex(trackIndex);
+    if (trackConfig == nullptr || !trackConfig->customUnlock.has_value()) {
+        return nullptr;
+    }
+
+    return &trackConfig->customUnlock.value();
+}
+
+void ApplyUnlockedTrackAvailability(int trackIndex, TrackInfo* track) {
+    if (track == nullptr) {
+        return;
+    }
+
+    track->trackAvailFlags = static_cast<TrackAvailFlags>(track->trackAvailFlags | TRACKAVAIL_NORMAL);
+
+    if (!RVGL_TrackReversedDirExists(trackIndex)) {
+        track->trackAvailFlags = static_cast<TrackAvailFlags>(track->trackAvailFlags | TRACKAVAIL_REVERSE);
+        return;
+    }
+
+    const bool normalChallengeSatisfied =
+        track->challengeTime == 0 ||
+        (track->trackProgressFlags & TRACKPROGRESS_NORMAL_CHALLENGE_BEATEN) != 0;
+
+    const bool reverseChallengeSatisfied =
+        track->challengeReverseTime == 0 ||
+        (track->trackProgressFlags & TRACKPROGRESS_REVERSE_CHALLENGE_BEATEN) != 0;
+
+    const bool mirrorChallengeSatisfied =
+        track->challengeTime == 0 ||
+        (track->trackProgressFlags & TRACKPROGRESS_MIRROR_CHALLENGE_BEATEN) != 0;
+
+    if (normalChallengeSatisfied) {
+        track->trackAvailFlags = static_cast<TrackAvailFlags>(track->trackAvailFlags | TRACKAVAIL_TT);
+    }
+
+    if (reverseChallengeSatisfied) {
+        track->trackAvailFlags = static_cast<TrackAvailFlags>(track->trackAvailFlags | TRACKAVAIL_REVERSE);
+    }
+
+    if (normalChallengeSatisfied && reverseChallengeSatisfied && mirrorChallengeSatisfied) {
+        track->trackAvailFlags = static_cast<TrackAvailFlags>(track->trackAvailFlags | TRACKAVAIL_MIRROR);
+    }
+}
+
+void LogMissingCustomTrackUnlockOnce(int trackIndex, const TrackInfo& track) {
+    static std::unordered_set<int> loggedTrackIndices;
+    if (!loggedTrackIndices.insert(trackIndex).second) {
+        return;
+    }
+
+    Logger::TimestampLogf(
+        "[Track_ApplyCustomUnlock] Warning: Custom unlock obtain %d for track %d ('%s') has no customUnlock config.",
+        static_cast<int>(track.obtainCondition),
+        trackIndex,
+        track.folderName
+    );
 }
 
 void Hook_LoadVanillaTracks() {
@@ -242,9 +332,34 @@ void ApplyStockTrackData(TrackInfo* track) {
 static bool checkingTrackUnlocks = false;
 
 void Hook_Track_ApplyCustomUnlock(int trackIndex) {
-    checkingTrackUnlocks = true; // Set the flag to indicate we're in a track unlock check
-    Orig_Track_ApplyCustomUnlock(trackIndex);
-    checkingTrackUnlocks = false; // Reset the flag after the unlock check
+    TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
+    if (track == nullptr) {
+        return;
+    }
+
+    const int32_t obtain = static_cast<int32_t>(track->obtainCondition);
+    if (IsDefaultObtain(obtain)) {
+        checkingTrackUnlocks = true; // Set the flag to indicate we're in a track unlock check
+        Orig_Track_ApplyCustomUnlock(trackIndex);
+        checkingTrackUnlocks = false; // Reset the flag after the unlock check
+        return;
+    }
+
+    if (!TrackFileExists(trackIndex)) {
+        return;
+    }
+
+    const CustomUnlockCondition* customUnlock = GetTrackCustomUnlockCondition(trackIndex);
+    if (customUnlock == nullptr) {
+        LogMissingCustomTrackUnlockOnce(trackIndex, *track);
+        return;
+    }
+
+    if (!EvaluateCustomUnlock(UnlockTargetKind::Track, trackIndex, obtain, customUnlock)) {
+        return;
+    }
+
+    ApplyUnlockedTrackAvailability(trackIndex, track);
 }
 
 bool Hook_CheckIfTierChampionshipWon(int difficultyRating) {

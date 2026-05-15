@@ -1,5 +1,7 @@
 #pragma once
 #include "RVGLStructs.h"
+#include "ConfigData.h"
+#include "CustomUnlocks.h"
 #include <cstdio>
 #include <string>
 
@@ -61,5 +63,8 @@ namespace Randomizer {
     TrackInfo* GetCustomTrackArray();
     TrackInfo* GetTrackInfoByRuntimeIndex(int trackIndex);
     int FindTrackIdByFolderName(const std::string& folderName);
+    RandomizedTrack* GetTrackConfigByRuntimeIndex(int trackIndex);
+    const CustomUnlockCondition* GetTrackCustomUnlockCondition(int trackIndex);
+    void ApplyUnlockedTrackAvailability(int trackIndex, TrackInfo* track);
 
 } // namespace Randomizer
