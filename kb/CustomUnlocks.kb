@@ -1,0 +1,437 @@
+# Custom Unlocks Knowledge Base
+
+> Scope: custom unlock methods for cars, tracks, and cups in the DLL, plus the
+> planned Rust/UI work needed to generate these unlocks from the configurator.
+
+---
+
+## Overview
+
+RVGL stores the built-in unlock method in the `Obtain` / `obtainCondition` field
+for cars, tracks, and cups. The randomizer extends this by reserving obtain
+values above `5` for custom unlock methods.
+
+Default RVGL values are preserved:
+
+| Value | Meaning |
+| ---: | --- |
+| `-1` | Cheat-only / otherwise locked |
+| `0` | Unlocked by default |
+| `1` | Championship / cup completion |
+| `2` | Time trial |
+| `3` | Practice stars |
+| `4` | Single races |
+| `5` | Stunt Arena all-stars |
+
+Custom values currently start at `6`:
+
+| Value | `CustomUnlockMethod` | Required config field |
+| ---: | --- | --- |
+| `6` | `SpecificRaceWin` | `customUnlock.trackFolder` |
+| `7` | `SpecificPracticeStar` | `customUnlock.trackFolder` |
+| `8` | `SpecificTimeTrial` | `customUnlock.trackFolder` |
+| `9` | `RaceWinCount` | `customUnlock.requiredCount` |
+| `10` | `PracticeStarCount` | `customUnlock.requiredCount` |
+| `11` | `TimeTrialCount` | `customUnlock.requiredCount` |
+| `12` | `StuntArenaStarCount` | `customUnlock.requiredCount` |
+| `13` | `ArchipelagoItem` | `customUnlock.archipelagoItem` |
+
+The common optional config object is:
+
+```json
+{
+  "customUnlock": {
+    "trackFolder": "nhood1",
+    "requiredCount": 5,
+    "archipelagoItem": "Gold Cup"
+  }
+}
+```
+
+Only the field relevant to the chosen method is used.
+
+---
+
+## Ghidra Findings
+
+### Cars
+
+`UpdateCarSelectability` at `0x0043bdf0` iterates the live car array and writes
+`CarInfo::selectableByPlayer`.
+
+Important fields:
+
+- `CarInfo::rating` at `+0xEC`
+- `CarInfo::obtainCondition` at `+0xF0`
+- `CarInfo::selectableByPlayer` at `+0xE5`
+
+Default behavior:
+
+- If unlock checks are disabled, or the car force-unlock flag is active, cars
+  are unlocked by RVGL.
+- Built-in obtain values `0..5` are handled by RVGL.
+- Unknown obtain values fall through as locked.
+
+Randomizer behavior:
+
+- `Hook_UpdateCarSelectability` reapplies randomized car data, calls RVGL, then
+  post-processes only custom obtain values.
+- Custom car unlocks are skipped when unlock checks are disabled or the car
+  force-unlock flag is active.
+- Missing `customUnlock` config for a custom obtain value locks the car and logs
+  once.
+
+Relevant globals:
+
+- `RVA_CAR_TABLE = 0x002FAB50`
+  - This is a global `CarInfo*` storage slot. It must be read as
+    `*reinterpret_cast<CarInfo**>(AbsFromRva(RVA_CAR_TABLE))`.
+- `RVA_CAR_COUNT = 0x002FAB58`
+- `RVA_UNLOCK_CHECKS_ENABLED = 0x0025c0f8`
+- `RVA_FORCE_UNLOCK_ALL_CARS = 0x002fb64a`
+
+### Tracks
+
+`UpdateTrackUnlocks` at `0x004541f0` calls `Track_ApplyCustomUnlock` at
+`0x00453ba0` for custom tracks and for vanilla tracks using custom-style unlock
+rules.
+
+`Track_ApplyCustomUnlock`:
+
+- Checks that the track `.inf` file exists.
+- Switches on `TrackInfo::obtainCondition`.
+- Built-in values `0..5` call the same common tier-check helpers as cars.
+- Unknown values return locked.
+- After an unlock passes, RVGL applies `trackAvailFlags` for normal, time trial,
+  reverse, and mirror availability.
+
+Randomizer behavior:
+
+- `Hook_Track_ApplyCustomUnlock` calls RVGL unchanged for default obtain values
+  `-1..5`.
+- Custom obtain values use `EvaluateCustomUnlock`.
+- After a custom unlock passes, `ApplyUnlockedTrackAvailability` applies the
+  track availability flags in DLL code.
+- Missing `customUnlock` config for a custom obtain value logs once and leaves
+  the track locked.
+
+Important track progress flags:
+
+| Flag | Meaning |
+| ---: | --- |
+| `0x01` | Normal challenge time beaten |
+| `0x02` | Reverse challenge time beaten |
+| `0x04` | Mirror / third challenge beaten |
+| `0x08` | Practice star earned |
+| `0x10` | Single race won |
+| `0x20` | Track completed |
+| `0x80000000` | Progress loaded |
+
+Relevant addresses:
+
+- `RVA_VANILLA_TRACKS_TABLE = 0x0025fe20`
+- `RVA_CUSTOM_TRACKS_TABLE = 0x00b3f9a0`
+  - This is a global `TrackInfo*` storage slot and must be dereferenced.
+- `RVA_TRACK_COUNT = 0x002e34d0`
+- `RVA_TRACK_APPLY_CUSTOM_UNLOCK = 0x00053ba0`
+- `RVA_TRACK_FILE_EXISTS = 0x00053470`
+- `RVA_TRACK_REVERSED_DIR_EXISTS = 0x000526a0`
+
+### Common Tier Checks
+
+The built-in common functions remain hooked for existing behavior:
+
+- `CheckIfTierChampionshipWon` at `0x0044a250`
+- `CheckIfTierTimeTrialsBeaten` at `0x00449f50`
+- `CheckIfTierPracticeStarsFound` at `0x0044a110`
+- `checkIfTierSingleRacesWon` at `0x0044a1b0`
+
+These functions iterate stock track slots and compare track difficulty to the
+requested tier. Track unlock checks still need the existing `difficulty - 1`
+adjustment, so `checkingTrackUnlocks` remains in `TrackHooks.cpp`.
+
+### Cups
+
+`Cup_InitializeAndValidateAll` at `0x0044bf30` calls
+`Cup_ValidateAndCheckUnlock` at `0x00448840`.
+
+Important Ghidra finding:
+
+- `Cup_ValidateAndCheckUnlock` clamps cup obtain values above `5` down to `5`
+  before the final unlock switch.
+- Without a direct hook, custom cup obtain values become Stunt Arena unlocks.
+
+Randomizer behavior:
+
+- `Hook_Cup_ValidateAndCheckUnlock` calls RVGL unchanged for default obtain
+  values `-1..5`.
+- For custom obtain values:
+  - Save the original custom obtain.
+  - Temporarily set the cup obtain to `UNLOCKED`.
+  - Temporarily disable unlock checks so RVGL validation can mark valid cups as
+    unlocked.
+  - Call RVGL validation.
+  - Restore unlock checks and restore the custom obtain value.
+  - If RVGL validation failed, keep the cup locked.
+  - Otherwise use `EvaluateCustomUnlock` to set `CupProfile::isUnlocked`.
+- Missing `customUnlock` config locks the cup and logs once.
+
+Relevant addresses:
+
+- `RVA_CUP_VALIDATE_AND_CHECK_UNLOCK = 0x00048840`
+- `RVA_CUP_INITIALIZE_AND_VALIDATE_ALL = 0x0004bf30`
+- `RVA_DC_CUP_ARRAY = 0x0025ee38`
+- `RVA_VANILLA_CUP_ARRAY = 0x0025f4a0`
+- `RVA_CUP_DC = 0x00b4349e`
+- `RVA_CUSTOM_CUPS_COUNT = 0x002fbbc0`
+- `RVA_CUSTOM_CUP_ARRAY = 0x002fbbc8`
+
+---
+
+## DLL Implementation
+
+### Shared Module
+
+Files:
+
+- `DLL/Mods/CustomUnlocks.h`
+- `DLL/Mods/CustomUnlocks.cpp`
+
+Public types:
+
+- `UnlockTargetKind`
+- `CustomUnlockMethod`
+- `CustomUnlockCondition`
+
+Core helpers:
+
+- `IsDefaultObtain`
+- `IsCustomObtain`
+- `EvaluateCustomUnlock`
+
+Progress helpers:
+
+- `HasRaceWin`
+- `HasPracticeStar`
+- `HasNormalTimeTrialBeaten`
+- `CountRaceWins`
+- `CountPracticeStars`
+- `CountNormalTimeTrialsBeaten`
+- `GetStuntArenaStarsFound`
+
+The evaluator intentionally treats malformed custom unlock data as locked:
+
+- Missing `customUnlock` locks.
+- Empty `trackFolder` locks specific-track methods.
+- Unknown `trackFolder` locks specific-track methods.
+- `requiredCount <= 0` locks count methods.
+- Empty Archipelago item names lock.
+
+### Archipelago State
+
+Archipelago item state lives in `RandomizerContext`, not as module globals.
+
+File:
+
+- `DLL/Mods/RandomizerState.h`
+
+State:
+
+```cpp
+struct ArchipelagoRuntimeState {
+    std::mutex itemMutex;
+    std::unordered_set<std::string> receivedItems;
+};
+```
+
+API:
+
+- `MarkArchipelagoItemReceived`
+- `HasArchipelagoItem`
+- `ClearArchipelagoItems`
+
+The state is in-memory only. Networking, persistence, and integration with an
+Archipelago client are future work.
+
+### Car Utilities
+
+Files:
+
+- `DLL/Mods/CarHooks.h`
+- `DLL/Mods/CarHooks.cpp`
+
+Reusable helpers:
+
+- `GetCarConfigByRuntimeIndex`
+- `GetRuntimeCarCount`
+- `GetCarPool`
+
+Important implementation detail:
+
+```cpp
+CarInfo* GetCarPool() {
+    return *reinterpret_cast<CarInfo**>(AbsFromRva(RVA_CAR_TABLE));
+}
+```
+
+`RVA_CAR_TABLE` stores a pointer. Returning `reinterpret_cast<CarInfo*>` without
+dereferencing reads the pointer slot as if it were a car array and breaks car
+pool snapshots and carbox generation.
+
+### Track Utilities
+
+Files:
+
+- `DLL/Mods/TrackHooks.h`
+- `DLL/Mods/TrackHooks.cpp`
+
+Reusable helpers:
+
+- `GetRuntimeTrackCount`
+- `GetVanillaTrackArray`
+- `GetCustomTrackArray`
+- `GetTrackInfoByRuntimeIndex`
+- `FindTrackIdByFolderName(const char*)`
+- `FindTrackIdByFolderName(const std::string&)`
+- `GetTrackConfigByRuntimeIndex`
+- `GetTrackCustomUnlockCondition`
+- `ApplyUnlockedTrackAvailability`
+
+The `std::string` overload wraps the `const char*` overload so conversion happens
+once instead of inside the track scan loop.
+
+### Cup Utilities
+
+Files:
+
+- `DLL/Mods/CupHooks.h`
+- `DLL/Mods/CupHooks.cpp`
+
+Helpers:
+
+- `GetCustomCupCount`
+- `GetCustomCupArray`
+- `GetCupProfileByCupID`
+- `GetCupConfigByCupID`
+- `GetCupCustomUnlockCondition`
+
+---
+
+## Current Config Support
+
+The DLL config parser supports optional `customUnlock` on:
+
+- `RandomizedCar`
+- `RandomizedTrack`
+- `RandomizedCup`
+
+Existing configs without `customUnlock` still load.
+
+Example car:
+
+```json
+{
+  "folder": "cars/rc",
+  "rating": 0,
+  "obtain": 9,
+  "selectable_player": true,
+  "selectable_cpu": true,
+  "customUnlock": {
+    "requiredCount": 3
+  }
+}
+```
+
+Example track:
+
+```json
+{
+  "folder": "nhood1",
+  "difficulty": 1,
+  "obtain": 6,
+  "customUnlock": {
+    "trackFolder": "market2"
+  }
+}
+```
+
+Example cup:
+
+```json
+{
+  "name": "Bronze Cup",
+  "difficulty": 1,
+  "obtainCondition": 13,
+  "customUnlock": {
+    "archipelagoItem": "Bronze Cup"
+  }
+}
+```
+
+---
+
+## Future Rust / UI Work
+
+The Rust output models already have optional `custom_unlock` fields that serialize
+as `customUnlock` when present. Current generators set them to `None`, so normal
+generated JSON remains unchanged.
+
+Remaining Rust work:
+
+- Extend car, track, and cup spec input models with optional custom unlock
+  settings.
+- Add resolver logic that can output:
+  - `obtain = 6..13`
+  - the matching `customUnlock` object
+- Keep default randomization pools limited to RVGL methods unless a new option
+  explicitly enables custom unlock methods.
+- Preserve old presets and config payloads by defaulting custom unlock fields to
+  `None`.
+- Add validation that method-specific fields are present:
+  - specific-track methods require a valid `trackFolder`
+  - count methods require `requiredCount > 0`
+  - Archipelago requires a non-empty `archipelagoItem`
+
+Remaining UI work:
+
+- Add custom unlock methods to obtain dropdowns or a separate custom unlock mode.
+- Show method-specific controls only when needed:
+  - Track selector for specific race / practice star / time trial.
+  - Numeric input for count thresholds and Stunt Arena star threshold.
+  - Text input or generated item key selector for Archipelago.
+- Add allowed-method checkboxes for custom methods only when explicitly enabled.
+- Update summaries, validation messages, and generated-config preview to show
+  both obtain ID and `customUnlock` parameters.
+- Consider UX separation between "built-in obtain" and "custom unlock" so users
+  understand that custom methods need extra parameters.
+
+Recommended rollout:
+
+1. Add UI/Rust support for direct per-row custom unlock assignment.
+2. Add validation and config preview support.
+3. Add random custom unlock method generation behind an explicit option.
+4. Add Archipelago client integration that calls
+   `MarkArchipelagoItemReceived`.
+
+---
+
+## Test Scenarios
+
+DLL-level scenarios to verify with hand-authored config:
+
+- Car with `obtain = 6` and `trackFolder = "nhood1"` unlocks after winning that
+  race.
+- Track with `obtain = 7` and `trackFolder = "market2"` unlocks after collecting
+  that practice star.
+- Cup with `obtainCondition = 8` unlocks after beating the named track's normal
+  time trial.
+- Count methods unlock exactly at the configured threshold.
+- Stunt Arena count unlocks at `requiredCount`, not only when all stars are
+  collected.
+- Archipelago item unlock stays locked until `MarkArchipelagoItemReceived` is
+  called with the configured item name.
+- Missing or malformed `customUnlock` config keeps the target locked and logs
+  once.
+- Default obtain values `-1..5` still behave as RVGL did before custom unlock
+  support.
+
