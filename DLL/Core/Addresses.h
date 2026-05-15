@@ -144,18 +144,17 @@ constexpr uint32_t RVA_DECREMENT_NUMERIC_MENU_VALUE = 0x00147000;
 constexpr uint32_t RVA_INCREMENT_NUMERIC_MENU_VALUE = 0x00146fb0;
 
 // Render functions
-constexpr uint32_t RVA_DRAW_TEXTURED_QUAD = 0x00092150;
+constexpr uint32_t RVA_DRAW_UI_TEXT = 0x00092150;
 constexpr uint32_t RVA_DRAW_SPRITE_2D = 0x000628b0;
 constexpr uint32_t RVA_UI_DRAW_ROUNDED_RECT = 0x00148640;
 constexpr uint32_t RVA_SETUP_GL_RENDER_STATE = 0x00091f60;
+constexpr uint32_t RVA_FLUSH_DEFERRED_UI_BATCHES = 0x00082e40;
 
 // Checks whether a track should be selectable/visible in the current frontend mode.
 constexpr uint32_t RVA_TRACK_IS_AVAILABLE_FOR_FRONTEND = 0x000548d0;
 
 // Counts visible UTF-8 characters while ignoring combining marks.
 constexpr uint32_t RVA_UTF8_VISIBLE_CHAR_COUNT = 0x00133aa0;
-
-constexpr uint32_t RVA_NETWORK_RENDER_STUB = 0x00082e40;
 
 
 // ----------------------------------------------------------------------------
@@ -229,8 +228,8 @@ constexpr uint32_t RVA_MENU_ACTION = 0x002637f4;
 // Pointer to the active locale string table.
 constexpr uint32_t RVA_LOCALE_STRINGS_PTR = 0x002a79a0;
 
-// Pointer to frontend gallery/menu slot runtime storage.
-constexpr uint32_t RVA_GALLERY_SLOTS_PTR = 0x002a6860;
+// Pointer to frontend menu slot runtime storage.
+constexpr uint32_t RVA_MENU_SLOTS_PTR = 0x002a6860;
 
 constexpr uint32_t RVA_RACE_PARTICIPANT_COUNT = 0x00b3eb04;
 constexpr uint32_t RVA_RACE_PARTICIPANT_RECORDS = 0x00b3eb50;

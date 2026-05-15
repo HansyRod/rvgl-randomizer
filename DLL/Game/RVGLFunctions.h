@@ -16,11 +16,11 @@ using FnTrackFileExists = char(*)(int trackIndex);
 using FnTrackReversedDirExists = bool(*)(int trackIndex);
 using FnTrackLoadProgressFromFile = void(*)(int trackIndex);
 using FnTrackIsAvailableForFrontend = int(*)(int trackIndex, bool ignoreUnlocks);
-using FnDrawTexturedQuad = void(*)(float x, float y, float width, float height, uint32_t rgba, char* text, float maxWidth, uint8_t flags);
+using FnDrawUIText = void(*)(float x, float y, float width, float height, uint32_t rgba, char* text, float maxWidth, uint8_t flags);
 using FnDrawSprite2D = void(*)(float x, float y, float width, float height, float u, float v, float uWidth, float vHeight, uint32_t rgba, int textureSlot, int mode);
 using FnUIDrawRoundedRect = void(*)(float x, float y, float width, float height, int panelId, int style, uint32_t rgba, int alpha, int flags);
 using FnSetupGLRenderState = void(*)();
-using FnNetworkRenderStub = void(*)();
+using FnFlushDeferredUIBatches = void(*)();
 using FnUTF8GetVisibleCharCount = int64_t(*)(char* text);
 
 extern FnCreateCarEntity RVGL_CreateCarEntity;
@@ -34,11 +34,11 @@ extern FnTrackFileExists RVGL_TrackFileExists;
 extern FnTrackReversedDirExists RVGL_TrackReversedDirExists;
 extern FnTrackLoadProgressFromFile RVGL_TrackLoadProgressFromFile;
 extern FnTrackIsAvailableForFrontend RVGL_TrackIsAvailableForFrontend;
-extern FnDrawTexturedQuad RVGL_DrawTexturedQuad;
+extern FnDrawUIText RVGL_DrawUIText;
 extern FnDrawSprite2D RVGL_DrawSprite2D;
 extern FnUIDrawRoundedRect RVGL_UIDrawRoundedRect;
 extern FnSetupGLRenderState RVGL_SetupGLRenderState;
-extern FnNetworkRenderStub RVGL_NetworkRenderStub;
+extern FnFlushDeferredUIBatches RVGL_FlushDeferredUIBatches;
 extern FnUTF8GetVisibleCharCount RVGL_UTF8GetVisibleCharCount;
 
 } // namespace Randomizer

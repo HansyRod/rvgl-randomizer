@@ -14,11 +14,11 @@ FnTrackFileExists           RVGL_TrackFileExists            = reinterpret_cast<F
 FnTrackReversedDirExists    RVGL_TrackReversedDirExists     = reinterpret_cast<FnTrackReversedDirExists>(AbsFromRva(RVA_TRACK_REVERSED_DIR_EXISTS));
 FnTrackLoadProgressFromFile RVGL_TrackLoadProgressFromFile  = reinterpret_cast<FnTrackLoadProgressFromFile>(AbsFromRva(RVA_TRACK_LOAD_PROGRESS_FROM_FILE));
 FnTrackIsAvailableForFrontend RVGL_TrackIsAvailableForFrontend = reinterpret_cast<FnTrackIsAvailableForFrontend>(AbsFromRva(RVA_TRACK_IS_AVAILABLE_FOR_FRONTEND));
-FnDrawTexturedQuad          RVGL_DrawTexturedQuad           = reinterpret_cast<FnDrawTexturedQuad>(AbsFromRva(RVA_DRAW_TEXTURED_QUAD));
+FnDrawUIText                RVGL_DrawUIText                 = reinterpret_cast<FnDrawUIText>(AbsFromRva(RVA_DRAW_UI_TEXT));
 FnDrawSprite2D              RVGL_DrawSprite2D               = reinterpret_cast<FnDrawSprite2D>(AbsFromRva(RVA_DRAW_SPRITE_2D));
 FnUIDrawRoundedRect         RVGL_UIDrawRoundedRect          = reinterpret_cast<FnUIDrawRoundedRect>(AbsFromRva(RVA_UI_DRAW_ROUNDED_RECT));
 FnSetupGLRenderState        RVGL_SetupGLRenderState         = reinterpret_cast<FnSetupGLRenderState>(AbsFromRva(RVA_SETUP_GL_RENDER_STATE));
-FnNetworkRenderStub         RVGL_NetworkRenderStub          = reinterpret_cast<FnNetworkRenderStub>(AbsFromRva(RVA_NETWORK_RENDER_STUB));
+FnFlushDeferredUIBatches    RVGL_FlushDeferredUIBatches     = reinterpret_cast<FnFlushDeferredUIBatches>(AbsFromRva(RVA_FLUSH_DEFERRED_UI_BATCHES));
 FnUTF8GetVisibleCharCount   RVGL_UTF8GetVisibleCharCount    = reinterpret_cast<FnUTF8GetVisibleCharCount>(AbsFromRva(RVA_UTF8_VISIBLE_CHAR_COUNT));
 
 } // namespace Randomizer

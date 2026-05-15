@@ -77,12 +77,12 @@ float TextWidth(const char* text) {
     return static_cast<float>(RVGL_UTF8GetVisibleCharCount(MutableText(text))) * kGlyphWidth;
 }
 
-uintptr_t GetGallerySlotsBase() {
-    return *reinterpret_cast<uintptr_t*>(AbsFromRva(RVA_GALLERY_SLOTS_PTR));
+uintptr_t GetMenuSlotsBase() {
+    return *reinterpret_cast<uintptr_t*>(AbsFromRva(RVA_MENU_SLOTS_PTR));
 }
 
 float ReadSlotFloat(int slotIndex, int offset) {
-    const uintptr_t slots = GetGallerySlotsBase();
+    const uintptr_t slots = GetMenuSlotsBase();
     if (slots == 0) {
         return 0.0f;
     }
@@ -91,7 +91,7 @@ float ReadSlotFloat(int slotIndex, int offset) {
 }
 
 int ReadSlotInt(int slotIndex, int offset) {
-    const uintptr_t slots = GetGallerySlotsBase();
+    const uintptr_t slots = GetMenuSlotsBase();
     if (slots == 0) {
         return 0;
     }
@@ -201,7 +201,7 @@ void EnsureProgressLoaded(int trackIndex) {
 }
 
 void DrawText(float x, float y, uint32_t color, const char* text, float maxWidth = 0.0f) {
-    RVGL_DrawTexturedQuad(x, y, kGlyphWidth, kGlyphHeight, color, MutableText(text), maxWidth, 0);
+    RVGL_DrawUIText(x, y, kGlyphWidth, kGlyphHeight, color, MutableText(text), maxWidth, 0);
 }
 
 void DrawCenteredText(float centerX, float y, float width, uint32_t color, const char* text) {
@@ -379,7 +379,7 @@ void Hook_DrawProgressTable(int slotIndex) {
     const int panelId = ReadSlotInt(slotIndex, 0x110);
 
     RVGL_UIDrawRoundedRect(panelX, panelY, kPanelWidth, kPanelHeight, panelId, 0, kPanelColor, 0xff, 1);
-    RVGL_NetworkRenderStub();
+    RVGL_FlushDeferredUIBatches();
     RVGL_SetupGLRenderState();
 
     const float currentX = panelX + kPanelPadding;
