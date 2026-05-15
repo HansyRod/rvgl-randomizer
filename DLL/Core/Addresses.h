@@ -186,7 +186,7 @@ constexpr uint32_t RVA_UNLOCK_CHECKS_ENABLED = 0x0025c0f8;
 constexpr uint32_t RVA_FORCE_UNLOCK_ALL_CARS = 0x002fb64a;
 
 // Current Stunt Arena stars earned in the active profile.
-constexpr uint32_t RVA_TOTAL_STARS_EARNED = 0x00b42494;
+constexpr uint32_t RVA_TOTAL_STARS_EARNED = 0x00b424f0;
 
 // Maximum possible Stunt Arena stars for the active profile/content set.
 constexpr uint32_t RVA_MAX_POSSIBLE_STARS = 0x00b42490;
