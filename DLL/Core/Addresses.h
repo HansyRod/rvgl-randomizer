@@ -161,6 +161,12 @@ constexpr uint32_t RVA_CUP_DC = 0x00b4349e;
 // Global variable for the current game mode
 constexpr uint32_t RVA_GAME_MODE = 0x002e34c0;
 
+// Current Stunt Arena stars earned in the active profile.
+constexpr uint32_t RVA_TOTAL_STARS_EARNED = 0x00b42494;
+
+// Maximum possible Stunt Arena stars for the active profile/content set.
+constexpr uint32_t RVA_MAX_POSSIBLE_STARS = 0x00b42490;
+
 constexpr uint32_t RVA_RACE_FINISHED_FLAG = 0x0a8ee7e0;
 
 constexpr uint32_t RVA_SETTINGS_NCARS = 0x0aa8e930;

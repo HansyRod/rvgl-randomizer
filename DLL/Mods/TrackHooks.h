@@ -1,6 +1,7 @@
 #pragma once
 #include "RVGLStructs.h"
 #include <cstdio>
+#include <string>
 
 // ============================================================================
 // Randomizer
@@ -54,4 +55,11 @@ namespace Randomizer {
     // Utils functions
     int FindTrackIdByFolderName(const char* trackName);
     void ApplyStockTrackData(TrackInfo* track);
+
+    int GetRuntimeTrackCount();
+    TrackInfo* GetVanillaTrackArray();
+    TrackInfo* GetCustomTrackArray();
+    TrackInfo* GetTrackInfoByRuntimeIndex(int trackIndex);
+    int FindTrackIdByFolderName(const std::string& folderName);
+
 } // namespace Randomizer

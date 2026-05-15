@@ -36,24 +36,55 @@ FnCheckIfTierTimeTrialsBeaten Orig_CheckIfTierTimeTrialsBeaten = nullptr;
 FnCheckIfTierPracticeStarsFound Orig_CheckIfTierPracticeStarsFound = nullptr;
 FnCheckIfTierSingleRacesWon Orig_CheckIfTierSingleRacesWon = nullptr;
 
+int GetRuntimeTrackCount() {
+    return *reinterpret_cast<int*>(AbsFromRva(RVA_TRACK_COUNT));
+}
+
+TrackInfo* GetVanillaTrackArray() {
+    return reinterpret_cast<TrackInfo*>(AbsFromRva(RVA_VANILLA_TRACKS_TABLE));
+}
+
+TrackInfo* GetCustomTrackArray() {
+    return *reinterpret_cast<TrackInfo**>(AbsFromRva(RVA_CUSTOM_TRACKS_TABLE));
+}
+
+TrackInfo* GetTrackInfoByRuntimeIndex(int trackIndex) {
+    if (trackIndex < 0) {
+        return nullptr;
+    }
+
+    const int trackCount = GetRuntimeTrackCount();
+    if (trackIndex >= trackCount) {
+        return nullptr;
+    }
+
+    if (trackIndex < 21) {
+        TrackInfo* vanillaTracks = GetVanillaTrackArray();
+        return vanillaTracks != nullptr ? &vanillaTracks[trackIndex] : nullptr;
+    }
+
+    TrackInfo* customTracks = GetCustomTrackArray();
+    return customTracks != nullptr ? &customTracks[trackIndex - 21] : nullptr;
+}
+
+int FindTrackIdByFolderName(const std::string& folderName) {
+    if (folderName.empty()) {
+        return -1;
+    }
+
+    return FindTrackIdByFolderName(folderName.c_str());
+}
+
 int FindTrackIdByFolderName(const char* trackName) {
     if (trackName == nullptr || trackName[0] == '\0') {
         return -1;
     }
 
-    const TrackRuntimeState& trackState = GetRandomizerContext().trackState;
-
-    for (size_t trackId = 0; trackId < trackState.vanillaTrackPool.size(); trackId++) {
-        const TrackInfo& currentTrack = trackState.vanillaTrackPool[trackId];
-        if (_stricmp(currentTrack.folderName, trackName) == 0) {
-            return static_cast<int>(trackId);
-        }
-    }
-
-    for (size_t customIndex = 0; customIndex < trackState.customTrackPool.size(); customIndex++) {
-        const TrackInfo& currentTrack = trackState.customTrackPool[customIndex];
-        if (_stricmp(currentTrack.folderName, trackName) == 0) {
-            return static_cast<int>(customIndex + 21);
+    const int trackCount = GetRuntimeTrackCount();
+    for (int trackIndex = 0; trackIndex < trackCount; ++trackIndex) {
+        TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
+        if (track != nullptr && _stricmp(track->folderName, trackName) == 0) {
+            return trackIndex;
         }
     }
 

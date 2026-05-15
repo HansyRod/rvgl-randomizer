@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include "RVGLStructs.h"
 
 namespace Randomizer {
 
@@ -28,8 +29,21 @@ struct CustomUnlockCondition {
     std::string archipelagoItem;
 };
 
+bool HasTrackProgressFlag(int trackIndex, TrackProgressFlags flag);
+int CountTracksWithProgressFlag(TrackProgressFlags flag);
+
 bool IsDefaultObtain(int32_t obtain);
 bool IsCustomObtain(int32_t obtain);
+
+bool HasRaceWin(int trackIndex);
+bool HasPracticeStar(int trackIndex);
+bool HasNormalTimeTrialBeaten(int trackIndex);
+
+int CountRaceWins();
+int CountPracticeStars();
+int CountNormalTimeTrialsBeaten();
+
+int GetStuntArenaStarsFound();
 
 bool EvaluateCustomUnlock(
     UnlockTargetKind targetKind,
