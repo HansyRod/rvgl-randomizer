@@ -118,6 +118,20 @@ constexpr uint32_t RVA_READ_TOKEN_BOOL = 0x001343c0;
 // DrawPostRaceLeaderboard - Draws the results table after finishing a race.
 constexpr uint32_t RVA_DRAW_POST_RACE_LEADERBOARD = 0x00061370;
 
+// UpdateTimeTrialLeaderboards - saves time trial leaderboard entries and sets
+// challenge progress flags when challenge times are beaten.
+constexpr uint32_t RVA_UPDATE_TIME_TRIAL_LEADERBOARDS = 0x00075900;
+
+// Pickup_CollectProgressObject - handles collectible pickup effects and sets
+// practice / Stunt Arena progress.
+constexpr uint32_t RVA_PICKUP_COLLECT_PROGRESS_OBJECT = 0x000CD420;
+
+// Engine_UpdateRaceProgress - updates lap/race state and sets single-race win progress.
+constexpr uint32_t RVA_ENGINE_UPDATE_RACE_PROGRESS = 0x001257E0;
+
+// Cup_OnStageFinished - handles final cup result and sets championship progress.
+constexpr uint32_t RVA_CUP_ON_STAGE_FINISHED = 0x0004B800;
+
 // DrawProgressTable - draws the frontend profile progress table panel.
 constexpr uint32_t RVA_DRAW_PROGRESS_TABLE = 0x00154870;
 
@@ -203,6 +217,10 @@ constexpr uint32_t RVA_CUSTOM_CUP_ARRAY = 0x002fbbc8;
 
 // Global variable for the current game mode
 constexpr uint32_t RVA_GAME_MODE = 0x002e34c0;
+
+// Pointer to the active profile progress cache. In Stunt Arena this points to
+// a block whose +0x10 count, +0x14 max, and +0x18 byte array record caught stars.
+constexpr uint32_t RVA_TRACK_PROGRESS_CACHE_PTR = 0x002a7750;
 
 // Controls whether unlock checks are active. 0 means everything is unlocked.
 constexpr uint32_t RVA_UNLOCK_CHECKS_ENABLED = 0x0025c0f8;

@@ -6,6 +6,7 @@
 #include "CupHooks.h"
 #include "ProfileHooks.h"
 #include "ProgressTableHooks.h"
+#include "ProgressFlagHooks.h"
 #include "CarPhysicsHooks.h"
 #include "RaceInitHooks.h"
 #include "Fob.h"
@@ -277,6 +278,34 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
+        AbsFromRva(RVA_UPDATE_TIME_TRIAL_LEADERBOARDS),
+        reinterpret_cast<void*>(Randomizer::Hook_UpdateTimeTrialLeaderboards),
+        reinterpret_cast<void**>(&Randomizer::Orig_UpdateTimeTrialLeaderboards),
+        "UpdateTimeTrialLeaderboards"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_PICKUP_COLLECT_PROGRESS_OBJECT),
+        reinterpret_cast<void*>(Randomizer::Hook_Pickup_CollectProgressObject),
+        reinterpret_cast<void**>(&Randomizer::Orig_Pickup_CollectProgressObject),
+        "Pickup_CollectProgressObject"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_ENGINE_UPDATE_RACE_PROGRESS),
+        reinterpret_cast<void*>(Randomizer::Hook_Engine_UpdateRaceProgress),
+        reinterpret_cast<void**>(&Randomizer::Orig_Engine_UpdateRaceProgress),
+        "Engine_UpdateRaceProgress"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_CUP_ON_STAGE_FINISHED),
+        reinterpret_cast<void*>(Randomizer::Hook_Cup_OnStageFinished),
+        reinterpret_cast<void**>(&Randomizer::Orig_Cup_OnStageFinished),
+        "Cup_OnStageFinished"
+    );
+
+    HookManager::Add(
         AbsFromRva(RVA_DRAW_PROGRESS_TABLE),
         reinterpret_cast<void*>(Randomizer::Hook_DrawProgressTable),
         reinterpret_cast<void**>(&Randomizer::Orig_DrawProgressTable),
@@ -413,7 +442,7 @@ static void RegisterHooks() {
         { 0x0013f810, "Gallery_SetupCamera" },
         { 0x00141f80, "UnknownFnNotRaceEndManager" },
         // { 0x000753c0, "Profile_LoadAndReset" },
-        { 0x0004b800, "Cup_OnStageFinished" },
+        // { 0x0004b800, "Cup_OnStageFinished" }, // typed hook installed above
         { 0x00006b40, "PrepareLevelLoad" },
         { 0x000f0890, "RegisterFinishTime" },
         { 0x00074bf0, "ResetProgressTable" },
