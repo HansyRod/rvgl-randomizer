@@ -24,6 +24,10 @@ std::mt19937& Rng() {
     return rng;
 }
 
+int GetParticipantCount() {
+    return *reinterpret_cast<int*>(AbsFromRva(RVA_RACE_PARTICIPANT_COUNT));
+}
+
 namespace {
 
 ThirtyCarRuntimeState& GetThirtyCarState() {
@@ -74,10 +78,6 @@ RaceParticipantRuntime* GetParticipantRecords() {
 int GetTargetRaceCarCount() {
     const RandomizerContext& ctx = GetRandomizerContext();
     return std::clamp(ctx.carState.carsPerRace, randomizerMinCarCount, randomizerMaxCarCount);
-}
-
-int GetParticipantCount() {
-    return *reinterpret_cast<int*>(AbsFromRva(RVA_RACE_PARTICIPANT_COUNT));
 }
 
 int GetParticipantModelId(int participantIndex) {
@@ -359,7 +359,7 @@ void ApplyThirtyCarGrid() {
 
     const int targetCarCount = GetTargetRaceCarCount();
     const int carCount = GetParticipantCount();
-    if (carCount <= 0 || carCount > targetCarCount) {
+    if (carCount <= 0 || carCount >= targetCarCount) {
         return;
     }
 

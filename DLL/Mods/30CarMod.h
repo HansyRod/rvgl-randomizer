@@ -2,6 +2,8 @@
 
 namespace Randomizer {
 
+int GetParticipantCount();
+
 void ApplyThirtyCarGrid();
 void ExpandRaceParticipantsToThirty();
 void MovePlayersToBackAfterRacePositions();

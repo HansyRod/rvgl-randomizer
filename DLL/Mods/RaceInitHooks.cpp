@@ -27,8 +27,9 @@ void Hook_DrawPostRaceLeaderboard() {
     bool raceFinished = *reinterpret_cast<bool*>(AbsFromRva(RVA_RACE_FINISHED_FLAG));
     GameMode* gameMode = reinterpret_cast<GameMode*>(AbsFromRva(RVA_GAME_MODE));
     GameMode originalGameMode = *gameMode;
+    int participantCount = GetParticipantCount();
 
-    if (raceFinished) {
+    if (raceFinished && participantCount > 16) {
         *gameMode = MODE_CLOCKWORK_CARNAGE; // Override game mode to show race results in Clockwork Carnage mode
     }
 
