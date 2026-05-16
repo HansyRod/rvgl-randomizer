@@ -359,7 +359,7 @@ void ApplyThirtyCarGrid() {
 
     const int targetCarCount = GetTargetRaceCarCount();
     const int carCount = GetParticipantCount();
-    if (carCount <= 0 || carCount >= targetCarCount) {
+    if (carCount <= 16 || carCount > targetCarCount) {
         return;
     }
 
