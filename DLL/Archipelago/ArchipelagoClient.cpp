@@ -39,6 +39,7 @@
 #include <list>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <unordered_set>
 
 namespace Randomizer {
@@ -49,6 +50,7 @@ struct ArchipelagoClientState {
     ArchipelagoConnectionConfig config;
     std::shared_ptr<APClient> client;
     bool started = false;
+    std::unordered_set<std::string> queuedEventKeys;
     std::unordered_set<int64_t> queuedLocationChecks;
 };
 
@@ -172,6 +174,7 @@ void StopArchipelagoClient() {
 
     state.client.reset();
     state.started = false;
+    state.queuedEventKeys.clear();
     state.queuedLocationChecks.clear();
 }
 
@@ -210,6 +213,21 @@ void QueueArchipelagoLocationCheck(int64_t locationId) {
     std::lock_guard<std::mutex> lock(state.mutex);
 
     state.queuedLocationChecks.insert(locationId);
+}
+
+void QueueArchipelagoEventKey(const std::string& eventKey) {
+    if (eventKey.empty()) {
+        return;
+    }
+
+    ArchipelagoClientState& state = GetArchipelagoClientState();
+    std::lock_guard<std::mutex> lock(state.mutex);
+
+    if (!state.queuedEventKeys.insert(eventKey).second) {
+        return;
+    }
+
+    Logger::TimestampLogf("[Archipelago] Event key queued: %s", eventKey.c_str());
 }
 
 bool IsArchipelagoClientEnabled() {

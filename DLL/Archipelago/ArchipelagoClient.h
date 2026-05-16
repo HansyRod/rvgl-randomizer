@@ -18,6 +18,7 @@ void ConfigureArchipelagoClient(const ArchipelagoConnectionConfig& config);
 void StartArchipelagoClient();
 void StopArchipelagoClient();
 void PumpArchipelagoClient();
+void QueueArchipelagoEventKey(const std::string& eventKey);
 void QueueArchipelagoLocationCheck(int64_t locationId);
 bool IsArchipelagoClientEnabled();
 

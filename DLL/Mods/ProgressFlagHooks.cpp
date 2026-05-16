@@ -1,4 +1,6 @@
 #include "ProgressFlagHooks.h"
+#include "ArchipelagoClient.h"
+#include "ArchipelagoEventKeys.h"
 #include "Addresses.h"
 #include "Logger.h"
 #include "TrackHooks.h"
@@ -38,6 +40,36 @@ const char* GetProgressEventName(ProgressEventKind kind) {
     }
 }
 
+const char* GetTimeTrialEventKeyName(uint32_t flag) {
+    using namespace Randomizer::ArchipelagoEventKeys;
+
+    switch (flag) {
+    case TRACKPROGRESS_NORMAL_CHALLENGE_BEATEN:
+        return TimeTrialNormal;
+    case TRACKPROGRESS_REVERSE_CHALLENGE_BEATEN:
+        return TimeTrialReverse;
+    case TRACKPROGRESS_MIRROR_CHALLENGE_BEATEN:
+        return TimeTrialMirror;
+    default:
+        return nullptr;
+    }
+}
+
+const char* GetTrackEventKeyName(ProgressEventKind kind, uint32_t flag) {
+    using namespace Randomizer::ArchipelagoEventKeys;
+
+    switch (kind) {
+    case ProgressEventKind::TimeTrialChallengeBeaten:
+        return GetTimeTrialEventKeyName(flag);
+    case ProgressEventKind::PracticeStarFound:
+        return PracticeStar;
+    case ProgressEventKind::SingleRaceWon:
+        return SingleRaceWin;
+    default:
+        return nullptr;
+    }
+}
+
 int GetCurrentGameModeValue() {
     return *reinterpret_cast<int*>(AbsFromRva(RVA_GAME_MODE));
 }
@@ -62,30 +94,55 @@ uint32_t GetTrackProgressFlags(int trackIndex) {
 void EmitTrackProgressEvent(ProgressEventKind kind, int trackIndex, uint32_t flag) {
     TrackInfo* track = Randomizer::GetTrackInfoByRuntimeIndex(trackIndex);
     const char* folderName = track != nullptr ? track->folderName : "<unknown>";
+    const char* eventKeyName = GetTrackEventKeyName(kind, flag);
+    const std::string eventKey =
+        track != nullptr
+            ? Randomizer::ArchipelagoEventKeys::MakeNamedEventKey(eventKeyName, track->folderName)
+            : "";
 
     Logger::TimestampLogf(
-        "[ProgressFlagHooks] %s track=%d folder='%s' flag=0x%08x",
+        "[ProgressFlagHooks] %s track=%d folder='%s' flag=0x%08x apKey='%s'",
         GetProgressEventName(kind),
         trackIndex,
         folderName,
-        flag
+        flag,
+        eventKey.empty() ? "<none>" : eventKey.c_str()
     );
+
+    Randomizer::QueueArchipelagoEventKey(eventKey);
 }
 
 void EmitChampionshipWonEvent(int difficultyTier) {
-    Logger::TimestampLogf(
-        "[ProgressFlagHooks] %s difficultyTier=%d",
-        GetProgressEventName(ProgressEventKind::ChampionshipWon),
+    const std::string eventKey = Randomizer::ArchipelagoEventKeys::MakeIndexedEventKey(
+        Randomizer::ArchipelagoEventKeys::ChampionshipWin,
         difficultyTier
     );
+
+    Logger::TimestampLogf(
+        "[ProgressFlagHooks] %s difficultyTier=%d apKey='%s'",
+        GetProgressEventName(ProgressEventKind::ChampionshipWon),
+        difficultyTier,
+        eventKey.empty() ? "<none>" : eventKey.c_str()
+    );
+
+    Randomizer::QueueArchipelagoEventKey(eventKey);
 }
 
 void EmitStuntArenaStarCaughtEvent(int starId) {
-    Logger::TimestampLogf(
-        "[ProgressFlagHooks] %s starId=%d",
-        GetProgressEventName(ProgressEventKind::StuntArenaStarCaught),
-        starId
+    const int checkNumber = Randomizer::ArchipelagoEventKeys::GetStuntStarCheckNumber(starId);
+    const std::string eventKey = Randomizer::ArchipelagoEventKeys::MakeIndexedEventKey(
+        Randomizer::ArchipelagoEventKeys::StuntStar,
+        checkNumber
     );
+
+    Logger::TimestampLogf(
+        "[ProgressFlagHooks] %s starId=%d apKey='%s'",
+        GetProgressEventName(ProgressEventKind::StuntArenaStarCaught),
+        starId,
+        eventKey.empty() ? "<none>" : eventKey.c_str()
+    );
+
+    Randomizer::QueueArchipelagoEventKey(eventKey);
 }
 
 void EmitNewTrackFlagEvents(
