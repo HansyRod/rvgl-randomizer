@@ -37,6 +37,11 @@ struct CarRuntimeState {
 
     // Number of cars per race
     int carsPerRace = 0;
+
+    // Custom unlock popup transition tracking. The first selectability pass
+    // seeds state silently so loading a profile does not replay old unlocks.
+    bool checkCarUnlocksPopup = false;
+    std::vector<bool> carSelectableState = {};
 };
 
 struct ThirtyCarRuntimeState {

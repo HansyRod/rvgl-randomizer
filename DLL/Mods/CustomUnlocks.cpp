@@ -145,6 +145,10 @@ bool ShouldBypassCustomCarUnlocks() {
     return unlockChecksEnabled == 0 || forceUnlockAll;
 }
 
+void TriggerNativeCarUnlockDialog() {
+    *reinterpret_cast<int*>(AbsFromRva(RVA_TIER_UNLOCK_TRIGGER)) = 0;
+}
+
 void LogMissingCustomCarUnlockOnce(int carIndex, const CarInfo& car) {
     static std::unordered_set<int> loggedCarIndices;
     if (!loggedCarIndices.insert(carIndex).second) {
@@ -163,6 +167,7 @@ void UpdateCarCustomUnlocks() {
 
     CarInfo* rawPool = GetCarPool();
     int carCount = GetRuntimeCarCount();
+    CarRuntimeState& carState = GetRandomizerContext().carState;
 
     if (rawPool == nullptr || carCount <= 0 || ShouldBypassCustomCarUnlocks()) {
         return;
@@ -183,13 +188,23 @@ void UpdateCarCustomUnlocks() {
             continue;
         }
 
-        currentCar.selectableByPlayer = EvaluateCustomUnlock(
+        const bool isUnlocked = EvaluateCustomUnlock(
             UnlockTargetKind::Car,
             i,
             obtain,
             customUnlock
         );
+        currentCar.selectableByPlayer = isUnlocked;
+
+        if (carState.checkCarUnlocksPopup &&
+            isUnlocked &&
+            i < carState.carSelectableState.size() &&
+            !carState.carSelectableState[i]) {
+            TriggerNativeCarUnlockDialog();
+        }
     }
+
+    carState.checkCarUnlocksPopup = true;
 }
 
 } // namespace Randomizer

@@ -3,6 +3,7 @@
 #include "Addresses.h"
 #include "RVGLStructs.h"
 #include "MenuMod.h"
+#include "CarHooks.h"
 
 namespace Randomizer {
 
@@ -42,7 +43,16 @@ void Hook_Profile_LoadAndReset(char* profileName) {
         skipNextProfileLoad = false;
         return;
     }
+
+    // Reset unlock check when loading a new profile
+    // Otherwise we will get the popup message when switching profiles
+    int carCount = GetRuntimeCarCount();
+    CarRuntimeState& carState = GetRandomizerContext().carState;
+    carState.checkCarUnlocksPopup = false;
+    carState.carSelectableState.assign(carCount, false);
+
     Orig_Profile_LoadAndReset(profileName);
+
 }
 
 void Hook_LoadSettingsFromIni(char* profileName) {

@@ -365,6 +365,8 @@ void Hook_UpdateCarSelectability() {
 
     // Guard against accessing the pool before it is allocated by the game
     if (rawPool != nullptr && carCount > 0) {
+        CarRuntimeState& carState = GetRandomizerContext().carState;
+
         for (int i = 0; i < carCount; ++i) {
             CarInfo& currentCar = rawPool[i];
             
@@ -372,8 +374,9 @@ void Hook_UpdateCarSelectability() {
             // UpdateCarSelectability runs based on the randomized data
             ApplyCarMods(i, &currentCar, nullptr);
 
-            // Example: Read or modify the selectableByPlayer boolean
-            // if (currentCar.selectableByPlayer) { ... }
+            if (IsCustomObtain(static_cast<int32_t>(currentCar.obtainCondition))) {
+                carState.carSelectableState[i] = currentCar.selectableByPlayer;
+            }
         }
     }
 

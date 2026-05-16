@@ -210,6 +210,10 @@ constexpr uint32_t RVA_UNLOCK_CHECKS_ENABLED = 0x0025c0f8;
 // Car-specific force-unlock flag used by UpdateCarSelectability.
 constexpr uint32_t RVA_FORCE_UNLOCK_ALL_CARS = 0x002fb64a;
 
+// Native frontend unlock dialog trigger.
+// -1 means no dialog; 0 means generic "new cars delivered" unlock message.
+constexpr uint32_t RVA_TIER_UNLOCK_TRIGGER = 0x002630a0;
+
 // Current Stunt Arena stars earned in the active profile.
 constexpr uint32_t RVA_TOTAL_STARS_EARNED = 0x00b424f0;
 
