@@ -12,5 +12,6 @@ bool IncrementProgressTablePage(int panelIndex);
 void ResetProgressTablePage();
 void ClampProgressTablePage();
 void InvalidateProgressTableCache();
+void EnsureProgressLoaded(int trackIndex);
 
 } // namespace Randomizer

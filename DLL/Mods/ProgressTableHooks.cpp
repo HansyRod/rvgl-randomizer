@@ -189,17 +189,6 @@ int GetProgressTablePageCount() {
     return 1 + (customTrackCount + kCustomRowsPerPage - 1) / kCustomRowsPerPage;
 }
 
-void EnsureProgressLoaded(int trackIndex) {
-    TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
-    if (track == nullptr) {
-        return;
-    }
-
-    if ((track->trackProgressFlags & TRACKPROGRESS_PROGRESS_LOADED) == 0) {
-        RVGL_TrackLoadProgressFromFile(trackIndex);
-    }
-}
-
 void DrawText(float x, float y, uint32_t color, const char* text, float maxWidth = 0.0f) {
     RVGL_DrawUIText(x, y, kGlyphWidth, kGlyphHeight, color, MutableText(text), maxWidth, 0);
 }
@@ -299,6 +288,17 @@ void DrawFooter(float panelX, float currentX, float y, int page, int pageCount) 
 }
 
 } // anonymous namespace
+
+void EnsureProgressLoaded(int trackIndex) {
+    TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
+    if (track == nullptr) {
+        return;
+    }
+
+    if ((track->trackProgressFlags & TRACKPROGRESS_PROGRESS_LOADED) == 0) {
+        RVGL_TrackLoadProgressFromFile(trackIndex);
+    }
+}
 
 void InvalidateProgressTableCache() {
     GetRandomizerContext().progressTableState.cacheValid = false;

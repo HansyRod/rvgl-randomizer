@@ -4,6 +4,7 @@
 #include "TrackHooks.h"
 #include "CarHooks.h"
 #include "Logger.h"
+#include "ProgressTableHooks.h"
 
 namespace Randomizer {
 
@@ -20,6 +21,7 @@ bool HasRequiredCount(const CustomUnlockCondition* condition, int currentCount) 
 }
 
 bool HasTrackProgressFlag(int trackIndex, TrackProgressFlags flag) {
+    EnsureProgressLoaded(trackIndex);
     TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
     return track != nullptr && (track->trackProgressFlags & flag) != 0;
 }
