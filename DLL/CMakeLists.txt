@@ -19,6 +19,12 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 
 # ============================================================================
+# apclientpp - header-only Archipelago client library.
+# ============================================================================
+set(APCLIENTPP_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+add_subdirectory(Archipelago/third_party/apclientpp)
+
+# ============================================================================
 # MinHook — compiled as a static library and linked into the mod DLL.
 # ============================================================================
 add_library(MinHook STATIC
@@ -63,6 +69,9 @@ add_library(randomizer SHARED
     Mods/Fob.cpp
     Mods/MenuMod.cpp
 
+    # Archipelago - network integration wrapper
+    Archipelago/ArchipelagoClient.cpp
+
     # DebugUtils — debug tools
     DebugUtils/Logger.cpp        # OutputDebugStringA + file logging
     DebugUtils/CallLogger.cpp    # auto-generated passthrough hooks from map
@@ -94,12 +103,18 @@ target_include_directories(randomizer PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Image/stb
     ${CMAKE_CURRENT_SOURCE_DIR}/Config
     ${CMAKE_CURRENT_SOURCE_DIR}/File
+    ${CMAKE_CURRENT_SOURCE_DIR}/Archipelago
+    ${CMAKE_CURRENT_SOURCE_DIR}/Archipelago/third_party/wswrap/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/Archipelago/third_party/asio/asio/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/Archipelago/third_party/websocketpp
     MinHook/include
 )
 
 target_link_libraries(randomizer PRIVATE
     MinHook
     kernel32
+    ws2_32
+    apclientpp
     nlohmann_json::nlohmann_json
 )
 

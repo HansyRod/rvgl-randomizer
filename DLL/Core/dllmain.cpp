@@ -2,6 +2,7 @@
 #include "HookManager.h"
 #include "Logger.h"
 #include "RandomizerInit.h"
+#include "ArchipelagoClient.h"
 
 // ============================================================================
 // DllMain
@@ -34,6 +35,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
         break;
 
     case DLL_PROCESS_DETACH:
+        Randomizer::StopArchipelagoClient();
         HookManager::RemoveAll();
         Logger::Shutdown();
         break;
