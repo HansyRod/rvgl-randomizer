@@ -1,0 +1,314 @@
+# Archipelago Integration
+
+This note records the current Archipelago integration decisions, the code added
+so far, the intended config contract, and the remaining work.
+
+## Current Scope
+
+The current integration is deliberately a foundation layer. The DLL can now
+compile with `apclientpp`, owns a thin Archipelago client wrapper, and can emit
+stable local event keys when game progress happens.
+
+No real APWorld-generated location or item mapping is wired yet. The current
+event-key queue is a dry-run/logging path that gives later code a stable input
+surface.
+
+## Library Decision
+
+The project uses `black-sliver/apclientpp` instead of `N00byKing/APCpp`.
+
+Reasons:
+
+- `apclientpp` is MIT licensed.
+- It is header-only and easier to isolate inside the injected DLL.
+- It uses `nlohmann_json`, which the project already uses.
+- It exposes raw Archipelago concepts directly: slot connection, received
+  items, location checks, status updates, data package, and callbacks.
+- Its explicit `poll()` model gives the DLL control over when callbacks run.
+
+`APCpp` was considered easier for quick prototyping, but it is LGPL-2.1, builds
+as a shared library, and brings more runtime/dependency surface.
+
+## Third-Party Layout
+
+The Archipelago dependencies are submodules under:
+
+```text
+DLL/Archipelago/third_party/
+  apclientpp/
+  asio/
+  websocketpp/
+  wswrap/
+```
+
+The DLL CMake target adds `apclientpp` with testing disabled and includes the
+supporting headers.
+
+Current compile definitions in `ArchipelagoClient.cpp`:
+
+- `ASIO_STANDALONE`
+- `AP_NO_SCHEMA`
+- `WSWRAP_NO_SSL`
+- `WSWRAP_NO_COMPRESSION`
+- `_WEBSOCKETPP_CPP11_THREAD_`
+- `_WEBSOCKETPP_CPP11_STL_`
+
+`WSWRAP_NO_SSL` and `WSWRAP_NO_COMPRESSION` are temporary build simplifications.
+Compression support should be added before production AP server use, because
+Archipelago is expected to require compression. TLS support should also be
+revisited for non-localhost servers.
+
+## Added DLL Files
+
+```text
+DLL/Archipelago/ArchipelagoClient.h
+DLL/Archipelago/ArchipelagoClient.cpp
+DLL/Archipelago/ArchipelagoEventKeys.h
+DLL/Archipelago/ArchipelagoEventKeys.cpp
+```
+
+`ArchipelagoClient` owns the `APClient` instance and exposes project-native
+functions:
+
+- `ConfigureArchipelagoClient`
+- `StartArchipelagoClient`
+- `StopArchipelagoClient`
+- `PumpArchipelagoClient`
+- `QueueArchipelagoEventKey`
+- `QueueArchipelagoLocationCheck`
+- `IsArchipelagoClientEnabled`
+
+Important threading/callback decision:
+
+- `apclientpp::poll()` can invoke callbacks synchronously.
+- The wrapper must not hold its mutex while calling `poll()`.
+- The current wrapper copies the shared client pointer under lock, releases the
+  lock, calls `poll()`, then takes queued location checks under lock.
+
+`DllMain` now calls `Randomizer::StopArchipelagoClient()` on process detach.
+
+## Config Direction
+
+There will always be a local randomizer config loaded by the DLL.
+
+For normal randomizer use, this config can continue to come from the randomizer
+UI.
+
+For Archipelago use, the config should be produced as part of the multiworld
+generation flow, based on the player's Archipelago YAML/options and the APWorld
+logic. That config may extend the existing randomizer config with an
+`archipelago` section or be represented as a sidecar that is loaded alongside
+the existing config.
+
+The presence of an `archipelago` section implies AP mode. `enabled` and `game`
+are not needed.
+
+Initial proposed shape:
+
+```json
+{
+  "archipelago": {
+    "slotName": "Player1",
+    "locations": {
+      "single_race_win:nhood1": {
+        "id": 1230001,
+        "name": "Win Single Race: Neighborhood 1"
+      },
+      "practice_star:nhood1": {
+        "id": 1230002,
+        "name": "Find Practice Star: Neighborhood 1"
+      },
+      "time_trial_normal:nhood1": {
+        "id": 1230003,
+        "name": "Beat Normal Time Trial: Neighborhood 1"
+      },
+      "championship_win:4": {
+        "id": 1230104,
+        "name": "Win Platinum Cup"
+      }
+    },
+    "items": {
+      "1230501": {
+        "name": "Unlock Car: Adeon",
+        "unlockToken": "car:adeon"
+      }
+    }
+  }
+}
+```
+
+The APWorld should own the pretty item/location names used by Archipelago
+trackers and UI. The DLL event keys are internal stable identifiers that map to
+AP location IDs through config.
+
+## Event Key Design
+
+The DLL emits local event keys when progress happens. Later, the Archipelago
+mapping layer will translate those keys to AP location IDs and call
+`LocationChecks`.
+
+### Track Events
+
+Track event keys are based on track folder names, not runtime track indices.
+
+Examples:
+
+```text
+single_race_win:nhood1
+practice_star:nhood1
+time_trial_normal:nhood1
+time_trial_reverse:nhood1
+time_trial_mirror:nhood1
+```
+
+Reasoning:
+
+- RVGL runtime track indices include special non-race slots.
+- Loaded custom content, battle tag packs, and other special tracks can make
+  numeric assumptions fragile.
+- Folder names are the actual content identity the randomizer config already
+  uses.
+- Duplicate track folders are not expected or supported; it does not make sense
+  for this project to place the same track multiple times.
+- If a special track produces an event but is not present in the AP location
+  map, the Archipelago layer should log and ignore it.
+
+### Cup Events
+
+Cup events currently use numeric keys:
+
+```text
+championship_win:1
+championship_win:2
+championship_win:3
+championship_win:4
+```
+
+The current hook detects a championship completion by watching completed track
+progress flags after `Cup_OnStageFinished`. It emits the completed cup
+difficulty tier directly. The generated cup config currently uses cup
+difficulties `1..4`, so no 0-based/1-based conversion helper is used.
+
+Known caveat:
+
+- This is currently tied to cup difficulty, not a confirmed active cup ID.
+- If future cup logic allows multiple cups with the same difficulty or custom
+  cup semantics, the hook should identify the active cup profile/cup ID
+  directly instead.
+
+### Stunt Arena Events
+
+Stunt star events use numeric keys:
+
+```text
+stunt_star:1
+...
+stunt_star:20
+```
+
+The current helper converts RVGL star IDs to 1-based check numbers by adding
+one and accepts the initial expected range `1..20`.
+
+If Stunt Arena randomization later changes the number of stars or track source,
+this range and mapping should move into config.
+
+## Current Progress Hook Wiring
+
+`DLL/Mods/ProgressFlagHooks.cpp` now logs and queues Archipelago event keys
+from the existing progress emitters:
+
+- time trial challenge beaten
+- practice star found
+- single race won
+- championship won
+- Stunt Arena star caught
+
+The log lines include `apKey='...'` so event behavior can be inspected before
+real AP location checks are enabled.
+
+## Item/Unlock Direction
+
+The DLL already has initial support for Archipelago item unlock checks:
+
+- `MarkArchipelagoItemReceived`
+- `HasArchipelagoItem`
+- `ClearArchipelagoItems`
+- `CustomUnlockMethod::ArchipelagoItem`
+
+Current limitation:
+
+- Received AP items are stored as a string set.
+
+Future item storage should become ID/index/count aware:
+
+- AP item ID
+- AP item name/display name
+- received index
+- count for duplicate/progressive items
+
+The local config should map AP item IDs to internal unlock tokens. Existing
+custom unlock evaluation can then check those tokens.
+
+## Goal Direction
+
+Initial goal:
+
+- Beat Platinum Cup.
+
+This can be represented as `championship_win:4` in the first implementation.
+When that event is checked or observed, the AP client should send
+`StatusUpdate(GOAL)`.
+
+Future goals can be generated from APWorld options and expressed in config.
+
+## Future Work
+
+1. Add Archipelago config parsing.
+   - Extend `ConfigData` or add a sidecar config loader.
+   - Parse `archipelago.slotName`, `locations`, and `items`.
+   - Decide where server URI, password, and UUID live. These may be local
+     launcher/session settings rather than seed config.
+
+2. Add event-key to location-ID mapping.
+   - `QueueArchipelagoEventKey` should look up the event key in config.
+   - Unknown keys should log once and be ignored.
+   - Known keys should de-duplicate and call `QueueArchipelagoLocationCheck`.
+
+3. Add AP item receive handling.
+   - Convert received `APClient::NetworkItem` values into local unlock tokens.
+   - Track AP item index so reconnect/resync does not duplicate effects.
+   - Refresh car, track, and cup unlock state after item application.
+
+4. Add a polling point or worker.
+   - The wrapper has `PumpArchipelagoClient`, but it is not called yet.
+   - Decide whether to pump from a safe periodic game/menu hook or from a worker
+     thread with a game-thread application queue.
+
+5. Add zlib/websocket compression support.
+   - Remove `WSWRAP_NO_COMPRESSION`.
+   - Link zlib.
+   - Keep the current warning visible until this is done.
+
+6. Add TLS support.
+   - Remove `WSWRAP_NO_SSL` when OpenSSL/cert handling is configured.
+   - Localhost-only testing can use unencrypted websockets, but public AP
+     servers should support TLS.
+
+7. Improve cup detection if needed.
+   - Current championship keys are based on completed difficulty tier.
+   - If APWorld semantics require literal cup ID, identify active cup state in
+     RVGL and emit `championship_win:<cupId>`.
+
+8. Implement APWorld side.
+   - Define item/location names and IDs.
+   - Generate RVGL randomizer config from APWorld options.
+   - Emit pretty tracker-facing names while keeping DLL keys stable.
+
+9. Add goal status update.
+   - First version: send AP goal when `championship_win:4` is completed.
+   - Later versions: read goal event key(s) from config.
+
+10. Add tests where practical.
+    - Unit-test event-key generation helpers.
+    - Unit-test config mapping and unknown-key behavior.
+    - Integration-test event logs with representative track/cup/stunt progress.
