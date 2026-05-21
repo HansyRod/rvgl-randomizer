@@ -1,0 +1,539 @@
+# APWorld
+
+This note records the current design direction for the RVGL Archipelago
+APWorld, especially the generation model, region model, dynamic content
+strategy, and item/location ID concerns.
+
+## Repository Direction
+
+The APWorld work lives in the Archipelago fork, not in this randomizer repo:
+
+```text
+D:\GitHub\Archipelago-RVGL\worlds\rvgl\
+```
+
+The `rvgl-randomizer` repo remains the RVGL launcher, generator, DLL, and
+client-side integration project.
+
+The Archipelago fork is the correct first development environment because
+Archipelago loads source worlds from `worlds/<game>`. A standalone `.apworld`
+package or standalone APWorld repository can be considered later for releases,
+but initial development should happen in the fork.
+
+## Archipelago Style And Structure
+
+The Archipelago fork already provides local style guidance:
+
+```text
+D:\GitHub\Archipelago-RVGL\docs\style.md
+D:\GitHub\Archipelago-RVGL\ruff.toml
+D:\GitHub\Archipelago-RVGL\.github\workflows\analyze-modified-files.yml
+D:\GitHub\Archipelago-RVGL\.github\workflows\strict-type-check.yml
+```
+
+Important conventions for new RVGL APWorld code:
+
+- Use Python 3.11+ compatible code. The local venv currently uses Python 3.12.
+- Use 4-space indentation and 120-character lines.
+- Use double-quoted strings.
+- Prefer modern type annotations such as `dict[str, int]`.
+- Keep AP imports absolute, for example `from BaseClasses import Item`.
+- Keep RVGL package imports relative, for example `from .options import RVGLOptions`.
+- Do not add linter/test tools to `worlds/rvgl/requirements.txt`; that file is for runtime APWorld dependencies.
+
+Suggested APWorld layout:
+
+```text
+worlds/rvgl/
+  __init__.py
+  world.py
+  options.py
+  items.py
+  locations.py
+  regions.py
+  rules.py
+  output.py
+  content.py
+  archipelago.json
+  docs/
+  test/
+```
+
+Use the newer APQuest-style lowercase module layout rather than older worlds
+with uppercase module names.
+
+## Origin Region
+
+Archipelago has a default origin region named `Menu`.
+
+References in the Archipelago fork:
+
+```text
+docs/world api.md
+docs/adding games.md
+worlds/AutoWorld.py
+```
+
+`Menu` does not mean RVGL needs a literal in-game menu map. It means the
+logical starting point from which AP evaluates reachability. The origin region
+is always considered reachable and should be the root for RVGL's race, cup, and
+stunt checks.
+
+Current decision:
+
+- Keep `origin_region_name` as the default `Menu`.
+- Do not rename it to `Overworld` for RVGL.
+
+## Region Model
+
+RVGL does not have an overworld or traversal map, so regions should be logic
+abstractions rather than physical places.
+
+Two viable approaches were discussed:
+
+1. A single `Menu` region containing every check, with access rules applied
+   directly to each location.
+2. A `Menu` region plus one region per unlockable content group, such as a
+   track, cup, or Stunt Arena.
+
+Current preferred direction:
+
+- Use `Menu` as the origin region.
+- Create dynamic track regions for each generated track.
+- Create cup regions for the generated cups.
+- Create a Stunt Arena region if stunt checks are enabled.
+
+This lets the APWorld express common access requirements once on the entrance
+to a region instead of repeating the same unlock rule on every location.
+
+Example logical graph:
+
+```text
+Menu
+  -> Track: Toys in the Hood 1 [nhood1]
+  -> Track: Supermarket 2 [market2]
+  -> Cup: Bronze Cup
+  -> Cup: Silver Cup
+  -> Cup: Gold Cup
+  -> Cup: Platinum Cup
+  -> Stunt Arena
+```
+
+Dynamic regions are not a problem. During generation, the APWorld can loop over
+resolved content and create exactly the regions and locations needed for that
+player.
+
+Important Python detail:
+
+```python
+menu.connect(
+    region,
+    f"Menu to {track.region_name}",
+    lambda state, item_name=track.unlock_item_name: state.has(item_name, world.player),
+)
+```
+
+Loop variables must be bound through default lambda arguments. Otherwise every
+rule can accidentally point at the final loop value.
+
+## Existing DLL Event Keys
+
+The DLL side already emits stable event keys for checks. The APWorld should
+preserve these as internal IDs used in generated config, while Archipelago sees
+human-readable item/location names.
+
+Current event-key families:
+
+```text
+single_race_win:<trackFolder>
+practice_star:<trackFolder>
+time_trial_normal:<trackFolder>
+time_trial_reverse:<trackFolder>
+time_trial_mirror:<trackFolder>
+championship_win:1
+championship_win:2
+championship_win:3
+championship_win:4
+stunt_star:1
+...
+stunt_star:20
+```
+
+Initial goal:
+
+```text
+championship_win:4
+```
+
+This represents beating Platinum Cup.
+
+## Item Model
+
+The first APWorld should use unlock-token items.
+
+Examples:
+
+```text
+Unlock Car: Adeon [adeon]      -> car:adeon
+Unlock Track: Toys in the Hood 1 [nhood1] -> track:nhood1
+Unlock Cup: Platinum Cup       -> cup:4
+```
+
+The APWorld item names are for Archipelago UI, trackers, hints, spoilers, and
+the data package.
+
+The unlock tokens are local RVGL config/runtime identifiers consumed by the DLL.
+
+Filler items will still be needed when the number of locations exceeds the
+number of progression/useful unlock items.
+
+## Location Model
+
+First useful location pool:
+
+- Single race wins.
+- Practice stars.
+- Time trial checks.
+- Stunt Arena stars.
+- Cup wins.
+
+Names should include enough identity to stay unique when custom content exists.
+Folder suffixes are the safest convention.
+
+Examples:
+
+```text
+Win Single Race: Toys in the Hood 1 [nhood1]
+Find Practice Star: Toys in the Hood 1 [nhood1]
+Beat Normal Time Trial: Toys in the Hood 1 [nhood1]
+Win Platinum Cup
+Find Stunt Star 1
+```
+
+The pretty names belong to the APWorld. The DLL event keys stay stable and
+internal.
+
+## `item_name_to_id` And `location_name_to_id`
+
+Archipelago requires every world to expose:
+
+```python
+item_name_to_id: dict[str, int]
+location_name_to_id: dict[str, int]
+```
+
+These are not just internal lookup tables. They become the Archipelago data
+package contract used by generation, the server, trackers, hints, spoiler logs,
+and clients.
+
+Important constraints:
+
+- Names must be unique within RVGL.
+- IDs must be unique within RVGL's item table or location table.
+- IDs should be stable and deterministic.
+- IDs must be positive integers.
+- Item and location IDs may overlap with each other and with other games, but
+  not within their own table.
+
+The key timing issue:
+
+- Archipelago processes `item_name_to_id` and `location_name_to_id` when the
+  `World` class is registered.
+- Adding new names and IDs later in `generate_early()` is too late for normal
+  class-level data package registration.
+
+This was confirmed by inspecting `AutoWorld.py`, where the metaclass builds
+reverse maps and frozen name sets at class creation time.
+
+## Dynamic Content Problem
+
+RVGL supports custom cars, tracks, and packs. That creates tension with
+Archipelago's world registration model:
+
+- Custom content is only known from the player's local RVGL installation.
+- Archipelago wants item/location names and IDs when the world class loads.
+- Different RVGL players in the same multiworld can have different custom
+  content sets.
+- The data package must know every AP item/location ID that can appear in the
+  generated room.
+
+Problems to avoid:
+
+- Unstable IDs from filesystem order, scan order, dictionary order, or random
+  order.
+- Name collisions from different content using the same display name.
+- Missing data package entries for custom IDs.
+- YAML weighted/random syntax around content manifests.
+- File-reference manifests missing on the host machine.
+- WebHost incompatibility if the full manifest data is not embedded in YAML.
+
+## YARG Comparison
+
+The YARG APWorld was reviewed as a comparable dynamic-content design.
+
+Relevant reference:
+
+```text
+https://github.com/Thedrummonger/Archipelago/tree/YARGV2/worlds/yayarg
+```
+
+YARG handles custom songs by:
+
+1. Requiring a YAML Creator tool.
+2. Exporting song-list data as a hash/string or file.
+3. Scanning all player YAMLs for the song-list option at import time.
+4. Deserializing all song lists.
+5. Building a master item/location table from the union of all songs.
+6. Assigning `item_name_to_id` and `location_name_to_id` from that master table
+   in the `World` class body.
+7. Letting each player select only their own assigned songs during
+   `generate_early()`.
+
+The important lesson is not the exact hash mechanism. The important lesson is
+the timing: dynamic content must be registered before the `World` class is
+fully registered by Archipelago.
+
+## RVGL Dynamic Manifest Direction
+
+The term `content_manifest` was introduced during planning as a proposed
+RVGL-specific YAML option. It does not exist today.
+
+It means: a launcher-generated description of the RVGL content available to the
+player for this AP seed.
+
+The RVGL launcher/randomizer already knows how to scan content. The existing
+scanner structures are closer to the needed input than the final generated
+randomizer config:
+
+```text
+ui/src-tauri/src/scanner.rs
+  ScanResult
+  ContentPack
+  Car
+  Track
+```
+
+The existing generated randomizer config is still important, but it is better
+suited as APWorld output than APWorld input. It describes a finished RVGL seed:
+
+```text
+ConfigData
+  stockCars
+  dcCars
+  tracks
+  cups
+```
+
+For APWorld dynamic generation, the manifest needs available content metadata,
+not only finalized randomized slots.
+
+Fields likely needed by the manifest:
+
+- Schema version.
+- Install/content mode.
+- Tracks:
+  - folder name
+  - display name
+  - difficulty
+  - has reversed variant
+  - source pack or pool identity if useful
+- Cars:
+  - folder name
+  - display name
+  - rating
+  - source pool/pack identity if useful
+- Optional selected configuration/options from the launcher.
+
+The manifest can be embedded in YAML as compressed/base64 JSON or referenced as
+a local JSON file. Embedded data is safer for hosts and WebHost-style flows
+because it does not require the host to separately receive the file.
+
+Proposed YAML shape:
+
+```yaml
+RVGL:
+  content_manifest: "<compressed launcher-exported JSON>"
+```
+
+or, less preferred for portability:
+
+```yaml
+RVGL:
+  content_manifest: "my_rvgl_content.json"
+```
+
+## Manifest Processing Direction
+
+The APWorld should be designed around dynamic content from the start.
+
+High-level flow:
+
+1. At import/class-registration time, scan all RVGL player YAMLs for the
+   `content_manifest` option.
+2. Deserialize each manifest.
+3. If a player has no manifest, use a built-in stock manifest as fallback.
+4. Union all RVGL player manifests into one master content table.
+5. Generate deterministic item/location names and IDs for the master table.
+6. Assign class-level `item_name_to_id` and `location_name_to_id` from that
+   master table before `RVGLWorld` is registered.
+7. During `generate_early()`, resolve the current player's content subset from
+   that player's manifest.
+8. During `create_regions()`, create regions and locations for only that
+   player's resolved content.
+9. During `create_items()`, create only the items that belong in that player's
+   item pool.
+10. During output generation, write the final RVGL randomizer JSON plus the
+    Archipelago mapping section for the DLL.
+
+## Deterministic Naming Rules
+
+Display names alone are not stable enough.
+
+Use folder names or stable manifest content IDs as identity suffixes.
+
+Recommended conventions:
+
+```text
+Unlock Car: <display name> [<folder>]
+Unlock Track: <display name> [<folder>]
+Win Single Race: <display name> [<folder>]
+Find Practice Star: <display name> [<folder>]
+Beat Normal Time Trial: <display name> [<folder>]
+Beat Reverse Time Trial: <display name> [<folder>]
+Beat Mirror Time Trial: <display name> [<folder>]
+```
+
+Normalize folder/content IDs consistently:
+
+- trim whitespace
+- preserve or standardize case by documented rule
+- reject empty identifiers
+- reject duplicate normalized identifiers within a category
+- sort by normalized identifier before assigning IDs
+
+## Deterministic ID Rules
+
+Future decision required: exact ID range allocation.
+
+The APWorld needs reserved ranges for:
+
+- static/filler items
+- car unlock items
+- track unlock items
+- cup unlock items
+- single race locations
+- practice star locations
+- time trial locations
+- stunt star locations
+- cup win locations
+
+IDs should be assigned from sorted stable keys, not display order.
+
+Example strategy:
+
+```text
+base + category_offset + sorted_index
+```
+
+The exact bases and offsets still need to be chosen.
+
+## APWorld Output Contract
+
+The APWorld should output the existing RVGL randomizer config shape, extended
+with Archipelago mapping data.
+
+Current proposed extension:
+
+```json
+{
+  "archipelago": {
+    "slotName": "Player1",
+    "locations": {
+      "single_race_win:nhood1": {
+        "id": 1230001,
+        "name": "Win Single Race: Toys in the Hood 1 [nhood1]"
+      }
+    },
+    "items": {
+      "1230501": {
+        "name": "Unlock Car: Adeon [adeon]",
+        "unlockToken": "car:adeon"
+      }
+    },
+    "goalEventKey": "championship_win:4"
+  }
+}
+```
+
+Server URI, password, and UUID should remain local launcher/session settings,
+not seed config.
+
+## Future Decisions
+
+1. Manifest transport:
+   - embedded compressed JSON in YAML
+   - local JSON filename
+   - support both
+
+2. Manifest schema:
+   - exact top-level shape
+   - required fields
+   - schema versioning
+   - validation errors
+   - stock fallback behavior
+
+3. Dynamic registration:
+   - implement YARG-style all-player YAML scanning
+   - confirm behavior in local generation, packaged `.apworld`, and WebHost-like
+     generation
+
+4. ID ranges:
+   - choose RVGL base ID
+   - choose category offsets
+   - define stable sorting and duplicate handling
+
+5. Naming:
+   - final item and location name format
+   - whether folder suffixes are always shown or only on conflicts
+   - how to handle non-ASCII display names from custom content
+
+6. Region granularity:
+   - one region per track/cup/stunt arena
+   - or all locations directly in `Menu`
+   - current preference is one region per unlockable content group
+
+7. Initial option set:
+   - content manifest option
+   - location pool toggles
+   - starting cars/tracks
+   - goal option, initially Platinum Cup
+
+8. Output:
+   - exact generated RVGL JSON filename/extension
+   - whether to use `generate_output()` only or also `fill_slot_data()`
+   - exact data needed by the DLL versus the launcher
+
+9. Tests:
+   - manifest parsing
+   - deterministic ID generation
+   - duplicate name handling
+   - stock fallback
+   - dynamic custom content smoke generation
+   - item/location count balance
+
+## Immediate Next Steps
+
+1. Replace copied APQuest placeholder files in `worlds/rvgl` with RVGL-specific
+   skeleton files.
+2. Define `content.py` with built-in stock cars/tracks/cups in the same shape as
+   the future launcher manifest.
+3. Define manifest dataclasses or typed records and validation helpers.
+4. Define deterministic item/location name builders.
+5. Define ID range constants and table builders.
+6. Implement dynamic table registration from stock fallback first.
+7. Add the `content_manifest` option, initially accepting empty/default stock
+   content.
+8. Add `regions.py` using loops over resolved content.
+9. Add tests before adding custom manifest support from the launcher.
+10. Later, update the RVGL launcher to generate the AP YAML/content manifest.
+
