@@ -1,5 +1,5 @@
 #include "ProgressFlagHooks.h"
-#include "Addresses.h"
+#include "RVGLAddresses.h"
 #include "Logger.h"
 #include "TrackHooks.h"
 #include <array>
@@ -47,7 +47,7 @@ int GetCurrentTrackIndex() {
 }
 
 uint8_t* GetTrackProgressCache() {
-    return *reinterpret_cast<uint8_t**>(AbsFromRva(RVA_TRACK_PROGRESS_CACHE_PTR));
+    return RVGL::GetTrackProgressCache();
 }
 
 uint32_t GetTrackProgressFlags(int trackIndex) {

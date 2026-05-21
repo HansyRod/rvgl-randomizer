@@ -54,22 +54,29 @@ pub fn check_carbox_assets_exist(executable_path: String) -> bool {
 
 #[tauri::command]
 pub fn check_dll_exists(app_handle: tauri::AppHandle) -> bool {
-    let mut dll_path: std::path::PathBuf = match app_handle
+    let library_name = if cfg!(target_os = "windows") {
+        "randomizer.dll"
+    } else {
+        "randomizer.so"
+    };
+    let resource_name = format!("resources/{library_name}");
+
+    let mut library_path: std::path::PathBuf = match app_handle
         .path()
-        .resolve("resources/randomizer.dll", tauri::path::BaseDirectory::Resource)
+        .resolve(&resource_name, tauri::path::BaseDirectory::Resource)
     {
         Ok(path) => path,
         Err(_) => return false,
     };
 
-    if !dll_path.exists() && cfg!(debug_assertions) {
+    if !library_path.exists() && cfg!(debug_assertions) {
         let source_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("resources")
-            .join("randomizer.dll");
+            .join(library_name);
         if source_path.exists() {
-            dll_path = source_path;
+            library_path = source_path;
         }
     }
 
-    dll_path.is_file()
+    library_path.is_file()
 }

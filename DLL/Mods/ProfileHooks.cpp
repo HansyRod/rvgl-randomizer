@@ -1,6 +1,6 @@
 #include "ProfileHooks.h"
 #include "RandomizerState.h"
-#include "Addresses.h"
+#include "RVGLAddresses.h"
 #include "RVGLStructs.h"
 #include "MenuMod.h"
 #include "CarHooks.h"

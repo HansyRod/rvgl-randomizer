@@ -20,6 +20,8 @@ target_include_directories(TestLauncher PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(TestLauncher PRIVATE kernel32)
+if(WIN32)
+    target_link_libraries(TestLauncher PRIVATE kernel32)
+endif()
 
 set_target_properties(TestLauncher PROPERTIES OUTPUT_NAME "TestLauncher")

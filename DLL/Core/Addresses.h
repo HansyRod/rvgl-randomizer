@@ -1,6 +1,8 @@
 #pragma once
 #include <cstdint>
+#if !defined(RVGL_RANDOMIZER_USE_PLATFORM_ADDRESS_RESOLVER)
 #include <windows.h>
+#endif
 
 // ============================================================================
 // Addresses.h
@@ -272,6 +274,8 @@ constexpr uint32_t RVA_CAR_LIST_HEAD = 0x0a8ee9e8;
 // time — not at compile time — because the module base is only known once
 // the process is running.
 // ----------------------------------------------------------------------------
+#if !defined(RVGL_RANDOMIZER_USE_PLATFORM_ADDRESS_RESOLVER)
 inline uintptr_t AbsFromRva(uint32_t rva) {
     return reinterpret_cast<uintptr_t>(GetModuleHandleA("rvgl.exe")) + rva;
 }
+#endif

@@ -1,11 +1,13 @@
 #include "CarHooks.h"
 #include "RandomizerState.h"
 #include "Logger.h"
-#include "Addresses.h"
+#include "RVGLAddresses.h"
 #include "Carbox.h"
 #include "Image.h"
 #include "GameUtils.h"
 #include "CustomUnlocks.h"
+#include "Platform.h"
+#include <filesystem>
 #include <unordered_set>
 
 namespace {
@@ -146,14 +148,10 @@ bool Hook_LoadVanillaCarPool() {
     }
 
     const uintptr_t tableAddr = AbsFromRva(RVA_VANILLA_CAR_PATHS);
-    const SIZE_T    tableSize  = initialCarCount * sizeof(const char*);
-    DWORD old;
-    // makes the pages writable, saves the original flags into `old`
-    VirtualProtect((void*)tableAddr, tableSize, PAGE_READWRITE, &old);
-    // now safe to write
-    memcpy((void*)tableAddr, carState.patchedPtrs, tableSize);
-    // restores the original protection (read-only again)
-    VirtualProtect((void*)tableAddr, tableSize, old, &old);
+    const size_t tableSize = initialCarCount * sizeof(const char*);
+    if (!Platform::WriteProtectedMemory(reinterpret_cast<void*>(tableAddr), carState.patchedPtrs, tableSize)) {
+        Logger::TimestampLog("[Randomizer] Failed to patch vanilla car path table.");
+    }
 
     // Call the real LoadVanillaCarPool so RVGL loads its cars normally.
     const bool result = Orig_LoadVanillaCarPool();
@@ -209,7 +207,7 @@ unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLeve
                 CarboxSource src = GetVanillaCarboxSource(internalName);
 
                 // Absolute path for writing the generated carbox, which we'll delete after loading
-                customTexturePath = GetCarboxAbsoluteFolderPath() + "\\custom_carbox_" + internalName + ".bmp";
+                customTexturePath = (std::filesystem::path(GetCarboxAbsoluteFolderPath()) / ("custom_carbox_" + internalName + ".bmp")).string();
                 GenerateAndSaveSingleCarbox(customTexturePath, src);
 
                 // keep original VFS path for the engine
@@ -232,7 +230,7 @@ unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLeve
                 std::string filename = "carbox_random_" + std::to_string(carboxNumber) + ".bmp";
 
                 // Write to the correct pack directory using an absolute path
-                customTexturePath = GetCarboxAbsoluteFolderPath() + "\\" + filename;
+                customTexturePath = (std::filesystem::path(GetCarboxAbsoluteFolderPath()) / filename).string();
 
                 // Generate the stitched file to disk
                 GenerateAndSaveCarboxAtlas(customTexturePath, randomGrid);
@@ -321,9 +319,9 @@ void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
         if (car->tcarboxFilename[0] == '\0' || (physData != nullptr && physData->tcarboxFilename[0] == '\0')) {
             // Generate a unique dummy path we can intercept later
             std::string dummyPath = "cars/misc/custom_carbox_" + std::string(carName) + ".bmp";
-            strncpy_s(car->tcarboxFilename, 64, dummyPath.c_str(), _TRUNCATE);
+            Platform::CopyTruncated(car->tcarboxFilename, 64, dummyPath.c_str());
             if (physData != nullptr) {
-                strncpy_s(physData->tcarboxFilename, 64, dummyPath.c_str(), _TRUNCATE);
+                Platform::CopyTruncated(physData->tcarboxFilename, 64, dummyPath.c_str());
             }
         }
     }

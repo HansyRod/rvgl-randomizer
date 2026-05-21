@@ -1,5 +1,5 @@
 #include "CustomUnlocks.h"
-#include "Addresses.h"
+#include "RVGLAddresses.h"
 #include "RandomizerState.h"
 #include "TrackHooks.h"
 #include "CarHooks.h"

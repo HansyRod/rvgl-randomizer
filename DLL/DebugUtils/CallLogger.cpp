@@ -1,14 +1,16 @@
 #include "CallLogger.h"
 #include "Logger.h"
-#include "Addresses.h"
-#include "MinHook.h"
 #include <array>
 #include <cstdint>
 #include <unordered_map>
 #include <utility>   // std::index_sequence, std::make_index_sequence
+#if defined(_WIN32)
+#include "RVGLAddresses.h"
+#include "MinHook.h"
 #include <windows.h>
+#endif
 
-#if !defined(_DEBUG)
+#if !defined(_DEBUG) || !defined(_WIN32)
 
 namespace CallLogger {
 

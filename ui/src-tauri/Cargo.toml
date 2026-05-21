@@ -28,6 +28,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 regex = "1"
 tauri-plugin-dialog = "2.6.0"
+chrono = "0.4.44"
+
+[target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_Security",
@@ -36,7 +39,6 @@ windows = { version = "0.61", features = [
     "Win32_System_Memory",
     "Win32_System_Threading",
 ] }
-chrono = "0.4.44"
 
 [profile.dev]
 opt-level = 0

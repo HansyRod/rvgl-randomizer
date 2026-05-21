@@ -1,10 +1,10 @@
 #include "RVGLStructs.h"
 #include "Carbox.h"
 #include "Logger.h"
-#include <windows.h>
+#include "Platform.h"
 #include <vector>
 #include <cstring>
-#include <shellapi.h>
+#include <filesystem>
 #include <fstream>
 #include "FileUtils.h"
 
@@ -68,6 +68,10 @@ static const int carboxGridIndexes[5][9] = {
 
 static std::string g_CarboxAbsPath = "";
 
+std::string JoinCarboxPath(const std::string& filename) {
+    return (std::filesystem::path(Randomizer::GetCarboxAbsoluteFolderPath()) / filename).string();
+}
+
 }
 
 namespace Randomizer {
@@ -92,7 +96,7 @@ CarboxSource GetCarboxSource(CarInfo* car) {
     for (int gridIndex = 0; gridIndex < 5; ++gridIndex) {
         for (int cellIndex = 0; cellIndex < 9; ++cellIndex) {
             if (internalName == carboxGridNames[gridIndex][cellIndex]) {
-                src.filepath = GetCarboxAbsoluteFolderPath() + "\\carbox" + std::to_string(gridIndex + 1) + ".bmp";
+                src.filepath = JoinCarboxPath("carbox" + std::to_string(gridIndex + 1) + ".bmp");
                 src.sourceGridX = cellIndex % 3;
                 src.sourceGridY = cellIndex / 3;
                 return src;
@@ -113,7 +117,7 @@ CarboxSource GetVanillaCarboxSource(const std::string& internalName) {
             if (carboxGridNames[gridIndex][i] != nullptr && 
                 internalName == carboxGridNames[gridIndex][i]) {
                 
-                src.filepath = GetCarboxAbsoluteFolderPath() + "\\carbox" + std::to_string(gridIndex + 1) + ".bmp";
+                src.filepath = JoinCarboxPath("carbox" + std::to_string(gridIndex + 1) + ".bmp");
                 src.isFromGrid = true;
                 src.sourceGridX = i % 3;
                 src.sourceGridY = i / 3;
@@ -186,7 +190,7 @@ int GetCarboxNumberFromPath(const char* path) {
     const char* tail = path + (len - 11);
 
     // Check if the first 6 characters of the tail are "carbox" (case-insensitive)
-    if (_strnicmp(tail, "carbox", 6) == 0) {
+    if (Platform::CaseInsensitiveNCompare(tail, "carbox", 6) == 0) {
         
         // Grab the 7th character (the number)
         char numChar = tail[6];
@@ -195,7 +199,7 @@ int GetCarboxNumberFromPath(const char* path) {
         if (numChar >= '1' && numChar <= '5') {
             
             // Check if the remaining part is exactly ".bmp" (case-insensitive)
-            if (_stricmp(tail + 7, ".bmp") == 0) {
+            if (Platform::CaseInsensitiveCompare(tail + 7, ".bmp") == 0) {
                 
                 // Convert the ASCII character to its integer value (e.g., '1' becomes 1)
                 return numChar - '0';
@@ -210,7 +214,7 @@ std::string GetCarboxAbsoluteFolderPath() {
     
     if (!g_CarboxAbsPath.empty()) return g_CarboxAbsPath;
 
-    std::string carbox1RelativePath = "cars\\misc\\carbox1.bmp";
+    std::string carbox1RelativePath = "cars/misc/carbox1.bmp";
 
     // Use the generic utility to find the highest priority pack containing carbox1.bmp
     std::string carbox1Path = GetAbsoluteFilePath(carbox1RelativePath);

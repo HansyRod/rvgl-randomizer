@@ -1,5 +1,5 @@
 #include "MenuMod.h"
-#include "Addresses.h"
+#include "RVGLAddresses.h"
 #include "RVGLMenuStructs.h"
 #include "RandomizerState.h"
 #include <algorithm>

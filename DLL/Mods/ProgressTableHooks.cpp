@@ -1,8 +1,9 @@
 #include "ProgressTableHooks.h"
-#include "Addresses.h"
+#include "RVGLAddresses.h"
 #include "RVGLFunctions.h"
 #include "RandomizerState.h"
 #include "TrackHooks.h"
+#include "Platform.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -136,7 +137,7 @@ void RebuildProgressTableCache() {
             return lhs < rhs;
         }
 
-        const int nameCompare = _stricmp(leftTrack->displayName, rightTrack->displayName);
+        const int nameCompare = Platform::CaseInsensitiveCompare(leftTrack->displayName, rightTrack->displayName);
         if (nameCompare != 0) {
             return nameCompare < 0;
         }

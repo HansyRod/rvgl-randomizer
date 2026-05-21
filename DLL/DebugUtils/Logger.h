@@ -1,5 +1,5 @@
 #pragma once
-#include <windows.h>
+#include "Platform.h"
 #include <string>
 
 // ============================================================================
@@ -13,7 +13,7 @@
 //                            the RVGL install directory.
 //
 // Usage:
-//   Logger::Init(hModule);    // call once from DllMain / HookManager::InstallAll
+//   Logger::Init(module);     // call once from platform library entry point
 //   Logger::Log("hi");        // plain message
 //   Logger::Logf("car %d", n); // printf-style
 //   Logger::TimestampLog("hi");        // plain message with timestamp
@@ -24,7 +24,7 @@
 namespace Logger {
 
     // Opens the log file. Safe to call multiple times (no-op after first call).
-    void Init(HMODULE selfModule);
+    void Init(Platform::ModuleHandle selfModule);
 
     // Flushes and closes the log file.
     void Shutdown();

@@ -1,6 +1,6 @@
 #pragma once
+#include <cstdint>
 #include <string>
-#include <windows.h>
 
 // ============================================================================
 // Launcher
@@ -11,7 +11,7 @@
 
 struct LaunchConfig {
     std::string rvglExePath;   // Absolute path to rvgl.exe
-    std::string modDllPath;    // Absolute path to randomizer.dll
+    std::string modLibraryPath; // Absolute path to randomizer.dll / randomizer.so
     std::string extraArgs;     // Optional extra CLI args (e.g. "-window 1920 1080")
     std::string configPath;  // Optional path to randomized JSON
 };
@@ -19,7 +19,7 @@ struct LaunchConfig {
 struct LaunchResult {
     bool        success;
     std::string errorMessage;  // Empty on success
-    DWORD       processPid;    // 0 on failure
+    std::uint32_t processPid;  // 0 on failure
 };
 
 namespace Launcher {

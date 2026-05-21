@@ -1,7 +1,17 @@
 #include "Launcher.h"
+
+#include <filesystem>
 #include <iostream>
 #include <string>
+
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
+#else
+#include <unistd.h>
+#endif
 
 // ============================================================================
 // TestLauncher entry point
@@ -15,28 +25,41 @@
 // ============================================================================
 
 static std::string GetExecutableDir() {
+#if defined(_WIN32)
     char buf[MAX_PATH]{};
     GetModuleFileNameA(nullptr, buf, MAX_PATH);
+    std::filesystem::path path(buf);
+#else
+    char buf[4096]{};
+    const ssize_t length = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    if (length <= 0) {
+        return ".";
+    }
+    buf[length] = '\0';
+    std::filesystem::path path(buf);
+#endif
 
-    std::string path(buf);
-    const size_t slash = path.find_last_of("\\/");
-    return (slash != std::string::npos) ? path.substr(0, slash) : ".";
+    return path.parent_path().string();
 }
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cerr << "Usage: TestLauncher.exe <path\\to\\rvgl.exe> [extra args]\n";
+        std::cerr << "Usage: TestLauncher <path/to/rvgl> [extra args] [config path]\n";
         return 1;
     }
 
     LaunchConfig config;
     config.rvglExePath = argv[1];
-    config.modDllPath  = GetExecutableDir() + "\\randomizer.dll";
-    config.extraArgs   = (argc >= 3) ? argv[2] : "";
+#if defined(_WIN32)
+    config.modLibraryPath = (std::filesystem::path(GetExecutableDir()) / "randomizer.dll").string();
+#else
+    config.modLibraryPath = (std::filesystem::path(GetExecutableDir()) / "randomizer.so").string();
+#endif
+    config.extraArgs = (argc >= 3) ? argv[2] : "";
     config.configPath = (argc >= 4) ? argv[3] : "";
 
     std::cout << "[TestLauncher] RVGL : " << config.rvglExePath << "\n";
-    std::cout << "[TestLauncher] DLL  : " << config.modDllPath  << "\n";
+    std::cout << "[TestLauncher] Mod  : " << config.modLibraryPath << "\n";
     if (!config.extraArgs.empty()) {
       std::cout << "[TestLauncher] Args : " << config.extraArgs << "\n";
     }

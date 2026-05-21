@@ -19,6 +19,10 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 
 # ============================================================================
+# Hook backends
+# ============================================================================
+if(WIN32)
+# ============================================================================
 # MinHook — compiled as a static library and linked into the mod DLL.
 # ============================================================================
 add_library(MinHook STATIC
@@ -37,14 +41,31 @@ target_include_directories(MinHook PUBLIC
 target_compile_options(MinHook PRIVATE
     $<$<C_COMPILER_ID:MSVC>:/W0>
 )
+elseif(UNIX AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
+    set(DOBBY_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
+    set(DOBBY_BUILD_TEST OFF CACHE BOOL "" FORCE)
+    set(Plugin.ImportTableReplace OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(
+        dobby
+        GIT_REPOSITORY https://github.com/jmpews/Dobby.git
+        GIT_TAG master
+    )
+    FetchContent_MakeAvailable(dobby)
+    set_target_properties(dobby_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
+else()
+    message(FATAL_ERROR "Unsupported platform for RVGL Randomizer hook backend.")
+endif()
 
 # ============================================================================
-# randomizer.dll
+# randomizer shared library
 # ============================================================================
-add_library(randomizer SHARED
-    # Core — hook infrastructure, DLL entry point
+set(RANDOMIZER_SOURCES
+    # Core - hook infrastructure and platform entry point
     Core/dllmain.cpp
     Core/HookManager.cpp
+    Core/Platform.cpp
+    Core/RVGLAddresses.cpp
 
     # Mods — individual mod logic
     Mods/RandomizerState.cpp
@@ -82,6 +103,14 @@ add_library(randomizer SHARED
 
 )
 
+if(WIN32)
+    list(APPEND RANDOMIZER_SOURCES Core/HookBackend_MinHook.cpp)
+else()
+    list(APPEND RANDOMIZER_SOURCES Core/HookBackend_Dobby.cpp)
+endif()
+
+add_library(randomizer SHARED ${RANDOMIZER_SOURCES})
+
 target_include_directories(randomizer PRIVATE
     # Each subfolder is on the include path so files can use
     # #include "HookManager.h", #include "RVGLStructs.h" etc.
@@ -94,24 +123,43 @@ target_include_directories(randomizer PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Image/stb
     ${CMAKE_CURRENT_SOURCE_DIR}/Config
     ${CMAKE_CURRENT_SOURCE_DIR}/File
-    MinHook/include
 )
 
-target_link_libraries(randomizer PRIVATE
-    MinHook
-    kernel32
-    nlohmann_json::nlohmann_json
-)
+if(WIN32)
+    target_include_directories(randomizer PRIVATE MinHook/include)
+    target_compile_definitions(randomizer PRIVATE WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0600)
+    target_link_libraries(randomizer PRIVATE
+        MinHook
+        kernel32
+        nlohmann_json::nlohmann_json
+    )
+else()
+    find_package(Threads REQUIRED)
+    target_link_libraries(randomizer PRIVATE
+        dobby_static
+        ${CMAKE_DL_LIBS}
+        Threads::Threads
+        nlohmann_json::nlohmann_json
+    )
+endif()
 
 set_target_properties(randomizer PROPERTIES OUTPUT_NAME "randomizer")
 
 # ============================================================================
-# Post-build: copy the DLL next to the test launcher so it can be found
-# without manually moving files after every build.
+# Post-build: copy the mod library next to the test launcher.
 # ============================================================================
-add_custom_command(TARGET randomizer POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        $<TARGET_FILE:randomizer>
-        ${CMAKE_BINARY_DIR}/Launcher/$<CONFIG>/randomizer.dll
-    COMMENT "Copying randomizer.dll next to TestLauncher"
-)
+if(WIN32)
+    add_custom_command(TARGET randomizer POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+            $<TARGET_FILE:randomizer>
+            ${CMAKE_BINARY_DIR}/Launcher/$<CONFIG>/randomizer.dll
+        COMMENT "Copying randomizer.dll next to TestLauncher"
+    )
+else()
+    add_custom_command(TARGET randomizer POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+            $<TARGET_FILE:randomizer>
+            ${CMAKE_BINARY_DIR}/Launcher/randomizer.so
+        COMMENT "Copying randomizer.so next to TestLauncher"
+    )
+endif()

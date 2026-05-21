@@ -1,5 +1,5 @@
 #include "RVGLFunctions.h"
-#include "Addresses.h"
+#include "RVGLAddresses.h"
 
 namespace Randomizer {
 

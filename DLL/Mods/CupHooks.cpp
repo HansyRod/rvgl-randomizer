@@ -2,7 +2,7 @@
 #include "TrackHooks.h"
 #include "CustomUnlocks.h"
 #include "RandomizerState.h"
-#include "Addresses.h"
+#include "RVGLAddresses.h"
 #include "Logger.h"
 #include <unordered_set>
 

@@ -2,9 +2,10 @@
 #include "CupHooks.h"
 #include "CustomUnlocks.h"
 #include "RandomizerState.h"
-#include "Addresses.h"
+#include "RVGLAddresses.h"
 #include "RVGLFunctions.h"
 #include "Logger.h"
+#include "Platform.h"
 #include <cstring>
 #include <unordered_set>
 
@@ -86,7 +87,7 @@ int FindTrackIdByFolderName(const char* trackName) {
     const int trackCount = GetRuntimeTrackCount();
     for (int trackIndex = 0; trackIndex < trackCount; ++trackIndex) {
         TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
-        if (track != nullptr && _stricmp(track->folderName, trackName) == 0) {
+        if (track != nullptr && Platform::CaseInsensitiveCompare(track->folderName, trackName) == 0) {
             return trackIndex;
         }
     }
@@ -220,7 +221,7 @@ void Hook_LoadVanillaTracks() {
                 // Default tracks array includes rooftops, so the index doesn't need to be shifted here
                 folderName = defaultTracks[i]; 
             }
-            strncpy_s(currentTrack->folderName, 16, folderName.c_str(), _TRUNCATE);
+            Platform::CopyTruncated(currentTrack->folderName, 16, folderName.c_str());
         }
         else {
             Logger::TimestampLogf("[LoadVanillaTracks] Track %d: %s", i+1, currentTrack->displayName);

@@ -6,7 +6,7 @@
 #include <vector>
 #include "RVGLFunctions.h"
 #include "RVGLStructs.h"
-#include "Addresses.h"
+#include "RVGLAddresses.h"
 #include "RaceInitHooks.h"
 #include "RandomizerState.h"
 

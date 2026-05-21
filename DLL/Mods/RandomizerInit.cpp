@@ -42,7 +42,7 @@ void Initialize() {
         // Init patchedPtrs based on config
         for (size_t i = 0; i < config->stockCars.size() && i <= 27; ++i) {
             std::string carPath = config->stockCars[i].folder;
-            if (!carPath._Starts_with("cars/")) {
+            if (carPath.rfind("cars/", 0) != 0) {
                 carPath = "cars/" + carPath; // Ensure the path has the correct prefix
             }
             config->stockCars[i].folder = carPath; // Update the folder in the config struct
@@ -50,7 +50,7 @@ void Initialize() {
         }
         for (size_t i = 0; i < config->dcCars.size() && i <= 13; ++i) {
             std::string carPath = config->dcCars[i].folder;
-            if (!carPath._Starts_with("cars/")) {
+            if (carPath.rfind("cars/", 0) != 0) {
                 carPath = "cars/" + carPath; // Ensure the path has the correct prefix
             }
             config->dcCars[i].folder = carPath; // Update the folder in the config struct

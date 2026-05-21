@@ -1,6 +1,22 @@
 #include "Launcher.h"
+
+#include <cctype>
+#include <filesystem>
 #include <string>
+
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
+#else
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <sys/types.h>
+#include <unistd.h>
+#endif
 
 // ============================================================================
 // Internal helpers — not exposed to callers
@@ -28,7 +44,7 @@ std::string BuildCommandLine(const std::string& exePath, const std::string& extr
     return cmd;
 }
 
-
+#if defined(_WIN32)
 // Injects a DLL into a running (or suspended) process by the standard
 // VirtualAllocEx + WriteProcessMemory + CreateRemoteThread(LoadLibraryA) method.
 //
@@ -96,7 +112,38 @@ bool InjectDll(HANDLE hProcess, const std::string& dllPath) {
     // LoadLibraryA returns the HMODULE on success, NULL (0) on failure.
     return remoteResult != 0;
 }
+#endif
 
+#if !defined(_WIN32)
+std::vector<std::string> SplitExtraArgs(const std::string& args) {
+    std::vector<std::string> result;
+    std::string current;
+    bool inQuotes = false;
+
+    for (char ch : args) {
+        if (ch == '"') {
+            inQuotes = !inQuotes;
+            continue;
+        }
+
+        if (!inQuotes && std::isspace(static_cast<unsigned char>(ch))) {
+            if (!current.empty()) {
+                result.push_back(current);
+                current.clear();
+            }
+            continue;
+        }
+
+        current.push_back(ch);
+    }
+
+    if (!current.empty()) {
+        result.push_back(current);
+    }
+
+    return result;
+}
+#endif
 
 } // anonymous namespace
 
@@ -112,9 +159,10 @@ LaunchResult Launch(const LaunchConfig& config) {
     if (config.rvglExePath.empty())
         return { false, "rvglExePath is empty.", 0 };
 
-    if (config.modDllPath.empty())
-        return { false, "modDllPath is empty.", 0 };
+    if (config.modLibraryPath.empty())
+        return { false, "modLibraryPath is empty.", 0 };
 
+#if defined(_WIN32)
     if (!config.configPath.empty()) {
         SetEnvironmentVariableA("RVGL_RANDOMIZER_CONFIG", config.configPath.c_str());
     }
@@ -145,16 +193,16 @@ LaunchResult Launch(const LaunchConfig& config) {
         return { false, "CreateProcess failed. Windows error: " + std::to_string(err), 0 };
     }
 
-    // --- Inject the mod DLL while the main thread is still suspended ---
+    // --- Inject the mod while the main thread is still suspended ---
 
-    const bool injected = InjectDll(pi.hProcess, config.modDllPath);
+    const bool injected = InjectDll(pi.hProcess, config.modLibraryPath);
 
     if (!injected) {
         // Don't leave a suspended RVGL process hanging if injection fails.
         TerminateProcess(pi.hProcess, 1);
         CloseHandle(pi.hThread);
         CloseHandle(pi.hProcess);
-        return { false, "DLL injection failed. Check that the mod DLL path is correct "
+        return { false, "DLL injection failed. Check that the mod library path is correct "
                         "and that the process has sufficient permissions.", 0 };
     }
 
@@ -162,7 +210,7 @@ LaunchResult Launch(const LaunchConfig& config) {
 
     ResumeThread(pi.hThread);
 
-    const DWORD pid = pi.dwProcessId;
+    const std::uint32_t pid = pi.dwProcessId;
 
     // We don't need to track the process after launch —
     // the caller can hold onto the PID if it wants to.
@@ -170,6 +218,40 @@ LaunchResult Launch(const LaunchConfig& config) {
     CloseHandle(pi.hProcess);
 
     return { true, "", pid };
+#else
+    const pid_t child = fork();
+    if (child < 0) {
+        return { false, "fork failed.", 0 };
+    }
+
+    if (child == 0) {
+        const std::string workingDir = GetDirectoryFromPath(config.rvglExePath);
+        chdir(workingDir.c_str());
+
+        setenv("LD_PRELOAD", config.modLibraryPath.c_str(), 1);
+        if (!config.configPath.empty()) {
+            setenv("RVGL_RANDOMIZER_CONFIG", config.configPath.c_str(), 1);
+        }
+
+        std::vector<std::string> args;
+        args.push_back(config.rvglExePath);
+        for (const std::string& arg : SplitExtraArgs(config.extraArgs)) {
+            args.push_back(arg);
+        }
+
+        std::vector<char*> argv;
+        argv.reserve(args.size() + 1);
+        for (std::string& arg : args) {
+            argv.push_back(arg.data());
+        }
+        argv.push_back(nullptr);
+
+        execv(config.rvglExePath.c_str(), argv.data());
+        _exit(127);
+    }
+
+    return { true, "", static_cast<std::uint32_t>(child) };
+#endif
 }
 
 } // namespace Launcher

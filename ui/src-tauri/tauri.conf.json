@@ -36,6 +36,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["resources/randomizer.dll"]
+    "resources": ["resources/*"]
   }
 }

@@ -1,6 +1,9 @@
 #include "Logger.h"
-#include <windows.h>
 #include <filesystem>
+#include "Platform.h"
+
+#include <chrono>
+#include <ctime>
 #include <cstdio>
 #include <cstdarg>
 #include <system_error>
@@ -14,45 +17,73 @@ FILE*       g_file  = nullptr;
 std::mutex  g_mutex;
 std::string g_logPath;
 
-std::string WideToUtf8(const std::wstring& value) {
-    if (value.empty()) {
-        return {};
-    }
-
-    const int size = WideCharToMultiByte(CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()), nullptr, 0, nullptr, nullptr);
-
-    if (size <= 0) {
-        return {};
-    }
-
-    std::string result(size, '\0');
-    WideCharToMultiByte(CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()), result.data(), size, nullptr, nullptr);
-    return result;
-}
-
-std::filesystem::path ResolveAppRoot(HMODULE selfModule) {
-    wchar_t modulePath[MAX_PATH]{};
-    const DWORD length = GetModuleFileNameW(selfModule, modulePath, MAX_PATH);
-
-    if (length == 0 || length >= MAX_PATH) {
+std::filesystem::path ResolveAppRoot(Platform::ModuleHandle selfModule) {
+    const std::string modulePathString = Platform::GetModulePath(selfModule);
+    if (modulePathString.empty()) {
         return std::filesystem::current_path();
     }
 
-    std::filesystem::path dllPath(modulePath);
-    std::filesystem::path dllDirectory = dllPath.parent_path();
+    std::filesystem::path modulePath(modulePathString);
+    std::filesystem::path moduleDirectory = modulePath.parent_path();
 
-    if (dllDirectory.filename().wstring() == L"resources") {
-        const std::filesystem::path appRoot = dllDirectory.parent_path();
+    if (moduleDirectory.filename().string() == "resources") {
+        const std::filesystem::path appRoot = moduleDirectory.parent_path();
         if (!appRoot.empty()) {
             return appRoot;
         }
     }
 
-    return dllDirectory;
+    return moduleDirectory;
+}
+
+std::string CurrentTimestampForFile() {
+    const auto now = std::chrono::system_clock::now();
+    const std::time_t nowTime = std::chrono::system_clock::to_time_t(now);
+    std::tm localTime{};
+
+#if defined(_WIN32)
+    localtime_s(&localTime, &nowTime);
+#else
+    localtime_r(&nowTime, &localTime);
+#endif
+
+    char buffer[64]{};
+    std::snprintf(buffer, sizeof(buffer), "%04d-%02d-%02d %02d%02d%02d",
+        localTime.tm_year + 1900,
+        localTime.tm_mon + 1,
+        localTime.tm_mday,
+        localTime.tm_hour,
+        localTime.tm_min,
+        localTime.tm_sec);
+    return buffer;
+}
+
+std::string CurrentTimestampForLog() {
+    const auto now = std::chrono::system_clock::now();
+    const auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+    const std::time_t nowTime = std::chrono::system_clock::to_time_t(now);
+    std::tm localTime{};
+
+#if defined(_WIN32)
+    localtime_s(&localTime, &nowTime);
+#else
+    localtime_r(&nowTime, &localTime);
+#endif
+
+    char buffer[64]{};
+    std::snprintf(buffer, sizeof(buffer), "%04d-%02d-%02d %02d:%02d:%02d.%03d",
+        localTime.tm_year + 1900,
+        localTime.tm_mon + 1,
+        localTime.tm_mday,
+        localTime.tm_hour,
+        localTime.tm_min,
+        localTime.tm_sec,
+        static_cast<int>(millis.count()));
+    return buffer;
 }
 } // anonymous namespace
 
-void Init(HMODULE selfModule) {
+void Init(Platform::ModuleHandle selfModule) {
     std::lock_guard<std::mutex> lock(g_mutex);
     if (g_file) return;
 
@@ -61,21 +92,14 @@ void Init(HMODULE selfModule) {
     std::error_code createError;
     std::filesystem::create_directories(logsDirectory, createError);
 
-    // Create timestamped file
-    SYSTEMTIME t;
-    GetLocalTime(&t);
-
-    char timeStr[640]{};
-    snprintf(timeStr, sizeof(timeStr) - 1, "%04d-%02d-%02d %02d%02d%02d", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
-    const std::string logFileName = std::string("rvgl-randomizer-") + timeStr + ".log";
-
+    const std::string logFileName = std::string("rvgl-randomizer-") + CurrentTimestampForFile() + ".log";
     const std::filesystem::path logPath = logsDirectory / logFileName;
-    g_logPath = WideToUtf8(logPath.wstring());
-    g_file = _wfopen(logPath.c_str(), L"w");
+    g_logPath = logPath.string();
+    g_file = std::fopen(g_logPath.c_str(), "w");
 
     const std::string msg = "[Logger] Logging to " +
         (g_logPath.empty() ? std::string("rvgl-randomizer.log") : g_logPath) + "\n";
-    OutputDebugStringA(msg.c_str());
+    Platform::DebugLog(msg.c_str());
     if (g_file) {
         fputs(msg.c_str(), g_file);
         fflush(g_file);
@@ -93,8 +117,9 @@ void Shutdown() {
 
 void Log(const char* message) {
     if (!message) return;
-    OutputDebugStringA(message);
-    OutputDebugStringA("\n");
+
+    Platform::DebugLog(message);
+    Platform::DebugLog("\n");
 
     std::lock_guard<std::mutex> lock(g_mutex);
     if (g_file) {
@@ -120,18 +145,9 @@ void Logf(const char* fmt, ...) {
 void TimestampLog(const char* message) {
     if (!message) return;
 
-    // SYSTEMTIME is all WORD (uint16) fields — no floats, XMM registers untouched.
-    SYSTEMTIME t;
-    GetLocalTime(&t);
-
-    char buf[640]{};
-    snprintf(buf, sizeof(buf) - 1,
-             "[%04d-%02d-%02d %02d:%02d:%02d.%03d] %s",
-             t.wYear, t.wMonth, t.wDay,
-             t.wHour, t.wMinute, t.wSecond, t.wMilliseconds,
-             message);
-
-    Log(buf);
+    const std::string timestamp = CurrentTimestampForLog();
+    const std::string line = "[" + timestamp + "] " + message;
+    Log(line);
 }
 
 void TimestampLogf(const char* fmt, ...) {

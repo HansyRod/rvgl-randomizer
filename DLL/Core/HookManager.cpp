@@ -1,6 +1,6 @@
 #include "HookManager.h"
-#include "MinHook.h"
-#include "Addresses.h"
+#include "HookBackend.h"
+#include "RVGLAddresses.h"
 #include "CarHooks.h"
 #include "TrackHooks.h"
 #include "CupHooks.h"
@@ -46,19 +46,20 @@ bool HookManager::Add(uintptr_t target, void* detour, void** original, const cha
         return false;
     }
 
-    MH_STATUS status = MH_CreateHook(reinterpret_cast<void*>(target), detour, original);
+    const char* error = nullptr;
+    const bool created = HookBackend::CreateHook(reinterpret_cast<void*>(target), detour, original, &error);
 
-    if (status != MH_OK && status != MH_ERROR_ALREADY_CREATED) {
-        Logger::TimestampLogf("[HookManager] FAIL MH_CreateHook: %s — %s",
-                     name, MH_StatusToString(status));
+    if (!created) {
+        Logger::TimestampLogf("[HookManager] FAIL CreateHook: %s - %s",
+                     name, error != nullptr ? error : "unknown error");
         return false;
     }
 
-    status = MH_EnableHook(reinterpret_cast<void*>(target));
+    const bool enabled = HookBackend::EnableHook(reinterpret_cast<void*>(target), &error);
 
-    if (status != MH_OK && status != MH_ERROR_ENABLED) {
-        Logger::TimestampLogf("[HookManager] FAIL MH_EnableHook: %s — %s",
-                     name, MH_StatusToString(status));
+    if (!enabled) {
+        Logger::TimestampLogf("[HookManager] FAIL EnableHook: %s - %s",
+                     name, error != nullptr ? error : "unknown error");
         return false;
     }
 
@@ -458,12 +459,9 @@ static void RegisterHooks() {
 // ============================================================================
 
 bool HookManager::InstallAll() {
-    // Initialise MinHook once for the lifetime of the DLL.
-    MH_STATUS status = MH_Initialize();
-
-    if (status != MH_OK && status != MH_ERROR_ALREADY_INITIALIZED) {
-        Logger::TimestampLogf("[HookManager] FAIL MH_Initialize — %s",
-                     MH_StatusToString(status));
+    // Initialise the hook backend once for the lifetime of the module.
+    if (!HookBackend::Initialize()) {
+        Logger::TimestampLog("[HookManager] FAIL hook backend initialize");
         return false;
     }
 
@@ -483,10 +481,10 @@ void HookManager::RemoveAll() {
     if (!g_minHookInitialized)
         return;
 
-    // Disable every typed hook we installed before uninitializing MinHook.
+    // Disable every typed hook we installed before uninitializing the backend.
     for (const auto& entry : g_hooks) {
         if (entry.installed)
-            MH_DisableHook(reinterpret_cast<void*>(entry.target));
+            HookBackend::DisableHook(reinterpret_cast<void*>(entry.target), nullptr);
     }
 
     g_hooks.clear();
@@ -494,7 +492,7 @@ void HookManager::RemoveAll() {
     // Disable auto-log hooks
     CallLogger::UnregisterAll();
     
-    MH_Uninitialize();
+    HookBackend::Uninitialize();
     g_minHookInitialized = false;
 
     Logger::TimestampLog("[HookManager] RemoveAll complete");

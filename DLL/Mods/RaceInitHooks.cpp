@@ -1,6 +1,6 @@
 #include "RaceInitHooks.h"
 #include "Logger.h"
-#include "Addresses.h"
+#include "RVGLAddresses.h"
 #include "RVGLStructs.h"
 #include "30CarMod.h"
 

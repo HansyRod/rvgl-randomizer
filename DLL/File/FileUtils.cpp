@@ -1,5 +1,6 @@
-#include <windows.h>
-#include <shellapi.h>
+#include "FileUtils.h"
+#include "Platform.h"
+#include <filesystem>
 #include <fstream>
 #include <vector>
 #include <string>
@@ -13,44 +14,51 @@ static std::vector<std::string> s_activePacks;
 static std::string s_packsDir = "";
 static bool s_packlistInitialized = false;
 
+namespace {
+
+std::string NormalizeSeparators(std::string path) {
+#if defined(_WIN32)
+    constexpr char separator = '\\';
+#else
+    constexpr char separator = '/';
+#endif
+    std::replace(path.begin(), path.end(), '\\', separator);
+    std::replace(path.begin(), path.end(), '/', separator);
+    return path;
+}
+
+std::string FindPacklistArgument() {
+    const std::vector<std::string> args = Platform::GetProcessArguments();
+    for (std::size_t i = 0; i + 1 < args.size(); ++i) {
+        if (args[i] == "-packlist") {
+            return args[i + 1];
+        }
+    }
+
+    return "";
+}
+
+} // anonymous namespace
+
 void InitializePacklistCache() {
     if (s_packlistInitialized) return;
     s_packlistInitialized = true;
 
-    int argc = 0;
-    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    std::string packlistName = "";
-    
-    // 1. Explicitly check for the -packlist argument first
-    if (argv) {
-        for (int i = 0; i < argc; i++) {
-            if (std::wstring(argv[i]) == L"-packlist" && (i + 1) < argc) {
-                std::wstring nextArg = argv[i + 1];
-                int size_needed = WideCharToMultiByte(CP_UTF8, 0, &nextArg[0], (int)nextArg.size(), NULL, 0, NULL, NULL);
-                std::string utf8Str(size_needed, 0);
-                WideCharToMultiByte(CP_UTF8, 0, &nextArg[0], (int)nextArg.size(), &utf8Str[0], size_needed, NULL, NULL);
-                packlistName = utf8Str;
-                break;
-            }
-        }
-        LocalFree(argv);
-    }
+    const std::string packlistName = FindPacklistArgument();
 
-    // 2. If no -packlist argument exists, it is a classic install. Abort pack initialization.
+    // If no -packlist argument exists, it is a classic install. Abort pack initialization.
     if (packlistName.empty()) {
         return; 
     }
 
-    // 3. We are in a pack environment. CWD is <root>/packs/<platform>/
-    char cwd[MAX_PATH]{};
-    GetCurrentDirectoryA(MAX_PATH, cwd);
-    std::string cwdStr = cwd;
-    
-    size_t slash = cwdStr.find_last_of("\\/");
-    if (slash != std::string::npos) {
-        s_packsDir = cwdStr.substr(0, slash); // Strip <platform> to get the packs root
-        
-        std::string packlistPath = s_packsDir + "\\" + packlistName + ".txt";
+    // We are in a pack environment. CWD is <root>/packs/<platform>/
+    const std::filesystem::path cwd = Platform::GetCurrentDirectoryString();
+    const std::filesystem::path packsDir = cwd.parent_path();
+
+    if (!packsDir.empty()) {
+        s_packsDir = packsDir.string();
+
+        const std::filesystem::path packlistPath = packsDir / (packlistName + ".txt");
         std::ifstream infile(packlistPath);
 
         if (infile.is_open()) {
@@ -75,35 +83,32 @@ void InitializePacklistCache() {
                 }
             }
         } else {
-            Logger::TimestampLogf("[Randomizer] WARNING: -packlist provided, but file %s could not be opened.", packlistPath.c_str());
+            Logger::TimestampLogf("[Randomizer] WARNING: -packlist provided, but file %s could not be opened.", packlistPath.string().c_str());
         }
     }
 }
 
 std::string GetAbsoluteFilePath(const std::string& relativePath) {
-    // Normalize forward slashes to backslashes for Windows API compatibility
-    std::string searchPath = relativePath;
-    std::replace(searchPath.begin(), searchPath.end(), '/', '\\');
-
-    char cwd[MAX_PATH]{};
-    GetCurrentDirectoryA(MAX_PATH, cwd);
-    std::string cwdStr = cwd;
+    const std::string searchPath = NormalizeSeparators(relativePath);
+    const std::filesystem::path cwd = Platform::GetCurrentDirectoryString();
 
     // 1. Classic install check (assumes CWD is the root directory)
-    std::string classicCandidate = cwdStr + "\\" + searchPath;
-    if (GetFileAttributesA(classicCandidate.c_str()) != INVALID_FILE_ATTRIBUTES) {
-        return classicCandidate;
+    const std::filesystem::path classicCandidate = cwd / searchPath;
+    if (Platform::FileExists(classicCandidate.string())) {
+        return classicCandidate.string();
     }
 
     // 2. Launcher / Pack install check
     InitializePacklistCache(); // Only executes once
     
     if (!s_packsDir.empty()) {
+        const std::filesystem::path packsDir = s_packsDir;
+
         // Search in reverse order to respect pack priority (later packs overwrite earlier ones)
         for (auto it = s_activePacks.rbegin(); it != s_activePacks.rend(); ++it) {
-            std::string candidate = s_packsDir + "\\" + *it + "\\" + searchPath;
-            if (GetFileAttributesA(candidate.c_str()) != INVALID_FILE_ATTRIBUTES) {
-                return candidate;
+            const std::filesystem::path candidate = packsDir / *it / searchPath;
+            if (Platform::FileExists(candidate.string())) {
+                return candidate.string();
             }
         }
     }

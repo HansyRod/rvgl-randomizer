@@ -1,8 +1,8 @@
 #include "ConfigManager.h"
 #include "ConfigData.h"
 #include "Logger.h"
+#include "Platform.h"
 #include <fstream>
-#include <windows.h>
 
 namespace Randomizer {
 
@@ -22,7 +22,7 @@ namespace Randomizer {
         std::string configFilePath = envPath;
 
         // Delete the environment variable to prevent polluting the process space
-        SetEnvironmentVariableA("RVGL_RANDOMIZER_CONFIG", NULL);
+        Platform::UnsetEnv("RVGL_RANDOMIZER_CONFIG");
 
         Logger::TimestampLogf(("Loading randomizer config from: " + configFilePath).c_str());
 
