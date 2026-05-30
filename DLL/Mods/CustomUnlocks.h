@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 #include "RVGLStructs.h"
 
 namespace Randomizer {
@@ -24,7 +25,7 @@ enum class CustomUnlockMethod : int32_t {
 };
 
 struct CustomUnlockCondition {
-    std::string trackFolder;
+    std::vector<std::string> trackFolders;
     int requiredCount = 0;
     std::string archipelagoItem;
 };

@@ -14,15 +14,16 @@ namespace Randomizer {
 
     inline void to_json(json& j, const CustomUnlockCondition& p) {
         j = json{
-            {"trackFolder", p.trackFolder},
+            {"trackFolder", p.trackFolders},
             {"requiredCount", p.requiredCount},
             {"archipelagoItem", p.archipelagoItem}
         };
     }
 
     inline void from_json(const json& j, CustomUnlockCondition& p) {
+        p.trackFolders.clear();
         if (j.contains("trackFolder") && !j.at("trackFolder").is_null()) {
-            p.trackFolder = j.at("trackFolder").get<std::string>();
+            p.trackFolders = j.at("trackFolder").get<std::vector<std::string>>();
         }
         if (j.contains("requiredCount") && !j.at("requiredCount").is_null()) {
             p.requiredCount = j.at("requiredCount").get<int>();

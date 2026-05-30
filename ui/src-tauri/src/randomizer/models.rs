@@ -134,7 +134,8 @@ pub struct PresetStockModeInput {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomUnlockCondition {
-    pub track_folder: String,
+    #[serde(rename = "trackFolder", default)]
+    pub track_folders: Vec<String>,
     pub required_count: i32,
     pub archipelago_item: String,
 }

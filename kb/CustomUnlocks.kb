@@ -27,9 +27,9 @@ Custom values currently start at `6`:
 
 | Value | `CustomUnlockMethod` | Required config field |
 | ---: | --- | --- |
-| `6` | `SpecificRaceWin` | `customUnlock.trackFolder` |
-| `7` | `SpecificPracticeStar` | `customUnlock.trackFolder` |
-| `8` | `SpecificTimeTrial` | `customUnlock.trackFolder` |
+| `6` | `SpecificRaceWin` | `customUnlock.trackFolder[]` |
+| `7` | `SpecificPracticeStar` | `customUnlock.trackFolder[]` |
+| `8` | `SpecificTimeTrial` | `customUnlock.trackFolder[]` |
 | `9` | `RaceWinCount` | `customUnlock.requiredCount` |
 | `10` | `PracticeStarCount` | `customUnlock.requiredCount` |
 | `11` | `TimeTrialCount` | `customUnlock.requiredCount` |
@@ -41,14 +41,16 @@ The common optional config object is:
 ```json
 {
   "customUnlock": {
-    "trackFolder": "nhood1",
+    "trackFolder": ["nhood1"],
     "requiredCount": 5,
     "archipelagoItem": "Gold Cup"
   }
 }
 ```
 
-Only the field relevant to the chosen method is used.
+Only the field relevant to the chosen method is used. For specific-track
+methods, `trackFolder` is an array and every listed track must satisfy the
+condition.
 
 ---
 
@@ -222,8 +224,8 @@ Progress helpers:
 The evaluator intentionally treats malformed custom unlock data as locked:
 
 - Missing `customUnlock` locks.
-- Empty `trackFolder` locks specific-track methods.
-- Unknown `trackFolder` locks specific-track methods.
+- Empty `trackFolder` array locks specific-track methods.
+- Empty or unknown entries in `trackFolder` lock specific-track methods.
 - `requiredCount <= 0` locks count methods.
 - Empty Archipelago item names lock.
 
@@ -350,7 +352,7 @@ Example track:
   "difficulty": 1,
   "obtain": 6,
   "customUnlock": {
-    "trackFolder": "market2"
+    "trackFolder": ["market2"]
   }
 }
 ```
@@ -388,7 +390,7 @@ Remaining Rust work:
 - Preserve old presets and config payloads by defaulting custom unlock fields to
   `None`.
 - Add validation that method-specific fields are present:
-  - specific-track methods require a valid `trackFolder`
+  - specific-track methods require at least one valid `trackFolder` entry
   - count methods require `requiredCount > 0`
   - Archipelago requires a non-empty `archipelagoItem`
 
@@ -419,10 +421,12 @@ Recommended rollout:
 
 DLL-level scenarios to verify with hand-authored config:
 
-- Car with `obtain = 6` and `trackFolder = "nhood1"` unlocks after winning that
-  race.
-- Track with `obtain = 7` and `trackFolder = "market2"` unlocks after collecting
-  that practice star.
+- Car with `obtain = 6` and `trackFolder = ["nhood1"]` unlocks after winning
+  that race.
+- Track with `obtain = 7` and `trackFolder = ["market2"]` unlocks after
+  collecting that practice star.
+- Specific-track methods with multiple `trackFolder` entries unlock only after
+  all listed tracks satisfy the method.
 - Cup with `obtainCondition = 8` unlocks after beating the named track's normal
   time trial.
 - Count methods unlock exactly at the configured threshold.
@@ -434,4 +438,3 @@ DLL-level scenarios to verify with hand-authored config:
   once.
 - Default obtain values `-1..5` still behave as RVGL did before custom unlock
   support.
-

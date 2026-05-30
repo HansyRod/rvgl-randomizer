@@ -8,12 +8,23 @@
 
 namespace Randomizer {
 
-int GetConditionTrackIndex(const CustomUnlockCondition* condition) {
-    if (condition == nullptr || condition->trackFolder.empty()) {
-        return -1;
+bool HasRequiredTracks(const CustomUnlockCondition* condition, bool (*hasTrackProgress)(int trackIndex)) {
+    if (condition == nullptr || condition->trackFolders.empty()) {
+        return false;
     }
 
-    return FindTrackIdByFolderName(condition->trackFolder);
+    for (const std::string& trackFolder : condition->trackFolders) {
+        if (trackFolder.empty()) {
+            return false;
+        }
+
+        const int trackIndex = FindTrackIdByFolderName(trackFolder);
+        if (trackIndex < 0 || !hasTrackProgress(trackIndex)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool HasRequiredCount(const CustomUnlockCondition* condition, int currentCount) {
@@ -112,11 +123,11 @@ bool EvaluateCustomUnlock(
 
     switch (static_cast<CustomUnlockMethod>(obtain)) {
     case CustomUnlockMethod::SpecificRaceWin:
-        return HasRaceWin(GetConditionTrackIndex(condition));
+        return HasRequiredTracks(condition, HasRaceWin);
     case CustomUnlockMethod::SpecificPracticeStar:
-        return HasPracticeStar(GetConditionTrackIndex(condition));
+        return HasRequiredTracks(condition, HasPracticeStar);
     case CustomUnlockMethod::SpecificTimeTrial:
-        return HasNormalTimeTrialBeaten(GetConditionTrackIndex(condition));
+        return HasRequiredTracks(condition, HasNormalTimeTrialBeaten);
     case CustomUnlockMethod::RaceWinCount:
         return HasRequiredCount(condition, CountRaceWins());
     case CustomUnlockMethod::PracticeStarCount:
