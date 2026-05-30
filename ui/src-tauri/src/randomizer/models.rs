@@ -86,6 +86,40 @@ pub struct CarOptionsInput {
     pub include_practice_stars: bool,
     #[serde(default = "default_true")]
     pub include_single_race: bool,
+    #[serde(default = "default_false")]
+    pub include_specific_race_win: bool,
+    #[serde(default = "default_false")]
+    pub include_specific_practice_star: bool,
+    #[serde(default = "default_false")]
+    pub include_specific_time_trial: bool,
+    #[serde(default = "default_false")]
+    pub include_race_win_count: bool,
+    #[serde(default = "default_false")]
+    pub include_practice_star_count: bool,
+    #[serde(default = "default_false")]
+    pub include_time_trial_count: bool,
+    #[serde(default = "default_false")]
+    pub include_stunt_arena_star_count: bool,
+    #[serde(default = "default_one")]
+    pub specific_unlock_track_count_min: i32,
+    #[serde(default = "default_one")]
+    pub specific_unlock_track_count_max: i32,
+    #[serde(default = "default_one")]
+    pub race_win_count_min: i32,
+    #[serde(default = "default_track_count_max")]
+    pub race_win_count_max: i32,
+    #[serde(default = "default_one")]
+    pub practice_star_count_min: i32,
+    #[serde(default = "default_track_count_max")]
+    pub practice_star_count_max: i32,
+    #[serde(default = "default_one")]
+    pub time_trial_count_min: i32,
+    #[serde(default = "default_track_count_max")]
+    pub time_trial_count_max: i32,
+    #[serde(default = "default_one")]
+    pub stunt_arena_star_count_min: i32,
+    #[serde(default = "default_stunt_arena_star_count_max")]
+    pub stunt_arena_star_count_max: i32,
     #[serde(default = "default_true")]
     pub include_super_pro: bool,
     #[serde(default)]
@@ -109,6 +143,40 @@ pub struct TrackOptionsInput {
     pub include_practice: bool,
     #[serde(default = "default_true")]
     pub include_single_race: bool,
+    #[serde(default = "default_false")]
+    pub include_specific_race_win: bool,
+    #[serde(default = "default_false")]
+    pub include_specific_practice_star: bool,
+    #[serde(default = "default_false")]
+    pub include_specific_time_trial: bool,
+    #[serde(default = "default_false")]
+    pub include_race_win_count: bool,
+    #[serde(default = "default_false")]
+    pub include_practice_star_count: bool,
+    #[serde(default = "default_false")]
+    pub include_time_trial_count: bool,
+    #[serde(default = "default_false")]
+    pub include_stunt_arena_star_count: bool,
+    #[serde(default = "default_one")]
+    pub specific_unlock_track_count_min: i32,
+    #[serde(default = "default_one")]
+    pub specific_unlock_track_count_max: i32,
+    #[serde(default = "default_one")]
+    pub race_win_count_min: i32,
+    #[serde(default = "default_track_count_max")]
+    pub race_win_count_max: i32,
+    #[serde(default = "default_one")]
+    pub practice_star_count_min: i32,
+    #[serde(default = "default_track_count_max")]
+    pub practice_star_count_max: i32,
+    #[serde(default = "default_one")]
+    pub time_trial_count_min: i32,
+    #[serde(default = "default_track_count_max")]
+    pub time_trial_count_max: i32,
+    #[serde(default = "default_one")]
+    pub stunt_arena_star_count_min: i32,
+    #[serde(default = "default_stunt_arena_star_count_max")]
+    pub stunt_arena_star_count_max: i32,
 }
 
 pub fn default_unlock_mode() -> String { "random".to_string() }
@@ -117,6 +185,9 @@ pub fn default_pool()        -> String { "Full Random".to_string() }
 pub fn default_random()      -> String { "Random".to_string() }
 pub fn default_false()       -> bool   { false }
 pub fn default_true()        -> bool   { true }
+pub fn default_one()         -> i32    { 1 }
+pub fn default_track_count_max() -> i32 { 14 }
+pub fn default_stunt_arena_star_count_max() -> i32 { 20 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
