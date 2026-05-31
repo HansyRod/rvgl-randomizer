@@ -158,6 +158,52 @@
   opacity: 0.6;
 }
 
+.co-custom-unlock-table-box {
+  overflow-x: auto;
+}
+
+.co-custom-unlock-table {
+  min-width: 860px;
+}
+
+.co-custom-unlock-table-desc {
+  line-height: 1.65;
+}
+
+.co-custom-unlock-table th,
+.co-custom-unlock-table td {
+  padding-right: 0.75rem;
+  vertical-align: top;
+}
+
+.co-custom-unlock-table .co-custom-unlock-type {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.co-table-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.co-table-check input[type="checkbox"] {
+  margin: 0;
+}
+
+.co-table-muted {
+  color: var(--text-secondary);
+  opacity: 0.65;
+}
+
+.co-custom-unlock-desc {
+  min-width: 230px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 /* ── Checkboxes ── */
 .co-checkbox-group {
   display: flex;
@@ -239,6 +285,17 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0.4rem;
+}
+
+.co-sub-panel .co-range-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.co-sub-panel .co-range-row .co-field-label {
+  min-width: 190px;
 }
 
 .co-starting-grid-row {

@@ -3,6 +3,7 @@ import { STOCK_CARS, DC_CARS } from "../../utils/constants";
 import { useAppContext } from "../../AppProvider";
 import StartingCarConfig from "./StartingCarConfig";
 import CarRatingsConfig from "./CarRatingsConfig";
+import CustomUnlockMethodsTable from "./CustomUnlockMethodsTable";
 import { applyModeRules, makeDefaultSpec, alignDistributionsWithSpec } from "./CarOptionsUtils";
 import { isEffectiveStockCarsMode } from "../../validation/stockMode";
 
@@ -285,6 +286,11 @@ export default function CarOptionsTab() {
                 Include <strong>Stunt Arena</strong> — car is unlocked by completing the Stunt Arena.
               </span>
             </label>
+
+            <CustomUnlockMethodsTable
+              options={carOptions}
+              onChange={set}
+            />
           </div>
         </section>
       )}

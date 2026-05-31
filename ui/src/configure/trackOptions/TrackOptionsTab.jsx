@@ -1,6 +1,7 @@
 import "../carOptions/CarOptionsTab.css";
 import { STOCK_TRACKS } from "../../utils/constants";
 import { useAppContext } from "../../AppProvider";
+import CustomUnlockMethodsTable from "../carOptions/CustomUnlockMethodsTable";
 import { isEffectiveStockTracksMode } from "../../validation/stockMode";
 
 function makeDefaultTrackSpec(ids) {
@@ -216,6 +217,11 @@ export default function TrackOptionsTab() {
                 <strong>Stunt Arena</strong> — track is unlocked by completing the Stunt Arena.
               </span>
             </label>
+
+            <CustomUnlockMethodsTable
+              options={trackOptions}
+              onChange={set}
+            />
           </div>
         </section>
       )}
