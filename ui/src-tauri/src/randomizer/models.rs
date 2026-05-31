@@ -101,9 +101,17 @@ pub struct CarOptionsInput {
     #[serde(default = "default_false")]
     pub include_stunt_arena_star_count: bool,
     #[serde(default = "default_one")]
-    pub specific_unlock_track_count_min: i32,
+    pub specific_race_win_track_count_min: i32,
     #[serde(default = "default_one")]
-    pub specific_unlock_track_count_max: i32,
+    pub specific_race_win_track_count_max: i32,
+    #[serde(default = "default_one")]
+    pub specific_practice_star_track_count_min: i32,
+    #[serde(default = "default_one")]
+    pub specific_practice_star_track_count_max: i32,
+    #[serde(default = "default_one")]
+    pub specific_time_trial_track_count_min: i32,
+    #[serde(default = "default_one")]
+    pub specific_time_trial_track_count_max: i32,
     #[serde(default = "default_one")]
     pub race_win_count_min: i32,
     #[serde(default = "default_track_count_max")]
@@ -158,9 +166,17 @@ pub struct TrackOptionsInput {
     #[serde(default = "default_false")]
     pub include_stunt_arena_star_count: bool,
     #[serde(default = "default_one")]
-    pub specific_unlock_track_count_min: i32,
+    pub specific_race_win_track_count_min: i32,
     #[serde(default = "default_one")]
-    pub specific_unlock_track_count_max: i32,
+    pub specific_race_win_track_count_max: i32,
+    #[serde(default = "default_one")]
+    pub specific_practice_star_track_count_min: i32,
+    #[serde(default = "default_one")]
+    pub specific_practice_star_track_count_max: i32,
+    #[serde(default = "default_one")]
+    pub specific_time_trial_track_count_min: i32,
+    #[serde(default = "default_one")]
+    pub specific_time_trial_track_count_max: i32,
     #[serde(default = "default_one")]
     pub race_win_count_min: i32,
     #[serde(default = "default_track_count_max")]
