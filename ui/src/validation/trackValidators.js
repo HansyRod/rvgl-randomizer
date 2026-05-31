@@ -1,5 +1,6 @@
 import { formatValidationList, getAllTracksFromScan } from "./validationUtils";
 import { isEffectiveStockTracksMode } from "./stockMode";
+import { getCustomUnlockTrackCountMax, hasEnabledCustomUnlockMethod, validateCustomUnlockRanges } from "./customUnlockValidators";
 
 export function validateTrackSpec(trackSpecState, trackOptions, scanResult, preset) {
   const errors = [];
@@ -62,7 +63,8 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult, pres
       (trackOptions.includeTimeTrial  ?? true) ||
       (trackOptions.includePractice   ?? true) ||
       (trackOptions.includeSingleRace ?? true) ||
-      trackOptions.includeStuntArena;
+      trackOptions.includeStuntArena ||
+      hasEnabledCustomUnlockMethod(trackOptions);
 
     if (!anyMethodAllowed) {
       errors.push({
@@ -71,6 +73,10 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult, pres
         message: "At least one unlock method must be enabled. Enable at least one method in \"Allowed Unlock Methods\".",
       });
     }
+
+    validateCustomUnlockRanges(trackOptions, errors, "trackOptions", {
+      trackCountMax: getCustomUnlockTrackCountMax(trackSpecState, allTracks, isStockMode),
+    });
   }
 
   // Stale specific-track references

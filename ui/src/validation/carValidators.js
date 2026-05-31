@@ -1,8 +1,9 @@
-import { formatValidationList, getAllCarsFromScan } from "./validationUtils";
-import { isEffectiveStockCarsMode } from "./stockMode";
+import { formatValidationList, getAllCarsFromScan, getAllTracksFromScan } from "./validationUtils";
+import { isEffectiveStockCarsMode, isEffectiveStockTracksMode } from "./stockMode";
+import { getCustomUnlockTrackCountMax, hasEnabledCustomUnlockMethod, validateCustomUnlockRanges } from "./customUnlockValidators";
 import { STOCK_CARS, DC_CARS, ATTR_RATINGS_LIST } from "../utils/constants";
 
-export function validateCarOptions(carOptions, carsSpecState, scanResult, preset) {
+export function validateCarOptions(carOptions, carsSpecState, scanResult, preset, trackSpecState) {
   const errors = [];
   const warnings = [];
   const infos = [];
@@ -109,7 +110,8 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
       carOptions.includePracticeStars ||
       carOptions.includeSingleRace    ||
       carOptions.includeCheatOnly     ||
-      carOptions.includeStuntArena;
+      carOptions.includeStuntArena    ||
+      hasEnabledCustomUnlockMethod(carOptions);
 
     if (!anyMethodAllowed) {
       errors.push({
@@ -118,6 +120,14 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
         message: "At least one unlock method must be enabled. Enable at least one method in \"Allowed Unlock Methods\".",
       });
     }
+
+    validateCustomUnlockRanges(carOptions, errors, "carOptions", {
+      trackCountMax: getCustomUnlockTrackCountMax(
+        trackSpecState,
+        getAllTracksFromScan(scanResult),
+        isEffectiveStockTracksMode(scanResult, preset)
+      ),
+    });
   }
 
   // Get list of specific cars from the configuration

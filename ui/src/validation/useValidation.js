@@ -40,7 +40,8 @@ export function useValidation() {
         configure.carOptions,
         configure.carsSpecState,
         setup.scanResult,
-        preset
+        preset,
+        configure.trackSpecState
       ));
     }
 

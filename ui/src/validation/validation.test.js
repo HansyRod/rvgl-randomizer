@@ -7,9 +7,11 @@ import {
   evaluatePresetSelection,
   getStockModePresetErrors,
 } from "../configure/presets/presetValidation.js";
+import { validateCarOptions } from "./carValidators.js";
 import { validateCupSpec } from "./cupValidators.js";
 import { validateSelectedPreset } from "./presetValidators.js";
 import { validateScan } from "./scanValidators.js";
+import { validateTrackSpec } from "./trackValidators.js";
 import { isEffectiveStockCarsMode, isEffectiveStockTracksMode } from "./stockMode.js";
 import { formatValidationList } from "./validationUtils.js";
 import { STOCK_CARS, STOCK_TRACKS } from "../utils/constants.js";
@@ -432,6 +434,196 @@ runTest("selected Random Stocks stays valid on mixed content when all stock cont
   );
 
   assert.deepEqual(results.errors, []);
+});
+
+runTest("custom car unlock methods count as allowed unlock methods", () => {
+  const results = validateCarOptions(
+    {
+      unlockMode: "random",
+      includeStartingCar: false,
+      includeChampionship: false,
+      includeTimeTrial: false,
+      includePracticeStars: false,
+      includeSingleRace: false,
+      includeCheatOnly: false,
+      includeStuntArena: false,
+      includeSpecificRaceWin: true,
+    },
+    {
+      includeStockCars: true,
+      includeDcCars: false,
+      stockCars: [],
+      dcCars: [],
+    },
+    makeClassicScan({ cars: [makeCar("custom_car_1", 0)] }),
+    "custom"
+  );
+
+  assert.equal(results.errors.some((error) => error.id === "cars_no_unlock_methods"), false);
+});
+
+runTest("custom track unlock methods count as allowed unlock methods", () => {
+  const results = validateTrackSpec(
+    {
+      includeTracks: true,
+      tracks: [],
+    },
+    {
+      unlockMode: "random",
+      includeDefault: false,
+      includeTimeTrial: false,
+      includePractice: false,
+      includeSingleRace: false,
+      includeStuntArena: false,
+      includeRaceWinCount: true,
+    },
+    makeClassicScan({ tracks: [makeTrack("custom_track_1")] }),
+    "custom"
+  );
+
+  assert.equal(results.errors.some((error) => error.id === "tracks_no_unlock_methods"), false);
+});
+
+runTest("custom car unlock range validation rejects invalid min max pairs", () => {
+  const results = validateCarOptions(
+    {
+      unlockMode: "random",
+      includeStartingCar: true,
+      includeSpecificRaceWin: true,
+      includeRaceWinCount: true,
+      includeStuntArenaStarCount: true,
+      specificRaceWinTrackCountMin: 0,
+      raceWinCountMin: 3,
+      raceWinCountMax: 2,
+      stuntArenaStarCountMax: 21,
+    },
+    {
+      includeStockCars: true,
+      includeDcCars: false,
+      stockCars: [],
+      dcCars: [],
+    },
+    makeClassicScan({ cars: [makeCar("custom_car_1", 0)] }),
+    "custom"
+  );
+
+  const ids = results.errors.map((error) => error.id);
+  assert.ok(ids.includes("carOptions_specificRaceWinTrackCountMin_invalid"));
+  assert.ok(ids.includes("carOptions_raceWinCountMax_below_min"));
+  assert.ok(ids.includes("carOptions_stuntArenaStarCountMax_too_high"));
+});
+
+runTest("custom track unlock range validation rejects invalid min max pairs", () => {
+  const results = validateTrackSpec(
+    {
+      includeTracks: true,
+      tracks: [],
+    },
+    {
+      unlockMode: "random",
+      includeDefault: true,
+      includeSpecificPracticeStar: true,
+      includeStuntArenaStarCount: true,
+      specificPracticeStarTrackCountMin: 4,
+      specificPracticeStarTrackCountMax: 3,
+      stuntArenaStarCountMin: 0,
+      stuntArenaStarCountMax: 21,
+    },
+    makeClassicScan({ tracks: [makeTrack("custom_track_1")] }),
+    "custom"
+  );
+
+  const ids = results.errors.map((error) => error.id);
+  assert.ok(ids.includes("trackOptions_specificPracticeStarTrackCountMax_below_min"));
+  assert.ok(ids.includes("trackOptions_stuntArenaStarCountMin_invalid"));
+  assert.ok(ids.includes("trackOptions_stuntArenaStarCountMax_too_high"));
+});
+
+runTest("inactive custom unlock methods do not validate their ranges", () => {
+  const carResults = validateCarOptions(
+    {
+      unlockMode: "random",
+      includeStartingCar: true,
+      includeRaceWinCount: false,
+      raceWinCountMin: 3,
+      raceWinCountMax: 2,
+    },
+    {
+      includeStockCars: true,
+      includeDcCars: false,
+      stockCars: [],
+      dcCars: [],
+    },
+    makeClassicScan({ cars: [makeCar("custom_car_1", 0)] }),
+    "custom"
+  );
+
+  const trackResults = validateTrackSpec(
+    {
+      includeTracks: true,
+      tracks: [],
+    },
+    {
+      unlockMode: "random",
+      includeDefault: true,
+      includeSpecificTimeTrial: false,
+      specificTimeTrialTrackCountMin: 0,
+    },
+    makeClassicScan({ tracks: [makeTrack("custom_track_1")] }),
+    "custom"
+  );
+
+  assert.equal(carResults.errors.some((error) => error.id === "carOptions_raceWinCountMax_below_min"), false);
+  assert.equal(trackResults.errors.some((error) => error.id === "trackOptions_specificTimeTrialTrackCountMin_invalid"), false);
+});
+
+runTest("custom car unlock track counts cannot exceed generated track slots", () => {
+  const results = validateCarOptions(
+    {
+      unlockMode: "random",
+      includeStartingCar: true,
+      includeTimeTrialCount: true,
+      timeTrialCountMax: 4,
+    },
+    {
+      includeStockCars: true,
+      includeDcCars: false,
+      stockCars: [],
+      dcCars: [],
+    },
+    makeClassicScan({
+      cars: [makeCar("custom_car_1", 0)],
+      tracks: [makeTrack("track_a"), makeTrack("track_b"), makeTrack("track_c")],
+    }),
+    "custom",
+    {
+      includeTracks: true,
+      tracks: [{ id: "track_a" }, { id: "track_b" }, { id: "track_c" }],
+    }
+  );
+
+  assert.ok(results.errors.some((error) => error.id === "carOptions_timeTrialCountMax_too_high"));
+});
+
+runTest("custom track unlock track counts exclude roof in stock mode", () => {
+  const results = validateTrackSpec(
+    {
+      includeTracks: true,
+      tracks: STOCK_TRACKS.map((id) => ({ id })),
+    },
+    {
+      unlockMode: "random",
+      includeDefault: true,
+      includeRaceWinCount: true,
+      raceWinCountMax: 14,
+    },
+    makeStockTracksScan(),
+    "random-stocks"
+  );
+
+  const issue = results.errors.find((error) => error.id === "trackOptions_raceWinCountMax_too_high");
+  assert.ok(issue);
+  assert.match(issue.message, /current track count \(13\)/);
 });
 
 runTest("validateScan uses stock thresholds for mixed content when Random Stocks is selected", () => {
