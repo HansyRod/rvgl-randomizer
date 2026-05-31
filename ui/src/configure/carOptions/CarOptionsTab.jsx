@@ -6,6 +6,7 @@ import CarRatingsConfig from "./CarRatingsConfig";
 import CustomUnlockMethodsTable from "./CustomUnlockMethodsTable";
 import { applyModeRules, makeDefaultSpec, alignDistributionsWithSpec } from "./CarOptionsUtils";
 import { isEffectiveStockCarsMode } from "../../validation/stockMode";
+import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
 
 export default function CarOptionsTab() {
 
@@ -73,7 +74,7 @@ export default function CarOptionsTab() {
 
       // Unlock mode determines the logic for how we assign the final obtain and rating attributes for each car slot.
       if (modeId !== "baseGame") {
-        return applyModeRules(car, i, modeId, carOptions);
+        return normalizeCustomUnlockRow(applyModeRules(car, i, modeId, carOptions));
       }
 
       const out = { ...car };
@@ -98,13 +99,13 @@ export default function CarOptionsTab() {
         }
       }
 
-      return out;
+      return normalizeCustomUnlockRow(out);
     });
 
     const newDcCars = base.dcCars.map((car, i) => {
 
       if (modeId !== "baseGame") {
-        return applyModeRules(car, i + 28, modeId, carOptions);
+        return normalizeCustomUnlockRow(applyModeRules(car, i + 28, modeId, carOptions));
       }
 
       const out = { ...car };
@@ -125,7 +126,7 @@ export default function CarOptionsTab() {
         out.attrObtain = "2"; // Time Trial
       }
 
-      return out;
+      return normalizeCustomUnlockRow(out);
     });
 
     const newCarsSpecState = { stockCars: newStockCars, dcCars: newDcCars };

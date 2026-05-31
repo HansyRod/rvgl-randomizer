@@ -8,6 +8,7 @@ export function makeDefaultSpec(ids) {
     sourceObtain: "Random",
     attrRating: "Random",
     attrObtain: "Random",
+    customUnlock: null,
   }));
 }
 

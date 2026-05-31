@@ -257,6 +257,7 @@ export function makeDefaultTrackSpec(ids) {
     sourceDifficulty: "Random",
     attrDifficulty: "Random",
     attrObtain: "Random",
+    customUnlock: null,
   }));
 }
 
@@ -268,5 +269,6 @@ export function makeDefaultCarsSpec(ids) {
     sourceObtain: "Random",
     attrRating: "Random",
     attrObtain: "Random",
+    customUnlock: null,
   }));
 }

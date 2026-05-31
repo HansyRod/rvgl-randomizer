@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useAppContext } from "../../AppProvider";
 import { RATINGS_LIST, STOCK_CARS, DC_CARS } from "../../utils/constants";
+import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
 import { getObtainByMode, getRatingByMode } from "./CarOptionsUtils";
 
 export default function StartingCarConfig() {
@@ -36,7 +37,7 @@ export default function StartingCarConfig() {
           if (opts.enableStartingCarsPool) out.sourcePool = opts.startingCarsPool;
           if (opts.enableStartingCarsRating) out.sourceRating = opts.startingCarsRating;
         }
-        return out;
+        return normalizeCustomUnlockRow(out);
       });
 
     const stockOffset = 0;
@@ -59,7 +60,7 @@ export default function StartingCarConfig() {
       out.sourceObtain = "Random";
       if (opts.enableStartingCarsPool) out.sourcePool = "Full Random";
       if (opts.enableStartingCarsRating) out.sourceRating = "Random";
-      return out;
+      return normalizeCustomUnlockRow(out);
     };
 
     const stockOffset = 0;

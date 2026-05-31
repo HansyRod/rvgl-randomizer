@@ -1,6 +1,7 @@
 import { useState, useMemo, memo, useCallback } from "react";
 import "./CarsFullSpecTab.css";
 import { RATINGS_LIST, OBTAINS_LIST } from "../../utils/constants";
+import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
 import CarSpecRow from "./CarSpecRow";
 import CarSearchModal from "./CarSearchModal";
 import { useAppContext } from "../../AppProvider";
@@ -145,7 +146,10 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
 
   const updateRow = useCallback((index, updates) => {
     const newCategory = [...carsSpecState[categoryKey]];
-    newCategory[index] = { ...newCategory[index], ...updates };
+    const nextRow = { ...newCategory[index], ...updates };
+    newCategory[index] = updates.attrObtain !== undefined
+      ? normalizeCustomUnlockRow(nextRow)
+      : nextRow;
 
     const nextState = {
       ...carsSpecState,

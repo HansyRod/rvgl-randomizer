@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback, memo } from "react";
 import "../carSpec/CarsFullSpecTab.css";
 import { STOCK_TRACKS } from "../../utils/constants";
+import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
 import { useAppContext } from "../../AppProvider";
 import TrackSearchModal from "./TrackSearchModal";
 import TrackSpecRow from "./TrackSpecRow";
@@ -72,7 +73,10 @@ export default function TrackSpecTab() {
   const updateRow = useCallback((index, updates) => {
 
     const tracks = [...(specState?.tracks || [])];
-    tracks[index] = { ...tracks[index], ...updates };
+    const nextRow = { ...tracks[index], ...updates };
+    tracks[index] = updates.attrObtain !== undefined
+      ? normalizeCustomUnlockRow(nextRow)
+      : nextRow;
 
     updateCategoryCtx("configure", {
       trackSpecState: {
