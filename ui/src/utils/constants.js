@@ -69,6 +69,11 @@ export const CUSTOM_UNLOCK_COUNT_METHODS = [
   { val: "12", label: CUSTOM_UNLOCK_METHODS[12], description: CUSTOM_UNLOCK_DESCRIPTIONS[12] }
 ];
 
+export const CUSTOM_UNLOCK_TARGET_OBTAINS_LIST = [
+  ...CUSTOM_UNLOCK_SPECIFIC_METHODS,
+  ...CUSTOM_UNLOCK_COUNT_METHODS
+];
+
 export const OVERRIDE_CARBOXES = [
   "adeon", "amw", "beatall", "bigvolt", "bossvolt", "candy", "cougar", "dino",
   "flag", "fone", "gencar", "jg1jg7", "jg2fulonx", "jg3loco", "jg4snw35",
@@ -134,7 +139,8 @@ export const ATTR_OBTAINS_LIST = [
   { val: "3", label: "Practice" },
   { val: "4", label: "Single Race" },
   { val: "5", label: "Stunt Arena" },
-  { val: "-1", label: "Cheat Only" }
+  { val: "-1", label: "Cheat Only" },
+  ...CUSTOM_UNLOCK_TARGET_OBTAINS_LIST
 ];
 
 export const TRACK_DIFFICULTY_SOURCE_LIST = [
@@ -162,7 +168,8 @@ export const TRACK_OBTAINS_LIST = [
   { val: "2", label: "Time Trial" },
   { val: "3", label: "Practice" },
   { val: "4", label: "Single Race" },
-  { val: "5", label: "Stunt Arena" }
+  { val: "5", label: "Stunt Arena" },
+  ...CUSTOM_UNLOCK_TARGET_OBTAINS_LIST
 ];
 
 export const DEFAULT_CAR_OPTIONS = {
