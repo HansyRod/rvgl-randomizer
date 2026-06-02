@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useAppContext } from "../../AppProvider";
 import { RATINGS_LIST, STOCK_CARS, DC_CARS } from "../../utils/constants";
 import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
+import { getPlayableCarsFromScan } from "../../utils/scanContent";
 import { getObtainByMode, getRatingByMode } from "./CarOptionsUtils";
 
 export default function StartingCarConfig() {
@@ -173,16 +174,7 @@ export default function StartingCarConfig() {
     commit(newOpts, newSpec);
   };
 
-  const availableCars = useMemo(() => {
-    if (!scanResult) return [];
-    let cars;
-    if (scanResult.installType === "classic") {
-      cars = scanResult.cars || [];
-    } else {
-      cars = (scanResult.contentPacks || []).filter(p => p.useCars).flatMap(p => p.cars);
-    }
-    return cars.filter(c => !c.isSystemCar && c.hasValidFile);
-  }, [scanResult]);
+  const availableCars = useMemo(() => getPlayableCarsFromScan(scanResult), [scanResult]);
 
   const availablePools = useMemo(() => new Set(availableCars.map(c => c.pool)), [availableCars]);
   const activePacks = useMemo(() => {

@@ -25,22 +25,8 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
   const [searchModalRow, setSearchModalRow] = useState(null);
   const [customUnlockModalRow, setCustomUnlockModalRow] = useState(null);
 
-  const availableCars = useMemo(() => {
-    if (!scanResult) return [];
-    let cars;
-    if (scanResult.installType === "classic") {
-      cars = scanResult.cars || [];
-    } else {
-      cars = (scanResult.contentPacks || []).filter(p => p.useCars).flatMap(p => p.cars);
-    }
-    return cars.filter(c => !c.isSystemCar && c.hasValidFile);
-  }, [scanResult]);
-
-  const carByFolder = useMemo(() => {
-    const map = {};
-    for (const c of availableCars) map[c.folderName] = c;
-    return map;
-  }, [availableCars]);
+  const availableCars = useMemo(() => getPlayableCarsFromScan(scanResult), [scanResult]);
+  const carByFolder = useMemo(() => indexByFolder(availableCars), [availableCars]);
   const availableTracks = useMemo(() => getPlayableTracksFromScan(scanResult), [scanResult]);
   const trackByFolder = useMemo(() => indexByFolder(availableTracks), [availableTracks]);
 

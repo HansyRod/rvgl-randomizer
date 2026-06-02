@@ -2,6 +2,7 @@ import { useMemo, useState, useCallback, memo } from "react";
 import "../carSpec/CarsFullSpecTab.css";
 import { STOCK_TRACKS } from "../../utils/constants";
 import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
+import { getPlayableTracksFromScan, indexByFolder } from "../../utils/scanContent";
 import { useAppContext } from "../../AppProvider";
 import TrackSearchModal from "./TrackSearchModal";
 import TrackSpecRow from "./TrackSpecRow";
@@ -23,22 +24,8 @@ export default function TrackSpecTab() {
   const [searchModalRow, setSearchModalRow] = useState(null);
   const isEnabled = specState?.includeTracks !== false;
 
-  const availableTracks = useMemo(() => {
-    if (!scanResult) return [];
-    let tracks;
-    if (scanResult.installType === "classic") {
-      tracks = scanResult.tracks || [];
-    } else {
-      tracks = (scanResult.contentPacks || []).filter(p => p.useTracks).flatMap(p => p.tracks);
-    }
-    return tracks.filter(t => t.hasValidFile && t.trackType === 0);
-  }, [scanResult]);
-
-  const trackByFolder = useMemo(() => {
-    const map = {};
-    for (const t of availableTracks) map[t.folderName] = t;
-    return map;
-  }, [availableTracks]);
+  const availableTracks = useMemo(() => getPlayableTracksFromScan(scanResult), [scanResult]);
+  const trackByFolder = useMemo(() => indexByFolder(availableTracks), [availableTracks]);
 
   const activePacks = useMemo(() => {
     if (!scanResult || scanResult.installType === "classic") return [];

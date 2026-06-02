@@ -1,33 +1,12 @@
 import { STOCK_CARS, STOCK_TRACKS } from "../utils/constants";
-
-function isEligibleCar(car) {
-  return car && !car.isSystemCar && car.hasValidFile;
-}
-
-function isEligibleTrack(track) {
-  return track && track.hasValidFile && track.trackType === 0;
-}
+import { getPlayableCarsFromScan, getPlayableTracksFromScan } from "../utils/scanContent";
 
 export function getAllCarsFromScan(scanResult) {
-  if (!scanResult) return [];
-  const cars = scanResult.installType === "classic"
-    ? (scanResult.cars || [])
-    : (scanResult.contentPacks || [])
-    .filter(p => p.useCars)
-    .flatMap(p => p.cars);
-
-  return cars.filter(isEligibleCar);
+  return getPlayableCarsFromScan(scanResult);
 }
 
 export function getAllTracksFromScan(scanResult) {
-  if (!scanResult) return [];
-  const tracks = scanResult.installType === "classic"
-    ? (scanResult.tracks || [])
-    : (scanResult.contentPacks || [])
-    .filter(p => p.useTracks)
-    .flatMap(p => p.tracks);
-
-  return tracks.filter(isEligibleTrack);
+  return getPlayableTracksFromScan(scanResult);
 }
 
 export function hasAllStockCars(scanResult) {
