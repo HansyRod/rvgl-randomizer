@@ -4,6 +4,7 @@ import { STOCK_TRACKS } from "../../utils/constants";
 import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
 import { getPlayableTracksFromScan, indexByFolder } from "../../utils/scanContent";
 import { useAppContext } from "../../AppProvider";
+import CustomUnlockModal from "../customUnlocks/CustomUnlockModal";
 import TrackSearchModal from "./TrackSearchModal";
 import TrackSpecRow from "./TrackSpecRow";
 
@@ -22,6 +23,7 @@ export default function TrackSpecTab() {
 
   const [presetSelection, setPresetSelection] = useState("Full Random");
   const [searchModalRow, setSearchModalRow] = useState(null);
+  const [customUnlockModalRow, setCustomUnlockModalRow] = useState(null);
   const isEnabled = specState?.includeTracks !== false;
 
   const availableTracks = useMemo(() => getPlayableTracksFromScan(scanResult), [scanResult]);
@@ -102,6 +104,10 @@ export default function TrackSpecTab() {
   const mode = trackOptions?.unlockMode;
   const lockDifficulty = mode === "randomUnlock" || mode === "unchanged" || mode === "baseGame";
   const lockObtain = mode === "randomDifficulty" || mode === "unchanged" || mode === "baseGame";
+  const customUnlockModalRowState = customUnlockModalRow === null
+    ? null
+    : specState?.tracks?.[customUnlockModalRow];
+  const excludedCustomUnlockTracks = getKnownTargetTrackFolder(customUnlockModalRowState, trackByFolder);
 
   return (
     <div>
@@ -110,6 +116,18 @@ export default function TrackSpecTab() {
         onClose={() => setSearchModalRow(null)}
         onSelect={(folderName) => updateRow(searchModalRow, { sourcePool: folderName })}
         availableTracks={availableTracks}
+      />
+      <CustomUnlockModal
+        isOpen={customUnlockModalRowState !== null}
+        method={customUnlockModalRowState?.attrObtain}
+        value={customUnlockModalRowState?.customUnlock}
+        availableTracks={availableTracks}
+        excludedTrackFolders={excludedCustomUnlockTracks ? [excludedCustomUnlockTracks] : []}
+        onClose={() => setCustomUnlockModalRow(null)}
+        onSave={(customUnlock) => {
+          updateRow(customUnlockModalRow, { customUnlock });
+          setCustomUnlockModalRow(null);
+        }}
       />
 
       <div className="section-lock-info">
@@ -167,6 +185,7 @@ export default function TrackSpecTab() {
                 sourcePoolOptionsJSX={sourcePoolOptionsJSX}
                 trackOptions={trackOptions}
                 onOpenSearch={setSearchModalRow}
+                onOpenCustomUnlock={setCustomUnlockModalRow}
               />
             ))}
           </div>
@@ -174,4 +193,18 @@ export default function TrackSpecTab() {
       </div>
     </div>
   );
+}
+
+function getKnownTargetTrackFolder(row, trackByFolder) {
+  if (!row) return null;
+
+  const sourcePool = row.sourcePool;
+  const isGeneralPool =
+    sourcePool === "Full Random" ||
+    sourcePool === "Stock" ||
+    sourcePool === "Custom" ||
+    sourcePool?.startsWith("Pack:");
+
+  if (!sourcePool || isGeneralPool || !trackByFolder[sourcePool]) return null;
+  return sourcePool;
 }
