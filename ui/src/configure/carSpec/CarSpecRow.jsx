@@ -1,7 +1,10 @@
 import { CAR_RATINGS, OBTAIN_METHODS, RATINGS_LIST, ATTR_RATINGS_LIST, OBTAINS_LIST, ATTR_OBTAINS_LIST } from "../../utils/constants";
+import { getCustomUnlockSelectionLabel, isCustomUnlockMethod } from "../../utils/customUnlockState";
+
+const CURRENT_CUSTOM_UNLOCK = "Current Custom Unlock";
 
 export default function CarSpecRow({index, rowState, updateRow, carByFolder, sourcePoolOptionsJSX, poolValidOptions, carOptions, onOpenSearch,
-  lockStartingPool, lockStartingRating, lockStartingObtain}) {
+  onOpenCustomUnlock, trackByFolder, lockStartingPool, lockStartingRating, lockStartingObtain}) {
   if (!rowState) return null;
 
   const id = rowState.id;
@@ -22,6 +25,15 @@ export default function CarSpecRow({index, rowState, updateRow, carByFolder, sou
   const disableSourceObtain = isSpecificCar || (lockStartingObtain && (carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomRatings"));
   const disableAttrRating = carOptions?.unlockMode === "baseGame" || carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomUnlock";
   const disableAttrObtain = lockStartingObtain || carOptions?.unlockMode === "baseGame" || carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomRatings";
+  const hasCustomUnlock = isCustomUnlockMethod(rowState.attrObtain);
+  const customUnlockSelectionLabel = getCustomUnlockSelectionLabel(rowState.customUnlock, trackByFolder);
+  const defaultAttrObtainOptions = ATTR_OBTAINS_LIST.filter(opt => opt.val === "Random" || opt.val === "Unchanged");
+  const baseGameAttrObtainOptions = ATTR_OBTAINS_LIST.filter(opt =>
+    opt.val !== "Random" &&
+    opt.val !== "Unchanged" &&
+    !isCustomUnlockMethod(opt.val)
+  );
+  const customUnlockAttrObtainOptions = ATTR_OBTAINS_LIST.filter(opt => isCustomUnlockMethod(opt.val));
 
   return (
     <div className="spec-grid-row">
@@ -96,11 +108,37 @@ export default function CarSpecRow({index, rowState, updateRow, carByFolder, sou
           </select>
         </div>
         <div className="field-group">
-          <select value={rowState.attrObtain} onChange={e => updateRow(index, { attrObtain: e.target.value })}
-            disabled={disableAttrObtain} >
-            {ATTR_OBTAINS_LIST.map(opt => (
+          <select
+            value={hasCustomUnlock ? CURRENT_CUSTOM_UNLOCK : rowState.attrObtain}
+            onChange={e => {
+              const val = e.target.value;
+              if (val === CURRENT_CUSTOM_UNLOCK) return;
+
+              updateRow(index, { attrObtain: val });
+              if (isCustomUnlockMethod(val)) {
+                onOpenCustomUnlock(index);
+              }
+            }}
+            disabled={disableAttrObtain}
+          >
+            {defaultAttrObtainOptions.map(opt => (
               <option key={opt.val} value={opt.val}>{opt.label}</option>
             ))}
+            <optgroup label="Base Game">
+              {baseGameAttrObtainOptions.map(opt => (
+                <option key={opt.val} value={opt.val}>{opt.label}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Custom Unlocks">
+              {customUnlockAttrObtainOptions.map(opt => (
+                <option key={opt.val} value={opt.val}>{opt.label}</option>
+              ))}
+            </optgroup>
+            {hasCustomUnlock && (
+              <optgroup label="Current Selection">
+                <option value={CURRENT_CUSTOM_UNLOCK}>{customUnlockSelectionLabel}</option>
+              </optgroup>
+            )}
           </select>
         </div>
       </div>

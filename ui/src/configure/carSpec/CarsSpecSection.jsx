@@ -2,8 +2,10 @@ import { useState, useMemo, memo, useCallback } from "react";
 import "./CarsFullSpecTab.css";
 import { RATINGS_LIST, OBTAINS_LIST } from "../../utils/constants";
 import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
+import { getPlayableCarsFromScan, getPlayableTracksFromScan, indexByFolder } from "../../utils/scanContent";
 import CarSpecRow from "./CarSpecRow";
 import CarSearchModal from "./CarSearchModal";
+import CustomUnlockModal from "../customUnlocks/CustomUnlockModal";
 import { useAppContext } from "../../AppProvider";
 
 const SpecRow = memo(CarSpecRow);
@@ -21,6 +23,7 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
   
   const [presetSelection, setPresetSelection] = useState("Full Random");
   const [searchModalRow, setSearchModalRow] = useState(null);
+  const [customUnlockModalRow, setCustomUnlockModalRow] = useState(null);
 
   const availableCars = useMemo(() => {
     if (!scanResult) return [];
@@ -38,6 +41,8 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
     for (const c of availableCars) map[c.folderName] = c;
     return map;
   }, [availableCars]);
+  const availableTracks = useMemo(() => getPlayableTracksFromScan(scanResult), [scanResult]);
+  const trackByFolder = useMemo(() => indexByFolder(availableTracks), [availableTracks]);
 
   const availablePools = useMemo(() => new Set(availableCars.map(c => c.pool)), [availableCars]);
 
@@ -158,6 +163,10 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
     updateCategoryCtx("configure", { carsSpecState: nextState });
   }, [carsSpecState, categoryKey, updateCategoryCtx]);
 
+  const customUnlockModalRowState = customUnlockModalRow === null
+    ? null
+    : carsSpecState?.[categoryKey]?.[customUnlockModalRow];
+
   return (
     <div>
       <CarSearchModal 
@@ -165,6 +174,17 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
         onClose={() => setSearchModalRow(null)}
         onSelect={(folderName) => updateRow(searchModalRow, { sourcePool: folderName })}
         availableCars={availableCars}
+      />
+      <CustomUnlockModal
+        isOpen={customUnlockModalRowState !== null}
+        method={customUnlockModalRowState?.attrObtain}
+        value={customUnlockModalRowState?.customUnlock}
+        availableTracks={availableTracks}
+        onClose={() => setCustomUnlockModalRow(null)}
+        onSave={(customUnlock) => {
+          updateRow(customUnlockModalRow, { customUnlock });
+          setCustomUnlockModalRow(null);
+        }}
       />
       
       {(carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomUnlock") && (
@@ -237,6 +257,8 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
                 poolValidOptions={poolValidOptions}
                 carOptions={carOptions}
                 onOpenSearch={setSearchModalRow}
+                onOpenCustomUnlock={setCustomUnlockModalRow}
+                trackByFolder={trackByFolder}
                 lockStartingPool={isStartingSlot && !!carOptions?.enableStartingCarsPool}
                 lockStartingRating={isStartingSlot && !!carOptions?.enableStartingCarsRating}
                 lockStartingObtain={isStartingSlot}
