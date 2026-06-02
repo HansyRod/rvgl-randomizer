@@ -15,11 +15,6 @@ function toPositiveInt(value, fallback = 1) {
   return parsed;
 }
 
-function getTrackLabel(track) {
-  if (!track) return "";
-  return track.name ? `${track.name} (${track.folderName})` : track.folderName;
-}
-
 export default function CustomUnlockModal({
   isOpen,
   method,
@@ -103,9 +98,6 @@ export default function CustomUnlockModal({
       <div className="search-modal-content custom-unlock-modal" onClick={e => e.stopPropagation()}>
         <div className="search-modal-header">
           <h3>{methodLabel}</h3>
-        </div>
-
-        <div className="custom-unlock-modal-body">
           {isSpecificMethod && (
             <>
               <div className="custom-unlock-mode-row">
@@ -131,6 +123,22 @@ export default function CustomUnlockModal({
                 </label>
               </div>
 
+              {draft.mode === "specificTracks" && (
+                <input
+                  type="text"
+                  placeholder="Search track name or folder..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="search-input"
+                />
+              )}
+            </>
+          )}
+        </div>
+
+        <div className={`custom-unlock-modal-body${draft.mode === "specificTracks" ? " custom-unlock-list-body" : ""}`}>
+          {isSpecificMethod && (
+            <>
               {draft.mode === "randomTracks" && (
                 <div className="custom-unlock-field-row">
                   <label htmlFor="custom-unlock-random-count">Track count</label>
@@ -146,27 +154,19 @@ export default function CustomUnlockModal({
               )}
 
               {draft.mode === "specificTracks" && (
-                <div className="custom-unlock-track-picker">
-                  <input
-                    type="text"
-                    placeholder="Search track name or folder..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="search-input"
-                  />
-                  <div className="custom-unlock-track-list">
-                    {trackOptions.length === 0 && <div className="no-results">No tracks found...</div>}
-                    {trackOptions.map(track => (
-                      <label key={track.folderName} className="custom-unlock-track-option">
-                        <input
-                          type="checkbox"
-                          checked={selectedFolders.has(track.folderName)}
-                          onChange={() => toggleTrack(track.folderName)}
-                        />
-                        <span>{getTrackLabel(track)}</span>
-                      </label>
-                    ))}
-                  </div>
+                <div className="search-results-list custom-unlock-track-list">
+                  {trackOptions.length === 0 && <div className="no-results">No tracks found...</div>}
+                  {trackOptions.map(track => (
+                    <label key={track.folderName} className="search-result-item custom-unlock-track-option">
+                      <input
+                        type="checkbox"
+                        checked={selectedFolders.has(track.folderName)}
+                        onChange={() => toggleTrack(track.folderName)}
+                      />
+                      <span className="car-name">{track.name || track.folderName}</span>
+                      <span className="car-folder">({track.folderName})</span>
+                    </label>
+                  ))}
                 </div>
               )}
             </>

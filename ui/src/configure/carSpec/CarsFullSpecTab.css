@@ -101,6 +101,9 @@
 
 .field-group select {
   width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .specs-horizontal {
@@ -245,10 +248,19 @@
   overflow: hidden;
 }
 
+.custom-unlock-list-body {
+  padding: 0;
+}
+
 .custom-unlock-mode-row {
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+
+.custom-unlock-mode-row + .search-input {
+  margin-top: 1.25rem;
 }
 
 .custom-unlock-radio {
@@ -272,34 +284,18 @@
   font-weight: 500;
 }
 
-.custom-unlock-track-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-height: 0;
-}
-
 .custom-unlock-track-list {
   max-height: 320px;
   overflow-y: auto;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0.35rem;
-  background: var(--bg-hover);
 }
 
 .custom-unlock-track-option {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.45rem 0.55rem;
-  border-radius: 4px;
-  color: var(--text-primary);
-  font-size: 0.88rem;
+  align-items: baseline;
 }
 
-.custom-unlock-track-option:hover {
-  background: var(--tab-active-bg);
+.custom-unlock-track-option input[type="checkbox"] {
+  flex: 0 0 auto;
+  margin: 0;
 }
 
 .custom-unlock-modal-footer {
