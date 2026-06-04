@@ -14,7 +14,7 @@
 - WebView2 runtime - Obtained automatically during installation.
 
 ### Installation
-1. Download the installer from Re-Volt World or the [Github releases page](https://github.com/HansyRod/rvgl-randomizer/releases).
+1. Download the installer from the [Github releases page](https://github.com/HansyRod/rvgl-randomizer/releases).
 2. Install to a location of your choice.
 3. Run `rvgl-randomizer.exe` to launch the application.
 
