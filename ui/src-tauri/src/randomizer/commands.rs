@@ -269,6 +269,7 @@ pub fn generate_result(
     }
 
     let mut tracks = Vec::new();
+    let mut track_specs = Vec::new();
     if track_spec_state.include_tracks && !track_spec_state.tracks.is_empty() {
         let resolved_tracks = resolve_track_list(&track_spec_state.tracks, &all_tracks, &scan_result, &mut rng);
         for i in 0..track_spec_state.tracks.len() {
@@ -292,6 +293,7 @@ pub fn generate_result(
                     ),
                     custom_unlock: None,
                 });
+                track_specs.push(spec.clone());
             }
         }
         ensure_track_difficulty_coverage(
@@ -302,6 +304,7 @@ pub fn generate_result(
             &track_opts.unlock_mode,
             &mut rng,
         );
+        apply_track_custom_unlocks(&mut tracks, &track_specs, &mut rng);
         tracks.sort_by_key(|track| track.difficulty);
     }
 
