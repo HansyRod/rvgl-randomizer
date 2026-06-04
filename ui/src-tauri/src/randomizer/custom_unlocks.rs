@@ -342,13 +342,13 @@ fn make_row_label(prefix: &str, index: usize, id: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
 
-    fn randomized_car(folder: &str) -> RandomizedCar {
+    fn randomized_car_with_obtain(folder: &str, obtain: i32) -> RandomizedCar {
         RandomizedCar {
             folder: folder.to_string(),
             rating: 0,
-            obtain: 0,
+            obtain,
             selectable_player: true,
             selectable_cpu: true,
             custom_unlock: None,
@@ -356,10 +356,14 @@ mod tests {
     }
 
     fn randomized_track(folder: &str) -> RandomizedTrack {
+        randomized_track_with_obtain(folder, 0)
+    }
+
+    fn randomized_track_with_obtain(folder: &str, obtain: i32) -> RandomizedTrack {
         RandomizedTrack {
             folder: folder.to_string(),
             difficulty: 1,
-            obtain: 0,
+            obtain,
             custom_unlock: None,
         }
     }
@@ -417,14 +421,89 @@ mod tests {
         }
     }
 
+    fn car_options() -> CarOptionsInput {
+        CarOptionsInput {
+            unlock_mode: "random".to_string(),
+            num_starting_cars: 0,
+            enable_starting_cars_pool: false,
+            starting_cars_pool: "Full Random".to_string(),
+            enable_starting_cars_rating: false,
+            starting_cars_rating: "Random".to_string(),
+            include_cheat_only: false,
+            include_stunt_arena: false,
+            include_starting_car: true,
+            include_championship: true,
+            include_time_trial: true,
+            include_practice_stars: true,
+            include_single_race: true,
+            include_specific_race_win: false,
+            include_specific_practice_star: false,
+            include_specific_time_trial: false,
+            include_race_win_count: false,
+            include_practice_star_count: false,
+            include_time_trial_count: false,
+            include_stunt_arena_star_count: false,
+            specific_race_win_track_count_min: 1,
+            specific_race_win_track_count_max: 1,
+            specific_practice_star_track_count_min: 1,
+            specific_practice_star_track_count_max: 1,
+            specific_time_trial_track_count_min: 1,
+            specific_time_trial_track_count_max: 1,
+            race_win_count_min: 1,
+            race_win_count_max: 14,
+            practice_star_count_min: 1,
+            practice_star_count_max: 14,
+            time_trial_count_min: 1,
+            time_trial_count_max: 14,
+            stunt_arena_star_count_min: 1,
+            stunt_arena_star_count_max: 20,
+            include_super_pro: true,
+            pool_rating_distributions: HashMap::new(),
+            attr_rating_distributions: HashMap::new(),
+        }
+    }
+
+    fn track_options() -> TrackOptionsInput {
+        TrackOptionsInput {
+            unlock_mode: "random".to_string(),
+            include_stunt_arena: false,
+            include_default: true,
+            include_time_trial: true,
+            include_practice: true,
+            include_single_race: true,
+            include_specific_race_win: false,
+            include_specific_practice_star: false,
+            include_specific_time_trial: false,
+            include_race_win_count: false,
+            include_practice_star_count: false,
+            include_time_trial_count: false,
+            include_stunt_arena_star_count: false,
+            specific_race_win_track_count_min: 1,
+            specific_race_win_track_count_max: 1,
+            specific_practice_star_track_count_min: 1,
+            specific_practice_star_track_count_max: 1,
+            specific_time_trial_track_count_min: 1,
+            specific_time_trial_track_count_max: 1,
+            race_win_count_min: 1,
+            race_win_count_max: 14,
+            practice_star_count_min: 1,
+            practice_star_count_max: 14,
+            time_trial_count_min: 1,
+            time_trial_count_max: 14,
+            stunt_arena_star_count_min: 1,
+            stunt_arena_star_count_max: 20,
+        }
+    }
+
     #[test]
     fn car_specific_custom_unlock_outputs_track_folder_array() {
-        let mut cars = vec![randomized_car("car1")];
+        let mut cars = vec![randomized_car_with_obtain("car1", 6)];
         let specs = vec![car_spec("6", Some(specific_unlock("6", &["nhood1", "market1"])))];
         let tracks = vec![randomized_track("nhood1"), randomized_track("market1")];
+        let options = car_options();
         let mut rng = Rng::new();
 
-        apply_car_custom_unlocks(&mut cars, &specs, &tracks, "Stock car", &mut rng).unwrap();
+        apply_car_custom_unlocks(&mut cars, &specs, &tracks, &options, "Stock car", &mut rng).unwrap();
 
         let condition = cars[0].custom_unlock.as_ref().unwrap();
         assert_eq!(condition.track_folders, vec!["nhood1", "market1"]);
@@ -434,14 +513,18 @@ mod tests {
 
     #[test]
     fn track_specific_custom_unlock_outputs_track_folder_array() {
-        let mut tracks = vec![randomized_track("market1"), randomized_track("nhood1")];
+        let mut tracks = vec![
+            randomized_track_with_obtain("market1", 7),
+            randomized_track("nhood1"),
+        ];
         let specs = vec![
             track_spec("7", Some(specific_unlock("7", &["nhood1"]))),
             track_spec("0", None),
         ];
+        let options = track_options();
         let mut rng = Rng::new();
 
-        apply_track_custom_unlocks(&mut tracks, &specs, &mut rng).unwrap();
+        apply_track_custom_unlocks(&mut tracks, &specs, &options, &mut rng).unwrap();
 
         let condition = tracks[0].custom_unlock.as_ref().unwrap();
         assert_eq!(condition.track_folders, vec!["nhood1"]);
@@ -450,11 +533,12 @@ mod tests {
 
     #[test]
     fn count_custom_unlock_outputs_required_count() {
-        let mut tracks = vec![randomized_track("market1")];
+        let mut tracks = vec![randomized_track_with_obtain("market1", 10)];
         let specs = vec![track_spec("10", Some(count_unlock("10", 3)))];
+        let options = track_options();
         let mut rng = Rng::new();
 
-        apply_track_custom_unlocks(&mut tracks, &specs, &mut rng).unwrap();
+        apply_track_custom_unlocks(&mut tracks, &specs, &options, &mut rng).unwrap();
 
         let condition = tracks[0].custom_unlock.as_ref().unwrap();
         assert!(condition.track_folders.is_empty());
@@ -463,7 +547,7 @@ mod tests {
 
     #[test]
     fn random_track_count_resolves_prerequisite_tracks() {
-        let mut cars = vec![randomized_car("car1")];
+        let mut cars = vec![randomized_car_with_obtain("car1", 8)];
         let specs = vec![car_spec("8", Some(random_track_unlock("8", 2)))];
         let tracks = vec![
             randomized_track("nhood1"),
@@ -471,9 +555,10 @@ mod tests {
             randomized_track("muse1"),
         ];
         let valid_folders: HashSet<String> = tracks.iter().map(|track| track.folder.clone()).collect();
+        let options = car_options();
         let mut rng = Rng::new();
 
-        apply_car_custom_unlocks(&mut cars, &specs, &tracks, "Stock car", &mut rng).unwrap();
+        apply_car_custom_unlocks(&mut cars, &specs, &tracks, &options, "Stock car", &mut rng).unwrap();
 
         let condition = cars[0].custom_unlock.as_ref().unwrap();
         assert_eq!(condition.track_folders.len(), 2);
@@ -482,12 +567,13 @@ mod tests {
 
     #[test]
     fn custom_unlock_obtain_rejects_missing_condition() {
-        let mut cars = vec![randomized_car("car1")];
+        let mut cars = vec![randomized_car_with_obtain("car1", 9)];
         let specs = vec![car_spec("9", None)];
         let tracks = vec![randomized_track("nhood1")];
+        let options = car_options();
         let mut rng = Rng::new();
 
-        let error = apply_car_custom_unlocks(&mut cars, &specs, &tracks, "Stock car", &mut rng)
+        let error = apply_car_custom_unlocks(&mut cars, &specs, &tracks, &options, "Stock car", &mut rng)
             .unwrap_err();
 
         assert!(error.contains("custom unlock condition is missing"));
@@ -495,26 +581,95 @@ mod tests {
 
     #[test]
     fn track_specific_custom_unlock_rejects_self_dependency() {
-        let mut tracks = vec![randomized_track("market1"), randomized_track("nhood1")];
+        let mut tracks = vec![
+            randomized_track_with_obtain("market1", 6),
+            randomized_track("nhood1"),
+        ];
         let specs = vec![
             track_spec("6", Some(specific_unlock("6", &["market1"]))),
             track_spec("0", None),
         ];
+        let options = track_options();
         let mut rng = Rng::new();
 
-        let error = apply_track_custom_unlocks(&mut tracks, &specs, &mut rng).unwrap_err();
+        let error = apply_track_custom_unlocks(&mut tracks, &specs, &options, &mut rng).unwrap_err();
 
         assert!(error.contains("cannot require the target track itself"));
     }
 
     #[test]
     fn random_track_count_rejects_impossible_prerequisite_count() {
-        let mut tracks = vec![randomized_track("market1")];
+        let mut tracks = vec![randomized_track_with_obtain("market1", 8)];
         let specs = vec![track_spec("8", Some(random_track_unlock("8", 1)))];
+        let options = track_options();
         let mut rng = Rng::new();
 
-        let error = apply_track_custom_unlocks(&mut tracks, &specs, &mut rng).unwrap_err();
+        let error = apply_track_custom_unlocks(&mut tracks, &specs, &options, &mut rng).unwrap_err();
 
         assert!(error.contains("no eligible prerequisite tracks"));
+    }
+
+    #[test]
+    fn random_resolved_car_specific_unlock_uses_option_track_count_range() {
+        let mut cars = vec![randomized_car_with_obtain("car1", 6)];
+        let specs = vec![car_spec("Random", None)];
+        let tracks = vec![
+            randomized_track("nhood1"),
+            randomized_track("market1"),
+            randomized_track("muse1"),
+        ];
+        let mut options = car_options();
+        options.specific_race_win_track_count_min = 2;
+        options.specific_race_win_track_count_max = 2;
+        let valid_folders: HashSet<String> = tracks.iter().map(|track| track.folder.clone()).collect();
+        let mut rng = Rng::new();
+
+        apply_car_custom_unlocks(&mut cars, &specs, &tracks, &options, "Stock car", &mut rng).unwrap();
+
+        let condition = cars[0].custom_unlock.as_ref().unwrap();
+        assert_eq!(condition.track_folders.len(), 2);
+        assert!(condition.track_folders.iter().all(|folder| valid_folders.contains(folder)));
+    }
+
+    #[test]
+    fn random_resolved_track_specific_unlock_excludes_target_track() {
+        let mut tracks = vec![
+            randomized_track_with_obtain("market1", 6),
+            randomized_track("nhood1"),
+            randomized_track("muse1"),
+        ];
+        let specs = vec![
+            track_spec("Random", None),
+            track_spec("0", None),
+            track_spec("0", None),
+        ];
+        let mut options = track_options();
+        options.specific_race_win_track_count_min = 2;
+        options.specific_race_win_track_count_max = 2;
+        let mut rng = Rng::new();
+
+        apply_track_custom_unlocks(&mut tracks, &specs, &options, &mut rng).unwrap();
+
+        let condition = tracks[0].custom_unlock.as_ref().unwrap();
+        assert_eq!(condition.track_folders.len(), 2);
+        assert!(!condition.track_folders.iter().any(|folder| folder == "market1"));
+    }
+
+    #[test]
+    fn random_resolved_track_specific_unlock_clamps_count_to_available_tracks() {
+        let mut tracks = vec![
+            randomized_track_with_obtain("market1", 6),
+            randomized_track("nhood1"),
+        ];
+        let specs = vec![track_spec("Random", None), track_spec("0", None)];
+        let mut options = track_options();
+        options.specific_race_win_track_count_min = 3;
+        options.specific_race_win_track_count_max = 3;
+        let mut rng = Rng::new();
+
+        apply_track_custom_unlocks(&mut tracks, &specs, &options, &mut rng).unwrap();
+
+        let condition = tracks[0].custom_unlock.as_ref().unwrap();
+        assert_eq!(condition.track_folders, vec!["nhood1"]);
     }
 }
