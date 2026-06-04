@@ -3,6 +3,7 @@
 #include "Addresses.h"
 #include "RVGLStructs.h"
 #include "30CarMod.h"
+#include "ThirtyCarCupMod.h"
 
 namespace Randomizer {
 
@@ -50,6 +51,7 @@ void Hook_RaceSessionSetup(bool isRestart) {
     // int* nCars = reinterpret_cast<int*>(AbsFromRva(RVA_SETTINGS_NCARS));
     // *nCars = 30;
     ResetThirtyCarModState();
+    ResetThirtyCarCupState();
 
     Orig_RaceSessionSetup(isRestart);
     Logger::TimestampLogf("[RaceInitHooks] RaceSessionSetup completed");
@@ -67,6 +69,7 @@ void Hook_SetupAllRaceCars() {
     Orig_SetupAllRaceCars();
 
     ApplyThirtyCarGrid();
+    ApplyThirtyCarCupGrid();
 
     Logger::TimestampLogf("[RaceInitHooks] SetupAllRaceCars completed");
 }

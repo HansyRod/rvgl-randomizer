@@ -92,6 +92,26 @@ void LogMissingCustomCupUnlockOnce(int cupID, const CupProfile& cup) {
     );
 }
 
+void RestoreCupExtendedValidationFieldsFromConfig(int cupID, CupProfile& cup) {
+    const RandomizedCup* cupConfig = GetCupConfigByCupID(cupID);
+    if (cupConfig == nullptr || cupConfig->numCars <= 16) {
+        return;
+    }
+
+    cup.numCars = cupConfig->numCars;
+    cup.perRaceRequiredPlace = cupConfig->perRaceRequiredPlace;
+    cup.overallRequiredPlace = cupConfig->overallRequiredPlace;
+
+    if (cupConfig->carsPerClass.size() >= 6) {
+        cup.maxRookie = cupConfig->carsPerClass[0];
+        cup.maxAmateur = cupConfig->carsPerClass[1];
+        cup.maxAdvanced = cupConfig->carsPerClass[2];
+        cup.maxSemiPro = cupConfig->carsPerClass[3];
+        cup.maxPro = cupConfig->carsPerClass[4];
+        cup.maxSuperPro = cupConfig->carsPerClass[5];
+    }
+}
+
 void Hook_LoadVanillaCups() {
 
     ConfigData* config = GetActiveConfig();
@@ -175,6 +195,7 @@ void Hook_Cup_ValidateAndCheckUnlock(int cupID) {
     const int32_t originalObtain = static_cast<int32_t>(cup->obtainCondition);
     if (IsDefaultObtain(originalObtain)) {
         Orig_Cup_ValidateAndCheckUnlock(cupID);
+        RestoreCupExtendedValidationFieldsFromConfig(cupID, *cup);
         return;
     }
 
@@ -184,6 +205,7 @@ void Hook_Cup_ValidateAndCheckUnlock(int cupID) {
     cup->obtainCondition = UNLOCKED;
     *unlockChecksEnabled = 0;
     Orig_Cup_ValidateAndCheckUnlock(cupID);
+    RestoreCupExtendedValidationFieldsFromConfig(cupID, *cup);
     *unlockChecksEnabled = savedUnlockChecksEnabled;
     cup->obtainCondition = static_cast<Obtain>(originalObtain);
 

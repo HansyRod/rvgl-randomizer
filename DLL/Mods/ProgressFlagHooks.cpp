@@ -1,6 +1,7 @@
 #include "ProgressFlagHooks.h"
 #include "Addresses.h"
 #include "Logger.h"
+#include "ThirtyCarCupMod.h"
 #include "TrackHooks.h"
 #include <array>
 #include <cstdint>
@@ -208,7 +209,9 @@ void Hook_Cup_OnStageFinished(uint64_t param1, uint64_t param2, uint64_t param3,
         beforeFlags[trackIndex] = GetTrackProgressFlags(trackIndex);
     }
 
-    Orig_Cup_OnStageFinished(param1, param2, param3, file);
+    if (!HandleThirtyCarCupOnStageFinished(param1, param3, file)) {
+        Orig_Cup_OnStageFinished(param1, param2, param3, file);
+    }
 
     std::array<bool, 6> emittedTiers = {};
     for (int trackIndex = 0; trackIndex < kStockProgressTrackCount; ++trackIndex) {

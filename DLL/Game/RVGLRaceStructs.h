@@ -43,6 +43,11 @@ struct CarEntityRuntime {
     CarTransformRuntime transform;   // +0x0048
     uint8_t _pad_0F00[23232];
     int32_t racePositionIndex;       // +0x69C0, zero-based
+    uint8_t _pad_69C4[132];
+    int32_t finishTimeMs;            // +0x6A48
+    int32_t finishPosition;          // +0x6A4C, zero-based
+    uint8_t _pad_6A50[32];
+    char driverName[56];             // +0x6A70
 };
 
 struct RaceParticipantRuntime {
@@ -69,6 +74,10 @@ static_assert(offsetof(CarTransformRuntime, cachedPosition) == 0xDE0, "CarTransf
 static_assert(sizeof(CarTransformRuntime) == 0xEB8, "CarTransformRuntime size mismatch.");
 static_assert(offsetof(CarEntityRuntime, transform) == 0x48, "CarEntityRuntime::transform offset mismatch.");
 static_assert(offsetof(CarEntityRuntime, racePositionIndex) == 0x69C0, "CarEntityRuntime::racePositionIndex offset mismatch.");
+static_assert(offsetof(CarEntityRuntime, finishTimeMs) == 0x6A48, "CarEntityRuntime::finishTimeMs offset mismatch.");
+static_assert(offsetof(CarEntityRuntime, finishPosition) == 0x6A4C, "CarEntityRuntime::finishPosition offset mismatch.");
+static_assert(offsetof(CarEntityRuntime, driverName) == 0x6A70, "CarEntityRuntime::driverName offset mismatch.");
+static_assert(sizeof(CarEntityRuntime) == 0x6AA8, "CarEntityRuntime size mismatch.");
 static_assert(sizeof(RaceParticipantRuntime) == 0x50, "RaceParticipantRuntime size mismatch.");
 static_assert(offsetof(RaceParticipantRuntime, modelId) == 0x08, "RaceParticipantRuntime::modelId offset mismatch.");
 static_assert(offsetof(RaceParticipantRuntime, playerName) == 0x40, "RaceParticipantRuntime::playerName offset mismatch.");

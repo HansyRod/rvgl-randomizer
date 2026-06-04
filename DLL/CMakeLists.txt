@@ -60,6 +60,7 @@ add_library(randomizer SHARED
     Mods/CarPhysicsHooks.cpp
     Mods/RaceInitHooks.cpp
     Mods/30CarMod.cpp
+    Mods/ThirtyCarCupMod.cpp
     Mods/Fob.cpp
     Mods/MenuMod.cpp
 

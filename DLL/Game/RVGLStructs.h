@@ -167,6 +167,27 @@ struct CupProfile {
 };
 static_assert(sizeof(CupProfile) == 0x198, "CupProfile size mismatch");
 
+struct CupParticipantEntry {
+    int32_t participantIndex;             // +0x00
+    int32_t totalPoints;                  // +0x04
+    int32_t pendingPoints;                // +0x08
+    int32_t modelId;                      // +0x0C
+    int32_t skinId;                       // +0x10
+    int32_t finishPositionByStage[16];    // +0x14
+    int32_t finishTimeByStage[16];        // +0x54
+};
+static_assert(sizeof(CupParticipantEntry) == 0x94, "CupParticipantEntry size mismatch");
+
+struct CupResultRuntime {
+    uint8_t completedFlag;                // +0x00
+    uint8_t _pad_01[3];
+    int32_t playerOverallRank;            // +0x04, one-based
+    int32_t standingsSnapshot[3];         // +0x08, model ids for podium snapshots
+    int32_t playerFinalRank;              // +0x14, native code stores player model id here
+    int32_t unknown;                      // +0x18, reused by post-race timing
+};
+static_assert(sizeof(CupResultRuntime) == 0x1C, "CupResultRuntime size mismatch");
+
 
 // Reconstructed UV structure starting at offset 0x38 in the carbox object.
 struct CarboxUV {

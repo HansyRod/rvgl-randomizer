@@ -4,6 +4,8 @@
 
 namespace Randomizer {
 
+    struct RandomizedCup;
+
     // ------------------------------------------------------------------------
     // Function pointer types — must exactly match the RVGL originals.
     // Ghidra signatures (x64, __fastcall is noise and is dropped):
@@ -28,5 +30,7 @@ namespace Randomizer {
     void Hook_LoadVanillaCups();
     void Hook_LoadCustomCups();
     void Hook_Cup_ValidateAndCheckUnlock(int cupID);
+    CupProfile* GetCupProfileByCupID(int cupID);
+    RandomizedCup* GetCupConfigByCupID(int cupID);
 
 } // namespace Randomizer
