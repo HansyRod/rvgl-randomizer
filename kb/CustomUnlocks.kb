@@ -1,7 +1,7 @@
 # Custom Unlocks Knowledge Base
 
 > Scope: custom unlock methods for cars, tracks, and cups in the DLL, plus the
-> planned Rust/UI work needed to generate these unlocks from the configurator.
+> Rust/UI behavior used to configure and generate these unlocks.
 
 ---
 
@@ -372,48 +372,212 @@ Example cup:
 
 ---
 
-## Future Rust / UI Work
+## UI Support
 
-The Rust output models already have optional `custom_unlock` fields that serialize
-as `customUnlock` when present. Current generators set them to `None`, so normal
-generated JSON remains unchanged.
+Custom unlock methods are exposed for cars and tracks. Cups are not currently
+configured through the UI custom unlock workflow.
 
-Remaining Rust work:
+Exposed methods:
 
-- Extend car, track, and cup spec input models with optional custom unlock
-  settings.
-- Add resolver logic that can output:
-  - `obtain = 6..13`
-  - the matching `customUnlock` object
-- Keep default randomization pools limited to RVGL methods unless a new option
-  explicitly enables custom unlock methods.
-- Preserve old presets and config payloads by defaulting custom unlock fields to
-  `None`.
-- Add validation that method-specific fields are present:
-  - specific-track methods require at least one valid `trackFolder` entry
-  - count methods require `requiredCount > 0`
-  - Archipelago requires a non-empty `archipelagoItem`
+- `6` Specific Race Win
+- `7` Specific Practice Star
+- `8` Specific Time Trial
+- `9` Race Win Count
+- `10` Practice Star Count
+- `11` Time Trial Count
+- `12` Stunt Arena Star Count
 
-Remaining UI work:
+Archipelago method `13` is hidden from the UI and remains integration-only.
 
-- Add custom unlock methods to obtain dropdowns or a separate custom unlock mode.
-- Show method-specific controls only when needed:
-  - Track selector for specific race / practice star / time trial.
-  - Numeric input for count thresholds and Stunt Arena star threshold.
-  - Text input or generated item key selector for Archipelago.
-- Add allowed-method checkboxes for custom methods only when explicitly enabled.
-- Update summaries, validation messages, and generated-config preview to show
-  both obtain ID and `customUnlock` parameters.
-- Consider UX separation between "built-in obtain" and "custom unlock" so users
-  understand that custom methods need extra parameters.
+### Allowed Method Options
 
-Recommended rollout:
+Car and track option tabs include a Custom Unlock Methods table. All custom
+methods are disabled by default.
 
-1. Add UI/Rust support for direct per-row custom unlock assignment.
-2. Add validation and config preview support.
-3. Add random custom unlock method generation behind an explicit option.
-4. Add Archipelago client integration that calls
-   `MarkArchipelagoItemReceived`.
+The table has one row for each unlock type:
+
+- Win Single Race
+- Catch Practice Star
+- Beat Time Trial
+- Catch Stunt Arena Star
+
+Specific methods are available for race wins, practice stars, and time trials.
+When random generation assigns one of these methods, the generator chooses the
+number of prerequisite tracks from that method's specific-track min/max range.
+
+Count methods are available for race wins, practice stars, time trials, and
+Stunt Arena stars. When random generation assigns one of these methods, the
+generator chooses the required threshold from that method's count min/max range.
+Stunt Arena star counts are capped at `20`.
+
+### Row-Level Editing
+
+Custom unlock methods are selectable only in target obtain dropdowns:
+
+- car `attrObtain`
+- track `attrObtain`
+
+Source obtain dropdowns stay limited to original RVGL unlock methods.
+
+When a row selects a custom target obtain method, the dropdown can show a
+Current Selection entry summarizing the configured condition:
+
+- `Race Win: Airport 1, +2 more`
+- `Race Win: 3 Random Tracks`
+- `Race Win: Any 3 Tracks`
+- `Stunt Arena: 3 Stars`
+
+The modal stores row-level `customUnlock` data. Missing `customUnlock` means the
+row has no custom condition.
+
+Specific methods `6..8` support two modes:
+
+- `specificTracks`: user selects explicit prerequisite track folders.
+- `randomTracks`: user enters how many random prerequisite tracks generation
+  should choose.
+
+Count methods `9..12` store an explicit `requiredCount`.
+
+Changing the target obtain method to a non-custom method clears the row's
+`customUnlock` state.
+
+### Track Picker Rules
+
+The explicit-track picker shows normal playable tracks from the current scan.
+For track target rows, the current target track is excluded when it is known. If
+the target track cannot be resolved in the UI yet, validation and generation
+still reject self-dependencies later.
+
+Every explicit prerequisite folder must exist in Track Specification. This
+matches cup-stage validation: if a custom unlock references a track that is not
+available in the current track setup, the user must add it to Track Specification
+or choose another track.
+
+---
+
+## Rust Generation Support
+
+Rust spec models support optional row-level `custom_unlock` fields on cars and
+tracks. The generated config serializes the field as `customUnlock` only when it
+is present.
+
+Normal generated JSON remains unchanged unless a row explicitly uses a custom
+obtain method or random obtain resolves to an enabled custom method.
+
+### Explicit Custom Unlock Rows
+
+When a car or track row has `attrObtain = 6..12`, generation writes:
+
+- `obtain = attrObtain`
+- the matching `customUnlock` object
+
+When a row has a non-custom `attrObtain`, generation writes no `customUnlock`.
+
+Specific explicit tracks serialize `trackFolder` as an array:
+
+```json
+{
+  "folder": "cars/rc",
+  "rating": 0,
+  "obtain": 6,
+  "selectable_player": true,
+  "selectable_cpu": true,
+  "customUnlock": {
+    "trackFolder": ["nhood1", "market1"]
+  }
+}
+```
+
+Count methods serialize `requiredCount`:
+
+```json
+{
+  "folder": "market1",
+  "difficulty": 2,
+  "obtain": 9,
+  "customUnlock": {
+    "requiredCount": 3
+  }
+}
+```
+
+### Random Custom Unlock Rows
+
+Random obtain pools include enabled custom methods for cars and tracks. Method
+`13` is never included in random UI generation.
+
+When random obtain resolves to a specific-track method `6..8`, generation:
+
+- chooses a prerequisite count from the matching
+  `specificUnlockTrackCountMin..specificUnlockTrackCountMax` range
+- clamps the count to available eligible tracks
+- chooses prerequisites from the final generated track list
+- excludes the target track itself for track targets
+- writes `customUnlock.trackFolder` as an array
+
+When random obtain resolves to a count method `9..12`, generation:
+
+- chooses `requiredCount` from the matching min/max option
+- clamps race win, practice star, and time trial thresholds to the generated
+  track count
+- clamps Stunt Arena thresholds to `1..20`
+
+### Fallback Rules
+
+Fallback applies only when the row originally requested random obtain. Explicit
+custom row choices fail validation instead of silently changing methods.
+
+If a random custom method cannot create a valid condition, generation tries:
+
+1. another enabled custom method
+2. an enabled built-in method
+3. default unlocked obtain `0`
+
+---
+
+## Validation And Dependency Safety
+
+Validation catches invalid custom unlock settings before writing config.
+
+Option-level validation:
+
+- Enabled custom methods count as allowed unlock methods.
+- Active min values must be at least `1`.
+- Active max values must be greater than or equal to their paired min.
+- Active race win, practice star, and time trial count max values cannot exceed
+  the current maximum generated track count.
+- Active Stunt Arena count max cannot exceed `20`.
+
+Row-level validation:
+
+- Specific methods `6..8` require either at least one explicit valid track or a
+  random prerequisite count greater than `0`.
+- Count methods `9..12` require `requiredCount > 0`.
+- Explicit prerequisite folders must exist in Track Specification.
+- Stale explicit prerequisite folders are errors.
+- Track targets cannot depend on themselves.
+
+Generated track custom unlocks are also checked as a dependency graph:
+
+- node = generated track slot/folder
+- edge = target track depends on prerequisite track
+
+Before accepting an explicit or generated specific-track condition for a track,
+generation rejects it if it introduces a cycle. Random generation retries with
+different prerequisites before applying fallback rules. Car unlocks may depend
+on tracks and do not participate in track-cycle detection.
+
+---
+
+## Save, Load, And Preview
+
+Configure contexts save the new option fields and row-level `customUnlock`
+state. Older contexts still load because missing fields are normalized to the
+current defaults, with custom unlock methods disabled by default.
+
+Generated seed history and restored configure options preserve custom unlock
+settings. Generated config preview displays the serialized `customUnlock`
+objects, including `trackFolder` arrays.
 
 ---
 
@@ -438,3 +602,25 @@ DLL-level scenarios to verify with hand-authored config:
   once.
 - Default obtain values `-1..5` still behave as RVGL did before custom unlock
   support.
+
+---
+
+## Future Work
+
+Remaining work after the car and track UI/Rust custom unlock implementation:
+
+- Add UI and Rust generation support for custom cup unlock assignment if cups
+  should become configurable from the app. The DLL already supports
+  `customUnlock` on cups, but the current UI workflow is scoped to cars and
+  tracks.
+- Add Archipelago client integration that calls
+  `MarkArchipelagoItemReceived`.
+- Decide whether Archipelago method `13` should get a dedicated integration UI
+  later. It should remain hidden from normal car and track randomization
+  controls.
+- Add validation for Archipelago-generated config that requires a non-empty
+  `archipelagoItem`.
+- Add custom-unlock-aware seed summary details only if the summary becomes
+  detailed enough to make those counts useful.
+- Add custom-unlock-enabled presets after the base feature has been manually
+  tested and the desired preset behavior is clear.
