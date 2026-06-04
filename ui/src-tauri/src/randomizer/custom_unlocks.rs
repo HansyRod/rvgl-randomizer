@@ -16,6 +16,22 @@ struct SpecificUnlockTrackCountRanges {
     time_trial_max: i32,
 }
 
+struct CountUnlockThresholdRanges {
+    race_win_min: i32,
+    race_win_max: i32,
+    practice_star_min: i32,
+    practice_star_max: i32,
+    time_trial_min: i32,
+    time_trial_max: i32,
+    stunt_arena_star_min: i32,
+    stunt_arena_star_max: i32,
+}
+
+struct CustomUnlockRandomRanges {
+    specific_track_counts: SpecificUnlockTrackCountRanges,
+    count_thresholds: CountUnlockThresholdRanges,
+}
+
 impl SpecificUnlockTrackCountRanges {
     fn from_car_options(options: &CarOptionsInput) -> Self {
         Self {
@@ -49,6 +65,60 @@ impl SpecificUnlockTrackCountRanges {
     }
 }
 
+impl CountUnlockThresholdRanges {
+    fn from_car_options(options: &CarOptionsInput) -> Self {
+        Self {
+            race_win_min: options.race_win_count_min,
+            race_win_max: options.race_win_count_max,
+            practice_star_min: options.practice_star_count_min,
+            practice_star_max: options.practice_star_count_max,
+            time_trial_min: options.time_trial_count_min,
+            time_trial_max: options.time_trial_count_max,
+            stunt_arena_star_min: options.stunt_arena_star_count_min,
+            stunt_arena_star_max: options.stunt_arena_star_count_max,
+        }
+    }
+
+    fn from_track_options(options: &TrackOptionsInput) -> Self {
+        Self {
+            race_win_min: options.race_win_count_min,
+            race_win_max: options.race_win_count_max,
+            practice_star_min: options.practice_star_count_min,
+            practice_star_max: options.practice_star_count_max,
+            time_trial_min: options.time_trial_count_min,
+            time_trial_max: options.time_trial_count_max,
+            stunt_arena_star_min: options.stunt_arena_star_count_min,
+            stunt_arena_star_max: options.stunt_arena_star_count_max,
+        }
+    }
+
+    fn range_for_method(&self, method: i32) -> (i32, i32) {
+        match method {
+            9 => (self.race_win_min, self.race_win_max),
+            10 => (self.practice_star_min, self.practice_star_max),
+            11 => (self.time_trial_min, self.time_trial_max),
+            12 => (self.stunt_arena_star_min, self.stunt_arena_star_max),
+            _ => (1, 1),
+        }
+    }
+}
+
+impl CustomUnlockRandomRanges {
+    fn from_car_options(options: &CarOptionsInput) -> Self {
+        Self {
+            specific_track_counts: SpecificUnlockTrackCountRanges::from_car_options(options),
+            count_thresholds: CountUnlockThresholdRanges::from_car_options(options),
+        }
+    }
+
+    fn from_track_options(options: &TrackOptionsInput) -> Self {
+        Self {
+            specific_track_counts: SpecificUnlockTrackCountRanges::from_track_options(options),
+            count_thresholds: CountUnlockThresholdRanges::from_track_options(options),
+        }
+    }
+}
+
 pub fn apply_car_custom_unlocks(
     cars: &mut [RandomizedCar],
     specs: &[CarSpec],
@@ -57,10 +127,11 @@ pub fn apply_car_custom_unlocks(
     row_label_prefix: &str,
     rng: &mut Rng,
 ) -> Result<(), String> {
-    let ranges = SpecificUnlockTrackCountRanges::from_car_options(options);
+    let ranges = CustomUnlockRandomRanges::from_car_options(options);
     for (index, (car, spec)) in cars.iter_mut().zip(specs.iter()).enumerate() {
         car.custom_unlock = build_custom_unlock_condition(
             car.obtain,
+            &spec.attr_obtain,
             spec.custom_unlock.as_ref(),
             tracks,
             None,
@@ -78,11 +149,12 @@ pub fn apply_track_custom_unlocks(
     options: &TrackOptionsInput,
     rng: &mut Rng,
 ) -> Result<(), String> {
-    let ranges = SpecificUnlockTrackCountRanges::from_track_options(options);
+    let ranges = CustomUnlockRandomRanges::from_track_options(options);
     let track_pool = tracks.to_vec();
     for (index, (track, spec)) in tracks.iter_mut().zip(specs.iter()).enumerate() {
         track.custom_unlock = build_custom_unlock_condition(
             track.obtain,
+            &spec.attr_obtain,
             spec.custom_unlock.as_ref(),
             &track_pool,
             Some(&track.folder),
@@ -96,16 +168,19 @@ pub fn apply_track_custom_unlocks(
 
 fn build_custom_unlock_condition(
     obtain: i32,
+    attr_obtain: &str,
     custom_unlock: Option<&CustomUnlockSpec>,
     tracks: &[RandomizedTrack],
     excluded_track_folder: Option<&str>,
     row_label: &str,
-    ranges: &SpecificUnlockTrackCountRanges,
+    ranges: &CustomUnlockRandomRanges,
     rng: &mut Rng,
 ) -> Result<Option<CustomUnlockCondition>, String> {
     if !is_custom_unlock_method(obtain) {
         return Ok(None);
     }
+
+    let is_random_resolved = attr_obtain == "Random";
 
     if is_specific_custom_unlock_method(obtain) {
         if let Some(custom_unlock) = custom_unlock {
@@ -126,6 +201,12 @@ fn build_custom_unlock_condition(
             .map(Some);
         }
 
+        if !is_random_resolved {
+            return Err(format!(
+                "{row_label}: custom unlock condition is missing for obtain method {obtain}."
+            ));
+        }
+
         return build_random_specific_track_condition(
             obtain,
             tracks,
@@ -138,27 +219,34 @@ fn build_custom_unlock_condition(
     }
 
     if is_count_custom_unlock_method(obtain) {
-        let custom_unlock = custom_unlock.ok_or_else(|| {
-            format!("{row_label}: custom unlock condition is missing for obtain method {obtain}.")
-        })?;
-        if custom_unlock.method != obtain.to_string() {
+        if let Some(custom_unlock) = custom_unlock {
+            if custom_unlock.method != obtain.to_string() {
+                return Err(format!(
+                    "{row_label}: custom unlock condition method {} does not match obtain method {}.",
+                    custom_unlock.method,
+                    obtain
+                ));
+            }
+
+            let required_count = custom_unlock.required_count.unwrap_or(0);
+            if required_count < 1 {
+                return Err(format!("{row_label}: custom unlock required count must be greater than 0."));
+            }
+
+            return Ok(Some(CustomUnlockCondition {
+                track_folders: Vec::new(),
+                required_count,
+                archipelago_item: String::new(),
+            }));
+        }
+
+        if !is_random_resolved {
             return Err(format!(
-                "{row_label}: custom unlock condition method {} does not match obtain method {}.",
-                custom_unlock.method,
-                obtain
+                "{row_label}: custom unlock condition is missing for obtain method {obtain}."
             ));
         }
 
-        let required_count = custom_unlock.required_count.unwrap_or(0);
-        if required_count < 1 {
-            return Err(format!("{row_label}: custom unlock required count must be greater than 0."));
-        }
-
-        return Ok(Some(CustomUnlockCondition {
-            track_folders: Vec::new(),
-            required_count,
-            archipelago_item: String::new(),
-        }));
+        return Ok(Some(build_random_count_condition(obtain, tracks, row_label, ranges, rng)?));
     }
 
     Ok(None)
@@ -209,7 +297,7 @@ fn build_random_specific_track_condition(
     tracks: &[RandomizedTrack],
     excluded_track_folder: Option<&str>,
     row_label: &str,
-    ranges: &SpecificUnlockTrackCountRanges,
+    ranges: &CustomUnlockRandomRanges,
     rng: &mut Rng,
 ) -> Result<CustomUnlockCondition, String> {
     let eligible_count = count_eligible_tracks(tracks, excluded_track_folder);
@@ -219,7 +307,7 @@ fn build_random_specific_track_condition(
         ));
     }
 
-    let (min, max) = ranges.range_for_method(method);
+    let (min, max) = ranges.specific_track_counts.range_for_method(method);
     let min = min.max(1);
     let max = max.max(min);
     let eligible_count = eligible_count as i32;
@@ -230,6 +318,38 @@ fn build_random_specific_track_condition(
     Ok(CustomUnlockCondition {
         track_folders: choose_random_track_folders(tracks, count, excluded_track_folder, row_label, rng)?,
         required_count: 0,
+        archipelago_item: String::new(),
+    })
+}
+
+fn build_random_count_condition(
+    method: i32,
+    tracks: &[RandomizedTrack],
+    row_label: &str,
+    ranges: &CustomUnlockRandomRanges,
+    rng: &mut Rng,
+) -> Result<CustomUnlockCondition, String> {
+    let eligible_max = match method {
+        9 | 10 | 11 => tracks.len() as i32,
+        12 => 20,
+        _ => 0,
+    };
+    if eligible_max < 1 {
+        return Err(format!(
+            "{row_label}: custom unlock has no valid count threshold range."
+        ));
+    }
+
+    let (min, max) = ranges.count_thresholds.range_for_method(method);
+    let min = min.max(1);
+    let max = max.max(min);
+    let clamped_max = max.min(eligible_max);
+    let clamped_min = min.min(clamped_max);
+    let required_count = rng.next_i32(clamped_min, clamped_max);
+
+    Ok(CustomUnlockCondition {
+        track_folders: Vec::new(),
+        required_count,
         archipelago_item: String::new(),
     })
 }
