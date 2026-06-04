@@ -224,3 +224,183 @@ fn make_row_label(prefix: &str, index: usize, id: &str) -> String {
         format!("{prefix} slot {} ({id})", index + 1)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    fn randomized_car(folder: &str) -> RandomizedCar {
+        RandomizedCar {
+            folder: folder.to_string(),
+            rating: 0,
+            obtain: 0,
+            selectable_player: true,
+            selectable_cpu: true,
+            custom_unlock: None,
+        }
+    }
+
+    fn randomized_track(folder: &str) -> RandomizedTrack {
+        RandomizedTrack {
+            folder: folder.to_string(),
+            difficulty: 1,
+            obtain: 0,
+            custom_unlock: None,
+        }
+    }
+
+    fn car_spec(attr_obtain: &str, custom_unlock: Option<CustomUnlockSpec>) -> CarSpec {
+        CarSpec {
+            id: "slot-id".to_string(),
+            source_pool: "Full Random".to_string(),
+            source_rating: "Random".to_string(),
+            source_obtain: "Random".to_string(),
+            attr_rating: "Unchanged".to_string(),
+            attr_obtain: attr_obtain.to_string(),
+            custom_unlock,
+        }
+    }
+
+    fn track_spec(attr_obtain: &str, custom_unlock: Option<CustomUnlockSpec>) -> TrackSpec {
+        TrackSpec {
+            id: "slot-id".to_string(),
+            source_pool: "Full Random".to_string(),
+            source_difficulty: "Random".to_string(),
+            attr_difficulty: "Unchanged".to_string(),
+            attr_obtain: attr_obtain.to_string(),
+            custom_unlock,
+        }
+    }
+
+    fn specific_unlock(method: &str, folders: &[&str]) -> CustomUnlockSpec {
+        CustomUnlockSpec {
+            method: method.to_string(),
+            mode: Some(CustomUnlockTrackMode::SpecificTracks),
+            track_folders: folders.iter().map(|folder| folder.to_string()).collect(),
+            random_track_count: None,
+            required_count: None,
+        }
+    }
+
+    fn random_track_unlock(method: &str, count: i32) -> CustomUnlockSpec {
+        CustomUnlockSpec {
+            method: method.to_string(),
+            mode: Some(CustomUnlockTrackMode::RandomTracks),
+            track_folders: Vec::new(),
+            random_track_count: Some(count),
+            required_count: None,
+        }
+    }
+
+    fn count_unlock(method: &str, count: i32) -> CustomUnlockSpec {
+        CustomUnlockSpec {
+            method: method.to_string(),
+            mode: None,
+            track_folders: Vec::new(),
+            random_track_count: None,
+            required_count: Some(count),
+        }
+    }
+
+    #[test]
+    fn car_specific_custom_unlock_outputs_track_folder_array() {
+        let mut cars = vec![randomized_car("car1")];
+        let specs = vec![car_spec("6", Some(specific_unlock("6", &["nhood1", "market1"])))];
+        let tracks = vec![randomized_track("nhood1"), randomized_track("market1")];
+        let mut rng = Rng::new();
+
+        apply_car_custom_unlocks(&mut cars, &specs, &tracks, "Stock car", &mut rng).unwrap();
+
+        let condition = cars[0].custom_unlock.as_ref().unwrap();
+        assert_eq!(condition.track_folders, vec!["nhood1", "market1"]);
+        assert_eq!(condition.required_count, 0);
+        assert!(condition.archipelago_item.is_empty());
+    }
+
+    #[test]
+    fn track_specific_custom_unlock_outputs_track_folder_array() {
+        let mut tracks = vec![randomized_track("market1"), randomized_track("nhood1")];
+        let specs = vec![
+            track_spec("7", Some(specific_unlock("7", &["nhood1"]))),
+            track_spec("0", None),
+        ];
+        let mut rng = Rng::new();
+
+        apply_track_custom_unlocks(&mut tracks, &specs, &mut rng).unwrap();
+
+        let condition = tracks[0].custom_unlock.as_ref().unwrap();
+        assert_eq!(condition.track_folders, vec!["nhood1"]);
+        assert_eq!(condition.required_count, 0);
+    }
+
+    #[test]
+    fn count_custom_unlock_outputs_required_count() {
+        let mut tracks = vec![randomized_track("market1")];
+        let specs = vec![track_spec("10", Some(count_unlock("10", 3)))];
+        let mut rng = Rng::new();
+
+        apply_track_custom_unlocks(&mut tracks, &specs, &mut rng).unwrap();
+
+        let condition = tracks[0].custom_unlock.as_ref().unwrap();
+        assert!(condition.track_folders.is_empty());
+        assert_eq!(condition.required_count, 3);
+    }
+
+    #[test]
+    fn random_track_count_resolves_prerequisite_tracks() {
+        let mut cars = vec![randomized_car("car1")];
+        let specs = vec![car_spec("8", Some(random_track_unlock("8", 2)))];
+        let tracks = vec![
+            randomized_track("nhood1"),
+            randomized_track("market1"),
+            randomized_track("muse1"),
+        ];
+        let valid_folders: HashSet<String> = tracks.iter().map(|track| track.folder.clone()).collect();
+        let mut rng = Rng::new();
+
+        apply_car_custom_unlocks(&mut cars, &specs, &tracks, "Stock car", &mut rng).unwrap();
+
+        let condition = cars[0].custom_unlock.as_ref().unwrap();
+        assert_eq!(condition.track_folders.len(), 2);
+        assert!(condition.track_folders.iter().all(|folder| valid_folders.contains(folder)));
+    }
+
+    #[test]
+    fn custom_unlock_obtain_rejects_missing_condition() {
+        let mut cars = vec![randomized_car("car1")];
+        let specs = vec![car_spec("9", None)];
+        let tracks = vec![randomized_track("nhood1")];
+        let mut rng = Rng::new();
+
+        let error = apply_car_custom_unlocks(&mut cars, &specs, &tracks, "Stock car", &mut rng)
+            .unwrap_err();
+
+        assert!(error.contains("custom unlock condition is missing"));
+    }
+
+    #[test]
+    fn track_specific_custom_unlock_rejects_self_dependency() {
+        let mut tracks = vec![randomized_track("market1"), randomized_track("nhood1")];
+        let specs = vec![
+            track_spec("6", Some(specific_unlock("6", &["market1"]))),
+            track_spec("0", None),
+        ];
+        let mut rng = Rng::new();
+
+        let error = apply_track_custom_unlocks(&mut tracks, &specs, &mut rng).unwrap_err();
+
+        assert!(error.contains("cannot require the target track itself"));
+    }
+
+    #[test]
+    fn random_track_count_rejects_impossible_prerequisite_count() {
+        let mut tracks = vec![randomized_track("market1")];
+        let specs = vec![track_spec("8", Some(random_track_unlock("8", 1)))];
+        let mut rng = Rng::new();
+
+        let error = apply_track_custom_unlocks(&mut tracks, &specs, &mut rng).unwrap_err();
+
+        assert!(error.contains("no eligible prerequisite tracks"));
+    }
+}
