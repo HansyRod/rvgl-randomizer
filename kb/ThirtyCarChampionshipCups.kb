@@ -1,0 +1,251 @@
+# 30-Car Championship Cups
+
+> Scope: extending the existing 30-car race support from Single Race to
+> championship cups, including cup opponent persistence, race setup, result
+> display, points storage, and UI/generator limits.
+
+## Goal
+
+Championship cups should support up to 30 total cars: the player plus up to 29
+CPU opponents.
+
+The cup should generate its CPU opponent roster once at cup start and keep that
+same roster for every stage in the cup. The roster is driven by the cup's
+`NumCars` value and class distribution fields:
+
+- `NumCars`: total cars in the cup, including the player.
+- `Classes`: per-rating CPU counts, currently represented in the DLL as
+  `maxRookie`, `maxAmateur`, `maxAdvanced`, `maxSemiPro`, `maxPro`, and
+  `maxSuperPro`.
+- The sum of the six class counts must equal `NumCars - 1`.
+
+Each cup race that has more than 16 cars still needs the existing 30-car race
+fixes:
+
+- participant expansion to the target count,
+- stable CPU model selection,
+- corrected 30-car grid placement,
+- player back-of-grid placement after native ranking exists,
+- post-race leaderboard rendering through the Clockwork Carnage table.
+
+Championship standings must also support more than 16 cars:
+
+- the `Points` table needs entries for positions 1 through 30,
+- standings/total points storage must not truncate after 16 cars,
+- the championship points table display needs a compact style similar to the
+  Clockwork Carnage result table when car count is above 16.
+
+## Current State
+
+The repo already has a partial 30-car runtime path for Single Race.
+
+Relevant existing behavior:
+
+- `DLL/Mods/30CarMod.cpp` has the main 30-car helpers:
+  - `GetTargetRaceCarCount` clamps against `randomizerMaxCarCount`.
+  - `CacheRandomModels` builds the model list currently used by expanded races.
+  - `ExpandRaceParticipantsToThirty` adds participant records.
+  - `ApplyThirtyCarGrid` lays out a 5 by 6 grid.
+  - `MovePlayersToBackAfterRacePositions` moves the player after ranking exists.
+  - `ResetThirtyCarModState` clears per-race state.
+- `DLL/Mods/30CarMod.cpp:189` currently limits support to
+  `MODE_SINGLE_RACE`. Championship mode is `MODE_CHAMPIONSHIP` in
+  `DLL/Game/RVGLStructs.h:102`.
+- `DLL/Mods/RaceInitHooks.cpp` wires the race lifecycle:
+  - `Hook_RaceSessionSetup` resets 30-car state.
+  - `Hook_AssignStartPositions` expands participants before native start
+    assignment.
+  - `Hook_SetupAllRaceCars` applies the custom grid after native setup.
+  - `Hook_UpdateRacePositions` applies the player back-of-grid swap.
+  - `Hook_DrawPostRaceLeaderboard` temporarily changes the game mode to
+    `MODE_CLOCKWORK_CARNAGE` when `participantCount > 16`.
+- `DLL/Mods/RandomizerState.h:16` defines `randomizerMaxCarCount = 30`.
+- `DLL/Mods/RandomizerState.h:47` defines `ThirtyCarRuntimeState`, and
+  `DLL/Mods/RandomizerState.h:86` stores it inside the global randomizer
+  context.
+
+The current cup profile mirror is still 16-position oriented:
+
+- `DLL/Game/RVGLStructs.h:139` defines `CupProfile`.
+- `CupProfile::stages[16]` is at `DLL/Game/RVGLStructs.h:159`.
+- `CupProfile::pointsTable[16]` is at `DLL/Game/RVGLStructs.h:162`.
+- The struct size is asserted as `0x198`, so the native profile layout should
+  not be expanded in place unless Ghidra proves there is unused room or another
+  backing table exists.
+- `DLL/Mods/CupHooks.cpp:114` already writes `cupConfig.numCars`.
+- `DLL/Mods/CupHooks.cpp:120` writes the six class count fields.
+- `DLL/Mods/CupHooks.cpp:129` only accepts points tables with at least 16
+  entries, and `DLL/Mods/CupHooks.cpp:131` copies only 16 entries.
+
+The generator/UI still enforce or emit 16-entry cup points data:
+
+- `ui/src-tauri/src/randomizer/cups.rs:62` has `pad_points`, which truncates
+  to 16 and pads to 16.
+- `ui/src-tauri/src/randomizer/cups.rs:636` and `:662` emit padded cup points.
+- `ui/src-tauri/src/randomizer/models.rs:481` defines the default 16-entry
+  points table.
+- `ui/src/configure/cupSpec/CupSpecTab.jsx:162` caps global cup car count at
+  16.
+- `ui/src/configure/cupSpec/CupConfigPage.jsx:294` caps per-cup car count at
+  16.
+- `ui/src/configure/cupSpec/CupUtils.jsx:222` limits active points to
+  `Math.min(numCars, 16)`.
+- `ui/src/configure/cupSpec/CupUtils.jsx:227` renders exactly 16 points inputs.
+
+## Existing RVAs / Ghidra Locations
+
+RVGL image base is `0x00400000`, so Ghidra virtual address is usually
+`0x00400000 + RVA`.
+
+| Purpose | RVA | Ghidra VA | Current code |
+| --- | ---: | ---: | --- |
+| Load default cups | `0x0004bae0` | `0x0044bae0` | `RVA_LOAD_VANILLA_CUPS` |
+| Validate/check cup unlock | `0x00048840` | `0x00448840` | `RVA_CUP_VALIDATE_AND_CHECK_UNLOCK` |
+| Cup stage finished | `0x0004b800` | `0x0044b800` | `RVA_CUP_ON_STAGE_FINISHED` |
+| Draw post-race leaderboard | `0x00061370` | `0x00461370` | `RVA_DRAW_POST_RACE_LEADERBOARD` |
+| Race session setup | `0x00050700` | `0x00450700` | `RVA_RACE_SESSION_SETUP` |
+| Setup all race cars | `0x0004f7b0` | `0x0044f7b0` | `RVA_SETUP_ALL_RACE_CARS` |
+| Assign start positions | `0x0004f980` | `0x0044f980` | `RVA_ASSIGN_START_POSITIONS` |
+| Add participant and count | `0x0004f1f0` | `0x0044f1f0` | `RVA_ADD_PARTICIPANT_AND_COUNT` |
+| Update race positions | `0x000075f0` | `0x004075f0` | `RVA_UPDATE_RACE_POSITIONS` |
+| Game mode global | `0x002e34c0` | `0x006e34c0` | `RVA_GAME_MODE` |
+| Current race participant count | `0x00b3eb04` | `0x00f3eb04` | `RVA_RACE_PARTICIPANT_COUNT` |
+| Participant records | `0x00b3eb50` | `0x00f3eb50` | `RVA_RACE_PARTICIPANT_RECORDS` |
+| Runtime `NCars` global | `0x00b43488` | `0x00f43488` | `RVA_NCARS` |
+| Settings `NCars` global | `0x0aa8e930` | `0x0ae8e930` | `RVA_SETTINGS_NCARS` |
+
+## Runtime Design Notes
+
+Single Race currently derives extra CPU models from the player's car rating in
+`PickRandomModel`. Championship cups need a different model source:
+
+1. At cup start, resolve the active `CupProfile` and target `RandomizedCup`.
+2. Read `NumCars` and the six class counts.
+3. Build exactly `NumCars - 1` CPU model IDs from CPU-selectable cars, honoring
+   each class count.
+4. Persist that ordered model list for the whole cup.
+5. For each cup stage, rebuild participant records from the persisted list
+   rather than rolling new opponents.
+
+The state should likely live outside the per-race-only reset path. A possible
+shape is a new `ChampionshipThirtyCarState` in `RandomizerState.h`, containing:
+
+- active cup ID or difficulty,
+- target car count,
+- generated CPU model IDs,
+- per-stage runtime car IDs,
+- points/standings cache if native storage cannot hold all positions.
+
+`ResetThirtyCarModState` should continue to clear per-race values, but it should
+not discard the cup roster while the same championship is active.
+
+## Points And Standings
+
+There are two separate problems:
+
+1. Race results need a point value for positions 17 through 30.
+2. Championship standings need to store and display totals for positions 17
+   through 30.
+
+Do not assume that `CupProfile::pointsTable[16]` can be changed to 30 in
+`RVGLStructs.h`. The next known fields are `isUnlocked`, `isCHTModified`, and
+padding, and the asserted native size is `0x198`.
+
+Likely approaches to investigate:
+
+- Leave native `CupProfile::pointsTable[16]` intact and intercept the function
+  that reads position-to-points values. Return custom points for positions above
+  16 from randomizer-managed storage.
+- Leave native standings storage intact for 1 through 16 and maintain a
+  randomizer-managed standings table for extra CPU cars.
+- If native code has separate dynamic championship standings arrays, find their
+  allocation and size checks, then patch the limits to 30.
+
+The display path should be separate from storage. If the native championship
+standings UI is fixed to 16 rows, hook the draw function and render a compact
+30-car table using the same rendering primitives already used elsewhere:
+
+- `RVA_DRAW_UI_TEXT`
+- `RVA_DRAW_SPRITE_2D`
+- `RVA_UI_DRAW_ROUNDED_RECT`
+- `RVA_SETUP_GL_RENDER_STATE`
+- `RVA_FLUSH_DEFERRED_UI_BATCHES`
+
+## Ghidra Questions To Resolve
+
+Before implementing, use Ghidra MCP to answer these:
+
+1. Where is the championship cup initialized when the player starts a cup?
+   We need the earliest stable hook point to generate the persistent CPU roster.
+2. Which function reads `CupProfile::numCars` and class limits to choose cup
+   CPU opponents?
+3. Does RVGL already persist a cup opponent list across stages? If yes, find the
+   storage address, element type, and reset lifetime.
+4. Where are championship race participants copied into
+   `RVA_RACE_PARTICIPANT_RECORDS`?
+5. Where is `CupProfile::pointsTable[position]` read, and what happens for
+   positions above 15?
+6. Where are per-car championship total points stored? Determine whether the
+   native storage is fixed at 16, tied to `NumCars`, or dynamically allocated.
+7. Which function draws the championship standings/points table between races
+   and at cup end?
+8. Can the Clockwork Carnage display path be reused directly for cup race
+   results, or does championship mode restore/overwrite state afterward?
+9. What are the cup restart, abandon, retry, and profile-load reset paths? The
+   persistent roster must clear for a new cup but survive race restarts within
+   the current cup.
+10. Are custom cups backed by the same `CupProfile` layout and same standings
+    code as the four default cups?
+
+## Implementation Checklist
+
+Runtime:
+
+- Add championship-aware support to `IsSupportedMode` or replace it with a
+  target-count provider that handles Single Race and Championship separately.
+- Add persistent cup roster state with clear lifecycle rules.
+- Generate cup CPU models from `NumCars` and class counts.
+- Reuse participant expansion/grid fixes for championship stages.
+- Preserve the existing Clockwork Carnage post-race table behavior for any race
+  with `participantCount > 16`.
+- Add extra points/standings handling after Ghidra identifies the native code
+  path.
+- Add compact 30-car championship standings rendering if native UI is fixed to
+  16 rows.
+
+Generator/UI:
+
+- Raise cup `numCars`, per-race required place, and overall required place caps
+  from 16 to 30 where 30-car cups are enabled.
+- Keep user-defined stage count at 16 unless a separate cup stage expansion is
+  intentionally added. Stage count and car count are separate concerns.
+- Update `DEFAULT_POINTS` and Rust `default_points_table` to 30 entries.
+- Replace `pad_points` with a 30-entry pad/truncate helper for cups.
+- Update `PointsTableEditor` to render 30 positions in a compact grid/table.
+- Keep validation requiring `carsPerClass` sum to equal `numCars - 1`.
+- Add validation tests for 16, 17, 24, and 30 cars.
+
+QA:
+
+- Single Race with 16, 17, 24, and 30 cars.
+- Bronze/Silver/Gold/Platinum cups with 16, 17, 24, and 30 cars.
+- Class distributions that need duplicate CPU models because too few unique
+  CPU-selectable cars exist in a requested class.
+- Race restart inside a cup.
+- Failing a cup stage and retrying.
+- Abandoning a cup and starting another cup.
+- Finishing a cup with more than 16 cars and checking final standings/order.
+- Loading a profile after a cup has been completed.
+
+## Known Risks
+
+- `CupProfile` should be treated as fixed-size native memory until proven
+  otherwise. Extending the struct locally would corrupt adjacent fields.
+- Existing 30-car state is reset per race. Championship roster persistence needs
+  a separate lifetime.
+- Native championship standings may index fixed 16-entry arrays even if
+  `NumCars` is patched to 30.
+- The current Clockwork Carnage result-table override is display-only. It does
+  not solve cup points or standings storage.
+- UI/generator support for 30-car cups should not be merged ahead of runtime
+  support unless validation prevents generating unsupported configs.
