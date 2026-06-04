@@ -5,6 +5,7 @@ use tauri::Manager;
 use super::models::*;
 use super::cars::*;
 use super::tracks::*;
+use super::custom_unlocks::*;
 use super::cups::*;
 use super::rng::Rng;
 
@@ -242,6 +243,7 @@ pub fn generate_result(
 
     // Build the final RandomizedCar list
     let mut stock_cars = Vec::new();
+    let mut stock_car_specs = Vec::new();
     for i in 0..final_specs_stock.len() {
         if let Some(car) = &stock_resolved[i] {
             let mut spec = final_specs_stock[i].clone();
@@ -249,10 +251,12 @@ pub fn generate_result(
                 spec.attr_rating = r.to_string();
             }
             stock_cars.push(build_randomized_car(car, &spec, &mut rng, &opts));
+            stock_car_specs.push(spec);
         }
     }
 
     let mut dc_cars = Vec::new();
+    let mut dc_car_specs = Vec::new();
     for i in 0..final_specs_dc.len() {
         if let Some(car) = &dc_resolved[i] {
             let mut spec = final_specs_dc[i].clone();
@@ -260,6 +264,7 @@ pub fn generate_result(
                 spec.attr_rating = r.to_string();
             }
             dc_cars.push(build_randomized_car(car, &spec, &mut rng, &opts));
+            dc_car_specs.push(spec);
         }
     }
 
@@ -313,6 +318,9 @@ pub fn generate_result(
             })
             .collect()
     };
+
+    apply_car_custom_unlocks(&mut stock_cars, &stock_car_specs, &cup_tracks, &mut rng);
+    apply_car_custom_unlocks(&mut dc_cars, &dc_car_specs, &cup_tracks, &mut rng);
 
     // Phase 3: Cup generation (depends on resolved track list)
     let cup_state = cup_spec_state.unwrap_or_else(|| CupSpecState {
