@@ -3,9 +3,12 @@ use super::models::{
     RandomizedCar, RandomizedTrack, TrackOptionsInput, TrackSpec,
 };
 use super::rng::Rng;
+use std::collections::{HashMap, HashSet};
 
 const SPECIFIC_CUSTOM_UNLOCK_METHODS: [i32; 3] = [6, 7, 8];
 const COUNT_CUSTOM_UNLOCK_METHODS: [i32; 4] = [9, 10, 11, 12];
+const RANDOM_SPECIFIC_UNLOCK_MAX_RETRIES: usize = 32;
+type TrackDependencyGraph = HashMap<String, Vec<String>>;
 
 struct SpecificUnlockTrackCountRanges {
     race_win_min: i32,
@@ -151,17 +154,70 @@ pub fn apply_track_custom_unlocks(
 ) -> Result<(), String> {
     let ranges = CustomUnlockRandomRanges::from_track_options(options);
     let track_pool = tracks.to_vec();
+    let track_folders = track_folder_set(&track_pool);
+    let mut dependency_graph = TrackDependencyGraph::new();
+
     for (index, (track, spec)) in tracks.iter_mut().zip(specs.iter()).enumerate() {
-        track.custom_unlock = build_custom_unlock_condition(
+        let row_label = make_row_label("Track", index, &spec.id);
+        let can_retry_cycle = can_retry_specific_track_condition(
             track.obtain,
             &spec.attr_obtain,
             spec.custom_unlock.as_ref(),
-            &track_pool,
-            Some(&track.folder),
-            &make_row_label("Track", index, &spec.id),
-            &ranges,
-            rng,
-        )?;
+        );
+
+        let mut accepted_condition = None;
+        for attempt in 0..RANDOM_SPECIFIC_UNLOCK_MAX_RETRIES {
+            let condition = build_custom_unlock_condition(
+                track.obtain,
+                &spec.attr_obtain,
+                spec.custom_unlock.as_ref(),
+                &track_pool,
+                Some(&track.folder),
+                &row_label,
+                &ranges,
+                rng,
+            )?;
+
+            if let Some(condition) = condition.as_ref() {
+                if is_specific_custom_unlock_method(track.obtain) {
+                    if custom_unlock_would_create_cycle(
+                        &dependency_graph,
+                        &track.folder,
+                        &condition.track_folders,
+                        &track_folders,
+                    ) {
+                        if can_retry_cycle && attempt + 1 < RANDOM_SPECIFIC_UNLOCK_MAX_RETRIES {
+                            continue;
+                        }
+
+                        return Err(format!(
+                            "{row_label}: custom unlock dependencies would create a circular track unlock dependency."
+                        ));
+                    }
+                }
+            }
+
+            accepted_condition = Some(condition);
+            break;
+        }
+        let condition = accepted_condition.ok_or_else(|| {
+            format!(
+                "{row_label}: custom unlock dependencies would create a circular track unlock dependency."
+            )
+        })?;
+
+        if let Some(condition) = condition.as_ref() {
+            if is_specific_custom_unlock_method(track.obtain) {
+                record_track_dependencies(
+                    &mut dependency_graph,
+                    &track.folder,
+                    &condition.track_folders,
+                    &track_folders,
+                );
+            }
+        }
+
+        track.custom_unlock = condition;
     }
     Ok(())
 }
@@ -431,6 +487,101 @@ fn count_eligible_tracks(
                 .unwrap_or(true)
         })
         .count()
+}
+
+fn can_retry_specific_track_condition(
+    obtain: i32,
+    attr_obtain: &str,
+    custom_unlock: Option<&CustomUnlockSpec>,
+) -> bool {
+    if !is_specific_custom_unlock_method(obtain) {
+        return false;
+    }
+
+    if attr_obtain == "Random" && custom_unlock.is_none() {
+        return true;
+    }
+
+    custom_unlock
+        .and_then(|condition| condition.mode.as_ref())
+        .map(|mode| *mode == CustomUnlockTrackMode::RandomTracks)
+        .unwrap_or(false)
+}
+
+fn track_folder_set(tracks: &[RandomizedTrack]) -> HashSet<String> {
+    tracks
+        .iter()
+        .map(|track| normalize_folder(&track.folder))
+        .collect()
+}
+
+fn custom_unlock_would_create_cycle(
+    graph: &TrackDependencyGraph,
+    target_folder: &str,
+    prerequisite_folders: &[String],
+    track_folders: &HashSet<String>,
+) -> bool {
+    let target = normalize_folder(target_folder);
+
+    for prerequisite in prerequisite_folders {
+        let prerequisite = normalize_folder(prerequisite);
+        if !track_folders.contains(&prerequisite) {
+            continue;
+        }
+
+        if prerequisite == target || has_dependency_path(graph, &prerequisite, &target) {
+            return true;
+        }
+    }
+
+    false
+}
+
+fn record_track_dependencies(
+    graph: &mut TrackDependencyGraph,
+    target_folder: &str,
+    prerequisite_folders: &[String],
+    track_folders: &HashSet<String>,
+) {
+    let target = normalize_folder(target_folder);
+    let dependencies: Vec<String> = prerequisite_folders
+        .iter()
+        .map(|folder| normalize_folder(folder))
+        .filter(|folder| track_folders.contains(folder))
+        .collect();
+
+    if !dependencies.is_empty() {
+        graph.insert(target, dependencies);
+    }
+}
+
+fn has_dependency_path(
+    graph: &TrackDependencyGraph,
+    start_folder: &str,
+    target_folder: &str,
+) -> bool {
+    let mut visited = HashSet::new();
+    let mut stack = vec![start_folder.to_string()];
+
+    while let Some(folder) = stack.pop() {
+        if folder == target_folder {
+            return true;
+        }
+
+        if !visited.insert(folder.clone()) {
+            continue;
+        }
+
+        if let Some(next_folders) = graph.get(&folder) {
+            stack.extend(next_folders.iter().cloned());
+        }
+    }
+
+    false
+}
+
+fn normalize_folder(folder: &str) -> String {
+    folder.to_lowercase()
 }
 
 fn track_folder_exists(folder: &str, tracks: &[RandomizedTrack]) -> bool {
@@ -732,6 +883,24 @@ mod tests {
     }
 
     #[test]
+    fn track_specific_custom_unlock_rejects_circular_dependency() {
+        let mut tracks = vec![
+            randomized_track_with_obtain("market1", 6),
+            randomized_track_with_obtain("nhood1", 6),
+        ];
+        let specs = vec![
+            track_spec("6", Some(specific_unlock("6", &["nhood1"]))),
+            track_spec("6", Some(specific_unlock("6", &["market1"]))),
+        ];
+        let options = track_options();
+        let mut rng = Rng::new();
+
+        let error = apply_track_custom_unlocks(&mut tracks, &specs, &options, &mut rng).unwrap_err();
+
+        assert!(error.contains("circular track unlock dependency"));
+    }
+
+    #[test]
     fn random_track_count_rejects_impossible_prerequisite_count() {
         let mut tracks = vec![randomized_track_with_obtain("market1", 8)];
         let specs = vec![track_spec("8", Some(random_track_unlock("8", 1)))];
@@ -805,6 +974,26 @@ mod tests {
 
         let condition = tracks[0].custom_unlock.as_ref().unwrap();
         assert_eq!(condition.track_folders, vec!["nhood1"]);
+    }
+
+    #[test]
+    fn random_resolved_track_specific_unlock_rejects_when_every_prerequisite_creates_cycle() {
+        let mut tracks = vec![
+            randomized_track_with_obtain("market1", 6),
+            randomized_track_with_obtain("nhood1", 6),
+        ];
+        let specs = vec![
+            track_spec("6", Some(specific_unlock("6", &["nhood1"]))),
+            track_spec("Random", None),
+        ];
+        let mut options = track_options();
+        options.specific_race_win_track_count_min = 1;
+        options.specific_race_win_track_count_max = 1;
+        let mut rng = Rng::new();
+
+        let error = apply_track_custom_unlocks(&mut tracks, &specs, &options, &mut rng).unwrap_err();
+
+        assert!(error.contains("circular track unlock dependency"));
     }
 
     #[test]
