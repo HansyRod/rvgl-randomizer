@@ -304,7 +304,7 @@ pub fn generate_result(
             &track_opts.unlock_mode,
             &mut rng,
         );
-        apply_track_custom_unlocks(&mut tracks, &track_specs, &mut rng);
+        apply_track_custom_unlocks(&mut tracks, &track_specs, &mut rng)?;
         tracks.sort_by_key(|track| track.difficulty);
     }
 
@@ -322,8 +322,8 @@ pub fn generate_result(
             .collect()
     };
 
-    apply_car_custom_unlocks(&mut stock_cars, &stock_car_specs, &cup_tracks, &mut rng);
-    apply_car_custom_unlocks(&mut dc_cars, &dc_car_specs, &cup_tracks, &mut rng);
+    apply_car_custom_unlocks(&mut stock_cars, &stock_car_specs, &cup_tracks, "Stock car", &mut rng)?;
+    apply_car_custom_unlocks(&mut dc_cars, &dc_car_specs, &cup_tracks, "DC car", &mut rng)?;
 
     // Phase 3: Cup generation (depends on resolved track list)
     let cup_state = cup_spec_state.unwrap_or_else(|| CupSpecState {
