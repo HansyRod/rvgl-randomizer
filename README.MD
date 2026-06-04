@@ -14,7 +14,7 @@
 - WebView2 runtime - Obtained automatically during installation.
 
 ### Installation
-1. Download the installer from Re-Volt World or the [Github releases page](https://github.com/HansyRod/rvgl-randomizer/releases).
+1. Download the installer from the [Github releases page](https://github.com/HansyRod/rvgl-randomizer/releases).
 2. Install to a location of your choice.
 3. Run `rvgl-randomizer.exe` to launch the application.
 
@@ -77,7 +77,7 @@ To generate a seed, you need to provide:
 * **Instance Name** - a unique name for a JSON file. This file will store all chosen settings and the result of the randomization.
 * **Profile Name** - this is the in-game name for your profile in the randomized seed. The name should be different from existing profiles to ensure there are no conflicts in progress table data.
 
-You can share your randomized seed with other players. The JSON files are saved in the `{user}/AppData/Local/com.rod.rvgl-randomizer/generated` folder.
+You can share your randomized seed with other players. The JSON files are saved in the `{user}/AppData/Local/rvgl-randomizer/generated` folder.
 
 A list of previously generated or imported files is available, allowing to switch between campaigns.
 
