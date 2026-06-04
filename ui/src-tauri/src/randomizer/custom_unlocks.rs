@@ -35,6 +35,12 @@ struct CustomUnlockRandomRanges {
     count_thresholds: CountUnlockThresholdRanges,
 }
 
+struct RandomObtainFallbacks {
+    custom_methods: Vec<i32>,
+    built_in_methods: Vec<i32>,
+    default_method: i32,
+}
+
 impl SpecificUnlockTrackCountRanges {
     fn from_car_options(options: &CarOptionsInput) -> Self {
         Self {
@@ -122,6 +128,58 @@ impl CustomUnlockRandomRanges {
     }
 }
 
+impl RandomObtainFallbacks {
+    fn from_car_options(options: &CarOptionsInput) -> Self {
+        let mut custom_methods = Vec::new();
+        if options.include_specific_race_win       { custom_methods.push(6); }
+        if options.include_specific_practice_star  { custom_methods.push(7); }
+        if options.include_specific_time_trial     { custom_methods.push(8); }
+        if options.include_race_win_count          { custom_methods.push(9); }
+        if options.include_practice_star_count     { custom_methods.push(10); }
+        if options.include_time_trial_count        { custom_methods.push(11); }
+        if options.include_stunt_arena_star_count  { custom_methods.push(12); }
+
+        let mut built_in_methods = Vec::new();
+        if options.include_starting_car    { built_in_methods.push(0); }
+        if options.include_championship    { built_in_methods.push(1); }
+        if options.include_time_trial      { built_in_methods.push(2); }
+        if options.include_practice_stars  { built_in_methods.push(3); }
+        if options.include_single_race     { built_in_methods.push(4); }
+        if options.include_cheat_only      { built_in_methods.push(-1); }
+        if options.include_stunt_arena     { built_in_methods.push(5); }
+
+        Self {
+            custom_methods,
+            built_in_methods,
+            default_method: 0,
+        }
+    }
+
+    fn from_track_options(options: &TrackOptionsInput) -> Self {
+        let mut custom_methods = Vec::new();
+        if options.include_specific_race_win       { custom_methods.push(6); }
+        if options.include_specific_practice_star  { custom_methods.push(7); }
+        if options.include_specific_time_trial     { custom_methods.push(8); }
+        if options.include_race_win_count          { custom_methods.push(9); }
+        if options.include_practice_star_count     { custom_methods.push(10); }
+        if options.include_time_trial_count        { custom_methods.push(11); }
+        if options.include_stunt_arena_star_count  { custom_methods.push(12); }
+
+        let mut built_in_methods = Vec::new();
+        if options.include_default      { built_in_methods.push(0); }
+        if options.include_time_trial   { built_in_methods.push(2); }
+        if options.include_practice     { built_in_methods.push(3); }
+        if options.include_single_race  { built_in_methods.push(4); }
+        if options.include_stunt_arena  { built_in_methods.push(5); }
+
+        Self {
+            custom_methods,
+            built_in_methods,
+            default_method: 0,
+        }
+    }
+}
+
 pub fn apply_car_custom_unlocks(
     cars: &mut [RandomizedCar],
     specs: &[CarSpec],
@@ -131,17 +189,21 @@ pub fn apply_car_custom_unlocks(
     rng: &mut Rng,
 ) -> Result<(), String> {
     let ranges = CustomUnlockRandomRanges::from_car_options(options);
+    let fallbacks = RandomObtainFallbacks::from_car_options(options);
     for (index, (car, spec)) in cars.iter_mut().zip(specs.iter()).enumerate() {
-        car.custom_unlock = build_custom_unlock_condition(
+        let row_label = make_row_label(row_label_prefix, index, &spec.id);
+        let (obtain, custom_unlock) = build_car_custom_unlock_with_fallback(
             car.obtain,
             &spec.attr_obtain,
             spec.custom_unlock.as_ref(),
             tracks,
-            None,
-            &make_row_label(row_label_prefix, index, &spec.id),
+            &row_label,
             &ranges,
+            &fallbacks,
             rng,
         )?;
+        car.obtain = obtain;
+        car.custom_unlock = custom_unlock;
     }
     Ok(())
 }
@@ -153,61 +215,29 @@ pub fn apply_track_custom_unlocks(
     rng: &mut Rng,
 ) -> Result<(), String> {
     let ranges = CustomUnlockRandomRanges::from_track_options(options);
+    let fallbacks = RandomObtainFallbacks::from_track_options(options);
     let track_pool = tracks.to_vec();
     let track_folders = track_folder_set(&track_pool);
     let mut dependency_graph = TrackDependencyGraph::new();
 
     for (index, (track, spec)) in tracks.iter_mut().zip(specs.iter()).enumerate() {
         let row_label = make_row_label("Track", index, &spec.id);
-        let can_retry_cycle = can_retry_specific_track_condition(
+        let (obtain, condition) = build_track_custom_unlock_with_fallback(
             track.obtain,
             &spec.attr_obtain,
             spec.custom_unlock.as_ref(),
-        );
-
-        let mut accepted_condition = None;
-        for attempt in 0..RANDOM_SPECIFIC_UNLOCK_MAX_RETRIES {
-            let condition = build_custom_unlock_condition(
-                track.obtain,
-                &spec.attr_obtain,
-                spec.custom_unlock.as_ref(),
-                &track_pool,
-                Some(&track.folder),
-                &row_label,
-                &ranges,
-                rng,
-            )?;
-
-            if let Some(condition) = condition.as_ref() {
-                if is_specific_custom_unlock_method(track.obtain) {
-                    if custom_unlock_would_create_cycle(
-                        &dependency_graph,
-                        &track.folder,
-                        &condition.track_folders,
-                        &track_folders,
-                    ) {
-                        if can_retry_cycle && attempt + 1 < RANDOM_SPECIFIC_UNLOCK_MAX_RETRIES {
-                            continue;
-                        }
-
-                        return Err(format!(
-                            "{row_label}: custom unlock dependencies would create a circular track unlock dependency."
-                        ));
-                    }
-                }
-            }
-
-            accepted_condition = Some(condition);
-            break;
-        }
-        let condition = accepted_condition.ok_or_else(|| {
-            format!(
-                "{row_label}: custom unlock dependencies would create a circular track unlock dependency."
-            )
-        })?;
+            &track_pool,
+            &track.folder,
+            &row_label,
+            &ranges,
+            &fallbacks,
+            &dependency_graph,
+            &track_folders,
+            rng,
+        )?;
 
         if let Some(condition) = condition.as_ref() {
-            if is_specific_custom_unlock_method(track.obtain) {
+            if is_specific_custom_unlock_method(obtain) {
                 record_track_dependencies(
                     &mut dependency_graph,
                     &track.folder,
@@ -217,9 +247,187 @@ pub fn apply_track_custom_unlocks(
             }
         }
 
+        track.obtain = obtain;
         track.custom_unlock = condition;
     }
     Ok(())
+}
+
+fn build_car_custom_unlock_with_fallback(
+    initial_obtain: i32,
+    attr_obtain: &str,
+    custom_unlock: Option<&CustomUnlockSpec>,
+    tracks: &[RandomizedTrack],
+    row_label: &str,
+    ranges: &CustomUnlockRandomRanges,
+    fallbacks: &RandomObtainFallbacks,
+    rng: &mut Rng,
+) -> Result<(i32, Option<CustomUnlockCondition>), String> {
+    let candidates = fallback_candidates(initial_obtain, attr_obtain, fallbacks, rng);
+    let can_fallback = attr_obtain == "Random";
+    let mut last_error = None;
+
+    for obtain in candidates {
+        match build_custom_unlock_condition(
+            obtain,
+            attr_obtain,
+            if obtain == initial_obtain { custom_unlock } else { None },
+            tracks,
+            None,
+            row_label,
+            ranges,
+            rng,
+        ) {
+            Ok(condition) => return Ok((obtain, condition)),
+            Err(error) if can_fallback => last_error = Some(error),
+            Err(error) => return Err(error),
+        }
+    }
+
+    if can_fallback {
+        return Ok((fallbacks.default_method, None));
+    }
+
+    Err(last_error.unwrap_or_else(|| {
+        format!("{row_label}: custom unlock condition could not be generated.")
+    }))
+}
+
+fn build_track_custom_unlock_with_fallback(
+    initial_obtain: i32,
+    attr_obtain: &str,
+    custom_unlock: Option<&CustomUnlockSpec>,
+    tracks: &[RandomizedTrack],
+    target_folder: &str,
+    row_label: &str,
+    ranges: &CustomUnlockRandomRanges,
+    fallbacks: &RandomObtainFallbacks,
+    dependency_graph: &TrackDependencyGraph,
+    track_folders: &HashSet<String>,
+    rng: &mut Rng,
+) -> Result<(i32, Option<CustomUnlockCondition>), String> {
+    let candidates = fallback_candidates(initial_obtain, attr_obtain, fallbacks, rng);
+    let can_fallback = attr_obtain == "Random";
+    let mut last_error = None;
+
+    for obtain in candidates {
+        match build_track_custom_unlock_candidate(
+            obtain,
+            initial_obtain,
+            attr_obtain,
+            custom_unlock,
+            tracks,
+            target_folder,
+            row_label,
+            ranges,
+            dependency_graph,
+            track_folders,
+            rng,
+        ) {
+            Ok(condition) => return Ok((obtain, condition)),
+            Err(error) if can_fallback => last_error = Some(error),
+            Err(error) => return Err(error),
+        }
+    }
+
+    if can_fallback {
+        return Ok((fallbacks.default_method, None));
+    }
+
+    Err(last_error.unwrap_or_else(|| {
+        format!("{row_label}: custom unlock condition could not be generated.")
+    }))
+}
+
+fn build_track_custom_unlock_candidate(
+    obtain: i32,
+    initial_obtain: i32,
+    attr_obtain: &str,
+    custom_unlock: Option<&CustomUnlockSpec>,
+    tracks: &[RandomizedTrack],
+    target_folder: &str,
+    row_label: &str,
+    ranges: &CustomUnlockRandomRanges,
+    dependency_graph: &TrackDependencyGraph,
+    track_folders: &HashSet<String>,
+    rng: &mut Rng,
+) -> Result<Option<CustomUnlockCondition>, String> {
+    let candidate_custom_unlock = if obtain == initial_obtain { custom_unlock } else { None };
+    let can_retry_cycle = can_retry_specific_track_condition(obtain, attr_obtain, candidate_custom_unlock);
+
+    let mut last_cycle_error = None;
+    for attempt in 0..RANDOM_SPECIFIC_UNLOCK_MAX_RETRIES {
+        let condition = build_custom_unlock_condition(
+            obtain,
+            attr_obtain,
+            candidate_custom_unlock,
+            tracks,
+            Some(target_folder),
+            row_label,
+            ranges,
+            rng,
+        )?;
+
+        if let Some(condition) = condition.as_ref() {
+            if is_specific_custom_unlock_method(obtain) && custom_unlock_would_create_cycle(
+                dependency_graph,
+                target_folder,
+                &condition.track_folders,
+                track_folders,
+            ) {
+                last_cycle_error = Some(format!(
+                    "{row_label}: custom unlock dependencies would create a circular track unlock dependency."
+                ));
+                if can_retry_cycle && attempt + 1 < RANDOM_SPECIFIC_UNLOCK_MAX_RETRIES {
+                    continue;
+                }
+                return Err(last_cycle_error.unwrap());
+            }
+        }
+
+        return Ok(condition);
+    }
+
+    Err(last_cycle_error.unwrap_or_else(|| {
+        format!("{row_label}: custom unlock dependencies would create a circular track unlock dependency.")
+    }))
+}
+
+fn fallback_candidates(
+    initial_obtain: i32,
+    attr_obtain: &str,
+    fallbacks: &RandomObtainFallbacks,
+    rng: &mut Rng,
+) -> Vec<i32> {
+    if attr_obtain != "Random" {
+        return vec![initial_obtain];
+    }
+
+    let mut candidates = vec![initial_obtain];
+
+    let mut custom_methods: Vec<i32> = fallbacks
+        .custom_methods
+        .iter()
+        .copied()
+        .filter(|method| *method != initial_obtain)
+        .collect();
+    rng.shuffle(&mut custom_methods);
+    candidates.extend(custom_methods);
+
+    let mut built_in_methods: Vec<i32> = fallbacks
+        .built_in_methods
+        .iter()
+        .copied()
+        .filter(|method| *method != initial_obtain)
+        .collect();
+    rng.shuffle(&mut built_in_methods);
+    candidates.extend(built_in_methods);
+
+    if !candidates.contains(&fallbacks.default_method) {
+        candidates.push(fallbacks.default_method);
+    }
+
+    candidates
 }
 
 fn build_custom_unlock_condition(
@@ -977,7 +1185,7 @@ mod tests {
     }
 
     #[test]
-    fn random_resolved_track_specific_unlock_rejects_when_every_prerequisite_creates_cycle() {
+    fn random_resolved_track_specific_unlock_falls_back_to_enabled_custom_method_after_cycle() {
         let mut tracks = vec![
             randomized_track_with_obtain("market1", 6),
             randomized_track_with_obtain("nhood1", 6),
@@ -987,13 +1195,74 @@ mod tests {
             track_spec("Random", None),
         ];
         let mut options = track_options();
+        options.include_default = false;
+        options.include_time_trial = false;
+        options.include_practice = false;
+        options.include_single_race = false;
+        options.include_race_win_count = true;
+        options.specific_race_win_track_count_min = 1;
+        options.specific_race_win_track_count_max = 1;
+        options.race_win_count_min = 1;
+        options.race_win_count_max = 1;
+        let mut rng = Rng::new();
+
+        apply_track_custom_unlocks(&mut tracks, &specs, &options, &mut rng).unwrap();
+
+        let condition = tracks[1].custom_unlock.as_ref().unwrap();
+        assert_eq!(tracks[1].obtain, 9);
+        assert_eq!(condition.required_count, 1);
+    }
+
+    #[test]
+    fn random_resolved_track_specific_unlock_falls_back_to_enabled_builtin_after_cycle() {
+        let mut tracks = vec![
+            randomized_track_with_obtain("market1", 6),
+            randomized_track_with_obtain("nhood1", 6),
+        ];
+        let specs = vec![
+            track_spec("6", Some(specific_unlock("6", &["nhood1"]))),
+            track_spec("Random", None),
+        ];
+        let mut options = track_options();
+        options.include_default = true;
+        options.include_time_trial = false;
+        options.include_practice = false;
+        options.include_single_race = false;
+        options.include_stunt_arena = false;
         options.specific_race_win_track_count_min = 1;
         options.specific_race_win_track_count_max = 1;
         let mut rng = Rng::new();
 
-        let error = apply_track_custom_unlocks(&mut tracks, &specs, &options, &mut rng).unwrap_err();
+        apply_track_custom_unlocks(&mut tracks, &specs, &options, &mut rng).unwrap();
 
-        assert!(error.contains("circular track unlock dependency"));
+        assert_eq!(tracks[1].obtain, 0);
+        assert!(tracks[1].custom_unlock.is_none());
+    }
+
+    #[test]
+    fn random_resolved_track_specific_unlock_falls_back_to_default_when_no_enabled_method_works() {
+        let mut tracks = vec![
+            randomized_track_with_obtain("market1", 6),
+            randomized_track_with_obtain("nhood1", 6),
+        ];
+        let specs = vec![
+            track_spec("6", Some(specific_unlock("6", &["nhood1"]))),
+            track_spec("Random", None),
+        ];
+        let mut options = track_options();
+        options.include_default = false;
+        options.include_time_trial = false;
+        options.include_practice = false;
+        options.include_single_race = false;
+        options.include_stunt_arena = false;
+        options.specific_race_win_track_count_min = 1;
+        options.specific_race_win_track_count_max = 1;
+        let mut rng = Rng::new();
+
+        apply_track_custom_unlocks(&mut tracks, &specs, &options, &mut rng).unwrap();
+
+        assert_eq!(tracks[1].obtain, 0);
+        assert!(tracks[1].custom_unlock.is_none());
     }
 
     #[test]
