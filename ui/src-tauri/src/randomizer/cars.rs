@@ -265,6 +265,13 @@ fn resolve_obtain(attr: &str, scanned: i32, rng: &mut Rng, car_options: &CarOpti
             if car_options.include_single_race    { allowed.push(4); }
             if car_options.include_cheat_only     { allowed.push(-1); }
             if car_options.include_stunt_arena    { allowed.push(5); }
+            if car_options.include_specific_race_win       { allowed.push(6); }
+            if car_options.include_specific_practice_star  { allowed.push(7); }
+            if car_options.include_specific_time_trial     { allowed.push(8); }
+            if car_options.include_race_win_count          { allowed.push(9); }
+            if car_options.include_practice_star_count     { allowed.push(10); }
+            if car_options.include_time_trial_count        { allowed.push(11); }
+            if car_options.include_stunt_arena_star_count  { allowed.push(12); }
             // Fallback: if all methods are disabled, use the full standard set
             if allowed.is_empty() {
                 allowed = vec![0, 1, 2, 3, 4];
