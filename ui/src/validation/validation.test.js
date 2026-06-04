@@ -14,6 +14,7 @@ import { validateScan } from "./scanValidators.js";
 import { validateTrackSpec } from "./trackValidators.js";
 import { isEffectiveStockCarsMode, isEffectiveStockTracksMode } from "./stockMode.js";
 import { formatValidationList } from "./validationUtils.js";
+import { normalizeConfigureContext } from "../utils/configureContext.js";
 import { STOCK_CARS, STOCK_TRACKS } from "../utils/constants.js";
 
 function runTest(name, fn) {
@@ -176,6 +177,50 @@ runTest("formatValidationList shortens long lists for UI display", () => {
   ]);
 
   assert.equal(result, "slot 1 (rc), slot 2 (mite), slot 3 (phat), +1 more");
+});
+
+runTest("normalizeConfigureContext adds custom unlock defaults to old contexts", () => {
+  const result = normalizeConfigureContext({
+    carOptions: { unlockMode: "random" },
+    trackOptions: { unlockMode: "random" },
+    carsSpecState: {
+      stockCars: [{ id: "rc", attrObtain: "0" }],
+      dcCars: [],
+    },
+    trackSpecState: {
+      tracks: [{ id: "nhood1", attrObtain: "0" }],
+    },
+  });
+
+  assert.equal(result.carOptions.includeSpecificRaceWin, false);
+  assert.equal(result.carOptions.raceWinCountMin, 1);
+  assert.equal(result.trackOptions.includeStuntArenaStarCount, false);
+  assert.equal(result.trackOptions.stuntArenaStarCountMax, 20);
+  assert.equal(result.carsSpecState.stockCars[0].customUnlock, null);
+  assert.equal(result.trackSpecState.tracks[0].customUnlock, null);
+});
+
+runTest("normalizeConfigureContext preserves saved row custom unlock data", () => {
+  const customUnlock = {
+    method: "6",
+    mode: "specificTracks",
+    trackFolders: ["nhood1", "market1"],
+  };
+
+  const result = normalizeConfigureContext({
+    carOptions: { unlockMode: "random", includeSpecificRaceWin: true },
+    trackOptions: { unlockMode: "random", includeRaceWinCount: true },
+    carsSpecState: {
+      stockCars: [{ id: "rc", attrObtain: "6", customUnlock }],
+      dcCars: [],
+    },
+    trackSpecState: {
+      tracks: [{ id: "nhood1", attrObtain: "9", customUnlock: { method: "9", requiredCount: 2 } }],
+    },
+  });
+
+  assert.deepEqual(result.carsSpecState.stockCars[0].customUnlock, customUnlock);
+  assert.deepEqual(result.trackSpecState.tracks[0].customUnlock, { method: "9", requiredCount: 2 });
 });
 
 runTest("validateScan reports low car and track counts as errors", () => {

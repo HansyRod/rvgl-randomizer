@@ -9,6 +9,7 @@ import "../setup/SetupView.css";
 import "./GenerationTab.css";
 import { PRESETS } from "../configure/presets";
 import { DEFAULT_CAR_OPTIONS } from '../utils/constants';
+import { normalizeConfigureContext } from "../utils/configureContext";
 
 const { poolRatingDistributions, attrRatingDistributions } = DEFAULT_CAR_OPTIONS;
 
@@ -122,7 +123,7 @@ export default function GenerationTab({errors}) {
         enableStartingCars: showStartingCars && carOptions.enableStartingCars,
       } : null;
       const sanitizedTrackOptions = trackOptions ? {
-        unlockMode: trackOptions.unlockMode,
+        ...trackOptions,
         includeStuntArena: showTrackObtainOptions && trackOptions.includeStuntArena,
       } : null;
 
@@ -203,7 +204,7 @@ export default function GenerationTab({errors}) {
 
     if (metadata?.uiContext) {
       if (overrides.overrideConfigure && metadata.uiContext.configure) {
-        updateCategoryCtx("configure", metadata.uiContext.configure);
+        updateCategoryCtx("configure", normalizeConfigureContext(metadata.uiContext.configure));
       }
 
       let currentScanResult = scanResult;

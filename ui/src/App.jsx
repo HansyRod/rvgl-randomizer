@@ -19,6 +19,7 @@ import { useLaunchValidation } from "./validation/useLaunchValidation";
 import ValidationStatus from "./validation/ValidationStatus";
 import { makeDefaultTrackSpec } from "./utils/constants";
 import { isEffectiveStockCarsMode, isEffectiveStockTracksMode } from "./validation/stockMode";
+import { normalizeAppContext } from "./utils/configureContext";
 
 export default function App() {
   const { state, resetContext, updateContext, updateCategoryCtx } = useAppContext();
@@ -94,7 +95,7 @@ export default function App() {
     const initCache = async () => {
       try {
         const cache = await invoke("load_cache");
-        updateContext(cache);
+        updateContext(normalizeAppContext(cache));
       } catch (error) {
         console.error("Failed to load cache:", error);
       } finally {
