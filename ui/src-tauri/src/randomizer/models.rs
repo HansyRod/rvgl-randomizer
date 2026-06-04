@@ -13,6 +13,8 @@ pub struct CarSpec {
     pub source_obtain: String, // "Random" or "-1".."4"
     pub attr_rating: String,   // "Random", "Unchanged", or "0".."5"
     pub attr_obtain: String,   // "Random", "Unchanged", or "-1".."4"
+    #[serde(default)]
+    pub custom_unlock: Option<CustomUnlockSpec>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -36,6 +38,8 @@ pub struct TrackSpec {
     pub source_difficulty: String, // "Random" or "1".."4"
     pub attr_difficulty: String,   // "Random", "Unchanged", or "1".."4"
     pub attr_obtain: String,       // "Random" or "-1".."5"
+    #[serde(default)]
+    pub custom_unlock: Option<CustomUnlockSpec>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -53,6 +57,27 @@ pub struct RatingDist {
     pub enabled: bool,
     pub min: usize,
     pub max: usize,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum CustomUnlockTrackMode {
+    SpecificTracks,
+    RandomTracks,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomUnlockSpec {
+    pub method: String,
+    #[serde(default)]
+    pub mode: Option<CustomUnlockTrackMode>,
+    #[serde(default)]
+    pub track_folders: Vec<String>,
+    #[serde(default)]
+    pub random_track_count: Option<i32>,
+    #[serde(default)]
+    pub required_count: Option<i32>,
 }
 
 /// High-level options from the Car Options tab.
