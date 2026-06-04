@@ -700,6 +700,20 @@ mod tests {
     }
 
     #[test]
+    fn explicit_specific_custom_unlock_rejects_missing_condition() {
+        let mut cars = vec![randomized_car_with_obtain("car1", 6)];
+        let specs = vec![car_spec("6", None)];
+        let tracks = vec![randomized_track("nhood1")];
+        let options = car_options();
+        let mut rng = Rng::new();
+
+        let error = apply_car_custom_unlocks(&mut cars, &specs, &tracks, &options, "Stock car", &mut rng)
+            .unwrap_err();
+
+        assert!(error.contains("custom unlock condition is missing"));
+    }
+
+    #[test]
     fn track_specific_custom_unlock_rejects_self_dependency() {
         let mut tracks = vec![
             randomized_track_with_obtain("market1", 6),
@@ -791,5 +805,65 @@ mod tests {
 
         let condition = tracks[0].custom_unlock.as_ref().unwrap();
         assert_eq!(condition.track_folders, vec!["nhood1"]);
+    }
+
+    #[test]
+    fn random_resolved_count_unlock_uses_matching_threshold_range() {
+        let mut cars = vec![randomized_car_with_obtain("car1", 9)];
+        let specs = vec![car_spec("Random", None)];
+        let tracks = vec![
+            randomized_track("nhood1"),
+            randomized_track("market1"),
+            randomized_track("muse1"),
+        ];
+        let mut options = car_options();
+        options.race_win_count_min = 2;
+        options.race_win_count_max = 2;
+        let mut rng = Rng::new();
+
+        apply_car_custom_unlocks(&mut cars, &specs, &tracks, &options, "Stock car", &mut rng).unwrap();
+
+        let condition = cars[0].custom_unlock.as_ref().unwrap();
+        assert!(condition.track_folders.is_empty());
+        assert_eq!(condition.required_count, 2);
+    }
+
+    #[test]
+    fn random_resolved_count_unlock_clamps_to_generated_track_count() {
+        let mut tracks = vec![
+            randomized_track_with_obtain("market1", 11),
+            randomized_track("nhood1"),
+            randomized_track("muse1"),
+        ];
+        let specs = vec![
+            track_spec("Random", None),
+            track_spec("0", None),
+            track_spec("0", None),
+        ];
+        let mut options = track_options();
+        options.time_trial_count_min = 5;
+        options.time_trial_count_max = 5;
+        let mut rng = Rng::new();
+
+        apply_track_custom_unlocks(&mut tracks, &specs, &options, &mut rng).unwrap();
+
+        let condition = tracks[0].custom_unlock.as_ref().unwrap();
+        assert_eq!(condition.required_count, 3);
+    }
+
+    #[test]
+    fn random_resolved_stunt_arena_count_unlock_clamps_to_twenty() {
+        let mut cars = vec![randomized_car_with_obtain("car1", 12)];
+        let specs = vec![car_spec("Random", None)];
+        let tracks = vec![randomized_track("nhood1")];
+        let mut options = car_options();
+        options.stunt_arena_star_count_min = 25;
+        options.stunt_arena_star_count_max = 25;
+        let mut rng = Rng::new();
+
+        apply_car_custom_unlocks(&mut cars, &specs, &tracks, &options, "Stock car", &mut rng).unwrap();
+
+        let condition = cars[0].custom_unlock.as_ref().unwrap();
+        assert_eq!(condition.required_count, 20);
     }
 }
