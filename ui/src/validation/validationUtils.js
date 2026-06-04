@@ -9,6 +9,43 @@ export function getAllTracksFromScan(scanResult) {
   return getPlayableTracksFromScan(scanResult);
 }
 
+export function isGenericTrackSpecPool(pool) {
+  const normalized = String(pool || "").toLowerCase();
+  return (
+    !normalized ||
+    normalized === "full random" ||
+    normalized === "stock" ||
+    normalized === "custom" ||
+    normalized.startsWith("pack:")
+  );
+}
+
+export function getTrackSpecAvailableFolders(trackSpecState, allTracks = []) {
+  const allTrackFolders = new Set(
+    (allTracks || [])
+      .map(track => track.folderName?.toLowerCase())
+      .filter(Boolean)
+  );
+
+  if (trackSpecState?.includeTracks) {
+    return new Set(
+      (trackSpecState?.tracks || [])
+        .map(track => track.sourcePool?.toLowerCase())
+        .filter(pool =>
+          pool &&
+          !isGenericTrackSpecPool(pool) &&
+          (allTrackFolders.size === 0 || allTrackFolders.has(pool))
+        )
+    );
+  }
+
+  return new Set(
+    (trackSpecState?.tracks || [])
+      .map(track => track.id?.toLowerCase())
+      .filter(folder => folder && (allTrackFolders.size === 0 || allTrackFolders.has(folder)))
+  );
+}
+
 export function hasAllStockCars(scanResult) {
   const allCars = getAllCarsFromScan(scanResult);
   const stockSet = new Set(STOCK_CARS.map(c => c.toLowerCase()));

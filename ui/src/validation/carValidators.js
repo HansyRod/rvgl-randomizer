@@ -1,6 +1,6 @@
-import { formatValidationList, getAllCarsFromScan, getAllTracksFromScan } from "./validationUtils";
+import { formatValidationList, getAllCarsFromScan, getAllTracksFromScan, getTrackSpecAvailableFolders } from "./validationUtils";
 import { isEffectiveStockCarsMode, isEffectiveStockTracksMode } from "./stockMode";
-import { getCustomUnlockTrackCountMax, hasEnabledCustomUnlockMethod, validateCustomUnlockRanges } from "./customUnlockValidators";
+import { getCustomUnlockTrackCountMax, hasEnabledCustomUnlockMethod, validateCustomUnlockRanges, validateCustomUnlockRows } from "./customUnlockValidators";
 import { STOCK_CARS, DC_CARS, ATTR_RATINGS_LIST } from "../utils/constants";
 
 export function validateCarOptions(carOptions, carsSpecState, scanResult, preset, trackSpecState) {
@@ -93,6 +93,23 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
     });
   }
 
+  const allTracks = getAllTracksFromScan(scanResult);
+  const availableTrackFolders = getTrackSpecAvailableFolders(trackSpecState, allTracks);
+  if (includeStock) {
+    validateCustomUnlockRows(carsSpecState?.stockCars, errors, {
+      scope: "carSpec",
+      rowLabelPrefix: "Stock car",
+      availableTrackFolders,
+    });
+  }
+  if (includeDC && !isStockMode) {
+    validateCustomUnlockRows(carsSpecState?.dcCars, errors, {
+      scope: "carSpec",
+      rowLabelPrefix: "DC car",
+      availableTrackFolders,
+    });
+  }
+
   // No car randomization, don't run the remaining checks
   if (!includeStock && !includeDC) {
     return { errors, warnings, infos };
@@ -124,7 +141,7 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
     validateCustomUnlockRanges(carOptions, errors, "carOptions", {
       trackCountMax: getCustomUnlockTrackCountMax(
         trackSpecState,
-        getAllTracksFromScan(scanResult),
+        allTracks,
         isEffectiveStockTracksMode(scanResult, preset)
       ),
     });

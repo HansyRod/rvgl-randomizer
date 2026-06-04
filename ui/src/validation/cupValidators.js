@@ -1,4 +1,4 @@
-import { getAllTracksFromScan } from "./validationUtils";
+import { getAllTracksFromScan, getTrackSpecAvailableFolders, isGenericTrackSpecPool } from "./validationUtils";
 
 const CUP_NAMES = ["Bronze Cup", "Silver Cup", "Gold Cup", "Platinum Cup"];
 
@@ -105,31 +105,8 @@ export function validateCupSpec(cupSpecState, trackSpecState, scanResult) {
   const effectiveMode = (cup) =>
     cup.overrideStageMode ? (cup.stageMode ?? cupSpecState.stageMode) : cupSpecState.stageMode;
   const activeSlotCount = trackSpecState?.tracks?.length ?? 14;
-  const allTrackFolders = new Set(
-    getAllTracksFromScan(scanResult)
-      .map(track => track.folderName?.toLowerCase())
-      .filter(Boolean)
-  );
-
-  // Build the set of specific track folders declared in the track spec
-  // (used only to validate specific-folder stage references).
-  const availableTrackFolders = trackSpecState.includeTracks ? 
-    new Set(
-    (trackSpecState?.tracks || [])
-      .map(t => t.sourcePool?.toLowerCase())
-      .filter(p =>
-        p &&
-        p !== "full random" &&
-        p !== "stock" &&
-        p !== "custom" &&
-        !p.startsWith("pack:") &&
-        (allTrackFolders.size === 0 || allTrackFolders.has(p))
-      )
-  ) : new Set(
-    (trackSpecState?.tracks || [])
-      .map(t => t.id?.toLowerCase())
-      .filter(folder => folder && (allTrackFolders.size === 0 || allTrackFolders.has(folder)))
-  );
+  const allTracks = getAllTracksFromScan(scanResult);
+  const availableTrackFolders = getTrackSpecAvailableFolders(trackSpecState, allTracks);
 
   cupSpecState.cups?.forEach((cup, cupIdx) => {
     if (effectiveMode(cup) !== "userDefined") return;
@@ -190,10 +167,6 @@ export function validateCupSpec(cupSpecState, trackSpecState, scanResult) {
   // name (in either the Track Spec or User-Defined cup stages) must fit within
   // the active slot count. If the union of all pinned folder names exceeds it,
   // generation is impossible.
-
-  const isGenericTrackSpecPool = (p) =>
-    !p || p === "Full Random" || p === "Stock" || p === "Custom" ||
-    p.toLowerCase().startsWith("pack:");
 
   const isGenericStagePool = (p) =>
     !p || p === "Random" || p.startsWith("slot:") || /^\d$/.test(p);
