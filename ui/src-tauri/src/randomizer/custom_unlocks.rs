@@ -1,26 +1,71 @@
 use super::models::{
-    CarSpec, CustomUnlockCondition, CustomUnlockSpec, CustomUnlockTrackMode, RandomizedCar,
-    RandomizedTrack, TrackSpec,
+    CarOptionsInput, CarSpec, CustomUnlockCondition, CustomUnlockSpec, CustomUnlockTrackMode,
+    RandomizedCar, RandomizedTrack, TrackOptionsInput, TrackSpec,
 };
 use super::rng::Rng;
 
 const SPECIFIC_CUSTOM_UNLOCK_METHODS: [i32; 3] = [6, 7, 8];
 const COUNT_CUSTOM_UNLOCK_METHODS: [i32; 4] = [9, 10, 11, 12];
 
+struct SpecificUnlockTrackCountRanges {
+    race_win_min: i32,
+    race_win_max: i32,
+    practice_star_min: i32,
+    practice_star_max: i32,
+    time_trial_min: i32,
+    time_trial_max: i32,
+}
+
+impl SpecificUnlockTrackCountRanges {
+    fn from_car_options(options: &CarOptionsInput) -> Self {
+        Self {
+            race_win_min: options.specific_race_win_track_count_min,
+            race_win_max: options.specific_race_win_track_count_max,
+            practice_star_min: options.specific_practice_star_track_count_min,
+            practice_star_max: options.specific_practice_star_track_count_max,
+            time_trial_min: options.specific_time_trial_track_count_min,
+            time_trial_max: options.specific_time_trial_track_count_max,
+        }
+    }
+
+    fn from_track_options(options: &TrackOptionsInput) -> Self {
+        Self {
+            race_win_min: options.specific_race_win_track_count_min,
+            race_win_max: options.specific_race_win_track_count_max,
+            practice_star_min: options.specific_practice_star_track_count_min,
+            practice_star_max: options.specific_practice_star_track_count_max,
+            time_trial_min: options.specific_time_trial_track_count_min,
+            time_trial_max: options.specific_time_trial_track_count_max,
+        }
+    }
+
+    fn range_for_method(&self, method: i32) -> (i32, i32) {
+        match method {
+            6 => (self.race_win_min, self.race_win_max),
+            7 => (self.practice_star_min, self.practice_star_max),
+            8 => (self.time_trial_min, self.time_trial_max),
+            _ => (1, 1),
+        }
+    }
+}
+
 pub fn apply_car_custom_unlocks(
     cars: &mut [RandomizedCar],
     specs: &[CarSpec],
     tracks: &[RandomizedTrack],
+    options: &CarOptionsInput,
     row_label_prefix: &str,
     rng: &mut Rng,
 ) -> Result<(), String> {
+    let ranges = SpecificUnlockTrackCountRanges::from_car_options(options);
     for (index, (car, spec)) in cars.iter_mut().zip(specs.iter()).enumerate() {
         car.custom_unlock = build_custom_unlock_condition(
-            &spec.attr_obtain,
+            car.obtain,
             spec.custom_unlock.as_ref(),
             tracks,
             None,
             &make_row_label(row_label_prefix, index, &spec.id),
+            &ranges,
             rng,
         )?;
     }
@@ -30,16 +75,19 @@ pub fn apply_car_custom_unlocks(
 pub fn apply_track_custom_unlocks(
     tracks: &mut [RandomizedTrack],
     specs: &[TrackSpec],
+    options: &TrackOptionsInput,
     rng: &mut Rng,
 ) -> Result<(), String> {
+    let ranges = SpecificUnlockTrackCountRanges::from_track_options(options);
     let track_pool = tracks.to_vec();
     for (index, (track, spec)) in tracks.iter_mut().zip(specs.iter()).enumerate() {
         track.custom_unlock = build_custom_unlock_condition(
-            &spec.attr_obtain,
+            track.obtain,
             spec.custom_unlock.as_ref(),
             &track_pool,
             Some(&track.folder),
             &make_row_label("Track", index, &spec.id),
+            &ranges,
             rng,
         )?;
     }
@@ -47,38 +95,60 @@ pub fn apply_track_custom_unlocks(
 }
 
 fn build_custom_unlock_condition(
-    attr_obtain: &str,
+    obtain: i32,
     custom_unlock: Option<&CustomUnlockSpec>,
     tracks: &[RandomizedTrack],
     excluded_track_folder: Option<&str>,
     row_label: &str,
+    ranges: &SpecificUnlockTrackCountRanges,
     rng: &mut Rng,
 ) -> Result<Option<CustomUnlockCondition>, String> {
-    let method = match attr_obtain.parse::<i32>() {
-        Ok(method) => method,
-        Err(_) => return Ok(None),
-    };
-    if !is_custom_unlock_method(method) {
+    if !is_custom_unlock_method(obtain) {
         return Ok(None);
     }
 
-    let custom_unlock = custom_unlock.ok_or_else(|| {
-        format!("{row_label}: custom unlock condition is missing for obtain method {method}.")
-    })?;
-    if custom_unlock.method != attr_obtain {
-        return Err(format!(
-            "{row_label}: custom unlock condition method {} does not match obtain method {}.",
-            custom_unlock.method,
-            attr_obtain
-        ));
-    }
-
-    if is_specific_custom_unlock_method(method) {
-        return build_specific_track_condition(custom_unlock, tracks, excluded_track_folder, row_label, rng)
+    if is_specific_custom_unlock_method(obtain) {
+        if let Some(custom_unlock) = custom_unlock {
+            if custom_unlock.method != obtain.to_string() {
+                return Err(format!(
+                    "{row_label}: custom unlock condition method {} does not match obtain method {}.",
+                    custom_unlock.method,
+                    obtain
+                ));
+            }
+            return build_explicit_specific_track_condition(
+                custom_unlock,
+                tracks,
+                excluded_track_folder,
+                row_label,
+                rng,
+            )
             .map(Some);
+        }
+
+        return build_random_specific_track_condition(
+            obtain,
+            tracks,
+            excluded_track_folder,
+            row_label,
+            ranges,
+            rng,
+        )
+        .map(Some);
     }
 
-    if is_count_custom_unlock_method(method) {
+    if is_count_custom_unlock_method(obtain) {
+        let custom_unlock = custom_unlock.ok_or_else(|| {
+            format!("{row_label}: custom unlock condition is missing for obtain method {obtain}.")
+        })?;
+        if custom_unlock.method != obtain.to_string() {
+            return Err(format!(
+                "{row_label}: custom unlock condition method {} does not match obtain method {}.",
+                custom_unlock.method,
+                obtain
+            ));
+        }
+
         let required_count = custom_unlock.required_count.unwrap_or(0);
         if required_count < 1 {
             return Err(format!("{row_label}: custom unlock required count must be greater than 0."));
@@ -94,7 +164,7 @@ fn build_custom_unlock_condition(
     Ok(None)
 }
 
-fn build_specific_track_condition(
+fn build_explicit_specific_track_condition(
     custom_unlock: &CustomUnlockSpec,
     tracks: &[RandomizedTrack],
     excluded_track_folder: Option<&str>,
@@ -129,6 +199,36 @@ fn build_specific_track_condition(
 
     Ok(CustomUnlockCondition {
         track_folders,
+        required_count: 0,
+        archipelago_item: String::new(),
+    })
+}
+
+fn build_random_specific_track_condition(
+    method: i32,
+    tracks: &[RandomizedTrack],
+    excluded_track_folder: Option<&str>,
+    row_label: &str,
+    ranges: &SpecificUnlockTrackCountRanges,
+    rng: &mut Rng,
+) -> Result<CustomUnlockCondition, String> {
+    let eligible_count = count_eligible_tracks(tracks, excluded_track_folder);
+    if eligible_count == 0 {
+        return Err(format!(
+            "{row_label}: custom unlock has no eligible prerequisite tracks."
+        ));
+    }
+
+    let (min, max) = ranges.range_for_method(method);
+    let min = min.max(1);
+    let max = max.max(min);
+    let eligible_count = eligible_count as i32;
+    let clamped_max = max.min(eligible_count);
+    let clamped_min = min.min(clamped_max);
+    let count = rng.next_i32(clamped_min, clamped_max) as usize;
+
+    Ok(CustomUnlockCondition {
+        track_folders: choose_random_track_folders(tracks, count, excluded_track_folder, row_label, rng)?,
         required_count: 0,
         archipelago_item: String::new(),
     })
@@ -197,6 +297,20 @@ fn choose_random_track_folders(
     rng.shuffle(&mut folders);
     folders.truncate(count);
     Ok(folders)
+}
+
+fn count_eligible_tracks(
+    tracks: &[RandomizedTrack],
+    excluded_track_folder: Option<&str>,
+) -> usize {
+    tracks
+        .iter()
+        .filter(|track| {
+            excluded_track_folder
+                .map(|excluded| !track.folder.eq_ignore_ascii_case(excluded))
+                .unwrap_or(true)
+        })
+        .count()
 }
 
 fn track_folder_exists(folder: &str, tracks: &[RandomizedTrack]) -> bool {
