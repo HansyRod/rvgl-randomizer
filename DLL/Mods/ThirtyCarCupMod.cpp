@@ -36,29 +36,6 @@ constexpr float kColumnSpacing = 150.0f;
 constexpr float kRowSpacing = 150.0f;
 constexpr size_t kNativeCupRuntimeResetBytes = 0x12A8;
 
-constexpr size_t kRaceSettingsSelectedCupOffset = 0x04;
-constexpr size_t kRaceSettingsPlayerNameOffset = 0x28;
-constexpr size_t kRaceSettingsPlayerModelOffset = 0x68;
-constexpr size_t kRaceSettingsPlayerSkinOffset = 0x78;
-constexpr size_t kRaceSettingsPickupsOffset = 0x9E;
-
-constexpr size_t kGameModeTrackOffset = 0x08;
-constexpr size_t kGameModeCountdownOffset = 0x14;
-constexpr size_t kGameModeLapsOffset = 0x18;
-constexpr size_t kGameModeReverseOffset = 0x30;
-constexpr size_t kGameModeMirrorOffset = 0x31;
-constexpr size_t kGameModePickupsOffset = 0x32;
-
-constexpr size_t kPlayerRaceInfoParticipantCountOffset = 0x04;
-constexpr size_t kPlayerRaceInfoModeOffset = 0x0C;
-constexpr size_t kPlayerRaceInfoLapsOffset = 0x10;
-constexpr size_t kPlayerRaceInfoMirrorOffset = 0x14;
-constexpr size_t kPlayerRaceInfoReverseOffset = 0x18;
-constexpr size_t kPlayerRaceInfoPickupsOffset = 0x20;
-constexpr size_t kPlayerRaceInfoCountdownOffset = 0x28;
-constexpr size_t kPlayerRaceInfoUnknown34Offset = 0x34;
-constexpr size_t kPlayerRaceInfoTrackFolderOffset = 0x40;
-
 struct ThirtyCarCupState {
     bool active = false;
     bool rosterGenerated = false;
@@ -99,12 +76,6 @@ struct NativePendingSnapshot {
     std::array<int, kNativeCupCars> pendingPoints = {};
 };
 
-enum class PendingPointAdvance {
-    None,
-    Step,
-    Flush
-};
-
 using FnResetCurrentTrackSelectionState = void(*)();
 using FnRaceTeardownAndSave = void(*)();
 using FnLevelDestroyAndFree = void(*)();
@@ -119,12 +90,16 @@ FnLevelDestroyAndFree RVGL_LevelDestroyAndFree =
 FnUnknownGameState RVGL_UnknownGameState =
     reinterpret_cast<FnUnknownGameState>(AbsFromRva(RVA_LOAD_NEXT_RACE_FROM_PLAYER_RACE_INFO));
 
-uint8_t* GetRaceSettings() {
-    return *reinterpret_cast<uint8_t**>(AbsFromRva(RVA_RACE_SETTINGS_PTR));
+RaceSettingsRuntime* GetRaceSettings() {
+    return *reinterpret_cast<RaceSettingsRuntime**>(AbsFromRva(RVA_RACE_SETTINGS_PTR));
 }
 
-uint8_t* GetPlayerRaceInfo() {
-    return *reinterpret_cast<uint8_t**>(AbsFromRva(RVA_PLAYER_RACE_INFO_PTR));
+PlayerRaceInfoRuntime* GetPlayerRaceInfo() {
+    return *reinterpret_cast<PlayerRaceInfoRuntime**>(AbsFromRva(RVA_PLAYER_RACE_INFO_PTR));
+}
+
+GameModeRuntime& GameModeState() {
+    return *reinterpret_cast<GameModeRuntime*>(AbsFromRva(RVA_GAME_MODE));
 }
 
 CupProfile*& ActiveCupRef() {
@@ -214,23 +189,23 @@ const char* LocaleString(int index, const char* fallback) {
 }
 
 int GetSelectedCupIndexFromSettings() {
-    uint8_t* settings = GetRaceSettings();
-    return settings != nullptr ? *reinterpret_cast<int*>(settings + kRaceSettingsSelectedCupOffset) : -1;
+    RaceSettingsRuntime* settings = GetRaceSettings();
+    return settings != nullptr ? settings->selectedCupIndex : -1;
 }
 
 int GetSelectedPlayerModelFromSettings() {
-    uint8_t* settings = GetRaceSettings();
-    return settings != nullptr ? *reinterpret_cast<int*>(settings + kRaceSettingsPlayerModelOffset) : 0;
+    RaceSettingsRuntime* settings = GetRaceSettings();
+    return settings != nullptr ? settings->playerModelId : 0;
 }
 
 int GetSelectedPlayerSkinFromSettings() {
-    uint8_t* settings = GetRaceSettings();
-    return settings != nullptr ? *reinterpret_cast<int*>(settings + kRaceSettingsPlayerSkinOffset) : 0;
+    RaceSettingsRuntime* settings = GetRaceSettings();
+    return settings != nullptr ? settings->playerSkinId : 0;
 }
 
 char* GetPlayerNameFromSettings() {
-    uint8_t* settings = GetRaceSettings();
-    return settings != nullptr ? reinterpret_cast<char*>(settings + kRaceSettingsPlayerNameOffset) : MutableText("Player");
+    RaceSettingsRuntime* settings = GetRaceSettings();
+    return settings != nullptr ? settings->playerName : MutableText("Player");
 }
 
 CupProfile* ResolveActiveCupFromSelection(int selectedCupIndex) {
@@ -262,22 +237,22 @@ float GetUiViewportCenterX() {
     constexpr float nativeUiWidth = 640.0f;
     constexpr float nativeUiHalfWidth = nativeUiWidth * 0.5f;
 
-    uintptr_t viewportPtrSlot = *reinterpret_cast<uintptr_t*>(AbsFromRva(RVA_UI_VIEWPORT_PTR_PTR));
-    if (viewportPtrSlot == 0) {
+    UiViewportRuntime** viewportSlot =
+        *reinterpret_cast<UiViewportRuntime***>(AbsFromRva(RVA_UI_VIEWPORT_PTR_PTR));
+    if (viewportSlot == nullptr) {
         return nativeUiHalfWidth;
     }
 
-    uintptr_t viewport = *reinterpret_cast<uintptr_t*>(viewportPtrSlot);
-    if (viewport == 0) {
+    UiViewportRuntime* viewport = *viewportSlot;
+    if (viewport == nullptr) {
         return nativeUiHalfWidth;
     }
 
-    const float viewportCenterX = *reinterpret_cast<float*>(viewport + 0x10);
-    if (!std::isfinite(viewportCenterX) || viewportCenterX <= 0.0f) {
+    if (!std::isfinite(viewport->centerX) || viewport->centerX <= 0.0f) {
         return nativeUiHalfWidth;
     }
 
-    return viewportCenterX;
+    return viewport->centerX;
 }
 
 float GetCenteredPanelX(float panelWidth) {
@@ -490,8 +465,8 @@ void RecordCurrentStageResultsOnce() {
     );
 }
 
-void ApplyPendingPointAdvance(PendingPointAdvance advance) {
-    if (advance == PendingPointAdvance::None || g_cupState.activeCup == nullptr) {
+void AdvancePendingPointsOneStep() {
+    if (g_cupState.activeCup == nullptr) {
         return;
     }
 
@@ -499,12 +474,6 @@ void ApplyPendingPointAdvance(PendingPointAdvance advance) {
     for (int i = 0; i < count; ++i) {
         CupParticipantEntry& participant = g_cupState.participants[i];
         if (participant.pendingPoints == 0) {
-            continue;
-        }
-
-        if (advance == PendingPointAdvance::Flush) {
-            participant.totalPoints += participant.pendingPoints;
-            participant.pendingPoints = 0;
             continue;
         }
 
@@ -588,7 +557,7 @@ bool AdvancePendingPointsOnTimer() {
 
     bool advanced = false;
     while (now >= g_cupState.pendingPointNextTick && HasPendingPoints()) {
-        ApplyPendingPointAdvance(PendingPointAdvance::Step);
+        AdvancePendingPointsOneStep();
         g_cupState.pendingPointNextTick += pendingPointTick;
         advanced = true;
     }
@@ -646,15 +615,6 @@ void DrawSizedText(
     float maxWidth = 0.0f
 ) {
     RVGL_DrawUIText(x, y, width, height, color, MutableText(text), maxWidth, 0);
-}
-
-void DrawText(float x, float y, uint32_t color, const char* text, float maxWidth = 0.0f) {
-    DrawSizedText(x, y, 6.5f, 10.0f, color, text, maxWidth);
-}
-
-void DrawRightText(float rightX, float y, uint32_t color, const char* text) {
-    const int64_t len = RVGL_UTF8GetVisibleCharCount(MutableText(text));
-    DrawText(rightX - static_cast<float>(len) * 6.5f, y, color, text);
 }
 
 void DrawRightSizedText(
@@ -927,42 +887,41 @@ void Hook_BuildGrid() {
     g_cupState.playerMovedToBack = false;
     g_cupState.runtimeCarIds.fill(-1);
 
-    uint8_t* settings = GetRaceSettings();
-    uint8_t* gameMode = reinterpret_cast<uint8_t*>(AbsFromRva(RVA_GAME_MODE));
-    uint8_t* playerRaceInfo = GetPlayerRaceInfo();
+    RaceSettingsRuntime* settings = GetRaceSettings();
+    GameModeRuntime& gameMode = GameModeState();
+    PlayerRaceInfoRuntime* playerRaceInfo = GetPlayerRaceInfo();
     uint8_t* playerRaceInfo34Source =
         *reinterpret_cast<uint8_t**>(AbsFromRva(RVA_PLAYER_RACE_INFO_34_SOURCE_PTR));
 
     if (settings != nullptr) {
-        *reinterpret_cast<int*>(settings) = MODE_CHAMPIONSHIP;
+        settings->mode = MODE_CHAMPIONSHIP;
     }
-    *reinterpret_cast<int*>(gameMode) = MODE_CHAMPIONSHIP;
-    *reinterpret_cast<int*>(gameMode + kGameModeTrackOffset) = stage.trackID;
+    gameMode.mode = MODE_CHAMPIONSHIP;
+    gameMode.trackId = stage.trackID;
 
     RVGL_ResetCurrentTrackSelectionState();
 
     if (playerRaceInfo != nullptr) {
-        *reinterpret_cast<int*>(playerRaceInfo + kPlayerRaceInfoModeOffset) = MODE_CHAMPIONSHIP;
-        *reinterpret_cast<int*>(playerRaceInfo + kPlayerRaceInfoLapsOffset) = stage.numLaps;
-        *reinterpret_cast<int*>(playerRaceInfo + kPlayerRaceInfoMirrorOffset) = stage.isMirror ? 1 : 0;
-        *reinterpret_cast<int*>(playerRaceInfo + kPlayerRaceInfoReverseOffset) = stage.isReverse ? 1 : 0;
+        playerRaceInfo->mode = MODE_CHAMPIONSHIP;
+        playerRaceInfo->laps = stage.numLaps;
+        playerRaceInfo->mirror = stage.isMirror ? 1 : 0;
+        playerRaceInfo->reverse = stage.isReverse ? 1 : 0;
 
         if (settings != nullptr) {
-            const uint8_t pickupsEnabled = settings[kRaceSettingsPickupsOffset];
-            gameMode[kGameModePickupsOffset] = pickupsEnabled;
-            *reinterpret_cast<int*>(playerRaceInfo + kPlayerRaceInfoPickupsOffset) = pickupsEnabled;
+            const uint8_t pickupsEnabled = settings->pickupsEnabled;
+            gameMode.pickupsEnabled = pickupsEnabled;
+            playerRaceInfo->pickupsEnabled = pickupsEnabled;
         }
 
-        *reinterpret_cast<int*>(playerRaceInfo + kPlayerRaceInfoCountdownOffset) =
-            *reinterpret_cast<int*>(gameMode + kGameModeCountdownOffset);
-        *reinterpret_cast<int*>(playerRaceInfo + kPlayerRaceInfoUnknown34Offset) =
+        playerRaceInfo->countdown = gameMode.countdown;
+        playerRaceInfo->unknown34 =
             playerRaceInfo34Source != nullptr ? static_cast<int>(*playerRaceInfo34Source) : 0;
 
         TrackInfo* track = GetTrackInfoByRuntimeIndex(stage.trackID);
         if (track != nullptr) {
             std::snprintf(
-                reinterpret_cast<char*>(playerRaceInfo + kPlayerRaceInfoTrackFolderOffset),
-                16,
+                playerRaceInfo->trackFolder,
+                sizeof(playerRaceInfo->trackFolder),
                 "%.*s",
                 15,
                 track->folderName
@@ -970,9 +929,9 @@ void Hook_BuildGrid() {
         }
     }
 
-    gameMode[kGameModeReverseOffset] = stage.isReverse ? 1 : 0;
-    gameMode[kGameModeMirrorOffset] = stage.isMirror ? 1 : 0;
-    *reinterpret_cast<int*>(gameMode + kGameModeLapsOffset) = stage.numLaps;
+    gameMode.reverse = stage.isReverse ? 1 : 0;
+    gameMode.mirror = stage.isMirror ? 1 : 0;
+    gameMode.laps = stage.numLaps;
 
     const int count = std::clamp(cup->numCars, 0, kMaxCupCars);
     Orig_AddParticipantAndCount(

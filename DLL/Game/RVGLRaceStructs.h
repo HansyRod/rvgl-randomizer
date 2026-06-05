@@ -64,6 +64,56 @@ struct RaceParticipantRuntime {
     char playerName[16];             // +0x40
 };
 
+struct RaceSettingsRuntime {
+    int32_t mode;                     // +0x00
+    int32_t selectedCupIndex;         // +0x04
+    uint8_t _pad_08[32];
+    char playerName[16];              // +0x28
+    uint8_t _pad_38[48];
+    int32_t playerModelId;            // +0x68
+    uint8_t _pad_6C[12];
+    int32_t playerSkinId;             // +0x78
+    uint8_t _pad_7C[34];
+    uint8_t pickupsEnabled;           // +0x9E
+};
+
+struct GameModeRuntime {
+    int32_t mode;                     // +0x00
+    uint8_t _pad_04[4];
+    int32_t trackId;                  // +0x08
+    uint8_t _pad_0C[8];
+    int32_t countdown;                // +0x14
+    int32_t laps;                     // +0x18
+    uint8_t _pad_1C[20];
+    uint8_t reverse;                  // +0x30
+    uint8_t mirror;                   // +0x31
+    uint8_t pickupsEnabled;           // +0x32
+};
+
+struct PlayerRaceInfoRuntime {
+    uint8_t _pad_00[4];
+    int32_t participantCount;         // +0x04
+    uint8_t _pad_08[4];
+    int32_t mode;                     // +0x0C
+    int32_t laps;                     // +0x10
+    int32_t mirror;                   // +0x14
+    int32_t reverse;                  // +0x18
+    uint8_t _pad_1C[4];
+    int32_t pickupsEnabled;           // +0x20
+    uint8_t _pad_24[4];
+    int32_t countdown;                // +0x28
+    uint8_t _pad_2C[8];
+    int32_t unknown34;                // +0x34
+    uint8_t _pad_38[8];
+    char trackFolder[16];             // +0x40
+};
+
+struct UiViewportRuntime {
+    uint8_t _pad_00[16];
+    float centerX;                    // +0x10
+    float centerY;                    // +0x14
+};
+
 #pragma pack(pop)
 
 static_assert(sizeof(void*) == 8, "RVGL runtime layouts here assume a 64-bit process.");
@@ -81,3 +131,27 @@ static_assert(sizeof(CarEntityRuntime) == 0x6AA8, "CarEntityRuntime size mismatc
 static_assert(sizeof(RaceParticipantRuntime) == 0x50, "RaceParticipantRuntime size mismatch.");
 static_assert(offsetof(RaceParticipantRuntime, modelId) == 0x08, "RaceParticipantRuntime::modelId offset mismatch.");
 static_assert(offsetof(RaceParticipantRuntime, playerName) == 0x40, "RaceParticipantRuntime::playerName offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, mode) == 0x00, "RaceSettingsRuntime::mode offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, selectedCupIndex) == 0x04, "RaceSettingsRuntime::selectedCupIndex offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, playerName) == 0x28, "RaceSettingsRuntime::playerName offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, playerModelId) == 0x68, "RaceSettingsRuntime::playerModelId offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, playerSkinId) == 0x78, "RaceSettingsRuntime::playerSkinId offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, pickupsEnabled) == 0x9E, "RaceSettingsRuntime::pickupsEnabled offset mismatch.");
+static_assert(offsetof(GameModeRuntime, mode) == 0x00, "GameModeRuntime::mode offset mismatch.");
+static_assert(offsetof(GameModeRuntime, trackId) == 0x08, "GameModeRuntime::trackId offset mismatch.");
+static_assert(offsetof(GameModeRuntime, countdown) == 0x14, "GameModeRuntime::countdown offset mismatch.");
+static_assert(offsetof(GameModeRuntime, laps) == 0x18, "GameModeRuntime::laps offset mismatch.");
+static_assert(offsetof(GameModeRuntime, reverse) == 0x30, "GameModeRuntime::reverse offset mismatch.");
+static_assert(offsetof(GameModeRuntime, mirror) == 0x31, "GameModeRuntime::mirror offset mismatch.");
+static_assert(offsetof(GameModeRuntime, pickupsEnabled) == 0x32, "GameModeRuntime::pickupsEnabled offset mismatch.");
+static_assert(offsetof(PlayerRaceInfoRuntime, participantCount) == 0x04, "PlayerRaceInfoRuntime::participantCount offset mismatch.");
+static_assert(offsetof(PlayerRaceInfoRuntime, mode) == 0x0C, "PlayerRaceInfoRuntime::mode offset mismatch.");
+static_assert(offsetof(PlayerRaceInfoRuntime, laps) == 0x10, "PlayerRaceInfoRuntime::laps offset mismatch.");
+static_assert(offsetof(PlayerRaceInfoRuntime, mirror) == 0x14, "PlayerRaceInfoRuntime::mirror offset mismatch.");
+static_assert(offsetof(PlayerRaceInfoRuntime, reverse) == 0x18, "PlayerRaceInfoRuntime::reverse offset mismatch.");
+static_assert(offsetof(PlayerRaceInfoRuntime, pickupsEnabled) == 0x20, "PlayerRaceInfoRuntime::pickupsEnabled offset mismatch.");
+static_assert(offsetof(PlayerRaceInfoRuntime, countdown) == 0x28, "PlayerRaceInfoRuntime::countdown offset mismatch.");
+static_assert(offsetof(PlayerRaceInfoRuntime, unknown34) == 0x34, "PlayerRaceInfoRuntime::unknown34 offset mismatch.");
+static_assert(offsetof(PlayerRaceInfoRuntime, trackFolder) == 0x40, "PlayerRaceInfoRuntime::trackFolder offset mismatch.");
+static_assert(offsetof(UiViewportRuntime, centerX) == 0x10, "UiViewportRuntime::centerX offset mismatch.");
+static_assert(offsetof(UiViewportRuntime, centerY) == 0x14, "UiViewportRuntime::centerY offset mismatch.");
