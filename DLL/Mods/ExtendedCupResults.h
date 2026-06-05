@@ -40,6 +40,7 @@ void UpdateExtendedCupResultFromStandings(
     CupProfile* activeCup,
     const ExtendedCupResultsState& results
 );
+void UpdateExtendedCupFailedResult(CupProfile* activeCup, const ExtendedCupResultsState& results);
 void RecordExtendedCupStageResultsOnce(
     bool active,
     CupProfile* activeCup,

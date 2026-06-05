@@ -152,6 +152,41 @@ void UpdateExtendedCupResultFromStandings(
     result.playerFinalRank = results.participants[0].modelId;
 }
 
+void UpdateExtendedCupFailedResult(CupProfile* activeCup, const ExtendedCupResultsState& results) {
+    if (activeCup == nullptr) {
+        return;
+    }
+
+    const int count = std::clamp(activeCup->numCars, 0, randomizerMaxCarCount);
+    CupResultRuntime& result = GetCupResultRuntime();
+
+    result.completedFlag = 0;
+    result.playerOverallRank = count;
+    result.playerFinalRank = results.participants[0].modelId;
+
+    for (int i = 0; i < 3; ++i) {
+        const int participantIndex = i + 1;
+        result.standingsSnapshot[i] =
+            participantIndex < count ? results.participants[participantIndex].modelId : 0;
+    }
+
+    const int stage = GetCurrentCupStageIndex();
+    if (stage < 0 || stage >= 16 || results.lastRecordedStage != stage) {
+        return;
+    }
+
+    for (int participantIndex = 0; participantIndex < count; ++participantIndex) {
+        const CupParticipantEntry& participant = results.participants[participantIndex];
+        const int finishPosition = participant.finishPositionByStage[stage];
+        if (finishPosition >= 0 && finishPosition < 3) {
+            result.standingsSnapshot[finishPosition] = participant.modelId;
+        }
+    }
+
+    const int playerFinishPosition = results.participants[0].finishPositionByStage[stage];
+    result.playerOverallRank = std::clamp(playerFinishPosition + 1, 1, count);
+}
+
 void RecordExtendedCupStageResultsOnce(
     bool active,
     CupProfile* activeCup,

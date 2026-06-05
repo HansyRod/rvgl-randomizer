@@ -488,10 +488,9 @@ bool HandleThirtyCarCupOnStageFinished() {
     }
     else {
         --GetCupTriesLeft();
-        if (GetCupTriesLeft() <= 0) {
-            CupResultRuntime& result = GetCupResultRuntime();
-            result.completedFlag = 0;
-            UpdateExtendedCupResultFromStandings(g_cupState.active, g_cupState.activeCup, g_cupState.results);
+        if (GetCupTriesLeft() < 0) {
+            GetCupStageDirection() = 0;
+            UpdateExtendedCupFailedResult(g_cupState.activeCup, g_cupState.results);
             MirrorExtendedCupTables(g_cupState.activeCup, g_cupState.results);
             ReturnToCupResultFrontend();
             return true;
