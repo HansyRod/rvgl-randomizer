@@ -18,6 +18,7 @@ extern FnDrawCupProgressMessage Orig_DrawCupProgressMessage;
 bool IsThirtyCarCupActive();
 void ResetThirtyCarCupState();
 void ApplyThirtyCarCupGrid();
+void MoveThirtyCarCupPlayerToBackAfterRacePositions();
 void PrepareThirtyCarCupStageFinished();
 bool HandleThirtyCarCupOnStageFinished(uint64_t param1, uint64_t param3, FILE* file);
 

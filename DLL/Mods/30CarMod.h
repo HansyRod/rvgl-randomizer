@@ -1,5 +1,7 @@
 #pragma once
+#include "RandomizerState.h"
 #include "RVGLStructs.h"
+#include <array>
 #include <vector>
 
 namespace Randomizer {
@@ -14,6 +16,10 @@ int PickRandomFromPool(const std::vector<int>& pool);
 
 void ApplyThirtyCarGrid();
 void ExpandRaceParticipantsToThirty();
+bool MoveRuntimeCarsToBackAfterRacePositions(
+    const std::array<int, randomizerMaxCarCount>& runtimeCarIds,
+    int targetCarCount
+);
 void MovePlayersToBackAfterRacePositions();
 void ResetThirtyCarModState();
 

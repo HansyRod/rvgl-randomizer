@@ -9,6 +9,7 @@
 #include "TrackHooks.h"
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -63,10 +64,15 @@ struct ThirtyCarCupState {
     bool rosterGenerated = false;
     int selectedCupIndex = -1;
     int lastRecordedStage = -1;
+    bool gridApplied = false;
+    bool playerMovedToBack = false;
+    bool pendingPointTimerInitialized = false;
+    std::chrono::steady_clock::time_point pendingPointNextTick = {};
     CupProfile* activeCup = nullptr;
     const RandomizedCup* cupConfig = nullptr;
     std::array<CupParticipantEntry, kMaxCupCars> participants = {};
     std::array<CupParticipantEntry, kMaxCupCars> standings = {};
+    std::array<int, kMaxCupCars> runtimeCarIds = {};
     std::vector<int> pointsTable;
 
     void Reset() {
@@ -74,19 +80,23 @@ struct ThirtyCarCupState {
         rosterGenerated = false;
         selectedCupIndex = -1;
         lastRecordedStage = -1;
+        gridApplied = false;
+        playerMovedToBack = false;
+        pendingPointTimerInitialized = false;
+        pendingPointNextTick = {};
         activeCup = nullptr;
         cupConfig = nullptr;
         pointsTable.clear();
         participants = {};
         standings = {};
+        runtimeCarIds.fill(-1);
     }
 };
 
 ThirtyCarCupState g_cupState;
 
-struct PendingPointSnapshot {
-    int totalPoints = 0;
-    int pendingPoints = 0;
+struct NativePendingSnapshot {
+    std::array<int, kNativeCupCars> pendingPoints = {};
 };
 
 enum class PendingPointAdvance {
@@ -480,69 +490,6 @@ void RecordCurrentStageResultsOnce() {
     );
 }
 
-void CapturePendingPointSnapshot(std::array<PendingPointSnapshot, kNativeCupCars>& snapshot) {
-    const int count = std::clamp(g_cupState.activeCup != nullptr ? g_cupState.activeCup->numCars : 0, 0, kNativeCupCars);
-    CupParticipantEntry* nativeParticipants = NativeCupParticipants();
-
-    for (int i = 0; i < count; ++i) {
-        snapshot[i].totalPoints = nativeParticipants[i].totalPoints;
-        snapshot[i].pendingPoints = nativeParticipants[i].pendingPoints;
-    }
-}
-
-PendingPointAdvance InferNativePendingPointAdvance(
-    const std::array<PendingPointSnapshot, kNativeCupCars>& before,
-    int stateBefore,
-    int stateAfter
-) {
-    if (stateBefore == 4 && stateAfter != 4) {
-        return PendingPointAdvance::Flush;
-    }
-
-    const int count = std::clamp(g_cupState.activeCup != nullptr ? g_cupState.activeCup->numCars : 0, 0, kNativeCupCars);
-    CupParticipantEntry* nativeParticipants = NativeCupParticipants();
-    bool stepped = false;
-    bool flushed = false;
-
-    for (int i = 0; i < count; ++i) {
-        const int pendingBefore = before[i].pendingPoints;
-        if (pendingBefore == 0) {
-            continue;
-        }
-
-        const int totalDelta = nativeParticipants[i].totalPoints - before[i].totalPoints;
-        const int pendingDelta = pendingBefore - nativeParticipants[i].pendingPoints;
-        if (totalDelta == 0 && pendingDelta == 0) {
-            continue;
-        }
-
-        if (nativeParticipants[i].pendingPoints == 0 &&
-            totalDelta == pendingBefore &&
-            pendingDelta == pendingBefore) {
-            if (std::abs(pendingBefore) == 1) {
-                stepped = true;
-            }
-            else {
-                flushed = true;
-            }
-            continue;
-        }
-
-        if (std::abs(totalDelta) == 1 && totalDelta == pendingDelta) {
-            stepped = true;
-        }
-    }
-
-    if (flushed) {
-        return PendingPointAdvance::Flush;
-    }
-    if (stepped) {
-        return PendingPointAdvance::Step;
-    }
-
-    return PendingPointAdvance::None;
-}
-
 void ApplyPendingPointAdvance(PendingPointAdvance advance) {
     if (advance == PendingPointAdvance::None || g_cupState.activeCup == nullptr) {
         return;
@@ -565,6 +512,88 @@ void ApplyPendingPointAdvance(PendingPointAdvance advance) {
         participant.totalPoints += step;
         participant.pendingPoints -= step;
     }
+}
+
+bool HasPendingPoints() {
+    if (g_cupState.activeCup == nullptr) {
+        return false;
+    }
+
+    const int count = std::clamp(g_cupState.activeCup->numCars, 0, kMaxCupCars);
+    return std::any_of(
+        g_cupState.participants.begin(),
+        g_cupState.participants.begin() + count,
+        [](const CupParticipantEntry& participant) {
+            return participant.pendingPoints != 0;
+        }
+    );
+}
+
+NativePendingSnapshot CaptureNativePendingSnapshot() {
+    NativePendingSnapshot snapshot;
+    CupParticipantEntry* nativeParticipants = NativeCupParticipants();
+    const int count = std::clamp(g_cupState.activeCup != nullptr ? g_cupState.activeCup->numCars : 0, 0, kNativeCupCars);
+
+    for (int i = 0; i < count; ++i) {
+        snapshot.pendingPoints[i] = nativeParticipants[i].pendingPoints;
+    }
+
+    return snapshot;
+}
+
+bool DidNativeFlushPendingPoints(const NativePendingSnapshot& before) {
+    CupParticipantEntry* nativeParticipants = NativeCupParticipants();
+    const int count = std::clamp(g_cupState.activeCup != nullptr ? g_cupState.activeCup->numCars : 0, 0, kNativeCupCars);
+    bool hadPending = false;
+    bool flushedMoreThanOnePoint = false;
+
+    for (int i = 0; i < count; ++i) {
+        const int pendingBefore = before.pendingPoints[i];
+        if (pendingBefore == 0) {
+            continue;
+        }
+
+        hadPending = true;
+        if (nativeParticipants[i].pendingPoints != 0) {
+            return false;
+        }
+        if (std::abs(pendingBefore) > 1) {
+            flushedMoreThanOnePoint = true;
+        }
+    }
+
+    return hadPending && flushedMoreThanOnePoint;
+}
+
+void ResetPendingPointTimer() {
+    g_cupState.pendingPointTimerInitialized = false;
+    g_cupState.pendingPointNextTick = {};
+}
+
+bool AdvancePendingPointsOnTimer() {
+    constexpr auto pendingPointInitialDelay = std::chrono::milliseconds(2000);
+    constexpr auto pendingPointTick = std::chrono::milliseconds(200);
+
+    if (CupPostRaceState() != 4 || !HasPendingPoints()) {
+        ResetPendingPointTimer();
+        return false;
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+    if (!g_cupState.pendingPointTimerInitialized) {
+        g_cupState.pendingPointTimerInitialized = true;
+        g_cupState.pendingPointNextTick = now + pendingPointInitialDelay;
+        return false;
+    }
+
+    bool advanced = false;
+    while (now >= g_cupState.pendingPointNextTick && HasPendingPoints()) {
+        ApplyPendingPointAdvance(PendingPointAdvance::Step);
+        g_cupState.pendingPointNextTick += pendingPointTick;
+        advanced = true;
+    }
+
+    return advanced;
 }
 
 void FlushAllPendingPoints() {
@@ -707,17 +736,18 @@ void DrawThirtyCarCupTable() {
     const int visibleStageCount = std::clamp(currentStage + 1, 1, maxStageColumns);
     const int firstVisibleStage = currentStage - visibleStageCount + 1;
 
-    const float textWidth = count > 24 ? 4.8f : (count > 20 ? 5.2f : 5.8f);
-    const float textHeight = count > 24 ? 7.5f : (count > 20 ? 8.2f : 9.0f);
-    const float rowHeight = count > 24 ? 9.8f : (count > 20 ? 11.5f : 13.5f);
+    const float textWidth = count > 24 ? 6.2f : (count > 20 ? 7.5f : 8.0f);
+    const float textHeight = count > 24 ? 11.0f : (count > 20 ? 14.0f : 16.0f);
+    const float rowHeight = textHeight;
 
     const float panelY = 70.0f;
-    const float headerY = 88.0f;
-    const float rowStartY = headerY + rowHeight + 4.0f;
-    const float nameMaxWidth = 108.0f;
-    const float stageSpacing = 30.0f;
-    const float contentPaddingX = 20.0f;
-    const float nameToStageGap = 8.0f;
+    const float contentPaddingY = 4.0f;
+    const float headerY = panelY + contentPaddingY;
+    const float rowStartY = headerY + rowHeight + 1.0f;
+    const float nameMaxWidth = 118.0f;
+    const float stageSpacing = count > 24 ? 30.0f : (count > 20 ? 35.0f : 40.0f);
+    const float contentPaddingX = 4.0f;
+    const float nameToStageGap = count > 24 ? 8.0f : (count > 20 ? 12.0f : 16.0f);
     const float stageColumnRightInset = 20.0f;
     const float pointsGap = 20.0f;
     const float pendingGap = 28.0f;
@@ -733,7 +763,11 @@ void DrawThirtyCarCupTable() {
     const float stageStartX = tableX + stageStartFromTable;
     const float pointsRightX = tableX + pointsRightFromTable;
     const float pendingRightX = tableX + pendingRightFromTable;
-    const float panelHeight = std::clamp(rowStartY - panelY + static_cast<float>(count) * rowHeight + 18.0f, 180.0f, 362.0f);
+    const float panelHeight = std::clamp(
+        rowStartY - panelY + static_cast<float>(count) * rowHeight + contentPaddingY,
+        180.0f,
+        362.0f
+    );
 
     RVGL_UIDrawRoundedRect(panelX, panelY, panelWidth, panelHeight, 0, 0, 0xb0181818, 0xff, 1);
     RVGL_FlushDeferredUIBatches();
@@ -889,6 +923,9 @@ void Hook_BuildGrid() {
     CupProfile* cup = g_cupState.activeCup;
     const int stageIndex = std::clamp(CurrentCupStageIndex(), 0, 15);
     const CupStage& stage = cup->stages[stageIndex];
+    g_cupState.gridApplied = false;
+    g_cupState.playerMovedToBack = false;
+    g_cupState.runtimeCarIds.fill(-1);
 
     uint8_t* settings = GetRaceSettings();
     uint8_t* gameMode = reinterpret_cast<uint8_t*>(AbsFromRva(RVA_GAME_MODE));
@@ -1000,6 +1037,23 @@ void ApplyThirtyCarCupGrid() {
         pos.y = center.y;
         pos.z = center.z + (static_cast<float>(row) - gridCenterRow) * kRowSpacing;
         SetCarPos(gridIndex, pos);
+        g_cupState.runtimeCarIds[gridIndex] = gridIndex;
+    }
+
+    g_cupState.gridApplied = true;
+}
+
+void MoveThirtyCarCupPlayerToBackAfterRacePositions() {
+    if (!IsThirtyCarCupActive() ||
+        !g_cupState.gridApplied ||
+        g_cupState.playerMovedToBack ||
+        g_cupState.activeCup == nullptr) {
+        return;
+    }
+
+    const int targetCarCount = std::clamp(g_cupState.activeCup->numCars, 0, kMaxCupCars);
+    if (MoveRuntimeCarsToBackAfterRacePositions(g_cupState.runtimeCarIds, targetCarCount)) {
+        g_cupState.playerMovedToBack = true;
     }
 }
 
@@ -1012,19 +1066,34 @@ void Hook_UpdateCupPostRaceProgress() {
     RecordCurrentStageResultsOnce();
     MirrorNativeCupTables();
 
-    std::array<PendingPointSnapshot, kNativeCupCars> pendingBefore = {};
-    CapturePendingPointSnapshot(pendingBefore);
     const int postRaceStateBefore = CupPostRaceState();
+    const NativePendingSnapshot nativePendingBefore = CaptureNativePendingSnapshot();
 
     {
         NativeCupClamp clamp(g_cupState.activeCup);
         Orig_UpdateCupPostRaceProgress();
     }
 
-    const PendingPointAdvance pendingAdvance =
-        InferNativePendingPointAdvance(pendingBefore, postRaceStateBefore, CupPostRaceState());
-    ApplyPendingPointAdvance(pendingAdvance);
-    SortCupStandings();
+    const int postRaceStateAfter = CupPostRaceState();
+    bool pointsChanged = false;
+    if (postRaceStateBefore == 4 && postRaceStateAfter != 4) {
+        FlushAllPendingPoints();
+        pointsChanged = true;
+    }
+    else if (postRaceStateBefore == 4 &&
+             postRaceStateAfter == 4 &&
+             DidNativeFlushPendingPoints(nativePendingBefore)) {
+        FlushAllPendingPoints();
+        ResetPendingPointTimer();
+        pointsChanged = true;
+    }
+    else {
+        pointsChanged = AdvancePendingPointsOnTimer();
+    }
+
+    if (pointsChanged) {
+        SortCupStandings();
+    }
     UpdateCupResultFromStandings();
     MirrorNativeCupTables();
 }

@@ -406,18 +406,19 @@ void ApplyThirtyCarGrid() {
     state.gridApplied = true;
 }
 
-void MovePlayersToBackAfterRacePositions() {
-    ThirtyCarRuntimeState& state = GetThirtyCarState();
-    if (!IsSupportedMode() || !state.gridApplied || state.playersMovedToBack) {
-        return;
+bool MoveRuntimeCarsToBackAfterRacePositions(
+    const std::array<int, randomizerMaxCarCount>& runtimeCarIds,
+    int targetCarCount
+) {
+    if (targetCarCount <= 0 || targetCarCount > randomizerMaxCarCount) {
+        return false;
     }
 
     std::array<int, randomizerMaxCarCount + 1> rankToCar;
     rankToCar.fill(-1);
 
-    const int targetCarCount = GetTargetRaceCarCount();
     for (int slot = 0; slot < targetCarCount; ++slot) {
-        const int runtimeCarId = state.runtimeCarIds[slot];
+        const int runtimeCarId = runtimeCarIds[slot];
         if (runtimeCarId < 0) {
             continue;
         }
@@ -429,7 +430,7 @@ void MovePlayersToBackAfterRacePositions() {
     }
 
     const int playerCars[1] = {
-        state.runtimeCarIds[0] >= 0 ? state.runtimeCarIds[0] : 0
+        runtimeCarIds[0] >= 0 ? runtimeCarIds[0] : 0
     };
     bool swappedAnyCar = false;
 
@@ -450,6 +451,19 @@ void MovePlayersToBackAfterRacePositions() {
     }
 
     if (swappedAnyCar) {
+        return true;
+    }
+
+    return false;
+}
+
+void MovePlayersToBackAfterRacePositions() {
+    ThirtyCarRuntimeState& state = GetThirtyCarState();
+    if (!IsSupportedMode() || !state.gridApplied || state.playersMovedToBack) {
+        return;
+    }
+
+    if (MoveRuntimeCarsToBackAfterRacePositions(state.runtimeCarIds, GetTargetRaceCarCount())) {
         state.playersMovedToBack = true;
     }
 }
