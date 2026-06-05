@@ -20,7 +20,7 @@ void ResetThirtyCarCupState();
 void ApplyThirtyCarCupGrid();
 void MoveThirtyCarCupPlayerToBackAfterRacePositions();
 void PrepareThirtyCarCupStageFinished();
-bool HandleThirtyCarCupOnStageFinished(uint64_t param1, uint64_t param3, FILE* file);
+bool HandleThirtyCarCupOnStageFinished();
 
 void Hook_Cup_GenerateOpponentGrid();
 void Hook_BuildGrid();

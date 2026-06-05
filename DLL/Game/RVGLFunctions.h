@@ -26,7 +26,7 @@ using FnUTF8GetVisibleCharCount = int64_t(*)(char* text);
 using FnResetCurrentTrackSelectionState = void(*)();
 using FnRaceTeardownAndSave = void(*)();
 using FnLevelDestroyAndFree = void(*)();
-using FnLoadNextRaceFromPlayerRaceInfo = void(*)(uint64_t param1, const char* cupName, uint64_t param3, FILE* file);
+using FnLoadNextRaceFromPlayerRaceInfo = void(*)();
 
 extern FnCreateCarEntity RVGL_CreateCarEntity;
 extern FnComputeSpawnOrientation RVGL_ComputeSpawnOrientation;

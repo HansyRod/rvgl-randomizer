@@ -960,7 +960,7 @@ void PrepareThirtyCarCupStageFinished() {
     MirrorNativeCupTables();
 }
 
-bool HandleThirtyCarCupOnStageFinished(uint64_t param1, uint64_t param3, FILE* file) {
+bool HandleThirtyCarCupOnStageFinished() {
     if (!IsThirtyCarCupActive()) {
         return false;
     }
@@ -980,7 +980,7 @@ bool HandleThirtyCarCupOnStageFinished(uint64_t param1, uint64_t param3, FILE* f
 
     if (g_cupState.activeCup->numStages != GetCurrentCupStageIndex()) {
         Hook_BuildGrid();
-        RVGL_LoadNextRaceFromPlayerRaceInfo(param1, g_cupState.activeCup->displayName, param3, file);
+        RVGL_LoadNextRaceFromPlayerRaceInfo();
         return true;
     }
 
