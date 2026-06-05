@@ -4,6 +4,7 @@
 #include "ExtendedCupResults.h"
 #include "ExtendedCupStandingsTable.h"
 #include "Logger.h"
+#include "ProgressTableHooks.h"
 #include "RaceInitHooks.h"
 #include "RandomizerState.h"
 #include "RVGLFunctions.h"
@@ -99,6 +100,21 @@ const RandomizedCup* FindCupConfig(int selectedCupIndex) {
 
 bool IsThirtyCarCup(CupProfile* cup) {
     return cup != nullptr && cup->numCars > kNativeCupCars && cup->numCars <= kMaxCupCars;
+}
+
+TrackInfo* GetCupCompletionTrack(int trackIndex, int difficultyTier, bool cupDC) {
+    if (!cupDC && trackIndex == 4) {
+        return nullptr;
+    }
+
+    EnsureProgressLoaded(trackIndex);
+
+    TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
+    if (track == nullptr || track->difficultyRating != difficultyTier) {
+        return nullptr;
+    }
+
+    return track;
 }
 
 std::vector<int> BuildCpuModelPool(
@@ -513,12 +529,8 @@ bool HandleThirtyCarCupOnStageFinished() {
         bool allAlreadyCompleted = true;
 
         for (int trackIndex = 0; trackIndex < 14; ++trackIndex) {
-            if (!cupDC && trackIndex == 4) {
-                continue;
-            }
-
-            TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
-            if (track == nullptr || track->difficultyRating != difficultyTier) {
+            TrackInfo* track = GetCupCompletionTrack(trackIndex, difficultyTier, cupDC);
+            if (track == nullptr) {
                 continue;
             }
 
@@ -529,12 +541,8 @@ bool HandleThirtyCarCupOnStageFinished() {
         }
 
         for (int trackIndex = 0; trackIndex < 14; ++trackIndex) {
-            if (!cupDC && trackIndex == 4) {
-                continue;
-            }
-
-            TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
-            if (track == nullptr || track->difficultyRating != difficultyTier) {
+            TrackInfo* track = GetCupCompletionTrack(trackIndex, difficultyTier, cupDC);
+            if (track == nullptr) {
                 continue;
             }
 
@@ -545,12 +553,8 @@ bool HandleThirtyCarCupOnStageFinished() {
         if (!allAlreadyCompleted) {
             bool allTierTracksCompleted = true;
             for (int trackIndex = 0; trackIndex < 14; ++trackIndex) {
-                if (!cupDC && trackIndex == 4) {
-                    continue;
-                }
-
-                TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
-                if (track == nullptr || track->difficultyRating != difficultyTier) {
+                TrackInfo* track = GetCupCompletionTrack(trackIndex, difficultyTier, cupDC);
+                if (track == nullptr) {
                     continue;
                 }
 
