@@ -328,10 +328,10 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
-        AbsFromRva(RVA_DRAW_CUP_PROGRESS_MESSAGE),
-        reinterpret_cast<void*>(Randomizer::Hook_DrawCupProgressMessage),
-        reinterpret_cast<void**>(&Randomizer::Orig_DrawCupProgressMessage),
-        "DrawCupProgressMessage"
+        AbsFromRva(RVA_DRAW_CUP_STANDINGS_TABLE),
+        reinterpret_cast<void*>(Randomizer::Hook_DrawCupStandingsTable),
+        reinterpret_cast<void**>(&Randomizer::Orig_DrawCupStandingsTable),
+        "DrawCupStandingsTable"
     );
 
     HookManager::Add(

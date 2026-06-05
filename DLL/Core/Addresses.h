@@ -141,8 +141,8 @@ constexpr uint32_t RVA_BUILD_GRID = 0x00049DC0;
 // UpdateCupPostRaceProgress - championship post-race points/standings state machine.
 constexpr uint32_t RVA_UPDATE_CUP_POST_RACE_PROGRESS = 0x0004A420;
 
-// DrawCupProgressMessage - draws the championship post-race points table.
-constexpr uint32_t RVA_DRAW_CUP_PROGRESS_MESSAGE = 0x00060730;
+// DrawCupStandingsTable - draws the championship post-race standings table.
+constexpr uint32_t RVA_DRAW_CUP_STANDINGS_TABLE = 0x00060730;
 
 // ResetCurrentTrackSelectionState - clears the active track folder and participant counters.
 constexpr uint32_t RVA_RESET_CURRENT_TRACK_SELECTION_STATE = 0x0004F350;
@@ -284,7 +284,7 @@ constexpr uint32_t RVA_MENU_SLOTS_PTR = 0x002a6860;
 // drawing reads *(*ptr + 0x10) and applies DAT_006755ec before subtracting 320.
 constexpr uint32_t RVA_UI_VIEWPORT_PTR_PTR = 0x002a5f50;
 
-// Native DrawCupProgressMessage horizontal coordinate scale (DAT_006755ec).
+// Native DrawCupStandingsTable horizontal coordinate scale (DAT_006755ec).
 constexpr uint32_t RVA_CUP_PROGRESS_UI_COORD_SCALE = 0x002755ec;
 
 // Pointer to the active post-race/menu display state. Native cup progress table is visible at state 4.

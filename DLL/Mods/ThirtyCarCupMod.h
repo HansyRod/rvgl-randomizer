@@ -8,12 +8,12 @@ namespace Randomizer {
 using FnCup_GenerateOpponentGrid = void(*)();
 using FnBuildGrid = void(*)();
 using FnUpdateCupPostRaceProgress = void(*)();
-using FnDrawCupProgressMessage = void(*)();
+using FnDrawCupStandingsTable = void(*)();
 
 extern FnCup_GenerateOpponentGrid Orig_Cup_GenerateOpponentGrid;
 extern FnBuildGrid Orig_BuildGrid;
 extern FnUpdateCupPostRaceProgress Orig_UpdateCupPostRaceProgress;
-extern FnDrawCupProgressMessage Orig_DrawCupProgressMessage;
+extern FnDrawCupStandingsTable Orig_DrawCupStandingsTable;
 
 bool IsThirtyCarCupActive();
 void ResetThirtyCarCupState();
@@ -25,6 +25,6 @@ bool HandleThirtyCarCupOnStageFinished();
 void Hook_Cup_GenerateOpponentGrid();
 void Hook_BuildGrid();
 void Hook_UpdateCupPostRaceProgress();
-void Hook_DrawCupProgressMessage();
+void Hook_DrawCupStandingsTable();
 
 } // namespace Randomizer
