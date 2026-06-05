@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include "RVGLFunctions.h"
+#include "RVGLMemory.h"
 #include "RVGLStructs.h"
 #include "Addresses.h"
 #include "RaceInitHooks.h"
@@ -49,24 +50,6 @@ const CarInfo* GetCarInfoByModelId(int modelId) {
     }
 
     return &GetCarInfoTable()[modelId];
-}
-
-CarEntityRuntime* GetLiveCarById(int runtimeCarId) {
-    CarEntityRuntime* car = *reinterpret_cast<CarEntityRuntime**>(
-        AbsFromRva(RVA_CAR_LIST_HEAD)
-    );
-
-    int visited = 0;
-    while (car != nullptr && visited < 64) {
-        if (car->nCarArrayIndex == runtimeCarId) {
-            return car;
-        }
-
-        car = car->pNext;
-        ++visited;
-    }
-
-    return nullptr;
 }
 
 RaceParticipantRuntime* GetParticipantRecords() {

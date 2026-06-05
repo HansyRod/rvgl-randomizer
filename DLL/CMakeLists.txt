@@ -73,6 +73,7 @@ add_library(randomizer SHARED
 
     # Game - Game data or other utils
     Game/RVGLFunctions.cpp
+    Game/RVGLMemory.cpp
     Game/GameUtils.cpp
 
     #Config - Handles loading the JSON configuration with the randomization data

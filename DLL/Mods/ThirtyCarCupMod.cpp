@@ -1,11 +1,11 @@
 #include "ThirtyCarCupMod.h"
 #include "30CarMod.h"
-#include "Addresses.h"
 #include "CupHooks.h"
 #include "Logger.h"
 #include "RaceInitHooks.h"
 #include "RandomizerState.h"
 #include "RVGLFunctions.h"
+#include "RVGLMemory.h"
 #include "TrackHooks.h"
 #include <algorithm>
 #include <array>
@@ -76,76 +76,6 @@ struct NativePendingSnapshot {
     std::array<int, kNativeCupCars> pendingPoints = {};
 };
 
-using FnResetCurrentTrackSelectionState = void(*)();
-using FnRaceTeardownAndSave = void(*)();
-using FnLevelDestroyAndFree = void(*)();
-using FnUnknownGameState = void(*)(uint64_t param1, const char* cupName, uint64_t param3, FILE* file);
-
-FnResetCurrentTrackSelectionState RVGL_ResetCurrentTrackSelectionState =
-    reinterpret_cast<FnResetCurrentTrackSelectionState>(AbsFromRva(RVA_RESET_CURRENT_TRACK_SELECTION_STATE));
-FnRaceTeardownAndSave RVGL_RaceTeardownAndSave =
-    reinterpret_cast<FnRaceTeardownAndSave>(AbsFromRva(RVA_RACE_TEARDOWN_AND_SAVE));
-FnLevelDestroyAndFree RVGL_LevelDestroyAndFree =
-    reinterpret_cast<FnLevelDestroyAndFree>(AbsFromRva(RVA_LEVEL_DESTROY_AND_FREE));
-FnUnknownGameState RVGL_UnknownGameState =
-    reinterpret_cast<FnUnknownGameState>(AbsFromRva(RVA_LOAD_NEXT_RACE_FROM_PLAYER_RACE_INFO));
-
-RaceSettingsRuntime* GetRaceSettings() {
-    return *reinterpret_cast<RaceSettingsRuntime**>(AbsFromRva(RVA_RACE_SETTINGS_PTR));
-}
-
-PlayerRaceInfoRuntime* GetPlayerRaceInfo() {
-    return *reinterpret_cast<PlayerRaceInfoRuntime**>(AbsFromRva(RVA_PLAYER_RACE_INFO_PTR));
-}
-
-GameModeRuntime& GameModeState() {
-    return *reinterpret_cast<GameModeRuntime*>(AbsFromRva(RVA_GAME_MODE));
-}
-
-CupProfile*& ActiveCupRef() {
-    return *reinterpret_cast<CupProfile**>(AbsFromRva(RVA_ACTIVE_CUP_PTR));
-}
-
-CupResultRuntime& CupResult() {
-    return *reinterpret_cast<CupResultRuntime*>(AbsFromRva(RVA_CUP_RESULT));
-}
-
-int& CurrentCupIndex() {
-    return *reinterpret_cast<int*>(AbsFromRva(RVA_CURRENT_CUP_INDEX));
-}
-
-int& CurrentCupStageIndex() {
-    return *reinterpret_cast<int*>(AbsFromRva(RVA_CURRENT_CUP_STAGE_INDEX));
-}
-
-int& CupTriesLeft() {
-    return *reinterpret_cast<int*>(AbsFromRva(RVA_CUP_TRIES_LEFT));
-}
-
-int& CupStageDirection() {
-    return *reinterpret_cast<int*>(AbsFromRva(RVA_CUP_STAGE_DIRECTION));
-}
-
-int& CupPostRaceState() {
-    return *reinterpret_cast<int*>(AbsFromRva(RVA_CUP_POST_RACE_STATE));
-}
-
-int& NativeParticipantCount() {
-    return *reinterpret_cast<int*>(AbsFromRva(RVA_RACE_PARTICIPANT_COUNT));
-}
-
-CupParticipantEntry* NativeCupParticipants() {
-    return reinterpret_cast<CupParticipantEntry*>(AbsFromRva(RVA_NATIVE_CUP_PARTICIPANTS));
-}
-
-CupParticipantEntry* NativeCupStandings() {
-    return reinterpret_cast<CupParticipantEntry*>(AbsFromRva(RVA_NATIVE_CUP_STANDINGS_SORTED));
-}
-
-CarInfo* GetCarInfoTable() {
-    return *reinterpret_cast<CarInfo**>(AbsFromRva(RVA_CAR_TABLE));
-}
-
 const CarInfo* GetCarInfoByModelId(int modelId) {
     CarInfo* cars = GetCarInfoTable();
     if (cars == nullptr || modelId < 0 || modelId >= GetTotalCarModelCount()) {
@@ -155,28 +85,8 @@ const CarInfo* GetCarInfoByModelId(int modelId) {
     return &cars[modelId];
 }
 
-CarEntityRuntime* GetLiveCarById(int runtimeCarId) {
-    CarEntityRuntime* car = *reinterpret_cast<CarEntityRuntime**>(AbsFromRva(RVA_CAR_LIST_HEAD));
-    int visited = 0;
-
-    while (car != nullptr && visited < 64) {
-        if (car->nCarArrayIndex == runtimeCarId) {
-            return car;
-        }
-
-        car = car->pNext;
-        ++visited;
-    }
-
-    return nullptr;
-}
-
 char* MutableText(const char* text) {
     return const_cast<char*>(text != nullptr ? text : "");
-}
-
-char** GetLocaleStrings() {
-    return *reinterpret_cast<char***>(AbsFromRva(RVA_LOCALE_STRINGS_PTR));
 }
 
 const char* LocaleString(int index, const char* fallback) {
@@ -220,16 +130,8 @@ bool IsThirtyCarCup(CupProfile* cup) {
     return cup != nullptr && cup->numCars > kNativeCupCars && cup->numCars <= kMaxCupCars;
 }
 
-bool IsCupDCEnabled() {
-    return *reinterpret_cast<bool*>(AbsFromRva(RVA_CUP_DC));
-}
-
-bool IsRandomCarColorEnabled() {
-    return *reinterpret_cast<bool*>(AbsFromRva(RVA_RANDOM_CAR_COLORS_ENABLED));
-}
-
 bool IsCupProgressTableVisible() {
-    int* displayState = *reinterpret_cast<int**>(AbsFromRva(RVA_POST_RACE_MENU_DISPLAY_STATE_PTR));
+    int* displayState = GetPostRaceMenuDisplayState();
     return displayState != nullptr && *displayState == 4;
 }
 
@@ -237,13 +139,7 @@ float GetUiViewportCenterX() {
     constexpr float nativeUiWidth = 640.0f;
     constexpr float nativeUiHalfWidth = nativeUiWidth * 0.5f;
 
-    UiViewportRuntime** viewportSlot =
-        *reinterpret_cast<UiViewportRuntime***>(AbsFromRva(RVA_UI_VIEWPORT_PTR_PTR));
-    if (viewportSlot == nullptr) {
-        return nativeUiHalfWidth;
-    }
-
-    UiViewportRuntime* viewport = *viewportSlot;
+    UiViewportRuntime* viewport = GetUiViewportRuntime();
     if (viewport == nullptr) {
         return nativeUiHalfWidth;
     }
@@ -259,7 +155,7 @@ float GetCenteredPanelX(float panelWidth) {
     constexpr float nativeUiWidth = 640.0f;
     constexpr float nativeUiHalfWidth = nativeUiWidth * 0.5f;
 
-    const float uiScale = *reinterpret_cast<float*>(AbsFromRva(RVA_CUP_PROGRESS_UI_COORD_SCALE));
+    const float uiScale = GetCupProgressUiCoordScale();
     const float scale = std::isfinite(uiScale) && uiScale > 0.0f ? uiScale : 0.5f;
     return (nativeUiWidth - panelWidth) * scale + GetUiViewportCenterX() * scale - nativeUiHalfWidth;
 }
@@ -345,8 +241,8 @@ void BuildParticipantName(int modelId, char (&outName)[16]) {
 
 void MirrorNativeCupTables() {
     const int count = (std::min)(g_cupState.activeCup != nullptr ? g_cupState.activeCup->numCars : 0, kNativeCupCars);
-    CupParticipantEntry* nativeParticipants = NativeCupParticipants();
-    CupParticipantEntry* nativeStandings = NativeCupStandings();
+    CupParticipantEntry* nativeParticipants = GetNativeCupParticipants();
+    CupParticipantEntry* nativeStandings = GetNativeCupStandings();
 
     for (int i = 0; i < count; ++i) {
         nativeParticipants[i] = g_cupState.participants[i];
@@ -355,11 +251,7 @@ void MirrorNativeCupTables() {
 }
 
 void ResetNativeCupRuntimeState() {
-    std::memset(
-        reinterpret_cast<void*>(AbsFromRva(RVA_CURRENT_CUP_INDEX)),
-        0,
-        kNativeCupRuntimeResetBytes
-    );
+    std::memset(GetNativeCupRuntimeStateStart(), 0, kNativeCupRuntimeResetBytes);
 }
 
 int GetPointsForPosition(int zeroBasedPosition) {
@@ -384,7 +276,7 @@ void SortCupStandings() {
         g_cupState.standings.begin()
     );
 
-    const int stage = std::clamp(CurrentCupStageIndex(), 0, 15);
+    const int stage = std::clamp(GetCurrentCupStageIndex(), 0, 15);
     std::stable_sort(
         g_cupState.standings.begin(),
         g_cupState.standings.begin() + count,
@@ -404,7 +296,7 @@ void UpdateCupResultFromStandings() {
     }
 
     const int count = std::clamp(g_cupState.activeCup->numCars, 0, kMaxCupCars);
-    CupResultRuntime& result = CupResult();
+    CupResultRuntime& result = GetCupResultRuntime();
 
     result.playerOverallRank = count;
     for (int i = 0; i < count; ++i) {
@@ -425,12 +317,12 @@ void RecordCurrentStageResultsOnce() {
         return;
     }
 
-    const bool raceFinished = *reinterpret_cast<bool*>(AbsFromRva(RVA_RACE_FINISHED_FLAG));
+    const bool raceFinished = IsRaceFinished();
     if (!raceFinished) {
         return;
     }
 
-    const int stage = CurrentCupStageIndex();
+    const int stage = GetCurrentCupStageIndex();
     if (stage < 0 || stage >= 16 || g_cupState.lastRecordedStage == stage) {
         return;
     }
@@ -500,7 +392,7 @@ bool HasPendingPoints() {
 
 NativePendingSnapshot CaptureNativePendingSnapshot() {
     NativePendingSnapshot snapshot;
-    CupParticipantEntry* nativeParticipants = NativeCupParticipants();
+    CupParticipantEntry* nativeParticipants = GetNativeCupParticipants();
     const int count = std::clamp(g_cupState.activeCup != nullptr ? g_cupState.activeCup->numCars : 0, 0, kNativeCupCars);
 
     for (int i = 0; i < count; ++i) {
@@ -511,7 +403,7 @@ NativePendingSnapshot CaptureNativePendingSnapshot() {
 }
 
 bool DidNativeFlushPendingPoints(const NativePendingSnapshot& before) {
-    CupParticipantEntry* nativeParticipants = NativeCupParticipants();
+    CupParticipantEntry* nativeParticipants = GetNativeCupParticipants();
     const int count = std::clamp(g_cupState.activeCup != nullptr ? g_cupState.activeCup->numCars : 0, 0, kNativeCupCars);
     bool hadPending = false;
     bool flushedMoreThanOnePoint = false;
@@ -543,7 +435,7 @@ bool AdvancePendingPointsOnTimer() {
     constexpr auto pendingPointInitialDelay = std::chrono::milliseconds(2000);
     constexpr auto pendingPointTick = std::chrono::milliseconds(200);
 
-    if (CupPostRaceState() != 4 || !HasPendingPoints()) {
+    if (GetCupPostRaceState() != 4 || !HasPendingPoints()) {
         ResetPendingPointTimer();
         return false;
     }
@@ -583,12 +475,12 @@ public:
     explicit NativeCupClamp(CupProfile* cup)
         : cup_(cup),
           savedNumCars_(cup != nullptr ? cup->numCars : 0),
-          savedParticipantCount_(NativeParticipantCount()) {
+          savedParticipantCount_(GetNativeParticipantCount()) {
         if (cup_ != nullptr && cup_->numCars > kNativeCupCars) {
             cup_->numCars = kNativeCupCars;
         }
-        if (NativeParticipantCount() > kNativeCupCars) {
-            NativeParticipantCount() = kNativeCupCars;
+        if (GetNativeParticipantCount() > kNativeCupCars) {
+            GetNativeParticipantCount() = kNativeCupCars;
         }
     }
 
@@ -596,7 +488,7 @@ public:
         if (cup_ != nullptr) {
             cup_->numCars = savedNumCars_;
         }
-        NativeParticipantCount() = savedParticipantCount_;
+        GetNativeParticipantCount() = savedParticipantCount_;
     }
 
 private:
@@ -692,7 +584,7 @@ void DrawThirtyCarCupTable() {
 
     constexpr int maxStageColumns = 5;
 
-    const int currentStage = std::clamp(CurrentCupStageIndex(), 0, 15);
+    const int currentStage = std::clamp(GetCurrentCupStageIndex(), 0, 15);
     const int visibleStageCount = std::clamp(currentStage + 1, 1, maxStageColumns);
     const int firstVisibleStage = currentStage - visibleStageCount + 1;
 
@@ -816,9 +708,9 @@ void Hook_Cup_GenerateOpponentGrid() {
     g_cupState.selectedCupIndex = selectedCupIndex;
     g_cupState.activeCup = cup;
     g_cupState.cupConfig = FindCupConfig(selectedCupIndex);
-    ActiveCupRef() = cup;
-    CurrentCupIndex() = selectedCupIndex;
-    CupTriesLeft() = cup->numTries;
+    GetActiveCupRef() = cup;
+    GetCurrentCupIndex() = selectedCupIndex;
+    GetCupTriesLeft() = cup->numTries;
 
     if (g_cupState.cupConfig != nullptr && !g_cupState.cupConfig->pointsTable.empty()) {
         g_cupState.pointsTable = g_cupState.cupConfig->pointsTable;
@@ -881,17 +773,16 @@ void Hook_BuildGrid() {
     }
 
     CupProfile* cup = g_cupState.activeCup;
-    const int stageIndex = std::clamp(CurrentCupStageIndex(), 0, 15);
+    const int stageIndex = std::clamp(GetCurrentCupStageIndex(), 0, 15);
     const CupStage& stage = cup->stages[stageIndex];
     g_cupState.gridApplied = false;
     g_cupState.playerMovedToBack = false;
     g_cupState.runtimeCarIds.fill(-1);
 
     RaceSettingsRuntime* settings = GetRaceSettings();
-    GameModeRuntime& gameMode = GameModeState();
+    GameModeRuntime& gameMode = GetGameModeRuntime();
     PlayerRaceInfoRuntime* playerRaceInfo = GetPlayerRaceInfo();
-    uint8_t* playerRaceInfo34Source =
-        *reinterpret_cast<uint8_t**>(AbsFromRva(RVA_PLAYER_RACE_INFO_34_SOURCE_PTR));
+    uint8_t* playerRaceInfo34Source = GetPlayerRaceInfo34Source();
 
     if (settings != nullptr) {
         settings->mode = MODE_CHAMPIONSHIP;
@@ -1025,7 +916,7 @@ void Hook_UpdateCupPostRaceProgress() {
     RecordCurrentStageResultsOnce();
     MirrorNativeCupTables();
 
-    const int postRaceStateBefore = CupPostRaceState();
+    const int postRaceStateBefore = GetCupPostRaceState();
     const NativePendingSnapshot nativePendingBefore = CaptureNativePendingSnapshot();
 
     {
@@ -1033,7 +924,7 @@ void Hook_UpdateCupPostRaceProgress() {
         Orig_UpdateCupPostRaceProgress();
     }
 
-    const int postRaceStateAfter = CupPostRaceState();
+    const int postRaceStateAfter = GetCupPostRaceState();
     bool pointsChanged = false;
     if (postRaceStateBefore == 4 && postRaceStateAfter != 4) {
         FlushAllPendingPoints();
@@ -1079,21 +970,21 @@ bool HandleThirtyCarCupOnStageFinished(uint64_t param1, uint64_t param3, FILE* f
     RVGL_RaceTeardownAndSave();
     RVGL_LevelDestroyAndFree();
 
-    const int savedTier = CurrentCupIndex();
-    if (CupStageDirection() == 2) {
-        ++CurrentCupStageIndex();
+    const int savedTier = GetCurrentCupIndex();
+    if (GetCupStageDirection() == 2) {
+        ++GetCurrentCupStageIndex();
     }
     else {
-        --CupTriesLeft();
+        --GetCupTriesLeft();
     }
 
-    if (g_cupState.activeCup->numStages != CurrentCupStageIndex()) {
+    if (g_cupState.activeCup->numStages != GetCurrentCupStageIndex()) {
         Hook_BuildGrid();
-        RVGL_UnknownGameState(param1, g_cupState.activeCup->displayName, param3, file);
+        RVGL_LoadNextRaceFromPlayerRaceInfo(param1, g_cupState.activeCup->displayName, param3, file);
         return true;
     }
 
-    CupResultRuntime& result = CupResult();
+    CupResultRuntime& result = GetCupResultRuntime();
     result.completedFlag = 1;
     UpdateCupResultFromStandings();
     MirrorNativeCupTables();
@@ -1147,19 +1038,18 @@ bool HandleThirtyCarCupOnStageFinished(uint64_t param1, uint64_t param3, FILE* f
             }
 
             if (allTierTracksCompleted) {
-                *reinterpret_cast<int*>(AbsFromRva(RVA_TIER_UNLOCK_TRIGGER)) = 0;
+                GetTierUnlockTrigger() = 0;
             }
         }
     }
 
-    uint8_t* needsFrontendRefresh =
-        *reinterpret_cast<uint8_t**>(AbsFromRva(RVA_FRONTEND_CUP_RESULT_FLAG_PTR));
+    uint8_t* needsFrontendRefresh = GetFrontendCupResultFlag();
     if (needsFrontendRefresh != nullptr) {
         *needsFrontendRefresh = 1;
     }
 
-    void** gameStateFunction = *reinterpret_cast<void***>(AbsFromRva(RVA_GAME_STATE_FUNCTION_PTR));
-    void* menuInitializeFrontend = *reinterpret_cast<void**>(AbsFromRva(RVA_MENU_INITIALIZE_FRONTEND_PTR));
+    void** gameStateFunction = GetGameStateFunctionPtr();
+    void* menuInitializeFrontend = GetMenuInitializeFrontend();
     if (gameStateFunction != nullptr) {
         *gameStateFunction = menuInitializeFrontend;
     }
