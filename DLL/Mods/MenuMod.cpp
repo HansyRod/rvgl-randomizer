@@ -5,7 +5,6 @@
 #include "RVGLFunctions.h"
 #include "RVGLMemory.h"
 #include <algorithm>
-#include <array>
 
 // ============================================================================
 // MenuMod.cpp
@@ -25,14 +24,12 @@ constexpr int kMenuSlotStride = 0x140;
 constexpr int kMenuItemPointerOffset = 2;
 constexpr int kSelectedItemIndexOffset = 0x38;
 
-// Custom labels live just above the highest locale index seen in the frontend
-// decompilation. They are installed through a copied locale pointer table so
-// the original RVGL locale table is not overwritten.
-constexpr int kCustomLocaleBaseLabelId = 0x23D;
-constexpr int kKnockoutLabelId = kCustomLocaleBaseLabelId;
-constexpr int kEliminationFrequencyLabelId = kCustomLocaleBaseLabelId + 1;
-constexpr int kEliminationsAtOnceLabelId = kCustomLocaleBaseLabelId + 2;
-constexpr int kKnockoutLocaleTableSize = kCustomLocaleBaseLabelId + 3;
+// Temporary custom labels. These patch native locale slots for now; the copied
+// locale table approach needs more investigation before it is safe in menus.
+constexpr int kKnockoutLabelId = 0x17;
+constexpr int kEliminationFrequencyLabelId = 0x1E;
+constexpr int kEliminationsAtOnceLabelId = 0x1F;
+constexpr int kNativeSingleRaceLabelId = 0x15;
 
 constexpr char kKnockoutLabel[] = "Knockout";
 constexpr char kEliminationFrequencyLabel[] = "Knockout Lap Frequency";
@@ -50,7 +47,8 @@ MenuItemDescriptor g_knockoutMenuItem = {};
 MenuItemDescriptor g_eliminationFrequencyMenuItem = {};
 MenuItemDescriptor g_eliminationsAtOnceMenuItem = {};
 bool g_knockoutMenuItemInitialized = false;
-std::array<char*, kKnockoutLocaleTableSize> g_knockoutLocaleStrings = {};
+char* g_originalSingleRaceLabel = nullptr;
+bool g_originalSingleRaceLabelCaptured = false;
 
 int ClampRandomizerCarCount(int carCount) {
     return std::clamp(carCount, randomizerMinCarCount, randomizerMaxCarCount);
@@ -107,24 +105,27 @@ void PatchKnockoutLocaleStrings() {
     PatchLocaleString(kEliminationsAtOnceLabelId, kEliminationsAtOnceLabel);
 }
 
-void EnsureKnockoutLocaleStrings() {
-    char*** localeStringsPtr = reinterpret_cast<char***>(AbsFromRva(RVA_LOCALE_STRINGS_PTR));
-    char** activeLocaleStrings = localeStringsPtr != nullptr ? *localeStringsPtr : nullptr;
-    if (activeLocaleStrings == nullptr || activeLocaleStrings == g_knockoutLocaleStrings.data()) {
+void PatchSingleRaceLabelForKnockout() {
+    char** localeStrings = GetLocaleStrings();
+    if (localeStrings == nullptr) {
         return;
     }
 
-    for (int i = 0; i < kCustomLocaleBaseLabelId; ++i) {
-        g_knockoutLocaleStrings[i] = activeLocaleStrings[i];
+    if (!g_originalSingleRaceLabelCaptured) {
+        g_originalSingleRaceLabel = localeStrings[kNativeSingleRaceLabelId];
+        g_originalSingleRaceLabelCaptured = true;
     }
 
-    g_knockoutLocaleStrings[kKnockoutLabelId] = const_cast<char*>(kKnockoutLabel);
-    g_knockoutLocaleStrings[kEliminationFrequencyLabelId] =
-        const_cast<char*>(kEliminationFrequencyLabel);
-    g_knockoutLocaleStrings[kEliminationsAtOnceLabelId] =
-        const_cast<char*>(kEliminationsAtOnceLabel);
+    localeStrings[kNativeSingleRaceLabelId] = const_cast<char*>(kKnockoutLabel);
+}
 
-    *localeStringsPtr = g_knockoutLocaleStrings.data();
+void RestoreSingleRaceLabel() {
+    char** localeStrings = GetLocaleStrings();
+    if (localeStrings == nullptr || !g_originalSingleRaceLabelCaptured) {
+        return;
+    }
+
+    localeStrings[kNativeSingleRaceLabelId] = g_originalSingleRaceLabel;
 }
 
 void InitializeKnockoutMenuItemFromSingleRace(int slotIndex) {
@@ -145,6 +146,7 @@ void InitializeKnockoutMenuItemFromSingleRace(int slotIndex) {
 void SelectKnockoutMode() {
     RandomizerContext& ctx = GetRandomizerContext();
     ctx.knockoutState.menuSelectionActive = true;
+    ctx.knockoutState.modeActive = true;
 
     GameModeRuntime& gameMode = GetGameModeRuntime();
     gameMode.mode = kSingleRaceMode;
@@ -159,9 +161,20 @@ void SelectKnockoutMode() {
     *reinterpret_cast<uint16_t*>(
         reinterpret_cast<uint8_t*>(&gameMode) + kGameModeRandomFlagsOffset
     ) = randomFlags;
+
+    PatchSingleRaceLabelForKnockout();
 }
 
 void ClearKnockoutMenuSelection() {
+    RestoreSingleRaceLabel();
+
+    RandomizerContext& ctx = GetRandomizerContext();
+    ctx.knockoutState.menuSelectionActive = false;
+    ctx.knockoutState.modeActive = false;
+}
+
+void PrepareKnockoutStartRaceMenuState() {
+    RestoreSingleRaceLabel();
     GetRandomizerContext().knockoutState.menuSelectionActive = false;
 }
 
@@ -288,7 +301,7 @@ void PatchCarCountMenuDescriptor() {
 }
 
 void Hook_BuildStartRaceMenu(int slotIndex) {
-    ClearKnockoutMenuSelection();
+    PrepareKnockoutStartRaceMenuState();
     Orig_BuildStartRaceMenu(slotIndex);
 
     PatchKnockoutLocaleStrings();
@@ -306,7 +319,7 @@ bool Hook_HandleStartRaceMenuAction(int slotIndex, uint32_t action) {
         GetSelectedMenuItemDescriptor(slotIndex) == &g_knockoutMenuItem) {
         SelectKnockoutMode();
     }
-    else if (action == kFrontendConfirmAction) {
+    else if (action == kFrontendConfirmAction && GetGameModeRuntime().mode == MODE_SELECT_FRONTEND) {
         ClearKnockoutMenuSelection();
     }
 

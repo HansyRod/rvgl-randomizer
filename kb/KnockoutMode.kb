@@ -39,8 +39,9 @@ for Knockout:
 Knockout reuses this path instead of adding a new native `GameMode` value. The
 DLL adds a custom Knockout descriptor to the Start Race menu by cloning the
 runtime Single Race descriptor after the native builder runs, then the handler
-sets the native mode to `MODE_SINGLE_RACE` while keeping a separate
-randomizer-side `KnockoutRuntimeState::menuSelectionActive` flag.
+sets the native mode to `MODE_SINGLE_RACE` while keeping separate
+randomizer-side Knockout selection flags. `modeActive` persists across in-race
+restarts, while `menuSelectionActive` records the frontend selection path.
 
 This avoids patching the `RaceSessionSetup` native mode jump table at
 `0x00450700`, whose known cases only cover existing RVGL modes.
@@ -60,7 +61,7 @@ settings and are not currently persisted to RVGL's INI.
 
 ## Race Runtime
 
-`RaceSessionSetup` starts a Knockout race only when the frontend selection flag
+`RaceSessionSetup` starts a Knockout race only when the persistent mode flag
 is active and the native mode is Single Race. This means existing Single Race
 participant generation, 30-car expansion, grid handling, and leaderboard
 fallbacks still apply.
@@ -90,17 +91,46 @@ so on.
 
 `RegisterFinishTime` does not display the normal finish popup for DNF entries,
 so Knockout calls `UI_SetPostRacePopup` at `0x00468200` directly with the same
-position/name/time format used by native finish messages.
+position/name/time format used by native finish messages. When one event
+eliminates multiple cars, Knockout uses its own multi-line popup renderer so
+each row is centered independently and the block grows upward instead of
+downward from the native one-line anchor. Multi-line knockout popups show only
+position/name rows, colored with each eliminated car's native popup color. Rows
+are sorted by displayed finish position, with ranks right-aligned so names share
+the same starting column.
 
-Eliminated cars are moved to car state `9`, which native position/progress code
-already ignores. The last remaining car is registered as the winner with a
-non-DNF finish time so native race-complete handling can take over.
+Eliminated cars are moved to car state `5`, which is the closest known native
+spectator/ghost-like state. Because the car already has a finish time, it no
+longer counts as actively racing. The last remaining car is registered as the
+winner with a non-DNF finish time so native race-complete handling can take
+over.
+
+When a Knockout race is reset or restarted, Knockout clears its cached results,
+the native race result table, each live car's finish time, and each live car's
+completed-lap counter. Cars left in the Knockout ghost state are restored to
+the normal player/CPU race states before the next race starts. Cleanup runs both
+around `RaceSessionSetup` and after car setup/grid placement, and the update
+hook also detects the race clock moving backwards as a defensive mid-race
+restart signal.
+
+Native leaderboard drawing compacts non-empty result entries toward the top, so
+Knockout replaces `DrawPostRaceLeaderboard` while Knockout results exist. The
+custom renderer reserves one visual row per participant and draws each
+eliminated car at its real result index, so the first eliminated car appears on
+the bottom row. It only draws while the native post-race result table would be
+visible and suppresses itself when a frontend menu panel is active, such as the
+pause menu.
+
+Because the native flow still stores `MODE_SINGLE_RACE`, Knockout temporarily
+patches the native Single Race locale label to `Knockout` after the custom mode
+is selected. This lets the pre-race summary and loading screen show the custom
+mode name. The original Single Race label is restored when the Start Race menu
+is rebuilt or when another Start Race mode is confirmed.
 
 ## Current Risks
 
-- The custom frontend labels use a copied locale pointer table with extra label
-  indices above the known native range. The original RVGL locale table entries
-  are not overwritten.
+- The custom frontend labels currently patch existing locale table slots at
+  runtime. This is temporary; a safer custom-label strategy is still needed.
 - Knockout is implemented as a Single Race subtype, so native profile progress
   and result screens still see `MODE_SINGLE_RACE`.
 - The options are not persisted outside the current process.

@@ -77,11 +77,13 @@ struct ProgressTableRuntimeState {
 
 struct KnockoutRuntimeState {
     bool menuSelectionActive = false;
+    bool modeActive = false;
     bool raceActive = false;
     int eliminationFrequencyLaps = 1;
     int eliminationsPerEvent = 1;
     int nextEliminationLap = 1;
     int eliminatedCount = 0;
+    int lastRaceClockMs = 0;
 };
 
 struct ArchipelagoRuntimeState {

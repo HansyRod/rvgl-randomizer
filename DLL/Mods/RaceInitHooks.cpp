@@ -26,6 +26,12 @@ FnUpdateRacePositions     Orig_UpdateRacePositions     = nullptr;
 void Hook_DrawPostRaceLeaderboard() {
 
     // Logger::TimestampLogf("[RaceInitHooks] Calling DrawPostRaceLeaderboard");
+    DrawKnockoutPopup();
+
+    if (DrawKnockoutResultsTable()) {
+        return;
+    }
+
     bool raceFinished = *reinterpret_cast<bool*>(AbsFromRva(RVA_RACE_FINISHED_FLAG));
     GameMode* gameMode = reinterpret_cast<GameMode*>(AbsFromRva(RVA_GAME_MODE));
     GameMode originalGameMode = *gameMode;
@@ -73,6 +79,7 @@ void Hook_SetupAllRaceCars() {
 
     ApplyThirtyCarGrid();
     ApplyThirtyCarCupGrid();
+    FinalizeKnockoutRaceSetup();
 
     Logger::TimestampLogf("[RaceInitHooks] SetupAllRaceCars completed");
 }
