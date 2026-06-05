@@ -696,8 +696,8 @@ void DrawThirtyCarCupTable() {
     const int visibleStageCount = std::clamp(currentStage + 1, 1, maxStageColumns);
     const int firstVisibleStage = currentStage - visibleStageCount + 1;
 
-    const float textWidth = count > 24 ? 6.2f : (count > 20 ? 7.5f : 8.0f);
-    const float textHeight = count > 24 ? 11.0f : (count > 20 ? 14.0f : 16.0f);
+    const float textWidth = count > 27 ? 6.2f : (count > 24 ? 7.0f : (count > 20 ? 7.5f : 8.0f));
+    const float textHeight = count > 27 ? 11.0f : (count > 24 ? 12.5f : (count > 20 ? 14.0f : 16.0f));
     const float rowHeight = textHeight;
 
     const float panelY = 70.0f;
@@ -705,9 +705,9 @@ void DrawThirtyCarCupTable() {
     const float headerY = panelY + contentPaddingY;
     const float rowStartY = headerY + rowHeight + 1.0f;
     const float nameMaxWidth = 118.0f;
-    const float stageSpacing = count > 24 ? 30.0f : (count > 20 ? 35.0f : 40.0f);
+    const float stageSpacing = count > 27 ? 30.0f : (count > 24 ? 33.0f : (count > 20 ? 35.0f : 40.0f));
     const float contentPaddingX = 4.0f;
-    const float nameToStageGap = count > 24 ? 8.0f : (count > 20 ? 12.0f : 16.0f);
+    const float nameToStageGap = count > 27 ? 8.0f : (count > 24 ? 10.0f : (count > 20 ? 12.0f : 16.0f));
     const float stageColumnRightInset = 20.0f;
     const float pointsGap = 20.0f;
     const float pendingGap = 28.0f;
