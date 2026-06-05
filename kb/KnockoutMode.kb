@@ -1,0 +1,106 @@
+# Knockout Mode
+
+> Scope: frontend flow, runtime mode translation, race options, and lap-based
+> elimination behavior for the custom Knockout mode.
+
+## Frontend Flow
+
+Ghidra MCP confirmed that the Start Race frontend menu is built by
+`BuildStartRaceMenu` at `0x0055e730` and handled by
+`HandleStartRaceMenuAction` at `0x0055e880`.
+
+The native menu registers these entries:
+
+- Single Race
+- Championship
+- Multiplayer
+- Time Trial
+- Practice
+- Stunt Arena
+- Clockwork Carnage, when unlocked
+- developer-only modes, when dev/unlock settings allow them
+
+`HandleStartRaceMenuAction` switches on the selected menu item label id. The
+Single Race row uses label id `0x15`; choosing it sets `GameModeRuntime::mode`
+to `MODE_SINGLE_RACE` (`2`) and copies the random race flags from the frontend
+settings block at `RaceSettings + 0xA4` into `GameMode + 0x2E`.
+
+After that, native frontend flow continues through the same screens requested
+for Knockout:
+
+1. `BuildDifficultySelectionMenu` (`0x005552d0`) for Simulation / Arcade /
+   Console / Junior RC.
+2. `BuildPlayerNameInputMenu` (`0x0055ec50`) for the name wheel.
+3. `BuildCarSelectionMenu` (`0x00557740`) for car selection.
+4. `BuildTrackSelectionMenu` (`0x0055c390`) for track selection.
+5. `BuildPreRaceSummaryMenu` (`0x00555670`) when the native flow requests it,
+   otherwise direct launch from the track selector.
+
+Knockout reuses this path instead of adding a new native `GameMode` value. The
+DLL adds a custom Knockout descriptor to the Start Race menu by cloning the
+runtime Single Race descriptor after the native builder runs, then the handler
+sets the native mode to `MODE_SINGLE_RACE` while keeping a separate
+randomizer-side `KnockoutRuntimeState::menuSelectionActive` flag.
+
+This avoids patching the `RaceSessionSetup` native mode jump table at
+`0x00450700`, whose known cases only cover existing RVGL modes.
+
+## Game Settings
+
+`RegisterMenuItemInActiveMenu` at `0x005453b0` is hooked so the DLL can detect
+when `BuildSettingsMenu` registers the native `Num Cars` row. The two Knockout
+numeric entries are then registered immediately after that row in the Game
+Settings menu:
+
+- `Knockout Lap Frequency`: `1..10`, measured in laps.
+- `Knockout Eliminations Per Lap`: `1..29`, number of cars eliminated per event.
+
+The values live in `RandomizerContext::knockoutState`. They are runtime menu
+settings and are not currently persisted to RVGL's INI.
+
+## Race Runtime
+
+`RaceSessionSetup` starts a Knockout race only when the frontend selection flag
+is active and the native mode is Single Race. This means existing Single Race
+participant generation, 30-car expansion, grid handling, and leaderboard
+fallbacks still apply.
+
+`Engine_UpdateRaceProgress` at `0x005257e0` increments each car's completed lap
+counter at `CarEntity + 0x0F40` after `UpdateCarRoutePosition` reports a lap
+crossing. The Knockout pass runs after the native function and reads those
+completed lap counts.
+
+Base elimination logic:
+
+- For one car per event, when `activeCars - 1` cars have completed the target
+  lap, the remaining car is eliminated.
+- For multiple cars per event, when `activeCars - eliminationsPerEvent` cars
+  have completed the target lap, the remaining lowest-position cars are
+  eliminated.
+- The next target lap advances by `eliminationFrequencyLaps`.
+- The event never eliminates the final remaining car.
+
+Eliminated cars are added to the native 30-entry race result table through
+`RegisterFinishTime` at `0x004f0890` with the DNF flag set, using the live race
+clock from `PTR_g_CurrentRaceClockMS`. Knockout then rewrites the native result
+table so eliminated cars occupy the back positions in elimination order while
+still displaying the real knockout time. The first eliminated car is therefore
+shown as the last-place result, the second eliminated car as second-to-last, and
+so on.
+
+`RegisterFinishTime` does not display the normal finish popup for DNF entries,
+so Knockout calls `UI_SetPostRacePopup` at `0x00468200` directly with the same
+position/name/time format used by native finish messages.
+
+Eliminated cars are moved to car state `9`, which native position/progress code
+already ignores. The last remaining car is registered as the winner with a
+non-DNF finish time so native race-complete handling can take over.
+
+## Current Risks
+
+- The custom frontend labels use a copied locale pointer table with extra label
+  indices above the known native range. The original RVGL locale table entries
+  are not overwritten.
+- Knockout is implemented as a Single Race subtype, so native profile progress
+  and result screens still see `MODE_SINGLE_RACE`.
+- The options are not persisted outside the current process.

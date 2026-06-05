@@ -75,6 +75,15 @@ struct ProgressTableRuntimeState {
     std::vector<int> customTrackIndices;
 };
 
+struct KnockoutRuntimeState {
+    bool menuSelectionActive = false;
+    bool raceActive = false;
+    int eliminationFrequencyLaps = 1;
+    int eliminationsPerEvent = 1;
+    int nextEliminationLap = 1;
+    int eliminatedCount = 0;
+};
+
 struct ArchipelagoRuntimeState {
     std::mutex itemMutex;
     std::unordered_set<std::string> receivedItems;
@@ -86,6 +95,7 @@ struct RandomizerContext {
     ThirtyCarRuntimeState thirtyCarState;
     TrackRuntimeState trackState;
     ProgressTableRuntimeState progressTableState;
+    KnockoutRuntimeState knockoutState;
     ArchipelagoRuntimeState archipelagoState;
 };
 

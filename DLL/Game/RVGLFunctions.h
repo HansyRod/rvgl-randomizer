@@ -9,7 +9,7 @@ namespace Randomizer {
 using FnCreateCarEntity = CarEntityRuntime*(*)(int initialState, int controllerType, int carModelId, uint64_t skinIdAndFlags, float* spawnPosition, float* spawnOrientation);
 using FnComputeSpawnOrientation = void(*)(int startSlot, float* outPosition, float* outOrientation);
 using FnSetCarTransform = void(*)(CarTransformRuntime* transform, float* position, float* orientation);
-using FnDrawNumericMenuValue = void(*)(int panelIndex, int itemIndex, void* unused, void* renderContext);
+using FnDrawNumericMenuValue = void(*)(int panelIndex, int itemIndex);
 using FnDecrementNumericMenuValue = bool(*)(int panelIndex);
 using FnIncrementNumericMenuValue = bool(*)(int panelIndex);
 using FnCreateObjectFromFob = void*(*)(float* position, float* rotationMatrix, unsigned int objectId, int* subinfos);
@@ -27,6 +27,9 @@ using FnResetCurrentTrackSelectionState = void(*)();
 using FnRaceTeardownAndSave = void(*)();
 using FnLevelDestroyAndFree = void(*)();
 using FnLoadNextRaceFromPlayerRaceInfo = void(*)();
+using FnRegisterMenuItemInActiveMenu = void(*)(int slotIndex, int* descriptor);
+using FnRegisterFinishTime = void(*)(int* car, uint32_t finishTimeMs, uint8_t dnfFlag);
+using FnSetPostRacePopup = void(*)(char* prefixText, char* timeText, uint32_t prefixColor, uint32_t timeColor, int priority, float duration);
 
 extern FnCreateCarEntity RVGL_CreateCarEntity;
 extern FnComputeSpawnOrientation RVGL_ComputeSpawnOrientation;
@@ -49,5 +52,8 @@ extern FnResetCurrentTrackSelectionState RVGL_ResetCurrentTrackSelectionState;
 extern FnRaceTeardownAndSave RVGL_RaceTeardownAndSave;
 extern FnLevelDestroyAndFree RVGL_LevelDestroyAndFree;
 extern FnLoadNextRaceFromPlayerRaceInfo RVGL_LoadNextRaceFromPlayerRaceInfo;
+extern FnRegisterMenuItemInActiveMenu RVGL_RegisterMenuItemInActiveMenu;
+extern FnRegisterFinishTime RVGL_RegisterFinishTime;
+extern FnSetPostRacePopup RVGL_SetPostRacePopup;
 
 } // namespace Randomizer

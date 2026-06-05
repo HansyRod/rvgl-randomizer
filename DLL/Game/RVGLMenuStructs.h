@@ -25,7 +25,7 @@ struct NumericMenuValue {
 struct MenuItemDescriptor {
     int labelId;                                // +0x00
     int flags;                                  // +0x04
-    float valueWidth;                           // +0x08
+    int32_t valueWidth;                         // +0x08
     int reserved0C;                             // +0x0C
     NumericMenuValue* valueBinding;             // +0x10
     Randomizer::FnDrawNumericMenuValue drawValue;           // +0x18

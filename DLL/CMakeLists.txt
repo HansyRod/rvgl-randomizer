@@ -66,6 +66,7 @@ add_library(randomizer SHARED
     Mods/ExtendedCupStandingsTable.cpp
     Mods/Fob.cpp
     Mods/MenuMod.cpp
+    Mods/KnockoutMode.cpp
 
     # DebugUtils — debug tools
     DebugUtils/Logger.cpp        # OutputDebugStringA + file logging

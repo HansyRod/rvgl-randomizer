@@ -3,6 +3,7 @@
 #include "Addresses.h"
 #include "RVGLStructs.h"
 #include "30CarMod.h"
+#include "KnockoutMode.h"
 #include "ThirtyCarCupMod.h"
 
 namespace Randomizer {
@@ -52,8 +53,10 @@ void Hook_RaceSessionSetup(bool isRestart) {
     // *nCars = 30;
     ResetThirtyCarModState();
     ResetThirtyCarCupState();
+    ResetKnockoutRaceState();
 
     Orig_RaceSessionSetup(isRestart);
+    StartKnockoutRaceIfSelected();
     Logger::TimestampLogf("[RaceInitHooks] RaceSessionSetup completed");
 }
 

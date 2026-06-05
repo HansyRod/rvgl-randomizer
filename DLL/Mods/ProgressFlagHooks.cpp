@@ -1,5 +1,6 @@
 #include "ProgressFlagHooks.h"
 #include "Addresses.h"
+#include "KnockoutMode.h"
 #include "Logger.h"
 #include "ThirtyCarCupMod.h"
 #include "TrackHooks.h"
@@ -191,6 +192,7 @@ void Hook_Engine_UpdateRaceProgress() {
     const uint32_t beforeFlags = GetTrackProgressFlags(trackIndex);
 
     Orig_Engine_UpdateRaceProgress();
+    UpdateKnockoutRaceProgress();
 
     const uint32_t afterFlags = GetTrackProgressFlags(trackIndex);
     EmitNewTrackFlagEvents(

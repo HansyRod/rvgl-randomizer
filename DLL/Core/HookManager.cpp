@@ -11,6 +11,7 @@
 #include "RaceInitHooks.h"
 #include "CupOpponentGrid.h"
 #include "ThirtyCarCupMod.h"
+#include "MenuMod.h"
 #include "Fob.h"
 #include "CallLogger.h"
 #include "Logger.h"
@@ -340,6 +341,27 @@ static void RegisterHooks() {
         reinterpret_cast<void*>(Randomizer::Hook_DrawProgressTable),
         reinterpret_cast<void**>(&Randomizer::Orig_DrawProgressTable),
         "DrawProgressTable"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_BUILD_START_RACE_MENU),
+        reinterpret_cast<void*>(Randomizer::Hook_BuildStartRaceMenu),
+        reinterpret_cast<void**>(&Randomizer::Orig_BuildStartRaceMenu),
+        "BuildStartRaceMenu"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_HANDLE_START_RACE_MENU_ACTION),
+        reinterpret_cast<void*>(Randomizer::Hook_HandleStartRaceMenuAction),
+        reinterpret_cast<void**>(&Randomizer::Orig_HandleStartRaceMenuAction),
+        "HandleStartRaceMenuAction"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_REGISTER_MENU_ITEM_IN_ACTIVE_MENU),
+        reinterpret_cast<void*>(Randomizer::Hook_RegisterMenuItemInActiveMenu),
+        reinterpret_cast<void**>(&Randomizer::Orig_RegisterMenuItemInActiveMenu),
+        "RegisterMenuItemInActiveMenu"
     );
 
     HookManager::Add(
