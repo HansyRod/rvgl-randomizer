@@ -1,9 +1,8 @@
 #include "ThirtyCarCupMod.h"
 #include "30CarMod.h"
-#include "CupHooks.h"
+#include "CupOpponentGrid.h"
 #include "ExtendedCupResults.h"
 #include "ExtendedCupStandingsTable.h"
-#include "Logger.h"
 #include "ProgressTableHooks.h"
 #include "RaceInitHooks.h"
 #include "RandomizerState.h"
@@ -13,13 +12,9 @@
 #include <algorithm>
 #include <array>
 #include <cstdio>
-#include <random>
-#include <unordered_map>
-#include <vector>
 
 namespace Randomizer {
 
-FnCup_GenerateOpponentGrid Orig_Cup_GenerateOpponentGrid = nullptr;
 FnBuildGrid Orig_BuildGrid = nullptr;
 FnUpdateCupPostRaceProgress Orig_UpdateCupPostRaceProgress = nullptr;
 FnDrawCupStandingsTable Orig_DrawCupStandingsTable = nullptr;
@@ -70,36 +65,9 @@ char* MutableText(const char* text) {
     return const_cast<char*>(text != nullptr ? text : "");
 }
 
-int GetSelectedCupIndexFromSettings() {
-    RaceSettingsRuntime* settings = GetRaceSettings();
-    return settings != nullptr ? settings->selectedCupIndex : -1;
-}
-
-int GetSelectedPlayerModelFromSettings() {
-    RaceSettingsRuntime* settings = GetRaceSettings();
-    return settings != nullptr ? settings->playerModelId : 0;
-}
-
-int GetSelectedPlayerSkinFromSettings() {
-    RaceSettingsRuntime* settings = GetRaceSettings();
-    return settings != nullptr ? settings->playerSkinId : 0;
-}
-
 char* GetPlayerNameFromSettings() {
     RaceSettingsRuntime* settings = GetRaceSettings();
     return settings != nullptr ? settings->playerName : MutableText("Player");
-}
-
-CupProfile* ResolveActiveCupFromSelection(int selectedCupIndex) {
-    return GetCupProfileByCupID(selectedCupIndex);
-}
-
-const RandomizedCup* FindCupConfig(int selectedCupIndex) {
-    return GetCupConfigByCupID(selectedCupIndex);
-}
-
-bool IsThirtyCarCup(CupProfile* cup) {
-    return cup != nullptr && cup->numCars > kNativeCupCars && cup->numCars <= kMaxCupCars;
 }
 
 TrackInfo* GetCupCompletionTrack(int trackIndex, int difficultyTier, bool cupDC) {
@@ -117,75 +85,6 @@ TrackInfo* GetCupCompletionTrack(int trackIndex, int difficultyTier, bool cupDC)
     return track;
 }
 
-std::vector<int> BuildCpuModelPool(
-    int rating,
-    const std::unordered_map<int, bool>& usedModels
-) {
-    std::vector<int> pool;
-
-    const int totalModels = GetTotalCarModelCount();
-    for (int modelId = 0; modelId < totalModels; ++modelId) {
-        if (!IsCarModelCpuSelectable(modelId)) {
-            continue;
-        }
-
-        if (GetCarModelRating(modelId) != rating) {
-            continue;
-        }
-
-        if (usedModels.find(modelId) != usedModels.end()) {
-            continue;
-        }
-
-        pool.push_back(modelId);
-    }
-
-    return pool;
-}
-
-int PickCupOpponentModel(
-    int rating,
-    int playerModelId,
-    std::unordered_map<int, bool>& usedModels
-) {
-    std::vector<int> pool = BuildCpuModelPool(rating, usedModels);
-    if (!pool.empty()) {
-        const int modelId = PickRandomFromPool(pool);
-        usedModels[modelId] = true;
-        return modelId;
-    }
-
-    pool.clear();
-    const int totalModels = GetTotalCarModelCount();
-    for (int modelId = 0; modelId < totalModels; ++modelId) {
-        if (IsCarModelCpuSelectable(modelId) &&
-            GetCarModelRating(modelId) == rating) {
-            pool.push_back(modelId);
-        }
-    }
-
-    if (!pool.empty()) {
-        return PickRandomFromPool(pool);
-    }
-
-    return playerModelId >= 0 ? playerModelId : 0;
-}
-
-int PickCpuSkinForCup(int modelId) {
-    if (!IsRandomCarColorEnabled()) {
-        return 0;
-    }
-
-    const CarInfo* car = GetCarInfoByModelId(modelId);
-    if (car == nullptr || car->skinCount <= 1) {
-        return 0;
-    }
-
-    static std::mt19937 rng{ std::random_device{}() };
-    std::uniform_int_distribution<int> dist(0, car->skinCount - 1);
-    return dist(rng);
-}
-
 void BuildParticipantName(int modelId, char (&outName)[16]) {
     const CarInfo* car = GetCarInfoByModelId(modelId);
     if (car == nullptr || car->displayName[0] == '\0') {
@@ -194,22 +93,6 @@ void BuildParticipantName(int modelId, char (&outName)[16]) {
     }
 
     std::snprintf(outName, sizeof(outName), "%.*s", 15, car->displayName);
-}
-
-void ResetNativeCupRuntimeState() {
-    GetCurrentCupIndex() = 0;
-    GetCurrentCupStageIndex() = 0;
-    GetCupTriesLeft() = 0;
-    GetCupStageDirection() = 0;
-    GetCupPostRaceState() = 0;
-    GetCupResultRuntime() = {};
-
-    CupParticipantEntry* nativeParticipants = GetNativeCupParticipants();
-    CupParticipantEntry* nativeStandings = GetNativeCupStandings();
-    for (int i = 0; i < kNativeCupCars; ++i) {
-        nativeParticipants[i] = {};
-        nativeStandings[i] = {};
-    }
 }
 
 void ReturnToCupResultFrontend() {
@@ -228,85 +111,26 @@ void ReturnToCupResultFrontend() {
 } // anonymous namespace
 
 bool IsThirtyCarCupActive() {
-    return g_cupState.active && IsThirtyCarCup(g_cupState.activeCup);
+    return g_cupState.active && IsExtendedCupOpponentGrid(g_cupState.activeCup);
 }
 
 void ResetThirtyCarCupState() {
     g_cupState.Reset();
 }
 
-void Hook_Cup_GenerateOpponentGrid() {
-    const int selectedCupIndex = GetSelectedCupIndexFromSettings();
-    CupProfile* cup = ResolveActiveCupFromSelection(selectedCupIndex);
-    if (!IsThirtyCarCup(cup)) {
-        ResetThirtyCarCupState();
-        Orig_Cup_GenerateOpponentGrid();
-        return;
-    }
-
+void StartThirtyCarCupState(
+    int selectedCupIndex,
+    CupProfile* cup,
+    const RandomizedCup* cupConfig,
+    const ExtendedCupResultsState& results
+) {
     g_cupState.Reset();
-    ResetNativeCupRuntimeState();
     g_cupState.active = true;
     g_cupState.rosterGenerated = true;
     g_cupState.selectedCupIndex = selectedCupIndex;
     g_cupState.activeCup = cup;
-    g_cupState.cupConfig = FindCupConfig(selectedCupIndex);
-    GetActiveCupRef() = cup;
-    GetCurrentCupIndex() = selectedCupIndex;
-    GetCupTriesLeft() = cup->numTries;
-
-    if (g_cupState.cupConfig != nullptr && !g_cupState.cupConfig->pointsTable.empty()) {
-        g_cupState.results.pointsTable = g_cupState.cupConfig->pointsTable;
-    }
-    else {
-        g_cupState.results.pointsTable.assign(cup->pointsTable, cup->pointsTable + kNativeCupCars);
-    }
-
-    const int count = std::clamp(cup->numCars, kNativeCupCars + 1, kMaxCupCars);
-    const int playerModelId = GetSelectedPlayerModelFromSettings();
-    const int playerSkinId = GetSelectedPlayerSkinFromSettings();
-    std::unordered_map<int, bool> usedModels;
-
-    g_cupState.results.participants[0].participantIndex = 0;
-    g_cupState.results.participants[0].modelId = playerModelId;
-    g_cupState.results.participants[0].skinId = playerSkinId;
-    usedModels[playerModelId] = true;
-
-    std::vector<int> requestedRatings;
-    const int classCounts[6] = {
-        cup->maxRookie,
-        cup->maxAmateur,
-        cup->maxAdvanced,
-        cup->maxSemiPro,
-        cup->maxPro,
-        cup->maxSuperPro
-    };
-    for (int rating = 0; rating < 6; ++rating) {
-        for (int i = 0; i < classCounts[rating]; ++i) {
-            requestedRatings.push_back(rating);
-        }
-    }
-
-    while (static_cast<int>(requestedRatings.size()) < count - 1) {
-        requestedRatings.push_back(GetCarModelRating(playerModelId));
-    }
-
-    for (int i = 1; i < count; ++i) {
-        const int rating = requestedRatings[i - 1];
-        const int modelId = PickCupOpponentModel(rating, playerModelId, usedModels);
-        g_cupState.results.participants[i].participantIndex = i;
-        g_cupState.results.participants[i].modelId = modelId;
-        g_cupState.results.participants[i].skinId = PickCpuSkinForCup(modelId);
-    }
-
-    SortExtendedCupStandings(g_cupState.activeCup, g_cupState.results);
-    MirrorExtendedCupTables(g_cupState.activeCup, g_cupState.results);
-
-    Logger::TimestampLogf(
-        "[ThirtyCarCupMod] Generated %d-car cup roster for '%s'",
-        count,
-        cup->displayName
-    );
+    g_cupState.cupConfig = cupConfig;
+    g_cupState.results = results;
 }
 
 void Hook_BuildGrid() {

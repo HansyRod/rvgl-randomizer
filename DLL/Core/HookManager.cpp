@@ -9,6 +9,7 @@
 #include "ProgressFlagHooks.h"
 #include "CarPhysicsHooks.h"
 #include "RaceInitHooks.h"
+#include "CupOpponentGrid.h"
 #include "ThirtyCarCupMod.h"
 #include "Fob.h"
 #include "CallLogger.h"

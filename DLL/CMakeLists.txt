@@ -59,6 +59,7 @@ add_library(randomizer SHARED
     Mods/ProgressFlagHooks.cpp
     Mods/CarPhysicsHooks.cpp
     Mods/RaceInitHooks.cpp
+    Mods/CupOpponentGrid.cpp
     Mods/30CarMod.cpp
     Mods/ThirtyCarCupMod.cpp
     Mods/ExtendedCupResults.cpp
