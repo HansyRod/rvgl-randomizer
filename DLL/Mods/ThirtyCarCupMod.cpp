@@ -30,10 +30,6 @@ constexpr int kMaxCupCars = randomizerMaxCarCount;
 constexpr int kNativeCupCars = vanillaMaxCarCount;
 constexpr int kCpuRaceCarState = 3;
 constexpr int kPlayerRaceCarState = 1;
-constexpr int kGridCols = 5;
-constexpr int kGridRows = 6;
-constexpr float kColumnSpacing = 150.0f;
-constexpr float kRowSpacing = 150.0f;
 constexpr size_t kNativeCupRuntimeResetBytes = 0x12A8;
 
 struct ThirtyCarCupState {
@@ -863,30 +859,13 @@ void ApplyThirtyCarCupGrid() {
         return;
     }
 
-    Vec3 center{ 0.0f, 0.0f, 0.0f };
-    for (int carId = 0; carId < carCount; ++carId) {
-        const Vec3 pos = GetCarPos(carId);
-        center.x += pos.x;
-        center.y += pos.y;
-        center.z += pos.z;
+    std::array<Vec3, randomizerMaxCarCount> gridPositions = {};
+    if (!CalculateThirtyCarGridPositions(carCount, targetCarCount, gridPositions)) {
+        return;
     }
 
-    center.x /= static_cast<float>(carCount);
-    center.y /= static_cast<float>(carCount);
-    center.z /= static_cast<float>(carCount);
-
-    const float gridCenterCol = static_cast<float>(kGridCols - 1) / 2.0f;
-    const float gridCenterRow = static_cast<float>(kGridRows - 1) / 2.0f;
-
     for (int gridIndex = 0; gridIndex < targetCarCount; ++gridIndex) {
-        const int row = gridIndex / kGridCols;
-        const int col = gridIndex % kGridCols;
-
-        Vec3 pos;
-        pos.x = center.x + (static_cast<float>(col) - gridCenterCol) * kColumnSpacing;
-        pos.y = center.y;
-        pos.z = center.z + (static_cast<float>(row) - gridCenterRow) * kRowSpacing;
-        SetCarPos(gridIndex, pos);
+        SetCarPos(gridIndex, gridPositions[gridIndex]);
         g_cupState.runtimeCarIds[gridIndex] = gridIndex;
     }
 
