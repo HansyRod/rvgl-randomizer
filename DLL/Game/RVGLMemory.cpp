@@ -126,8 +126,4 @@ void* GetMenuInitializeFrontend() {
     return *reinterpret_cast<void**>(AbsFromRva(RVA_MENU_INITIALIZE_FRONTEND_PTR));
 }
 
-void* GetNativeCupRuntimeStateStart() {
-    return reinterpret_cast<void*>(AbsFromRva(RVA_CURRENT_CUP_INDEX));
-}
-
 } // namespace Randomizer

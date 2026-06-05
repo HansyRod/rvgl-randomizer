@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <array>
 #include <cstdio>
-#include <cstring>
 #include <random>
 #include <unordered_map>
 #include <vector>
@@ -30,7 +29,6 @@ constexpr int kMaxCupCars = randomizerMaxCarCount;
 constexpr int kNativeCupCars = vanillaMaxCarCount;
 constexpr int kCpuRaceCarState = 3;
 constexpr int kPlayerRaceCarState = 1;
-constexpr size_t kNativeCupRuntimeResetBytes = 0x12A8;
 
 struct ThirtyCarCupState {
     bool active = false;
@@ -183,7 +181,32 @@ void BuildParticipantName(int modelId, char (&outName)[16]) {
 }
 
 void ResetNativeCupRuntimeState() {
-    std::memset(GetNativeCupRuntimeStateStart(), 0, kNativeCupRuntimeResetBytes);
+    GetCurrentCupIndex() = 0;
+    GetCurrentCupStageIndex() = 0;
+    GetCupTriesLeft() = 0;
+    GetCupStageDirection() = 0;
+    GetCupPostRaceState() = 0;
+    GetCupResultRuntime() = {};
+
+    CupParticipantEntry* nativeParticipants = GetNativeCupParticipants();
+    CupParticipantEntry* nativeStandings = GetNativeCupStandings();
+    for (int i = 0; i < kNativeCupCars; ++i) {
+        nativeParticipants[i] = {};
+        nativeStandings[i] = {};
+    }
+}
+
+void ReturnToCupResultFrontend() {
+    uint8_t* needsFrontendRefresh = GetFrontendCupResultFlag();
+    if (needsFrontendRefresh != nullptr) {
+        *needsFrontendRefresh = 1;
+    }
+
+    void** gameStateFunction = GetGameStateFunctionPtr();
+    void* menuInitializeFrontend = GetMenuInitializeFrontend();
+    if (gameStateFunction != nullptr) {
+        *gameStateFunction = menuInitializeFrontend;
+    }
 }
 
 } // anonymous namespace
@@ -458,12 +481,21 @@ bool HandleThirtyCarCupOnStageFinished() {
     RVGL_RaceTeardownAndSave();
     RVGL_LevelDestroyAndFree();
 
-    const int savedTier = GetCurrentCupIndex();
+    const int selectedCupIndex = GetCurrentCupIndex();
+    const int difficultyTier = g_cupState.activeCup->difficultyRating;
     if (GetCupStageDirection() == 2) {
         ++GetCurrentCupStageIndex();
     }
     else {
         --GetCupTriesLeft();
+        if (GetCupTriesLeft() <= 0) {
+            CupResultRuntime& result = GetCupResultRuntime();
+            result.completedFlag = 0;
+            UpdateExtendedCupResultFromStandings(g_cupState.active, g_cupState.activeCup, g_cupState.results);
+            MirrorExtendedCupTables(g_cupState.activeCup, g_cupState.results);
+            ReturnToCupResultFrontend();
+            return true;
+        }
     }
 
     if (g_cupState.activeCup->numStages != GetCurrentCupStageIndex()) {
@@ -477,7 +509,7 @@ bool HandleThirtyCarCupOnStageFinished() {
     UpdateExtendedCupResultFromStandings(g_cupState.active, g_cupState.activeCup, g_cupState.results);
     MirrorExtendedCupTables(g_cupState.activeCup, g_cupState.results);
 
-    if (result.playerOverallRank <= g_cupState.activeCup->overallRequiredPlace && savedTier < 5) {
+    if (result.playerOverallRank <= g_cupState.activeCup->overallRequiredPlace && selectedCupIndex < 5) {
         const bool cupDC = IsCupDCEnabled();
         bool allAlreadyCompleted = true;
 
@@ -487,7 +519,7 @@ bool HandleThirtyCarCupOnStageFinished() {
             }
 
             TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
-            if (track == nullptr || track->difficultyRating != savedTier) {
+            if (track == nullptr || track->difficultyRating != difficultyTier) {
                 continue;
             }
 
@@ -498,8 +530,12 @@ bool HandleThirtyCarCupOnStageFinished() {
         }
 
         for (int trackIndex = 0; trackIndex < 14; ++trackIndex) {
+            if (!cupDC && trackIndex == 4) {
+                continue;
+            }
+
             TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
-            if (track == nullptr || track->difficultyRating != savedTier) {
+            if (track == nullptr || track->difficultyRating != difficultyTier) {
                 continue;
             }
 
@@ -515,7 +551,7 @@ bool HandleThirtyCarCupOnStageFinished() {
                 }
 
                 TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
-                if (track == nullptr || track->difficultyRating != savedTier) {
+                if (track == nullptr || track->difficultyRating != difficultyTier) {
                     continue;
                 }
 
@@ -531,17 +567,7 @@ bool HandleThirtyCarCupOnStageFinished() {
         }
     }
 
-    uint8_t* needsFrontendRefresh = GetFrontendCupResultFlag();
-    if (needsFrontendRefresh != nullptr) {
-        *needsFrontendRefresh = 1;
-    }
-
-    void** gameStateFunction = GetGameStateFunctionPtr();
-    void* menuInitializeFrontend = GetMenuInitializeFrontend();
-    if (gameStateFunction != nullptr) {
-        *gameStateFunction = menuInitializeFrontend;
-    }
-
+    ReturnToCupResultFrontend();
     return true;
 }
 

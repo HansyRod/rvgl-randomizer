@@ -37,6 +37,5 @@ int& GetTierUnlockTrigger();
 uint8_t* GetFrontendCupResultFlag();
 void** GetGameStateFunctionPtr();
 void* GetMenuInitializeFrontend();
-void* GetNativeCupRuntimeStateStart();
 
 } // namespace Randomizer
