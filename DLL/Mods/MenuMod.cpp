@@ -29,23 +29,38 @@ constexpr int kSelectedItemIndexOffset = 0x38;
 constexpr int kKnockoutLabelId = 0x17;
 constexpr int kEliminationFrequencyLabelId = 0x1E;
 constexpr int kEliminationsAtOnceLabelId = 0x1F;
+constexpr int kKnockedOutCarStateLabelId = 0x20;
 constexpr int kNativeSingleRaceLabelId = 0x15;
 
 constexpr char kKnockoutLabel[] = "Knockout";
 constexpr char kEliminationFrequencyLabel[] = "Knockout Lap Frequency";
 constexpr char kEliminationsAtOnceLabel[] = "Knockout Eliminations Per Lap";
+constexpr char kKnockedOutCarStateLabel[] = "Knocked-out Car State";
+constexpr char kKnockedOutCarStateSolid[] = "Solid";
+constexpr char kKnockedOutCarStateGhost[] = "Ghost";
 
 constexpr int kSingleRaceMode = MODE_SINGLE_RACE;
 constexpr int kFrontendConfirmAction = 5;
 constexpr int kRaceSettingsRandomFlagsOffset = 0xA4;
 constexpr int kGameModeRandomFlagsOffset = 0x2E;
+constexpr int kMenuValueXOffset = 0x114;
+constexpr int kMenuValueYOffset = 0x118;
+constexpr int kMenuValueWidthOffset = 0x134;
+constexpr int kMenuValueMaxWidthOffset = 0x138;
+constexpr float kMenuValueTextWidth = 8.0f;
+constexpr float kMenuValueTextHeight = 12.0f;
+constexpr float kMenuValueExtraX = 32.0f;
+constexpr uint32_t kMenuValueEnabledColor = 0xffebebeb;
+constexpr uint32_t kMenuValueDisabledColor = 0xff464646;
 
 NumericMenuValue g_carCountMenuValue = {};
 NumericMenuValue g_eliminationFrequencyMenuValue = {};
 NumericMenuValue g_eliminationsAtOnceMenuValue = {};
+NumericMenuValue g_knockedOutCarStateMenuValue = {};
 MenuItemDescriptor g_knockoutMenuItem = {};
 MenuItemDescriptor g_eliminationFrequencyMenuItem = {};
 MenuItemDescriptor g_eliminationsAtOnceMenuItem = {};
+MenuItemDescriptor g_knockedOutCarStateMenuItem = {};
 bool g_knockoutMenuItemInitialized = false;
 char* g_originalSingleRaceLabel = nullptr;
 bool g_originalSingleRaceLabelCaptured = false;
@@ -60,6 +75,14 @@ int ClampEliminationFrequency(int frequency) {
 
 int ClampEliminationsAtOnce(int eliminations) {
     return std::clamp(eliminations, 1, randomizerMaxCarCount - 1);
+}
+
+int ClampKnockedOutGhostMode(int mode) {
+    return mode != 0 ? 1 : 0;
+}
+
+char* MutableText(const char* text) {
+    return const_cast<char*>(text != nullptr ? text : "");
 }
 
 uint8_t* GetMenuSlotStorage() {
@@ -103,6 +126,7 @@ void PatchKnockoutLocaleStrings() {
     PatchLocaleString(kKnockoutLabelId, kKnockoutLabel);
     PatchLocaleString(kEliminationFrequencyLabelId, kEliminationFrequencyLabel);
     PatchLocaleString(kEliminationsAtOnceLabelId, kEliminationsAtOnceLabel);
+    PatchLocaleString(kKnockedOutCarStateLabelId, kKnockedOutCarStateLabel);
 }
 
 void PatchSingleRaceLabelForKnockout() {
@@ -184,6 +208,8 @@ void SyncKnockoutOptionValues() {
         ClampEliminationFrequency(ctx.knockoutState.eliminationFrequencyLaps);
     ctx.knockoutState.eliminationsPerEvent =
         ClampEliminationsAtOnce(ctx.knockoutState.eliminationsPerEvent);
+    ctx.knockoutState.knockedOutGhostMode =
+        ClampKnockedOutGhostMode(ctx.knockoutState.knockedOutGhostMode);
 }
 
 bool IncrementEliminationFrequency(int panelIndex) {
@@ -210,6 +236,53 @@ bool DecrementEliminationsAtOnce(int panelIndex) {
     return changed;
 }
 
+bool IncrementKnockedOutCarState(int panelIndex) {
+    const bool changed = RVGL_IncrementNumericMenuValue(panelIndex);
+    SyncKnockoutOptionValues();
+    return changed;
+}
+
+bool DecrementKnockedOutCarState(int panelIndex) {
+    const bool changed = RVGL_DecrementNumericMenuValue(panelIndex);
+    SyncKnockoutOptionValues();
+    return changed;
+}
+
+void DrawKnockedOutCarStateMenuValue(int panelIndex, int itemIndex) {
+    uint8_t* slots = GetMenuSlotStorage();
+    MenuItemDescriptor* descriptor = GetMenuItemDescriptor(panelIndex, itemIndex);
+    if (slots == nullptr || descriptor == nullptr ||
+        descriptor->valueBinding == nullptr || descriptor->valueBinding->value == nullptr) {
+        return;
+    }
+
+    uint8_t* panel = slots + panelIndex * kMenuSlotStride;
+    const float x =
+        *reinterpret_cast<float*>(panel + kMenuValueXOffset) +
+        *reinterpret_cast<float*>(panel + kMenuValueWidthOffset) +
+        kMenuValueExtraX;
+    const float y =
+        static_cast<float>(itemIndex << 4) +
+        *reinterpret_cast<float*>(panel + kMenuValueYOffset);
+    const float maxWidth = *reinterpret_cast<float*>(panel + kMenuValueMaxWidthOffset);
+    const uint32_t color =
+        (descriptor->flags & 2) == 0 ? kMenuValueDisabledColor : kMenuValueEnabledColor;
+    const char* text = *descriptor->valueBinding->value != 0
+        ? kKnockedOutCarStateGhost
+        : kKnockedOutCarStateSolid;
+
+    RVGL_DrawUIText(
+        x,
+        y,
+        kMenuValueTextWidth,
+        kMenuValueTextHeight,
+        color,
+        MutableText(text),
+        maxWidth,
+        0
+    );
+}
+
 void InitializeKnockoutOptionsMenuItems() {
     RandomizerContext& ctx = GetRandomizerContext();
     SyncKnockoutOptionValues();
@@ -226,6 +299,12 @@ void InitializeKnockoutOptionsMenuItems() {
     g_eliminationsAtOnceMenuValue.step = 1;
     g_eliminationsAtOnceMenuValue.useSlider = false;
 
+    g_knockedOutCarStateMenuValue.value = &ctx.knockoutState.knockedOutGhostMode;
+    g_knockedOutCarStateMenuValue.minValue = 0;
+    g_knockedOutCarStateMenuValue.maxValue = 1;
+    g_knockedOutCarStateMenuValue.step = 1;
+    g_knockedOutCarStateMenuValue.useSlider = false;
+
     const auto* carCountMenuItem = reinterpret_cast<const MenuItemDescriptor*>(
         AbsFromRva(RVA_SETTINGS_NCARS_MENU_ITEM)
     );
@@ -241,6 +320,13 @@ void InitializeKnockoutOptionsMenuItems() {
     g_eliminationsAtOnceMenuItem.valueBinding = &g_eliminationsAtOnceMenuValue;
     g_eliminationsAtOnceMenuItem.decrementValue = DecrementEliminationsAtOnce;
     g_eliminationsAtOnceMenuItem.incrementValue = IncrementEliminationsAtOnce;
+
+    g_knockedOutCarStateMenuItem = *carCountMenuItem;
+    g_knockedOutCarStateMenuItem.labelId = kKnockedOutCarStateLabelId;
+    g_knockedOutCarStateMenuItem.valueBinding = &g_knockedOutCarStateMenuValue;
+    g_knockedOutCarStateMenuItem.drawValue = DrawKnockedOutCarStateMenuValue;
+    g_knockedOutCarStateMenuItem.decrementValue = DecrementKnockedOutCarState;
+    g_knockedOutCarStateMenuItem.incrementValue = IncrementKnockedOutCarState;
 }
 
 bool IsFrontendCarCountSettingsDescriptor(int* descriptor) {
@@ -342,6 +428,10 @@ void Hook_RegisterMenuItemInActiveMenu(int slotIndex, int* descriptor) {
     Orig_RegisterMenuItemInActiveMenu(
         slotIndex,
         reinterpret_cast<int*>(&g_eliminationsAtOnceMenuItem)
+    );
+    Orig_RegisterMenuItemInActiveMenu(
+        slotIndex,
+        reinterpret_cast<int*>(&g_knockedOutCarStateMenuItem)
     );
 }
 

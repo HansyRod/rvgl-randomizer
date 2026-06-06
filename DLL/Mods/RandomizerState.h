@@ -81,6 +81,7 @@ struct KnockoutRuntimeState {
     bool raceActive = false;
     int eliminationFrequencyLaps = 1;
     int eliminationsPerEvent = 1;
+    int knockedOutGhostMode = 1;
     int nextEliminationLap = 1;
     int eliminatedCount = 0;
     int lastRaceClockMs = 0;

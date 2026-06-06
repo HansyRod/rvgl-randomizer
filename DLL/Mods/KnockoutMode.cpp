@@ -30,7 +30,6 @@ constexpr int kNativeSingleRaceLabelId = 0x15;
 constexpr uint32_t kDefaultPopupPrefixColor = 0xff00ffff;
 constexpr uint32_t kDefaultPopupTimeColor = 0xffffff;
 constexpr char kKnockoutLabel[] = "Knockout";
-constexpr bool knockedOutGhostMode = true;
 
 struct RaceResultEntry {
     CarEntityRuntime* car;
@@ -84,6 +83,10 @@ bool IsCarStillRacing(CarEntityRuntime* car) {
            car->carState != kCarStateInactive &&
            car->carState != kCarStateEliminated &&
            car->finishTimeMs == 0;
+}
+
+bool IsKnockedOutGhostModeEnabled() {
+    return GetRandomizerContext().knockoutState.knockedOutGhostMode != 0;
 }
 
 struct KnockoutCarPose {
@@ -178,18 +181,11 @@ void ClearNativeKnockoutRaceState() {
             car->finishTimeMs = 0;
             car->finishPosition = 0;
             WriteCarInt(car, kCompletedLapOffset, 0);
-            if (knockedOutGhostMode) {
-                if (car->carState == kCarStatePassiveGhost || car->carState == kCarStateGhost) {
-                    RVGL_SetCarBehaviourState(
-                        car,
-                        car->nCarArrayIndex == 0 ? kCarStatePlayer : kCarStateCpu
-                    );
-                }
-            }
-            else {
-                if (car->carState == kCarStateGhost) {
-                    car->carState = car->nCarArrayIndex == 0 ? kCarStatePlayer : kCarStateCpu;
-                }
+            if (car->carState == kCarStatePassiveGhost || car->carState == kCarStateGhost) {
+                RVGL_SetCarBehaviourState(
+                    car,
+                    car->nCarArrayIndex == 0 ? kCarStatePlayer : kCarStateCpu
+                );
             }
         }
 
@@ -480,7 +476,7 @@ bool EliminateCar(CarEntityRuntime* car, std::vector<KnockoutPopupLine>& popupLi
     g_knockoutResults.push_back({ car, finishTime });
     popupLines.push_back({ car, finishPosition, finishTime });
 
-    if (knockedOutGhostMode) {
+    if (IsKnockedOutGhostModeEnabled()) {
         KnockoutCarPose pose = {};
         const bool hasPose = CaptureCarPose(car, pose);
         RVGL_SetCarBehaviourState(car, kCarStatePassiveGhost);
@@ -605,6 +601,7 @@ void StartKnockoutRaceIfSelected() {
         std::clamp(ctx.knockoutState.eliminationFrequencyLaps, 1, 10);
     ctx.knockoutState.eliminationsPerEvent =
         std::clamp(ctx.knockoutState.eliminationsPerEvent, 1, randomizerMaxCarCount - 1);
+    ctx.knockoutState.knockedOutGhostMode = ctx.knockoutState.knockedOutGhostMode != 0 ? 1 : 0;
     ctx.knockoutState.nextEliminationLap = ctx.knockoutState.eliminationFrequencyLaps;
     ctx.knockoutState.eliminatedCount = 0;
     ctx.knockoutState.lastRaceClockMs = 0;
@@ -632,6 +629,7 @@ void FinalizeKnockoutRaceSetup() {
     ctx.knockoutState.menuSelectionActive = true;
     ctx.knockoutState.nextEliminationLap =
         std::clamp(ctx.knockoutState.eliminationFrequencyLaps, 1, 10);
+    ctx.knockoutState.knockedOutGhostMode = ctx.knockoutState.knockedOutGhostMode != 0 ? 1 : 0;
     ctx.knockoutState.eliminatedCount = 0;
     ctx.knockoutState.lastRaceClockMs = static_cast<int>(GetCurrentRaceClockMs());
     g_knockoutPopupLines.clear();

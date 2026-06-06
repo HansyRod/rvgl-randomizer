@@ -55,6 +55,9 @@ Settings menu:
 
 - `Knockout Lap Frequency`: `1..10`, measured in laps.
 - `Knockout Eliminations Per Lap`: `1..29`, number of cars eliminated per event.
+- `Knocked-out car state`: `Solid` keeps eliminated cars in the older solid
+  visible state, while `Ghost` switches them to the collisionless passive ghost
+  state.
 
 The values live in `RandomizerContext::knockoutState`. They are runtime menu
 settings and are not currently persisted to RVGL's INI.
@@ -99,12 +102,13 @@ position/name rows, colored with each eliminated car's native popup color. Rows
 are sorted by displayed finish position, with ranks right-aligned so names share
 the same starting column.
 
-Eliminated cars are moved through native `SetCarBehaviourState` at `0x004efd50`
-instead of directly assigning `CarEntity::nCar_type`. Ghidra MCP showed that
-state `5` is not collisionless: it still sets `PhysicsEntity::nCollision_mode`
-to `2` and uses the normal car collision callback at `0x004f0cf0`. State `4`
-uses `nCollision_mode = 0` with a passive collision callback, so Knockout uses
-state `4` for eliminated cars and restores state `1` / `3` for player / CPU
+When the `Knocked-out car state` option is `Ghost`, eliminated cars are moved
+through native `SetCarBehaviourState` at `0x004efd50` instead of directly
+assigning `CarEntity::nCar_type`. Ghidra MCP showed that state `5` is not
+collisionless: it still sets `PhysicsEntity::nCollision_mode` to `2` and uses
+the normal car collision callback at `0x004f0cf0`. State `4` uses
+`nCollision_mode = 0` with a passive collision callback, so Knockout uses state
+`4` for ghosted eliminated cars and restores state `1` / `3` for player / CPU
 cars during knockout race cleanup. State `4` can move the car to native ghost
 metadata positions through its primary update callback. The callback pointer is
 loaded from `PTR_FUN_006a4800`, resolves to `0x00523fb0`, and calls
@@ -112,10 +116,13 @@ loaded from `PTR_FUN_006a4800`, resolves to `0x00523fb0`, and calls
 position. Knockout captures the live physics position/orientation before the
 state switch, reapplies it once through `setCarTransform`, then clears
 `PhysicsEntity::pPrimary_update` at `+0x340` and the saved primary update at
-`+0x458` so native code cannot keep replaying the ghost pose. Because the car
-already has a finish time, it no longer counts as actively racing. The last
-remaining car is registered as the winner with a non-DNF finish time so native
-race-complete handling can take over.
+`+0x458` so native code cannot keep replaying the ghost pose.
+
+When the option is `Solid`, eliminated cars use the older state `5` behavior,
+which keeps them visible but collidable. In both cases, the car already has a
+finish time, so it no longer counts as actively racing. The last remaining car
+is registered as the winner with a non-DNF finish time so native race-complete
+handling can take over.
 
 When a Knockout race is reset or restarted, Knockout clears its cached results,
 the native race result table, each live car's finish time, and each live car's
