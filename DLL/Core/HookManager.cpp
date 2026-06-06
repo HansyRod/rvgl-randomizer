@@ -351,6 +351,13 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
+        AbsFromRva(RVA_BUILD_OPTIONS_MENU),
+        reinterpret_cast<void*>(Randomizer::Hook_BuildOptionsMenu),
+        reinterpret_cast<void**>(&Randomizer::Orig_BuildOptionsMenu),
+        "BuildOptionsMenu"
+    );
+
+    HookManager::Add(
         AbsFromRva(RVA_HANDLE_START_RACE_MENU_ACTION),
         reinterpret_cast<void*>(Randomizer::Hook_HandleStartRaceMenuAction),
         reinterpret_cast<void**>(&Randomizer::Orig_HandleStartRaceMenuAction),

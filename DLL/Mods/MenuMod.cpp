@@ -5,6 +5,7 @@
 #include "RVGLFunctions.h"
 #include "RVGLMemory.h"
 #include <algorithm>
+#include <cstring>
 
 // ============================================================================
 // MenuMod.cpp
@@ -15,6 +16,7 @@
 namespace Randomizer {
 
 FnBuildMenu Orig_BuildStartRaceMenu = nullptr;
+FnBuildMenu Orig_BuildOptionsMenu = nullptr;
 FnHandleMenuAction Orig_HandleStartRaceMenuAction = nullptr;
 FnRegisterMenuItemInActiveMenu Orig_RegisterMenuItemInActiveMenu = nullptr;
 
@@ -23,6 +25,10 @@ namespace {
 constexpr int kMenuSlotStride = 0x140;
 constexpr int kMenuItemPointerOffset = 2;
 constexpr int kSelectedItemIndexOffset = 0x38;
+constexpr int kMenuPanelTitleLabelOffset = 0x04;
+constexpr int kMenuPanelBuildFunctionOffset = 0x20;
+constexpr int kMenuPanelActionFunctionOffset = 0x28;
+constexpr int kMenuPanelDescriptorSize = 0x80;
 
 // Temporary custom labels. These patch native locale slots for now; the copied
 // locale table approach needs more investigation before it is safe in menus.
@@ -30,6 +36,7 @@ constexpr int kKnockoutLabelId = 0x17;
 constexpr int kEliminationFrequencyLabelId = 0x1E;
 constexpr int kEliminationsAtOnceLabelId = 0x1F;
 constexpr int kKnockedOutCarStateLabelId = 0x20;
+constexpr int kModOptionsLabelId = 0x21;
 constexpr int kNativeSingleRaceLabelId = 0x15;
 
 constexpr char kKnockoutLabel[] = "Knockout";
@@ -38,6 +45,7 @@ constexpr char kEliminationsAtOnceLabel[] = "Knockout Eliminations Per Lap";
 constexpr char kKnockedOutCarStateLabel[] = "Knocked-out Car State";
 constexpr char kKnockedOutCarStateSolid[] = "Solid";
 constexpr char kKnockedOutCarStateGhost[] = "Ghost";
+constexpr char kModOptionsLabel[] = "Mod Settings";
 
 constexpr int kSingleRaceMode = MODE_SINGLE_RACE;
 constexpr int kFrontendConfirmAction = 5;
@@ -52,6 +60,10 @@ constexpr float kMenuValueTextHeight = 12.0f;
 constexpr float kMenuValueExtraX = 32.0f;
 constexpr uint32_t kMenuValueEnabledColor = 0xffebebeb;
 constexpr uint32_t kMenuValueDisabledColor = 0xff464646;
+constexpr uint32_t RVA_OPTIONS_GAME_SETTINGS_MENU_ITEM = 0x00265460;
+constexpr uint32_t RVA_OPTIONS_GAME_SETTINGS_MENU_PANEL = 0x002643a0;
+
+using FnHandleGenericMenuAction = bool(*)(int slotIndex, uint32_t action);
 
 NumericMenuValue g_carCountMenuValue = {};
 NumericMenuValue g_eliminationFrequencyMenuValue = {};
@@ -61,9 +73,14 @@ MenuItemDescriptor g_knockoutMenuItem = {};
 MenuItemDescriptor g_eliminationFrequencyMenuItem = {};
 MenuItemDescriptor g_eliminationsAtOnceMenuItem = {};
 MenuItemDescriptor g_knockedOutCarStateMenuItem = {};
+MenuItemDescriptor g_modOptionsMenuItem = {};
+alignas(8) uint8_t g_modOptionsMenuPanel[kMenuPanelDescriptorSize] = {};
 bool g_knockoutMenuItemInitialized = false;
+bool g_modOptionsMenuItemInitialized = false;
 char* g_originalSingleRaceLabel = nullptr;
 bool g_originalSingleRaceLabelCaptured = false;
+
+void InitializeKnockoutOptionsMenuItems();
 
 int ClampRandomizerCarCount(int carCount) {
     return std::clamp(carCount, randomizerMinCarCount, randomizerMaxCarCount);
@@ -127,6 +144,7 @@ void PatchKnockoutLocaleStrings() {
     PatchLocaleString(kEliminationFrequencyLabelId, kEliminationFrequencyLabel);
     PatchLocaleString(kEliminationsAtOnceLabelId, kEliminationsAtOnceLabel);
     PatchLocaleString(kKnockedOutCarStateLabelId, kKnockedOutCarStateLabel);
+    PatchLocaleString(kModOptionsLabelId, kModOptionsLabel);
 }
 
 void PatchSingleRaceLabelForKnockout() {
@@ -283,6 +301,73 @@ void DrawKnockedOutCarStateMenuValue(int panelIndex, int itemIndex) {
     );
 }
 
+void BuildModOptionsMenu(int slotIndex) {
+    PatchKnockoutLocaleStrings();
+    InitializeKnockoutOptionsMenuItems();
+
+    RVGL_RegisterMenuItemInActiveMenu(
+        slotIndex,
+        reinterpret_cast<int*>(&g_eliminationFrequencyMenuItem)
+    );
+    RVGL_RegisterMenuItemInActiveMenu(
+        slotIndex,
+        reinterpret_cast<int*>(&g_eliminationsAtOnceMenuItem)
+    );
+    RVGL_RegisterMenuItemInActiveMenu(
+        slotIndex,
+        reinterpret_cast<int*>(&g_knockedOutCarStateMenuItem)
+    );
+}
+
+bool HandleModOptionsMenuAction(int slotIndex, uint32_t action) {
+    if (action == kFrontendConfirmAction) {
+        return false;
+    }
+
+    const auto handleGenericMenuAction =
+        reinterpret_cast<FnHandleGenericMenuAction>(AbsFromRva(RVA_HANDLE_GENERIC_MENU_ACTION));
+    return handleGenericMenuAction(slotIndex, action);
+}
+
+void WriteModOptionsMenuPanelInt(int offset, int value) {
+    *reinterpret_cast<int*>(g_modOptionsMenuPanel + offset) = value;
+}
+
+void WriteModOptionsMenuPanelPointer(int offset, void* value) {
+    *reinterpret_cast<void**>(g_modOptionsMenuPanel + offset) = value;
+}
+
+void InitializeModOptionsMenuItem() {
+    if (g_modOptionsMenuItemInitialized) {
+        return;
+    }
+
+    const auto* gameSettingsMenuItem = reinterpret_cast<const MenuItemDescriptor*>(
+        AbsFromRva(RVA_OPTIONS_GAME_SETTINGS_MENU_ITEM)
+    );
+    const void* gameSettingsMenuPanel = reinterpret_cast<const void*>(
+        AbsFromRva(RVA_OPTIONS_GAME_SETTINGS_MENU_PANEL)
+    );
+
+    g_modOptionsMenuItem = *gameSettingsMenuItem;
+    g_modOptionsMenuItem.labelId = kModOptionsLabelId;
+    g_modOptionsMenuItem.valueBinding =
+        reinterpret_cast<NumericMenuValue*>(g_modOptionsMenuPanel);
+
+    std::memcpy(g_modOptionsMenuPanel, gameSettingsMenuPanel, sizeof(g_modOptionsMenuPanel));
+    WriteModOptionsMenuPanelInt(kMenuPanelTitleLabelOffset, kModOptionsLabelId);
+    WriteModOptionsMenuPanelPointer(
+        kMenuPanelBuildFunctionOffset,
+        reinterpret_cast<void*>(BuildModOptionsMenu)
+    );
+    WriteModOptionsMenuPanelPointer(
+        kMenuPanelActionFunctionOffset,
+        reinterpret_cast<void*>(HandleModOptionsMenuAction)
+    );
+
+    g_modOptionsMenuItemInitialized = true;
+}
+
 void InitializeKnockoutOptionsMenuItems() {
     RandomizerContext& ctx = GetRandomizerContext();
     SyncKnockoutOptionValues();
@@ -327,11 +412,6 @@ void InitializeKnockoutOptionsMenuItems() {
     g_knockedOutCarStateMenuItem.drawValue = DrawKnockedOutCarStateMenuValue;
     g_knockedOutCarStateMenuItem.decrementValue = DecrementKnockedOutCarState;
     g_knockedOutCarStateMenuItem.incrementValue = IncrementKnockedOutCarState;
-}
-
-bool IsFrontendCarCountSettingsDescriptor(int* descriptor) {
-    return GetGameModeRuntime().mode == MODE_SELECT_FRONTEND &&
-        descriptor == reinterpret_cast<int*>(AbsFromRva(RVA_SETTINGS_NCARS_MENU_ITEM));
 }
 
 } // anonymous namespace
@@ -400,6 +480,19 @@ void Hook_BuildStartRaceMenu(int slotIndex) {
     }
 }
 
+void Hook_BuildOptionsMenu(int slotIndex) {
+    Orig_BuildOptionsMenu(slotIndex);
+
+    PatchKnockoutLocaleStrings();
+    InitializeModOptionsMenuItem();
+    if (g_modOptionsMenuItemInitialized) {
+        RVGL_RegisterMenuItemInActiveMenu(
+            slotIndex,
+            reinterpret_cast<int*>(&g_modOptionsMenuItem)
+        );
+    }
+}
+
 bool Hook_HandleStartRaceMenuAction(int slotIndex, uint32_t action) {
     if (action == kFrontendConfirmAction &&
         GetSelectedMenuItemDescriptor(slotIndex) == &g_knockoutMenuItem) {
@@ -414,25 +507,6 @@ bool Hook_HandleStartRaceMenuAction(int slotIndex, uint32_t action) {
 
 void Hook_RegisterMenuItemInActiveMenu(int slotIndex, int* descriptor) {
     Orig_RegisterMenuItemInActiveMenu(slotIndex, descriptor);
-
-    if (!IsFrontendCarCountSettingsDescriptor(descriptor)) {
-        return;
-    }
-
-    PatchKnockoutLocaleStrings();
-    InitializeKnockoutOptionsMenuItems();
-    Orig_RegisterMenuItemInActiveMenu(
-        slotIndex,
-        reinterpret_cast<int*>(&g_eliminationFrequencyMenuItem)
-    );
-    Orig_RegisterMenuItemInActiveMenu(
-        slotIndex,
-        reinterpret_cast<int*>(&g_eliminationsAtOnceMenuItem)
-    );
-    Orig_RegisterMenuItemInActiveMenu(
-        slotIndex,
-        reinterpret_cast<int*>(&g_knockedOutCarStateMenuItem)
-    );
 }
 
 } // namespace Randomizer

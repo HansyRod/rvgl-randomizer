@@ -169,6 +169,9 @@ constexpr uint32_t RVA_BUILD_OPTIONS_MENU = 0x00154700;
 // Registers one MenuItemDescriptor in the currently active frontend menu slot.
 constexpr uint32_t RVA_REGISTER_MENU_ITEM_IN_ACTIVE_MENU = 0x001453B0;
 
+// Shared frontend menu action handler for up/down/left/right/back navigation.
+constexpr uint32_t RVA_HANDLE_GENERIC_MENU_ACTION = 0x00146CF0;
+
 // RegisterFinishTime - adds a car to the 30-entry race result table.
 constexpr uint32_t RVA_REGISTER_FINISH_TIME = 0x000F0890;
 

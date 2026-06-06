@@ -46,12 +46,15 @@ restarts, while `menuSelectionActive` records the frontend selection path.
 This avoids patching the `RaceSessionSetup` native mode jump table at
 `0x00450700`, whose known cases only cover existing RVGL modes.
 
-## Game Settings
+## Mod Options
 
-`RegisterMenuItemInActiveMenu` at `0x005453b0` is hooked so the DLL can detect
-when `BuildSettingsMenu` registers the native `Num Cars` row. The two Knockout
-numeric entries are then registered immediately after that row in the Game
-Settings menu:
+`BuildOptionsMenu` at `0x00554700` is hooked so the DLL can append a custom
+`Mod options` row to the base Options menu. The row clones the native Game
+Settings menu descriptor shape and points to a randomizer-owned menu panel. The
+panel uses a custom action handler that blocks confirm on numeric rows and
+delegates up/down/left/right/back to native `HandleGenericMenuAction` at
+`0x00546cf0`; this avoids running the native Game Settings apply handler when
+leaving the menu. Its builder registers only the randomizer settings:
 
 - `Knockout Lap Frequency`: `1..10`, measured in laps.
 - `Knockout Eliminations Per Lap`: `1..29`, number of cars eliminated per event.
