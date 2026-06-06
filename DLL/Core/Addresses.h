@@ -172,6 +172,9 @@ constexpr uint32_t RVA_REGISTER_MENU_ITEM_IN_ACTIVE_MENU = 0x001453B0;
 // RegisterFinishTime - adds a car to the 30-entry race result table.
 constexpr uint32_t RVA_REGISTER_FINISH_TIME = 0x000F0890;
 
+// SetCarBehaviourState - switches a live car entity between native behavior states.
+constexpr uint32_t RVA_SET_CAR_BEHAVIOUR_STATE = 0x000EFD50;
+
 // UI_SetPostRacePopup - shows the bottom-center race finish notification.
 constexpr uint32_t RVA_UI_SET_POST_RACE_POPUP = 0x00068200;
 

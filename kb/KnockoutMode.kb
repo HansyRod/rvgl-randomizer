@@ -99,11 +99,23 @@ position/name rows, colored with each eliminated car's native popup color. Rows
 are sorted by displayed finish position, with ranks right-aligned so names share
 the same starting column.
 
-Eliminated cars are moved to car state `5`, which is the closest known native
-spectator/ghost-like state. Because the car already has a finish time, it no
-longer counts as actively racing. The last remaining car is registered as the
-winner with a non-DNF finish time so native race-complete handling can take
-over.
+Eliminated cars are moved through native `SetCarBehaviourState` at `0x004efd50`
+instead of directly assigning `CarEntity::nCar_type`. Ghidra MCP showed that
+state `5` is not collisionless: it still sets `PhysicsEntity::nCollision_mode`
+to `2` and uses the normal car collision callback at `0x004f0cf0`. State `4`
+uses `nCollision_mode = 0` with a passive collision callback, so Knockout uses
+state `4` for eliminated cars and restores state `1` / `3` for player / CPU
+cars during knockout race cleanup. State `4` can move the car to native ghost
+metadata positions through its primary update callback. The callback pointer is
+loaded from `PTR_FUN_006a4800`, resolves to `0x00523fb0`, and calls
+`0x0044d560`, which reads ghost/replay frame data and writes the physics body
+position. Knockout captures the live physics position/orientation before the
+state switch, reapplies it once through `setCarTransform`, then clears
+`PhysicsEntity::pPrimary_update` at `+0x340` and the saved primary update at
+`+0x458` so native code cannot keep replaying the ghost pose. Because the car
+already has a finish time, it no longer counts as actively racing. The last
+remaining car is registered as the winner with a non-DNF finish time so native
+race-complete handling can take over.
 
 When a Knockout race is reset or restarted, Knockout clears its cached results,
 the native race result table, each live car's finish time, and each live car's

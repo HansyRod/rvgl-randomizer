@@ -29,6 +29,7 @@ using FnLevelDestroyAndFree = void(*)();
 using FnLoadNextRaceFromPlayerRaceInfo = void(*)();
 using FnRegisterMenuItemInActiveMenu = void(*)(int slotIndex, int* descriptor);
 using FnRegisterFinishTime = void(*)(int* car, uint32_t finishTimeMs, uint8_t dnfFlag);
+using FnSetCarBehaviourState = void(*)(CarEntityRuntime* car, int state);
 using FnSetPostRacePopup = void(*)(char* prefixText, char* timeText, uint32_t prefixColor, uint32_t timeColor, int priority, float duration);
 
 extern FnCreateCarEntity RVGL_CreateCarEntity;
@@ -54,6 +55,7 @@ extern FnLevelDestroyAndFree RVGL_LevelDestroyAndFree;
 extern FnLoadNextRaceFromPlayerRaceInfo RVGL_LoadNextRaceFromPlayerRaceInfo;
 extern FnRegisterMenuItemInActiveMenu RVGL_RegisterMenuItemInActiveMenu;
 extern FnRegisterFinishTime RVGL_RegisterFinishTime;
+extern FnSetCarBehaviourState RVGL_SetCarBehaviourState;
 extern FnSetPostRacePopup RVGL_SetPostRacePopup;
 
 } // namespace Randomizer

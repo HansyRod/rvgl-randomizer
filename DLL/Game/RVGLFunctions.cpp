@@ -30,6 +30,8 @@ FnRegisterMenuItemInActiveMenu RVGL_RegisterMenuItemInActiveMenu =
     reinterpret_cast<FnRegisterMenuItemInActiveMenu>(AbsFromRva(RVA_REGISTER_MENU_ITEM_IN_ACTIVE_MENU));
 FnRegisterFinishTime RVGL_RegisterFinishTime =
     reinterpret_cast<FnRegisterFinishTime>(AbsFromRva(RVA_REGISTER_FINISH_TIME));
+FnSetCarBehaviourState RVGL_SetCarBehaviourState =
+    reinterpret_cast<FnSetCarBehaviourState>(AbsFromRva(RVA_SET_CAR_BEHAVIOUR_STATE));
 FnSetPostRacePopup RVGL_SetPostRacePopup =
     reinterpret_cast<FnSetPostRacePopup>(AbsFromRva(RVA_UI_SET_POST_RACE_POPUP));
 

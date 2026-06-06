@@ -22,12 +22,15 @@ constexpr int kCarStatePlayer = 1;
 constexpr int kCarStateCpu = 3;
 constexpr int kCarStateEliminated = 9;
 constexpr int kCarStateGhost = 5;
+constexpr int kCarStatePassiveGhost = 4;
 constexpr int kCompletedLapOffset = 0x0F40;
+constexpr int kPhysicsSavedPrimaryUpdateOffset = 0x458;
 constexpr int kMaxCarListTraversal = 128;
 constexpr int kNativeSingleRaceLabelId = 0x15;
 constexpr uint32_t kDefaultPopupPrefixColor = 0xff00ffff;
 constexpr uint32_t kDefaultPopupTimeColor = 0xffffff;
 constexpr char kKnockoutLabel[] = "Knockout";
+constexpr bool knockedOutGhostMode = true;
 
 struct RaceResultEntry {
     CarEntityRuntime* car;
@@ -83,6 +86,58 @@ bool IsCarStillRacing(CarEntityRuntime* car) {
            car->finishTimeMs == 0;
 }
 
+struct KnockoutCarPose {
+    float position[3];
+    float orientation[12];
+};
+
+bool CaptureCarPose(CarEntityRuntime* car, KnockoutCarPose& outPose) {
+    if (car == nullptr || car->transform.physicsBody == nullptr) {
+        return false;
+    }
+
+    outPose = {};
+    outPose.position[0] = car->transform.physicsBody->position.x;
+    outPose.position[1] = car->transform.physicsBody->position.y;
+    outPose.position[2] = car->transform.physicsBody->position.z;
+
+    for (int i = 0; i < 9; ++i) {
+        outPose.orientation[i] = car->transform.physicsBody->orientationMatrix[i];
+    }
+
+    return true;
+}
+
+void RestoreCarPose(CarEntityRuntime* car, const KnockoutCarPose& pose) {
+    if (car == nullptr || car->transform.physicsBody == nullptr) {
+        return;
+    }
+
+    float position[3] = {
+        pose.position[0],
+        pose.position[1],
+        pose.position[2]
+    };
+    float orientation[12] = {};
+    for (int i = 0; i < 9; ++i) {
+        orientation[i] = pose.orientation[i];
+    }
+
+    RVGL_SetCarTransform(&car->transform, position, orientation);
+    car->transform.physicsBody->velocity = { 0.0f, 0.0f, 0.0f };
+}
+
+void DisablePassiveGhostPlayback(CarEntityRuntime* car) {
+    if (car == nullptr || car->physicsEntity == nullptr) {
+        return;
+    }
+
+    car->physicsEntity->primaryUpdate = nullptr;
+    *reinterpret_cast<void**>(
+        reinterpret_cast<uint8_t*>(car->physicsEntity) + kPhysicsSavedPrimaryUpdateOffset
+    ) = nullptr;
+}
+
 std::vector<CarEntityRuntime*> GetActiveRaceCars() {
     std::vector<CarEntityRuntime*> cars;
     CarEntityRuntime* car = *reinterpret_cast<CarEntityRuntime**>(AbsFromRva(RVA_CAR_LIST_HEAD));
@@ -123,8 +178,18 @@ void ClearNativeKnockoutRaceState() {
             car->finishTimeMs = 0;
             car->finishPosition = 0;
             WriteCarInt(car, kCompletedLapOffset, 0);
-            if (car->carState == kCarStateGhost) {
-                car->carState = car->nCarArrayIndex == 0 ? kCarStatePlayer : kCarStateCpu;
+            if (knockedOutGhostMode) {
+                if (car->carState == kCarStatePassiveGhost || car->carState == kCarStateGhost) {
+                    RVGL_SetCarBehaviourState(
+                        car,
+                        car->nCarArrayIndex == 0 ? kCarStatePlayer : kCarStateCpu
+                    );
+                }
+            }
+            else {
+                if (car->carState == kCarStateGhost) {
+                    car->carState = car->nCarArrayIndex == 0 ? kCarStatePlayer : kCarStateCpu;
+                }
             }
         }
 
@@ -415,7 +480,19 @@ bool EliminateCar(CarEntityRuntime* car, std::vector<KnockoutPopupLine>& popupLi
     g_knockoutResults.push_back({ car, finishTime });
     popupLines.push_back({ car, finishPosition, finishTime });
 
-    car->carState = kCarStateGhost;
+    if (knockedOutGhostMode) {
+        KnockoutCarPose pose = {};
+        const bool hasPose = CaptureCarPose(car, pose);
+        RVGL_SetCarBehaviourState(car, kCarStatePassiveGhost);
+        DisablePassiveGhostPlayback(car);
+        if (hasPose) {
+            RestoreCarPose(car, pose);
+        }
+    }
+    else {
+        car->carState = kCarStateGhost;
+    }
+
     ++ctx.knockoutState.eliminatedCount;
 
     Logger::TimestampLogf(
