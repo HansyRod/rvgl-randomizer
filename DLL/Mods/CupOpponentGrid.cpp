@@ -46,14 +46,6 @@ int GetSelectedPlayerSkinFromSettings() {
     return settings != nullptr ? settings->playerSkinId : 0;
 }
 
-CupProfile* ResolveActiveCupFromSelection(int selectedCupIndex) {
-    return GetCupProfileByCupID(selectedCupIndex);
-}
-
-const RandomizedCup* FindCupConfig(int selectedCupIndex) {
-    return GetCupConfigByCupID(selectedCupIndex);
-}
-
 bool HasConfiguredOpponents(const RandomizedCup* cupConfig) {
     return cupConfig != nullptr &&
            cupConfig->opponents.has_value() &&
@@ -355,8 +347,8 @@ bool IsExtendedCupOpponentGrid(CupProfile* cup) {
 
 void Hook_Cup_GenerateOpponentGrid() {
     const int selectedCupIndex = GetSelectedCupIndexFromSettings();
-    CupProfile* cup = ResolveActiveCupFromSelection(selectedCupIndex);
-    const RandomizedCup* cupConfig = FindCupConfig(selectedCupIndex);
+    CupProfile* cup = GetCupProfileByCupID(selectedCupIndex);
+    const RandomizedCup* cupConfig = GetCupConfigByCupID(selectedCupIndex);
     if (!ShouldGenerateOpponentGrid(cup, cupConfig)) {
         ResetThirtyCarCupState();
         Orig_Cup_GenerateOpponentGrid();
