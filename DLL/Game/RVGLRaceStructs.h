@@ -69,7 +69,9 @@ struct RaceSettingsRuntime {
     int32_t selectedCupIndex;         // +0x04
     uint8_t _pad_08[32];
     char playerName[16];              // +0x28
-    uint8_t _pad_38[48];
+    char player2Name[16];             // +0x38
+    char player3Name[16];             // +0x48
+    char player4Name[16];             // +0x58
     int32_t playerModelId;            // +0x68
     uint8_t _pad_6C[12];
     int32_t playerSkinId;             // +0x78
