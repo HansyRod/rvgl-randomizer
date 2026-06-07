@@ -143,7 +143,7 @@ int PickCupOpponentModel(
 }
 
 int PickCpuSkinForCup(int modelId) {
-    if (!IsRandomCarColorEnabled()) {
+    if (!IsRandomSkinEnabled()) {
         return 0;
     }
 

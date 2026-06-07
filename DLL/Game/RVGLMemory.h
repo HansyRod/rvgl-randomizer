@@ -28,7 +28,7 @@ int& GetNativeParticipantCount();
 CupParticipantEntry* GetNativeCupParticipants();
 CupParticipantEntry* GetNativeCupStandings();
 bool IsCupDCEnabled();
-bool IsRandomCarColorEnabled();
+bool IsRandomSkinEnabled();
 int* GetPostRaceMenuDisplayState();
 UiViewportRuntime* GetUiViewportRuntime();
 float GetCupProgressUiCoordScale();

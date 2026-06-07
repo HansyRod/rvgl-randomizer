@@ -88,8 +88,8 @@ bool IsCupDCEnabled() {
     return *reinterpret_cast<bool*>(AbsFromRva(RVA_CUP_DC));
 }
 
-bool IsRandomCarColorEnabled() {
-    return *reinterpret_cast<bool*>(AbsFromRva(RVA_RANDOM_CAR_COLORS_ENABLED));
+bool IsRandomSkinEnabled() {
+    return *reinterpret_cast<bool*>(AbsFromRva(RVA_RANDOM_SKINS_ENABLED));
 }
 
 int* GetPostRaceMenuDisplayState() {
