@@ -1,38 +1,46 @@
 #pragma once
-
 #include <cstdint>
 #include <cstdio>
-
-struct CupProfile;
+#include "RVGLStructs.h"
+#include "ExtendedCupResults.h"
+#include "ConfigData.h"
 
 namespace Randomizer {
 
-using FnBuildGrid = void(*)();
-using FnUpdateCupPostRaceProgress = void(*)();
-using FnDrawCupStandingsTable = void(*)();
+    // ------------------------------------------------------------------------
+    // Function pointer types — must exactly match the RVGL originals.
+    // ------------------------------------------------------------------------
+    using FnBuildGrid = void(*)();
+    using FnUpdateCupPostRaceProgress = void(*)();
+    using FnDrawCupStandingsTable = void(*)();
 
-extern FnBuildGrid Orig_BuildGrid;
-extern FnUpdateCupPostRaceProgress Orig_UpdateCupPostRaceProgress;
-extern FnDrawCupStandingsTable Orig_DrawCupStandingsTable;
+    // ------------------------------------------------------------------------
+    // Original function pointers.
+    // MinHook writes the trampoline addresses into these during InstallAll().
+    // Call these from inside the detours to invoke the real RVGL functions.
+    // ------------------------------------------------------------------------
+    extern FnBuildGrid Orig_BuildGrid;
+    extern FnUpdateCupPostRaceProgress Orig_UpdateCupPostRaceProgress;
+    extern FnDrawCupStandingsTable Orig_DrawCupStandingsTable;
 
-struct ExtendedCupResultsState;
-struct RandomizedCup;
+    // ------------------------------------------------------------------------
+    // Detour functions — registered in HookManager.cpp → RegisterHooks().
+    // ------------------------------------------------------------------------
+    void Hook_BuildGrid();
+    void Hook_UpdateCupPostRaceProgress();
+    void Hook_DrawCupStandingsTable();
 
-bool IsThirtyCarCupActive();
-void ResetThirtyCarCupState();
-void StartThirtyCarCupState(
-    int selectedCupIndex,
-    CupProfile* cup,
-    const RandomizedCup* cupConfig,
-    const ExtendedCupResultsState& results
-);
-void ApplyThirtyCarCupGrid();
-void MoveThirtyCarCupPlayerToBackAfterRacePositions();
-void PrepareThirtyCarCupStageFinished();
-bool HandleThirtyCarCupOnStageFinished();
-
-void Hook_BuildGrid();
-void Hook_UpdateCupPostRaceProgress();
-void Hook_DrawCupStandingsTable();
+    bool IsThirtyCarCupActive();
+    void ResetThirtyCarCupState();
+    void StartThirtyCarCupState(
+        int selectedCupIndex,
+        CupProfile* cup,
+        const RandomizedCup* cupConfig,
+        const ExtendedCupResultsState& results
+    );
+    void ApplyThirtyCarCupGrid();
+    void MoveThirtyCarCupPlayerToBackAfterRacePositions();
+    void PrepareThirtyCarCupStageFinished();
+    bool HandleThirtyCarCupOnStageFinished();
 
 } // namespace Randomizer

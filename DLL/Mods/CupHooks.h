@@ -1,10 +1,9 @@
 #pragma once
 #include "RVGLStructs.h"
+#include "ConfigData.h"
 #include <cstdio>
 
 namespace Randomizer {
-
-    struct RandomizedCup;
 
     // ------------------------------------------------------------------------
     // Function pointer types — must exactly match the RVGL originals.
