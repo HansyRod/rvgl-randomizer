@@ -303,8 +303,9 @@ constexpr uint32_t RVA_RACE_SETTINGS_PTR = 0x002a7910;
 // Pointer to the active player/race info block populated by BuildGrid.
 constexpr uint32_t RVA_PLAYER_RACE_INFO_PTR = 0x002a7770;
 
-// Pointer to a byte copied by native BuildGrid into PlayerRaceInfo +0x34.
-constexpr uint32_t RVA_PLAYER_RACE_INFO_34_SOURCE_PTR = 0x002a5e50;
+// Pointer to the global car-model half-scale flag copied by native BuildGrid
+// into PlayerRaceInfo +0x34.
+constexpr uint32_t RVA_DRINKME_ENABLED_PTR = 0x002a5e50;
 
 // Pointer variable holding the active CupProfile during a championship.
 constexpr uint32_t RVA_ACTIVE_CUP_PTR = 0x0025ec60;

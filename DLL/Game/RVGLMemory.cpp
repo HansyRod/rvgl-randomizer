@@ -68,8 +68,8 @@ int& GetCupStageDirection() {
     return *reinterpret_cast<int*>(AbsFromRva(RVA_CUP_STAGE_DIRECTION));
 }
 
-int& GetCupPostRaceState() {
-    return *reinterpret_cast<int*>(AbsFromRva(RVA_CUP_POST_RACE_STATE));
+CupPostRaceState& GetCupPostRaceState() {
+    return *reinterpret_cast<CupPostRaceState*>(AbsFromRva(RVA_CUP_POST_RACE_STATE));
 }
 
 int& GetNativeParticipantCount() {
@@ -106,8 +106,8 @@ float GetCupProgressUiCoordScale() {
     return *reinterpret_cast<float*>(AbsFromRva(RVA_CUP_PROGRESS_UI_COORD_SCALE));
 }
 
-uint8_t* GetPlayerRaceInfo34Source() {
-    return *reinterpret_cast<uint8_t**>(AbsFromRva(RVA_PLAYER_RACE_INFO_34_SOURCE_PTR));
+uint8_t* GetCarModelHalfScaleFlagSource() {
+    return *reinterpret_cast<uint8_t**>(AbsFromRva(RVA_DRINKME_ENABLED_PTR));
 }
 
 int& GetTierUnlockTrigger() {

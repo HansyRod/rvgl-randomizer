@@ -188,6 +188,15 @@ struct CupResultRuntime {
 };
 static_assert(sizeof(CupResultRuntime) == 0x1C, "CupResultRuntime size mismatch");
 
+enum class CupPostRaceState : int32_t {
+    Initial = 0,
+    AwaitingPopup = 1,
+    AwaitingReady = 2,
+    RetryPrompt = 3,
+    Standings = 4,
+    StageFinished = 5
+};
+
 
 // Reconstructed UV structure starting at offset 0x38 in the carbox object.
 struct CarboxUV {

@@ -18,7 +18,7 @@ namespace Randomizer {
     int& GetCurrentCupStageIndex();
     int& GetCupTriesLeft();
     int& GetCupStageDirection();
-    int& GetCupPostRaceState();
+    CupPostRaceState& GetCupPostRaceState();
     int& GetNativeParticipantCount();
     CupParticipantEntry* GetNativeCupParticipants();
     CupParticipantEntry* GetNativeCupStandings();
@@ -27,7 +27,7 @@ namespace Randomizer {
     int* GetPostRaceMenuDisplayState();
     UiViewportRuntime* GetUiViewportRuntime();
     float GetCupProgressUiCoordScale();
-    uint8_t* GetPlayerRaceInfo34Source();
+    uint8_t* GetCarModelHalfScaleFlagSource();
     int& GetTierUnlockTrigger();
     uint8_t* GetFrontendCupResultFlag();
     void** GetGameStateFunctionPtr();

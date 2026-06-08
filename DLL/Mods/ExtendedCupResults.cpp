@@ -196,11 +196,6 @@ void RecordExtendedCupStageResultsOnce(
         return;
     }
 
-    const bool raceFinished = IsRaceFinished();
-    if (!raceFinished) {
-        return;
-    }
-
     const int stage = GetCurrentCupStageIndex();
     if (stage < 0 || stage >= 16 || results.lastRecordedStage == stage) {
         return;

@@ -105,7 +105,7 @@ struct PlayerRaceInfoRuntime {
     uint8_t _pad_24[4];
     int32_t countdown;                // +0x28
     uint8_t _pad_2C[8];
-    int32_t unknown34;                // +0x34
+    int32_t carModelHalfScale;        // +0x34
     uint8_t _pad_38[8];
     char trackFolder[16];             // +0x40
 };
@@ -153,7 +153,7 @@ static_assert(offsetof(PlayerRaceInfoRuntime, mirror) == 0x14, "PlayerRaceInfoRu
 static_assert(offsetof(PlayerRaceInfoRuntime, reverse) == 0x18, "PlayerRaceInfoRuntime::reverse offset mismatch.");
 static_assert(offsetof(PlayerRaceInfoRuntime, pickupsEnabled) == 0x20, "PlayerRaceInfoRuntime::pickupsEnabled offset mismatch.");
 static_assert(offsetof(PlayerRaceInfoRuntime, countdown) == 0x28, "PlayerRaceInfoRuntime::countdown offset mismatch.");
-static_assert(offsetof(PlayerRaceInfoRuntime, unknown34) == 0x34, "PlayerRaceInfoRuntime::unknown34 offset mismatch.");
+static_assert(offsetof(PlayerRaceInfoRuntime, carModelHalfScale) == 0x34, "PlayerRaceInfoRuntime::carModelHalfScale offset mismatch.");
 static_assert(offsetof(PlayerRaceInfoRuntime, trackFolder) == 0x40, "PlayerRaceInfoRuntime::trackFolder offset mismatch.");
 static_assert(offsetof(UiViewportRuntime, centerX) == 0x10, "UiViewportRuntime::centerX offset mismatch.");
 static_assert(offsetof(UiViewportRuntime, centerY) == 0x14, "UiViewportRuntime::centerY offset mismatch.");

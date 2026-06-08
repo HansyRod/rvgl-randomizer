@@ -40,7 +40,6 @@ namespace Randomizer {
     );
     void ApplyThirtyCarCupGrid();
     void MoveThirtyCarCupPlayerToBackAfterRacePositions();
-    void PrepareThirtyCarCupStageFinished();
     bool HandleThirtyCarCupOnStageFinished();
 
 } // namespace Randomizer

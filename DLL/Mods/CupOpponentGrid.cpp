@@ -276,7 +276,7 @@ void ResetCupRuntimeState() {
     GetCurrentCupStageIndex() = 0;
     GetCupTriesLeft() = 0;
     GetCupStageDirection() = 0;
-    GetCupPostRaceState() = 0;
+    GetCupPostRaceState() = CupPostRaceState::Initial;
     GetCupResultRuntime() = {};
 
     CupParticipantEntry* nativeParticipants = GetNativeCupParticipants();
