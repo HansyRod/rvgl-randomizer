@@ -365,13 +365,6 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
-        AbsFromRva(RVA_REGISTER_MENU_ITEM_IN_ACTIVE_MENU),
-        reinterpret_cast<void*>(Randomizer::Hook_RegisterMenuItemInActiveMenu),
-        reinterpret_cast<void**>(&Randomizer::Orig_RegisterMenuItemInActiveMenu),
-        "RegisterMenuItemInActiveMenu"
-    );
-
-    HookManager::Add(
         AbsFromRva(RVA_RACE_SESSION_SETUP),
         reinterpret_cast<void*>(Randomizer::Hook_RaceSessionSetup),
         reinterpret_cast<void**>(&Randomizer::Orig_RaceSessionSetup),

@@ -18,7 +18,6 @@ namespace Randomizer {
 FnBuildMenu Orig_BuildStartRaceMenu = nullptr;
 FnBuildMenu Orig_BuildOptionsMenu = nullptr;
 FnHandleMenuAction Orig_HandleStartRaceMenuAction = nullptr;
-FnRegisterMenuItemInActiveMenu Orig_RegisterMenuItemInActiveMenu = nullptr;
 
 namespace {
 
@@ -568,10 +567,6 @@ bool Hook_HandleStartRaceMenuAction(int slotIndex, uint32_t action) {
     }
 
     return Orig_HandleStartRaceMenuAction(slotIndex, action);
-}
-
-void Hook_RegisterMenuItemInActiveMenu(int slotIndex, int* descriptor) {
-    Orig_RegisterMenuItemInActiveMenu(slotIndex, descriptor);
 }
 
 } // namespace Randomizer
