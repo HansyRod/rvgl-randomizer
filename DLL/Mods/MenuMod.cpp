@@ -31,13 +31,13 @@ constexpr int kMenuPanelDescriptorSize = 0x80;
 
 // Temporary custom labels. These patch native locale slots for now; the copied
 // locale table approach needs more investigation before it is safe in menus.
-constexpr int kKnockoutLabelId = 0x17;
-constexpr int kEliminationFrequencyLabelId = 0x1E;
-constexpr int kEliminationsAtOnceLabelId = 0x1F;
-constexpr int kKnockedOutCarStateLabelId = 0x20;
-constexpr int kModOptionsLabelId = 0x21;
-constexpr int kKnockoutLapCountLabelId = 0x22;
-constexpr int kNativeSingleRaceLabelId = 0x15;
+constexpr int kKnockoutLabelId = 569;
+constexpr int kEliminationFrequencyLabelId = 570;
+constexpr int kEliminationsAtOnceLabelId = 571;
+constexpr int kKnockedOutCarStateLabelId = 572;
+constexpr int kModOptionsLabelId = 573;
+constexpr int kKnockoutLapCountLabelId = 574;
+constexpr int kNativeSingleRaceLabelId = 575;
 
 constexpr char kKnockoutLabel[] = "Knockout";
 constexpr char kKnockoutLapCountLabel[] = "Knockout Lap Count";
