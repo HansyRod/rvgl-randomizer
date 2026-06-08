@@ -46,14 +46,6 @@ int GetSelectedPlayerSkinFromSettings() {
     return settings != nullptr ? settings->playerSkinId : 0;
 }
 
-CupProfile* ResolveActiveCupFromSelection(int selectedCupIndex) {
-    return GetCupProfileByCupID(selectedCupIndex);
-}
-
-const RandomizedCup* FindCupConfig(int selectedCupIndex) {
-    return GetCupConfigByCupID(selectedCupIndex);
-}
-
 bool HasConfiguredOpponents(const RandomizedCup* cupConfig) {
     return cupConfig != nullptr &&
            cupConfig->opponents.has_value() &&
@@ -117,33 +109,24 @@ std::vector<int> BuildCpuModelPool(
 int PickCupOpponentModel(
     int rating,
     int playerModelId,
-    std::unordered_map<int, bool>& usedModels
+    std::unordered_map<int, bool>& usedModels,
+    std::vector<int>& pool,
+    std::array<int, 6>& remainingRatingSlots
 ) {
-    std::vector<int> pool = BuildCpuModelPool(rating, usedModels);
     if (!pool.empty()) {
         const int modelId = PickRandomFromPool(pool);
         usedModels[modelId] = true;
+        // Remove the selected model from the pool to avoid duplicates.
+        pool.erase(std::remove(pool.begin(), pool.end(), modelId), pool.end());
+        --remainingRatingSlots[rating];
         return modelId;
-    }
-
-    pool.clear();
-    const int totalModels = GetTotalCarModelCount();
-    for (int modelId = 0; modelId < totalModels; ++modelId) {
-        if (IsCarModelCpuSelectable(modelId) &&
-            GetCarModelRating(modelId) == rating) {
-            pool.push_back(modelId);
-        }
-    }
-
-    if (!pool.empty()) {
-        return PickRandomFromPool(pool);
     }
 
     return playerModelId >= 0 ? playerModelId : 0;
 }
 
 int PickCpuSkinForCup(int modelId) {
-    if (!IsRandomCarColorEnabled()) {
+    if (!IsRandomSkinEnabled()) {
         return 0;
     }
 
@@ -157,13 +140,13 @@ int PickCpuSkinForCup(int modelId) {
     return dist(rng);
 }
 
-std::vector<int> BuildRequestedRatings(CupProfile* cup, int count, int playerModelId) {
-    std::vector<int> requestedRatings;
+std::array<int, 6> BuildRatingsPool(CupProfile* cup, int count, int playerModelId) {
+    std::array<int, 6> ratingsPool = {};
     if (cup == nullptr || count <= 1) {
-        return requestedRatings;
+        return ratingsPool;
     }
 
-    const int classCounts[6] = {
+    ratingsPool = {
         cup->maxRookie,
         cup->maxAmateur,
         cup->maxAdvanced,
@@ -171,32 +154,17 @@ std::vector<int> BuildRequestedRatings(CupProfile* cup, int count, int playerMod
         cup->maxPro,
         cup->maxSuperPro
     };
-    for (int rating = 0; rating < 6; ++rating) {
-        for (int i = 0; i < classCounts[rating]; ++i) {
-            requestedRatings.push_back(rating);
-        }
+
+    int totalSlots = std::accumulate(ratingsPool.begin(), ratingsPool.end(), 0);
+
+    if (totalSlots < count - 1) {
+        // If the cup configuration doesn't have enough slots for the requested opponent count,
+        // fill the remaining slots with the player's rating.
+        const int playerRating = GetCarModelRating(playerModelId);
+        ratingsPool[playerRating] += count - 1 - totalSlots;
     }
 
-    while (static_cast<int>(requestedRatings.size()) < count - 1) {
-        requestedRatings.push_back(GetCarModelRating(playerModelId));
-    }
-
-    if (static_cast<int>(requestedRatings.size()) > count - 1) {
-        requestedRatings.resize(count - 1);
-    }
-
-    return requestedRatings;
-}
-
-std::array<int, 6> CountRatingSlots(const std::vector<int>& requestedRatings) {
-    std::array<int, 6> ratingSlots = {};
-    for (int rating : requestedRatings) {
-        if (rating >= 0 && rating < static_cast<int>(ratingSlots.size())) {
-            ++ratingSlots[rating];
-        }
-    }
-
-    return ratingSlots;
+    return ratingsPool;
 }
 
 void AssignCupParticipant(
@@ -267,22 +235,38 @@ void FillRemainingCupOpponents(
     int nextParticipantIndex,
     int count,
     int playerModelId,
-    const std::array<int, 6>& remainingRatingSlots,
+    std::array<int, 6>& remainingRatingSlots,
     std::unordered_map<int, bool>& usedModels
 ) {
-    std::vector<int> remainingRatings;
-    for (int rating = 0; rating < static_cast<int>(remainingRatingSlots.size()); ++rating) {
-        for (int i = 0; i < remainingRatingSlots[rating]; ++i) {
-            remainingRatings.push_back(rating);
+
+    std::array<std::vector<int>, 6> ratingModelPools = {};
+    for (int rating = 0; rating < 6; ++rating) {
+        if (remainingRatingSlots[rating] > 0) {
+            ratingModelPools[rating] = BuildCpuModelPool(rating, usedModels);
         }
     }
 
+    int currentRating = -1;
+    for (int rating = 0; rating < 6; ++rating) {
+        if (remainingRatingSlots[rating] > 0) {
+            currentRating = rating;
+            break;
+        }
+    }
+    
     for (int i = nextParticipantIndex; i < count; ++i) {
-        const int ratingIndex = i - nextParticipantIndex;
-        const int rating = ratingIndex < static_cast<int>(remainingRatings.size())
-            ? remainingRatings[ratingIndex]
-            : GetCarModelRating(playerModelId);
-        const int modelId = PickCupOpponentModel(rating, playerModelId, usedModels);
+
+        if (remainingRatingSlots[currentRating] == 0 || ratingModelPools[currentRating].empty()) {
+            // Find the next available rating
+            for (int rating = currentRating + 1; rating < 6; ++rating) {
+                if (remainingRatingSlots[rating] > 0 && !ratingModelPools[rating].empty()) {
+                    currentRating = rating;
+                    break;
+                }
+            }
+        }
+
+        const int modelId = PickCupOpponentModel(currentRating, playerModelId, usedModels, ratingModelPools[currentRating], remainingRatingSlots);
         AssignCupParticipant(results, i, modelId, PickCpuSkinForCup(modelId));
     }
 }
@@ -292,7 +276,7 @@ void ResetCupRuntimeState() {
     GetCurrentCupStageIndex() = 0;
     GetCupTriesLeft() = 0;
     GetCupStageDirection() = 0;
-    GetCupPostRaceState() = 0;
+    GetCupPostRaceState() = CupPostRaceState::Initial;
     GetCupResultRuntime() = {};
 
     CupParticipantEntry* nativeParticipants = GetNativeCupParticipants();
@@ -321,16 +305,15 @@ ExtendedCupResultsState GenerateOpponentRoster(
     std::unordered_map<int, bool> usedModels;
     AssignCupParticipant(results, 0, playerModelId, playerSkinId);
     usedModels[playerModelId] = true;
-
-    const std::vector<int> requestedRatings = BuildRequestedRatings(cup, count, playerModelId);
-    std::array<int, 6> remainingRatingSlots = CountRatingSlots(requestedRatings);
+;
+    std::array<int, 6> ratingsPool = BuildRatingsPool(cup, count, playerModelId);
     const int nextParticipantIndex = AddConfiguredOpponents(
         cupConfig,
         results,
         1,
         count,
         playerModelId,
-        remainingRatingSlots,
+        ratingsPool,
         usedModels
     );
     FillRemainingCupOpponents(
@@ -338,7 +321,7 @@ ExtendedCupResultsState GenerateOpponentRoster(
         nextParticipantIndex,
         count,
         playerModelId,
-        remainingRatingSlots,
+        ratingsPool,
         usedModels
     );
 
@@ -355,8 +338,8 @@ bool IsExtendedCupOpponentGrid(CupProfile* cup) {
 
 void Hook_Cup_GenerateOpponentGrid() {
     const int selectedCupIndex = GetSelectedCupIndexFromSettings();
-    CupProfile* cup = ResolveActiveCupFromSelection(selectedCupIndex);
-    const RandomizedCup* cupConfig = FindCupConfig(selectedCupIndex);
+    CupProfile* cup = GetCupProfileByCupID(selectedCupIndex);
+    const RandomizedCup* cupConfig = GetCupConfigByCupID(selectedCupIndex);
     if (!ShouldGenerateOpponentGrid(cup, cupConfig)) {
         ResetThirtyCarCupState();
         Orig_Cup_GenerateOpponentGrid();

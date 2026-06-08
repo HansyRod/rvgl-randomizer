@@ -255,8 +255,8 @@ constexpr uint32_t RVA_VANILLA_CUP_ARRAY = 0x0025f4a0;
 // Global variable for CupDC setting. If enabled, DC Cups are used and DC Cars can be loaded into championships.
 constexpr uint32_t RVA_CUP_DC = 0x00b4349e;
 
-// Global setting used by native GetCarColor. When disabled, native car color selection returns 0.
-constexpr uint32_t RVA_RANDOM_CAR_COLORS_ENABLED = 0x00b434a2;
+// Global setting that enables or disables random skins.
+constexpr uint32_t RVA_RANDOM_SKINS_ENABLED = 0x00b434a2;
 
 // Number of loaded custom cup profiles.
 constexpr uint32_t RVA_CUSTOM_CUPS_COUNT = 0x002fbbc0;
@@ -330,8 +330,9 @@ constexpr uint32_t RVA_RACE_SETTINGS_PTR = 0x002a7910;
 // Pointer to the active player/race info block populated by BuildGrid.
 constexpr uint32_t RVA_PLAYER_RACE_INFO_PTR = 0x002a7770;
 
-// Pointer to a byte copied by native BuildGrid into PlayerRaceInfo +0x34.
-constexpr uint32_t RVA_PLAYER_RACE_INFO_34_SOURCE_PTR = 0x002a5e50;
+// Pointer to the global car-model half-scale flag copied by native BuildGrid
+// into PlayerRaceInfo +0x34.
+constexpr uint32_t RVA_DRINKME_ENABLED_PTR = 0x002a5e50;
 
 // Pointer variable holding the active CupProfile during a championship.
 constexpr uint32_t RVA_ACTIVE_CUP_PTR = 0x0025ec60;

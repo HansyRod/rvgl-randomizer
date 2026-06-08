@@ -196,11 +196,6 @@ void RecordExtendedCupStageResultsOnce(
         return;
     }
 
-    const bool raceFinished = IsRaceFinished();
-    if (!raceFinished) {
-        return;
-    }
-
     const int stage = GetCurrentCupStageIndex();
     if (stage < 0 || stage >= 16 || results.lastRecordedStage == stage) {
         return;
@@ -281,7 +276,7 @@ bool AdvancePendingPointsOnTimer(CupProfile* activeCup, ExtendedCupResultsState&
     constexpr auto pendingPointInitialDelay = std::chrono::milliseconds(2000);
     constexpr auto pendingPointTick = std::chrono::milliseconds(200);
 
-    if (GetCupPostRaceState() != 4 || !HasPendingPoints(activeCup, results)) {
+    if (GetCupPostRaceState() != CupPostRaceState::Standings || !HasPendingPoints(activeCup, results)) {
         ResetPendingPointTimer(results);
         return false;
     }

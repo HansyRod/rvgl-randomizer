@@ -108,6 +108,16 @@ void ReturnToCupResultFrontend() {
     }
 }
 
+bool DidEnterStandings(CupPostRaceState before, CupPostRaceState after) {
+    return before == CupPostRaceState::AwaitingReady &&
+           after == CupPostRaceState::Standings;
+}
+
+void CopyNativeCarModelHalfScaleFlag(PlayerRaceInfoRuntime& playerRaceInfo) {
+    uint8_t* source = GetCarModelHalfScaleFlagSource();
+    playerRaceInfo.carModelHalfScale = source != nullptr ? static_cast<int>(*source) : 0;
+}
+
 } // anonymous namespace
 
 bool IsThirtyCarCupActive() {
@@ -149,18 +159,13 @@ void Hook_BuildGrid() {
     RaceSettingsRuntime* settings = GetRaceSettings();
     GameModeRuntime& gameMode = GetGameModeRuntime();
     PlayerRaceInfoRuntime* playerRaceInfo = GetPlayerRaceInfo();
-    uint8_t* playerRaceInfo34Source = GetPlayerRaceInfo34Source();
 
-    if (settings != nullptr) {
-        settings->mode = MODE_CHAMPIONSHIP;
-    }
     gameMode.mode = MODE_CHAMPIONSHIP;
     gameMode.trackId = stage.trackID;
 
     RVGL_ResetCurrentTrackSelectionState();
 
     if (playerRaceInfo != nullptr) {
-        playerRaceInfo->mode = MODE_CHAMPIONSHIP;
         playerRaceInfo->laps = stage.numLaps;
         playerRaceInfo->mirror = stage.isMirror ? 1 : 0;
         playerRaceInfo->reverse = stage.isReverse ? 1 : 0;
@@ -172,8 +177,7 @@ void Hook_BuildGrid() {
         }
 
         playerRaceInfo->countdown = gameMode.countdown;
-        playerRaceInfo->unknown34 =
-            playerRaceInfo34Source != nullptr ? static_cast<int>(*playerRaceInfo34Source) : 0;
+        CopyNativeCarModelHalfScaleFlag(*playerRaceInfo);
 
         TrackInfo* track = GetTrackInfoByRuntimeIndex(stage.trackID);
         if (track != nullptr) {
@@ -258,32 +262,40 @@ void MoveThirtyCarCupPlayerToBackAfterRacePositions() {
 }
 
 void Hook_UpdateCupPostRaceProgress() {
-    if (!IsThirtyCarCupActive()) {
+    if (!IsThirtyCarCupActive() || !IsRaceFinished()) {
         Orig_UpdateCupPostRaceProgress();
         return;
     }
 
-    RecordExtendedCupStageResultsOnce(g_cupState.active, g_cupState.activeCup, g_cupState.results);
-    MirrorExtendedCupTables(g_cupState.activeCup, g_cupState.results);
+    CupPostRaceState postRaceStateBefore = GetCupPostRaceState();
 
-    const int postRaceStateBefore = GetCupPostRaceState();
-    const NativePendingSnapshot nativePendingBefore =
-        CaptureNativePendingSnapshot(g_cupState.activeCup);
+    NativePendingSnapshot nativePendingBefore = {};
+    if (postRaceStateBefore == CupPostRaceState::Standings) {
+        nativePendingBefore = CaptureNativePendingSnapshot(g_cupState.activeCup);
+    }
 
     {
         NativeCupClamp clamp(g_cupState.activeCup);
         Orig_UpdateCupPostRaceProgress();
     }
 
-    const int postRaceStateAfter = GetCupPostRaceState();
+    const CupPostRaceState postRaceStateAfter = GetCupPostRaceState();
+    if (DidEnterStandings(postRaceStateBefore, postRaceStateAfter)) {
+        RecordExtendedCupStageResultsOnce(g_cupState.active, g_cupState.activeCup, g_cupState.results);
+        AdvancePendingPointsOnTimer(g_cupState.activeCup, g_cupState.results);
+        return;
+    }
+
+    if (postRaceStateBefore != CupPostRaceState::Standings) {
+        return;
+    }
+
     bool pointsChanged = false;
-    if (postRaceStateBefore == 4 && postRaceStateAfter != 4) {
+    if (postRaceStateAfter != CupPostRaceState::Standings) {
         FlushAllPendingPoints(g_cupState.activeCup, g_cupState.results);
         pointsChanged = true;
     }
-    else if (postRaceStateBefore == 4 &&
-             postRaceStateAfter == 4 &&
-             DidNativeFlushPendingPoints(g_cupState.activeCup, nativePendingBefore)) {
+    else if (DidNativeFlushPendingPoints(g_cupState.activeCup, nativePendingBefore)) {
         FlushAllPendingPoints(g_cupState.activeCup, g_cupState.results);
         ResetPendingPointTimer(g_cupState.results);
         pointsChanged = true;
@@ -292,20 +304,10 @@ void Hook_UpdateCupPostRaceProgress() {
         pointsChanged = AdvancePendingPointsOnTimer(g_cupState.activeCup, g_cupState.results);
     }
 
-    if (pointsChanged) {
-        SortExtendedCupStandings(g_cupState.activeCup, g_cupState.results);
-    }
-    UpdateExtendedCupResultFromStandings(g_cupState.active, g_cupState.activeCup, g_cupState.results);
-    MirrorExtendedCupTables(g_cupState.activeCup, g_cupState.results);
-}
-
-void PrepareThirtyCarCupStageFinished() {
-    if (!IsThirtyCarCupActive()) {
+    if (!pointsChanged) {
         return;
     }
 
-    RecordExtendedCupStageResultsOnce(g_cupState.active, g_cupState.activeCup, g_cupState.results);
-    FlushAllPendingPoints(g_cupState.activeCup, g_cupState.results);
     SortExtendedCupStandings(g_cupState.activeCup, g_cupState.results);
     UpdateExtendedCupResultFromStandings(g_cupState.active, g_cupState.activeCup, g_cupState.results);
     MirrorExtendedCupTables(g_cupState.activeCup, g_cupState.results);
@@ -315,8 +317,6 @@ bool HandleThirtyCarCupOnStageFinished() {
     if (!IsThirtyCarCupActive()) {
         return false;
     }
-
-    PrepareThirtyCarCupStageFinished();
 
     RVGL_RaceTeardownAndSave();
     RVGL_LevelDestroyAndFree();
