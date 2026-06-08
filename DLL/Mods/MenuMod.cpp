@@ -37,9 +37,13 @@ constexpr int kEliminationFrequencyLabelId = 0x1E;
 constexpr int kEliminationsAtOnceLabelId = 0x1F;
 constexpr int kKnockedOutCarStateLabelId = 0x20;
 constexpr int kModOptionsLabelId = 0x21;
+constexpr int kKnockoutLapCountLabelId = 0x22;
 constexpr int kNativeSingleRaceLabelId = 0x15;
 
 constexpr char kKnockoutLabel[] = "Knockout";
+constexpr char kKnockoutLapCountLabel[] = "Knockout Lap Count";
+constexpr char kKnockoutLapCountSingleRace[] = "Single Race";
+constexpr char kKnockoutLapCountAutomatic[] = "Automatic";
 constexpr char kEliminationFrequencyLabel[] = "Knockout Lap Frequency";
 constexpr char kEliminationsAtOnceLabel[] = "Knockout Eliminations Per Lap";
 constexpr char kKnockedOutCarStateLabel[] = "Knocked-out Car State";
@@ -66,10 +70,12 @@ constexpr uint32_t RVA_OPTIONS_GAME_SETTINGS_MENU_PANEL = 0x002643a0;
 using FnHandleGenericMenuAction = bool(*)(int slotIndex, uint32_t action);
 
 NumericMenuValue g_carCountMenuValue = {};
+NumericMenuValue g_knockoutLapCountMenuValue = {};
 NumericMenuValue g_eliminationFrequencyMenuValue = {};
 NumericMenuValue g_eliminationsAtOnceMenuValue = {};
 NumericMenuValue g_knockedOutCarStateMenuValue = {};
 MenuItemDescriptor g_knockoutMenuItem = {};
+MenuItemDescriptor g_knockoutLapCountMenuItem = {};
 MenuItemDescriptor g_eliminationFrequencyMenuItem = {};
 MenuItemDescriptor g_eliminationsAtOnceMenuItem = {};
 MenuItemDescriptor g_knockedOutCarStateMenuItem = {};
@@ -95,6 +101,10 @@ int ClampEliminationsAtOnce(int eliminations) {
 }
 
 int ClampKnockedOutGhostMode(int mode) {
+    return mode != 0 ? 1 : 0;
+}
+
+int ClampKnockoutLapCountMode(int mode) {
     return mode != 0 ? 1 : 0;
 }
 
@@ -141,6 +151,7 @@ void PatchLocaleString(int labelId, const char* text) {
 
 void PatchKnockoutLocaleStrings() {
     PatchLocaleString(kKnockoutLabelId, kKnockoutLabel);
+    PatchLocaleString(kKnockoutLapCountLabelId, kKnockoutLapCountLabel);
     PatchLocaleString(kEliminationFrequencyLabelId, kEliminationFrequencyLabel);
     PatchLocaleString(kEliminationsAtOnceLabelId, kEliminationsAtOnceLabel);
     PatchLocaleString(kKnockedOutCarStateLabelId, kKnockedOutCarStateLabel);
@@ -222,12 +233,26 @@ void PrepareKnockoutStartRaceMenuState() {
 
 void SyncKnockoutOptionValues() {
     RandomizerContext& ctx = GetRandomizerContext();
+    ctx.knockoutState.lapCountMode =
+        ClampKnockoutLapCountMode(ctx.knockoutState.lapCountMode);
     ctx.knockoutState.eliminationFrequencyLaps =
         ClampEliminationFrequency(ctx.knockoutState.eliminationFrequencyLaps);
     ctx.knockoutState.eliminationsPerEvent =
         ClampEliminationsAtOnce(ctx.knockoutState.eliminationsPerEvent);
     ctx.knockoutState.knockedOutGhostMode =
         ClampKnockedOutGhostMode(ctx.knockoutState.knockedOutGhostMode);
+}
+
+bool IncrementKnockoutLapCount(int panelIndex) {
+    const bool changed = RVGL_IncrementNumericMenuValue(panelIndex);
+    SyncKnockoutOptionValues();
+    return changed;
+}
+
+bool DecrementKnockoutLapCount(int panelIndex) {
+    const bool changed = RVGL_DecrementNumericMenuValue(panelIndex);
+    SyncKnockoutOptionValues();
+    return changed;
 }
 
 bool IncrementEliminationFrequency(int panelIndex) {
@@ -266,7 +291,7 @@ bool DecrementKnockedOutCarState(int panelIndex) {
     return changed;
 }
 
-void DrawKnockedOutCarStateMenuValue(int panelIndex, int itemIndex) {
+void DrawTextMenuValue(int panelIndex, int itemIndex, const char* text) {
     uint8_t* slots = GetMenuSlotStorage();
     MenuItemDescriptor* descriptor = GetMenuItemDescriptor(panelIndex, itemIndex);
     if (slots == nullptr || descriptor == nullptr ||
@@ -285,9 +310,6 @@ void DrawKnockedOutCarStateMenuValue(int panelIndex, int itemIndex) {
     const float maxWidth = *reinterpret_cast<float*>(panel + kMenuValueMaxWidthOffset);
     const uint32_t color =
         (descriptor->flags & 2) == 0 ? kMenuValueDisabledColor : kMenuValueEnabledColor;
-    const char* text = *descriptor->valueBinding->value != 0
-        ? kKnockedOutCarStateGhost
-        : kKnockedOutCarStateSolid;
 
     RVGL_DrawUIText(
         x,
@@ -301,10 +323,40 @@ void DrawKnockedOutCarStateMenuValue(int panelIndex, int itemIndex) {
     );
 }
 
+void DrawKnockoutLapCountMenuValue(int panelIndex, int itemIndex) {
+    MenuItemDescriptor* descriptor = GetMenuItemDescriptor(panelIndex, itemIndex);
+    if (descriptor == nullptr || descriptor->valueBinding == nullptr ||
+        descriptor->valueBinding->value == nullptr) {
+        return;
+    }
+
+    const char* text = *descriptor->valueBinding->value != 0
+        ? kKnockoutLapCountAutomatic
+        : kKnockoutLapCountSingleRace;
+    DrawTextMenuValue(panelIndex, itemIndex, text);
+}
+
+void DrawKnockedOutCarStateMenuValue(int panelIndex, int itemIndex) {
+    MenuItemDescriptor* descriptor = GetMenuItemDescriptor(panelIndex, itemIndex);
+    if (descriptor == nullptr || descriptor->valueBinding == nullptr ||
+        descriptor->valueBinding->value == nullptr) {
+        return;
+    }
+
+    const char* text = *descriptor->valueBinding->value != 0
+        ? kKnockedOutCarStateGhost
+        : kKnockedOutCarStateSolid;
+    DrawTextMenuValue(panelIndex, itemIndex, text);
+}
+
 void BuildModOptionsMenu(int slotIndex) {
     PatchKnockoutLocaleStrings();
     InitializeKnockoutOptionsMenuItems();
 
+    RVGL_RegisterMenuItemInActiveMenu(
+        slotIndex,
+        reinterpret_cast<int*>(&g_knockoutLapCountMenuItem)
+    );
     RVGL_RegisterMenuItemInActiveMenu(
         slotIndex,
         reinterpret_cast<int*>(&g_eliminationFrequencyMenuItem)
@@ -372,6 +424,12 @@ void InitializeKnockoutOptionsMenuItems() {
     RandomizerContext& ctx = GetRandomizerContext();
     SyncKnockoutOptionValues();
 
+    g_knockoutLapCountMenuValue.value = &ctx.knockoutState.lapCountMode;
+    g_knockoutLapCountMenuValue.minValue = 0;
+    g_knockoutLapCountMenuValue.maxValue = 1;
+    g_knockoutLapCountMenuValue.step = 1;
+    g_knockoutLapCountMenuValue.useSlider = false;
+
     g_eliminationFrequencyMenuValue.value = &ctx.knockoutState.eliminationFrequencyLaps;
     g_eliminationFrequencyMenuValue.minValue = 1;
     g_eliminationFrequencyMenuValue.maxValue = 10;
@@ -393,6 +451,13 @@ void InitializeKnockoutOptionsMenuItems() {
     const auto* carCountMenuItem = reinterpret_cast<const MenuItemDescriptor*>(
         AbsFromRva(RVA_SETTINGS_NCARS_MENU_ITEM)
     );
+
+    g_knockoutLapCountMenuItem = *carCountMenuItem;
+    g_knockoutLapCountMenuItem.labelId = kKnockoutLapCountLabelId;
+    g_knockoutLapCountMenuItem.valueBinding = &g_knockoutLapCountMenuValue;
+    g_knockoutLapCountMenuItem.drawValue = DrawKnockoutLapCountMenuValue;
+    g_knockoutLapCountMenuItem.decrementValue = DecrementKnockoutLapCount;
+    g_knockoutLapCountMenuItem.incrementValue = IncrementKnockoutLapCount;
 
     g_eliminationFrequencyMenuItem = *carCountMenuItem;
     g_eliminationFrequencyMenuItem.labelId = kEliminationFrequencyLabelId;

@@ -79,6 +79,7 @@ struct KnockoutRuntimeState {
     bool menuSelectionActive = false;
     bool modeActive = false;
     bool raceActive = false;
+    int lapCountMode = 0;
     int eliminationFrequencyLaps = 1;
     int eliminationsPerEvent = 1;
     int knockedOutGhostMode = 1;

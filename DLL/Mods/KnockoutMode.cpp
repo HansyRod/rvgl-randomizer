@@ -446,6 +446,47 @@ bool IsKnockoutRaceSupported() {
     return gameMode.mode == MODE_SINGLE_RACE;
 }
 
+int ClampKnockoutLapCountMode(int mode) {
+    return mode != 0 ? 1 : 0;
+}
+
+int GetKnockoutTargetCarCount() {
+    const RandomizerContext& ctx = GetRandomizerContext();
+    if (ctx.carState.carsPerRace > 0) {
+        return std::clamp(ctx.carState.carsPerRace, randomizerMinCarCount, randomizerMaxCarCount);
+    }
+
+    return std::clamp(GetParticipantCount(), randomizerMinCarCount, randomizerMaxCarCount);
+}
+
+int CalculateAutomaticKnockoutLapCount() {
+    RandomizerContext& ctx = GetRandomizerContext();
+    const int carCount = GetKnockoutTargetCarCount();
+    const int frequency = std::clamp(ctx.knockoutState.eliminationFrequencyLaps, 1, 10);
+    const int eliminationsPerEvent =
+        std::clamp(ctx.knockoutState.eliminationsPerEvent, 1, randomizerMaxCarCount - 1);
+    const int eliminationEvents = (carCount - 1 + eliminationsPerEvent - 1) / eliminationsPerEvent;
+
+    return (std::max)(eliminationEvents * frequency, 1);
+}
+
+void ApplyKnockoutLapCountOption() {
+    RandomizerContext& ctx = GetRandomizerContext();
+    ctx.knockoutState.lapCountMode = ClampKnockoutLapCountMode(ctx.knockoutState.lapCountMode);
+    if (ctx.knockoutState.lapCountMode == 0) {
+        return;
+    }
+
+    const int automaticLapCount = CalculateAutomaticKnockoutLapCount();
+    GameModeRuntime& gameMode = GetGameModeRuntime();
+    gameMode.laps = automaticLapCount;
+
+    PlayerRaceInfoRuntime* playerRaceInfo = GetPlayerRaceInfo();
+    if (playerRaceInfo != nullptr) {
+        playerRaceInfo->laps = automaticLapCount;
+    }
+}
+
 int GetEventEliminationCount(int activeCarCount) {
     RandomizerContext& ctx = GetRandomizerContext();
     const int configuredCount =
@@ -602,6 +643,7 @@ void StartKnockoutRaceIfSelected() {
     ctx.knockoutState.eliminationsPerEvent =
         std::clamp(ctx.knockoutState.eliminationsPerEvent, 1, randomizerMaxCarCount - 1);
     ctx.knockoutState.knockedOutGhostMode = ctx.knockoutState.knockedOutGhostMode != 0 ? 1 : 0;
+    ApplyKnockoutLapCountOption();
     ctx.knockoutState.nextEliminationLap = ctx.knockoutState.eliminationFrequencyLaps;
     ctx.knockoutState.eliminatedCount = 0;
     ctx.knockoutState.lastRaceClockMs = 0;
@@ -609,9 +651,10 @@ void StartKnockoutRaceIfSelected() {
     g_knockoutPopupUntilMs = 0;
 
     Logger::TimestampLogf(
-        "[KnockoutMode] Started frequency=%d eliminations=%d",
+        "[KnockoutMode] Started frequency=%d eliminations=%d laps=%d",
         ctx.knockoutState.eliminationFrequencyLaps,
-        ctx.knockoutState.eliminationsPerEvent
+        ctx.knockoutState.eliminationsPerEvent,
+        GetGameModeRuntime().laps
     );
 }
 
@@ -630,6 +673,7 @@ void FinalizeKnockoutRaceSetup() {
     ctx.knockoutState.nextEliminationLap =
         std::clamp(ctx.knockoutState.eliminationFrequencyLaps, 1, 10);
     ctx.knockoutState.knockedOutGhostMode = ctx.knockoutState.knockedOutGhostMode != 0 ? 1 : 0;
+    ApplyKnockoutLapCountOption();
     ctx.knockoutState.eliminatedCount = 0;
     ctx.knockoutState.lastRaceClockMs = static_cast<int>(GetCurrentRaceClockMs());
     g_knockoutPopupLines.clear();
