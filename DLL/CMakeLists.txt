@@ -59,7 +59,11 @@ add_library(randomizer SHARED
     Mods/ProgressFlagHooks.cpp
     Mods/CarPhysicsHooks.cpp
     Mods/RaceInitHooks.cpp
+    Mods/CupOpponentGrid.cpp
     Mods/30CarMod.cpp
+    Mods/ThirtyCarCupMod.cpp
+    Mods/ExtendedCupResults.cpp
+    Mods/ExtendedCupStandingsTable.cpp
     Mods/Fob.cpp
     Mods/MenuMod.cpp
 
@@ -72,6 +76,7 @@ add_library(randomizer SHARED
 
     # Game - Game data or other utils
     Game/RVGLFunctions.cpp
+    Game/RVGLMemory.cpp
     Game/GameUtils.cpp
 
     #Config - Handles loading the JSON configuration with the randomization data

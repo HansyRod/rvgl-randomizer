@@ -2,6 +2,7 @@
 
 #include "RVGLRaceStructs.h"
 #include <cstdint>
+#include <cstdio>
 
 namespace Randomizer {
 
@@ -22,6 +23,10 @@ using FnUIDrawRoundedRect = void(*)(float x, float y, float width, float height,
 using FnSetupGLRenderState = void(*)();
 using FnFlushDeferredUIBatches = void(*)();
 using FnUTF8GetVisibleCharCount = int64_t(*)(char* text);
+using FnResetCurrentTrackSelectionState = void(*)();
+using FnRaceTeardownAndSave = void(*)();
+using FnLevelDestroyAndFree = void(*)();
+using FnLoadNextRaceFromPlayerRaceInfo = void(*)();
 
 extern FnCreateCarEntity RVGL_CreateCarEntity;
 extern FnComputeSpawnOrientation RVGL_ComputeSpawnOrientation;
@@ -40,5 +45,9 @@ extern FnUIDrawRoundedRect RVGL_UIDrawRoundedRect;
 extern FnSetupGLRenderState RVGL_SetupGLRenderState;
 extern FnFlushDeferredUIBatches RVGL_FlushDeferredUIBatches;
 extern FnUTF8GetVisibleCharCount RVGL_UTF8GetVisibleCharCount;
+extern FnResetCurrentTrackSelectionState RVGL_ResetCurrentTrackSelectionState;
+extern FnRaceTeardownAndSave RVGL_RaceTeardownAndSave;
+extern FnLevelDestroyAndFree RVGL_LevelDestroyAndFree;
+extern FnLoadNextRaceFromPlayerRaceInfo RVGL_LoadNextRaceFromPlayerRaceInfo;
 
 } // namespace Randomizer

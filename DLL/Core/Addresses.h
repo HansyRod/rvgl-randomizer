@@ -132,6 +132,30 @@ constexpr uint32_t RVA_ENGINE_UPDATE_RACE_PROGRESS = 0x001257E0;
 // Cup_OnStageFinished - handles final cup result and sets championship progress.
 constexpr uint32_t RVA_CUP_ON_STAGE_FINISHED = 0x0004B800;
 
+// Cup_GenerateOpponentGrid - builds the persistent championship participant table.
+constexpr uint32_t RVA_CUP_GENERATE_OPPONENT_GRID = 0x000493D0;
+
+// BuildGrid - prepares the next championship race and adds its participants.
+constexpr uint32_t RVA_BUILD_GRID = 0x00049DC0;
+
+// UpdateCupPostRaceProgress - championship post-race points/standings state machine.
+constexpr uint32_t RVA_UPDATE_CUP_POST_RACE_PROGRESS = 0x0004A420;
+
+// DrawCupStandingsTable - draws the championship post-race standings table.
+constexpr uint32_t RVA_DRAW_CUP_STANDINGS_TABLE = 0x00060730;
+
+// ResetCurrentTrackSelectionState - clears the active track folder and participant counters.
+constexpr uint32_t RVA_RESET_CURRENT_TRACK_SELECTION_STATE = 0x0004F350;
+
+// Race_TeardownAndSave - tears down the active race and saves progress/session output.
+constexpr uint32_t RVA_RACE_TEARDOWN_AND_SAVE = 0x00055810;
+
+// Level_DestroyAndFree - destroys and frees the loaded level.
+constexpr uint32_t RVA_LEVEL_DESTROY_AND_FREE = 0x00055330;
+
+// Loads the next race from PlayerRaceInfo after cup stage transitions.
+constexpr uint32_t RVA_LOAD_NEXT_RACE_FROM_PLAYER_RACE_INFO = 0x00006B40;
+
 // DrawProgressTable - draws the frontend profile progress table panel.
 constexpr uint32_t RVA_DRAW_PROGRESS_TABLE = 0x00154870;
 
@@ -209,6 +233,9 @@ constexpr uint32_t RVA_VANILLA_CUP_ARRAY = 0x0025f4a0;
 // Global variable for CupDC setting. If enabled, DC Cups are used and DC Cars can be loaded into championships.
 constexpr uint32_t RVA_CUP_DC = 0x00b4349e;
 
+// Global setting that enables or disables random skins.
+constexpr uint32_t RVA_RANDOM_SKINS_ENABLED = 0x00b434a2;
+
 // Number of loaded custom cup profiles.
 constexpr uint32_t RVA_CUSTOM_CUPS_COUNT = 0x002fbbc0;
 
@@ -253,12 +280,50 @@ constexpr uint32_t RVA_LOCALE_STRINGS_PTR = 0x002a79a0;
 // Pointer to frontend menu slot runtime storage.
 constexpr uint32_t RVA_MENU_SLOTS_PTR = 0x002a6860;
 
+// Pointer-to-pointer to the active UI viewport transform. Native cup progress
+// drawing reads *(*ptr + 0x10) and applies DAT_006755ec before subtracting 320.
+constexpr uint32_t RVA_UI_VIEWPORT_PTR_PTR = 0x002a5f50;
+
+// Native DrawCupStandingsTable horizontal coordinate scale (DAT_006755ec).
+constexpr uint32_t RVA_CUP_PROGRESS_UI_COORD_SCALE = 0x002755ec;
+
+// Pointer to the active post-race/menu display state. Native cup progress table is visible at state 4.
+constexpr uint32_t RVA_POST_RACE_MENU_DISPLAY_STATE_PTR = 0x002a5da0;
+
 constexpr uint32_t RVA_RACE_PARTICIPANT_COUNT = 0x00b3eb04;
 constexpr uint32_t RVA_RACE_PARTICIPANT_RECORDS = 0x00b3eb50;
 
 // Head of the active CarEntity linked list. Each node is a live car instance;
 // this is separate from the CarInfo model metadata table.
 constexpr uint32_t RVA_CAR_LIST_HEAD = 0x0a8ee9e8;
+
+// Pointer to the active race settings block used by race setup.
+constexpr uint32_t RVA_RACE_SETTINGS_PTR = 0x002a7910;
+
+// Pointer to the active player/race info block populated by BuildGrid.
+constexpr uint32_t RVA_PLAYER_RACE_INFO_PTR = 0x002a7770;
+
+// Pointer to the global car-model half-scale flag copied by native BuildGrid
+// into PlayerRaceInfo +0x34.
+constexpr uint32_t RVA_DRINKME_ENABLED_PTR = 0x002a5e50;
+
+// Pointer variable holding the active CupProfile during a championship.
+constexpr uint32_t RVA_ACTIVE_CUP_PTR = 0x0025ec60;
+
+// Native championship runtime state.
+constexpr uint32_t RVA_CURRENT_CUP_INDEX = 0x002fbbe0;
+constexpr uint32_t RVA_CURRENT_CUP_STAGE_INDEX = 0x002fbbe4;
+constexpr uint32_t RVA_CUP_TRIES_LEFT = 0x002fbbe8;
+constexpr uint32_t RVA_CUP_STAGE_DIRECTION = 0x002fbbec;
+constexpr uint32_t RVA_CUP_POST_RACE_STATE = 0x002fbbd0;
+constexpr uint32_t RVA_CUP_RESULT = 0x002fce70;
+constexpr uint32_t RVA_NATIVE_CUP_PARTICIPANTS = 0x002fbbf0;
+constexpr uint32_t RVA_NATIVE_CUP_STANDINGS_SORTED = 0x002fc530;
+
+// Pointer globals used when returning from a completed cup to the frontend.
+constexpr uint32_t RVA_FRONTEND_CUP_RESULT_FLAG_PTR = 0x002a7470;
+constexpr uint32_t RVA_GAME_STATE_FUNCTION_PTR = 0x002a62c0;
+constexpr uint32_t RVA_MENU_INITIALIZE_FRONTEND_PTR = 0x002a47f0;
 
 
 

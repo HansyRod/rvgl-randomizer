@@ -180,6 +180,7 @@ namespace Randomizer {
         int perRaceRequiredPlace;
         int overallRequiredPlace;
         std::vector<int> carsPerClass; // Max number of AI allowed from each class (Rookie, Amateur, etc.)
+        std::optional<std::vector<std::string>> opponents; // Optional ordered car folder names to seed the AI roster
         std::vector<int> pointsTable; // Points for each position (1st to 16th)
         std::vector<RandomizedCupStage> stages;
         std::optional<CustomUnlockCondition> customUnlock;
@@ -198,6 +199,9 @@ namespace Randomizer {
             {"pointsTable", p.pointsTable},
             {"stages", p.stages}
         };
+        if (p.opponents.has_value()) {
+            j["opponents"] = p.opponents.value();
+        }
         if (p.customUnlock.has_value()) {
             j["customUnlock"] = p.customUnlock.value();
         }
@@ -212,6 +216,11 @@ namespace Randomizer {
         j.at("perRaceRequiredPlace").get_to(p.perRaceRequiredPlace);
         j.at("overallRequiredPlace").get_to(p.overallRequiredPlace);
         j.at("carsPerClass").get_to(p.carsPerClass);
+        if (j.contains("opponents") && !j.at("opponents").is_null()) {
+            p.opponents = j.at("opponents").get<std::vector<std::string>>();
+        } else {
+            p.opponents = std::nullopt;
+        }
         j.at("pointsTable").get_to(p.pointsTable);
         j.at("stages").get_to(p.stages);
         if (j.contains("customUnlock") && !j.at("customUnlock").is_null()) {

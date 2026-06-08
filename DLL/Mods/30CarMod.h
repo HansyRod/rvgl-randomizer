@@ -1,11 +1,30 @@
 #pragma once
+#include "RandomizerState.h"
+#include "RVGLStructs.h"
+#include <array>
+#include <vector>
 
 namespace Randomizer {
 
 int GetParticipantCount();
+int GetTotalCarModelCount();
+Vec3 GetCarPos(int carId);
+void SetCarPos(int carId, const Vec3& pos);
+int GetCarModelRating(int modelId);
+bool IsCarModelCpuSelectable(int modelId);
+int PickRandomFromPool(const std::vector<int>& pool);
+bool CalculateThirtyCarGridPositions(
+    int existingCarCount,
+    int targetCarCount,
+    std::array<Vec3, randomizerMaxCarCount>& outPositions
+);
 
 void ApplyThirtyCarGrid();
 void ExpandRaceParticipantsToThirty();
+bool MoveRuntimeCarsToBackAfterRacePositions(
+    const std::array<int, randomizerMaxCarCount>& runtimeCarIds,
+    int targetCarCount
+);
 void MovePlayersToBackAfterRacePositions();
 void ResetThirtyCarModState();
 

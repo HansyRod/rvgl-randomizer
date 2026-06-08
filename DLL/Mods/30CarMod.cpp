@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include "RVGLFunctions.h"
+#include "RVGLMemory.h"
 #include "RVGLStructs.h"
 #include "Addresses.h"
 #include "RaceInitHooks.h"
@@ -49,24 +50,6 @@ const CarInfo* GetCarInfoByModelId(int modelId) {
     }
 
     return &GetCarInfoTable()[modelId];
-}
-
-CarEntityRuntime* GetLiveCarById(int runtimeCarId) {
-    CarEntityRuntime* car = *reinterpret_cast<CarEntityRuntime**>(
-        AbsFromRva(RVA_CAR_LIST_HEAD)
-    );
-
-    int visited = 0;
-    while (car != nullptr && visited < 64) {
-        if (car->nCarArrayIndex == runtimeCarId) {
-            return car;
-        }
-
-        car = car->pNext;
-        ++visited;
-    }
-
-    return nullptr;
 }
 
 RaceParticipantRuntime* GetParticipantRecords() {
@@ -152,6 +135,47 @@ void SetCarPos(int carId, const Vec3& pos) {
     }
 
     RVGL_SetCarTransform(&car->transform, spawnPosition, spawnOrientation);
+}
+
+bool CalculateThirtyCarGridPositions(
+    int existingCarCount,
+    int targetCarCount,
+    std::array<Vec3, randomizerMaxCarCount>& outPositions
+) {
+    if (existingCarCount <= 0 ||
+        targetCarCount <= 0 ||
+        targetCarCount > randomizerMaxCarCount ||
+        existingCarCount > targetCarCount) {
+        return false;
+    }
+
+    Vec3 center{ 0.0f, 0.0f, 0.0f };
+    for (int carId = 0; carId < existingCarCount; ++carId) {
+        const Vec3 pos = GetCarPos(carId);
+        center.x += pos.x;
+        center.y += pos.y;
+        center.z += pos.z;
+    }
+
+    center.x /= static_cast<float>(existingCarCount);
+    center.y /= static_cast<float>(existingCarCount);
+    center.z /= static_cast<float>(existingCarCount);
+
+    const float gridCenterCol = static_cast<float>(kGridCols - 1) / 2.0f;
+    const float gridCenterRow = static_cast<float>(kGridRows - 1) / 2.0f;
+
+    for (int gridIndex = 0; gridIndex < targetCarCount; ++gridIndex) {
+        const int row = gridIndex / kGridCols;
+        const int col = gridIndex % kGridCols;
+
+        Vec3 pos;
+        pos.x = center.x + (static_cast<float>(col) - gridCenterCol) * kColumnSpacing;
+        pos.y = center.y;
+        pos.z = center.z + (static_cast<float>(row) - gridCenterRow) * kRowSpacing;
+        outPositions[gridIndex] = pos;
+    }
+
+    return true;
 }
 
 int GetCarModel(int carId) {
@@ -363,17 +387,10 @@ void ApplyThirtyCarGrid() {
         return;
     }
 
-    Vec3 center{ 0.0f, 0.0f, 0.0f };
-    for (int carId = 0; carId < carCount; ++carId) {
-        const Vec3 pos = GetCarPos(carId);
-        center.x += pos.x;
-        center.y += pos.y;
-        center.z += pos.z;
+    std::array<Vec3, randomizerMaxCarCount> gridPositions = {};
+    if (!CalculateThirtyCarGridPositions(carCount, targetCarCount, gridPositions)) {
+        return;
     }
-
-    center.x /= static_cast<float>(carCount);
-    center.y /= static_cast<float>(carCount);
-    center.z /= static_cast<float>(carCount);
 
     if (!state.cacheValid) {
         CacheRandomModels(carCount);
@@ -381,17 +398,8 @@ void ApplyThirtyCarGrid() {
 
     state.runtimeCarIds.fill(-1);
 
-    const float gridCenterCol = static_cast<float>(kGridCols - 1) / 2.0f;
-    const float gridCenterRow = static_cast<float>(kGridRows - 1) / 2.0f;
-
     for (int gridIndex = 0; gridIndex < targetCarCount; ++gridIndex) {
-        const int row = gridIndex / kGridCols;
-        const int col = gridIndex % kGridCols;
-
-        Vec3 pos;
-        pos.x = center.x + (static_cast<float>(col) - gridCenterCol) * kColumnSpacing;
-        pos.y = center.y;
-        pos.z = center.z + (static_cast<float>(row) - gridCenterRow) * kRowSpacing;
+        const Vec3& pos = gridPositions[gridIndex];
 
         if (gridIndex < carCount) {
             SetCarPos(gridIndex, pos);
@@ -406,18 +414,19 @@ void ApplyThirtyCarGrid() {
     state.gridApplied = true;
 }
 
-void MovePlayersToBackAfterRacePositions() {
-    ThirtyCarRuntimeState& state = GetThirtyCarState();
-    if (!IsSupportedMode() || !state.gridApplied || state.playersMovedToBack) {
-        return;
+bool MoveRuntimeCarsToBackAfterRacePositions(
+    const std::array<int, randomizerMaxCarCount>& runtimeCarIds,
+    int targetCarCount
+) {
+    if (targetCarCount <= 0 || targetCarCount > randomizerMaxCarCount) {
+        return false;
     }
 
     std::array<int, randomizerMaxCarCount + 1> rankToCar;
     rankToCar.fill(-1);
 
-    const int targetCarCount = GetTargetRaceCarCount();
     for (int slot = 0; slot < targetCarCount; ++slot) {
-        const int runtimeCarId = state.runtimeCarIds[slot];
+        const int runtimeCarId = runtimeCarIds[slot];
         if (runtimeCarId < 0) {
             continue;
         }
@@ -429,7 +438,7 @@ void MovePlayersToBackAfterRacePositions() {
     }
 
     const int playerCars[1] = {
-        state.runtimeCarIds[0] >= 0 ? state.runtimeCarIds[0] : 0
+        runtimeCarIds[0] >= 0 ? runtimeCarIds[0] : 0
     };
     bool swappedAnyCar = false;
 
@@ -450,6 +459,19 @@ void MovePlayersToBackAfterRacePositions() {
     }
 
     if (swappedAnyCar) {
+        return true;
+    }
+
+    return false;
+}
+
+void MovePlayersToBackAfterRacePositions() {
+    ThirtyCarRuntimeState& state = GetThirtyCarState();
+    if (!IsSupportedMode() || !state.gridApplied || state.playersMovedToBack) {
+        return;
+    }
+
+    if (MoveRuntimeCarsToBackAfterRacePositions(state.runtimeCarIds, GetTargetRaceCarCount())) {
         state.playersMovedToBack = true;
     }
 }

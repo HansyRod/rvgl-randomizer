@@ -9,6 +9,8 @@
 #include "ProgressFlagHooks.h"
 #include "CarPhysicsHooks.h"
 #include "RaceInitHooks.h"
+#include "CupOpponentGrid.h"
+#include "ThirtyCarCupMod.h"
 #include "Fob.h"
 #include "CallLogger.h"
 #include "Logger.h"
@@ -303,6 +305,34 @@ static void RegisterHooks() {
         reinterpret_cast<void*>(Randomizer::Hook_Cup_OnStageFinished),
         reinterpret_cast<void**>(&Randomizer::Orig_Cup_OnStageFinished),
         "Cup_OnStageFinished"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_CUP_GENERATE_OPPONENT_GRID),
+        reinterpret_cast<void*>(Randomizer::Hook_Cup_GenerateOpponentGrid),
+        reinterpret_cast<void**>(&Randomizer::Orig_Cup_GenerateOpponentGrid),
+        "Cup_GenerateOpponentGrid"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_BUILD_GRID),
+        reinterpret_cast<void*>(Randomizer::Hook_BuildGrid),
+        reinterpret_cast<void**>(&Randomizer::Orig_BuildGrid),
+        "BuildGrid"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_UPDATE_CUP_POST_RACE_PROGRESS),
+        reinterpret_cast<void*>(Randomizer::Hook_UpdateCupPostRaceProgress),
+        reinterpret_cast<void**>(&Randomizer::Orig_UpdateCupPostRaceProgress),
+        "UpdateCupPostRaceProgress"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_DRAW_CUP_STANDINGS_TABLE),
+        reinterpret_cast<void*>(Randomizer::Hook_DrawCupStandingsTable),
+        reinterpret_cast<void**>(&Randomizer::Orig_DrawCupStandingsTable),
+        "DrawCupStandingsTable"
     );
 
     HookManager::Add(

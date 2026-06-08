@@ -9,7 +9,7 @@ namespace Randomizer {
     using FnUpdateTimeTrialLeaderboards = void(*)(int* carRaceData);
     using FnPickup_CollectProgressObject = void(*)(void* pickup);
     using FnEngine_UpdateRaceProgress = void(*)();
-    using FnCup_OnStageFinished = void(*)(uint64_t param1, uint64_t param2, uint64_t param3, FILE* file);
+    using FnCup_OnStageFinished = void(*)();
 
     extern FnUpdateTimeTrialLeaderboards Orig_UpdateTimeTrialLeaderboards;
     extern FnPickup_CollectProgressObject Orig_Pickup_CollectProgressObject;
@@ -19,6 +19,6 @@ namespace Randomizer {
     void Hook_UpdateTimeTrialLeaderboards(int* carRaceData);
     void Hook_Pickup_CollectProgressObject(void* pickup);
     void Hook_Engine_UpdateRaceProgress();
-    void Hook_Cup_OnStageFinished(uint64_t param1, uint64_t param2, uint64_t param3, FILE* file);
+    void Hook_Cup_OnStageFinished();
 
 } // namespace Randomizer
