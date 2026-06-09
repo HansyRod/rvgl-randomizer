@@ -6,6 +6,7 @@
 #include "RVGLMemory.h"
 #include <algorithm>
 #include <cstring>
+#include <iostream>
 
 // ============================================================================
 // MenuMod.cpp
@@ -348,6 +349,21 @@ void DrawKnockedOutCarStateMenuValue(int panelIndex, int itemIndex) {
     DrawTextMenuValue(panelIndex, itemIndex, text);
 }
 
+void DrawEliminationFrequencyMenuValue(int panelIndex, int itemIndex) {
+    MenuItemDescriptor* descriptor = GetMenuItemDescriptor(panelIndex, itemIndex);
+    if (descriptor == nullptr || descriptor->valueBinding == nullptr ||
+        descriptor->valueBinding->value == nullptr) {
+        return;
+    }
+
+    const int frequency = *descriptor->valueBinding->value;
+    char text[13] = "Every Lap";
+    if (frequency > 1) {
+        std::snprintf(text, sizeof(text), "Every %d Laps", frequency);
+    }
+    DrawTextMenuValue(panelIndex, itemIndex, text);
+}
+
 void BuildModOptionsMenu(int slotIndex) {
     PatchKnockoutLocaleStrings();
     InitializeKnockoutOptionsMenuItems();
@@ -461,6 +477,7 @@ void InitializeKnockoutOptionsMenuItems() {
     g_eliminationFrequencyMenuItem = *carCountMenuItem;
     g_eliminationFrequencyMenuItem.labelId = kEliminationFrequencyLabelId;
     g_eliminationFrequencyMenuItem.valueBinding = &g_eliminationFrequencyMenuValue;
+    g_eliminationFrequencyMenuItem.drawValue = DrawEliminationFrequencyMenuValue;
     g_eliminationFrequencyMenuItem.decrementValue = DecrementEliminationFrequency;
     g_eliminationFrequencyMenuItem.incrementValue = IncrementEliminationFrequency;
 
