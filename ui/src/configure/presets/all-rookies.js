@@ -122,6 +122,14 @@ export const ALL_ROOKIES_PRESET = {
         {
           attrObtain: "4",
           attrRating: "2",
+          id: "tc8",
+          sourceObtain: "Random",
+          sourcePool: "Full Random",
+          sourceRating: "2"
+        },
+        {
+          attrObtain: "4",
+          attrRating: "2",
           id: "tc11",
           sourceObtain: "Random",
           sourcePool: "Full Random",
