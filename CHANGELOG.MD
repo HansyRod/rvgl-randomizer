@@ -1,13 +1,15 @@
-v0.1.1
+**v0.1.1**
 
 Fixed bug in the preset definition for "All Rookies" preset which prevented the game from launching seeds generated with that preset.
+
 - To play the "All Rookies" preset, install this update and generate a new "All Rookies" randomized seed.
 
-v0.1.0
+**v0.1.0**
 
 Initial release of RVGL Randomizer.
 
 Randomization features:
+
 - Modify list of stock and DC cars
 - Modify rating and unlock method of cars
 - Modify list of stock tracks
@@ -15,6 +17,7 @@ Randomization features:
 - Modify stages and settings of stock cups
 
 App features:
+
 - Scan RVGL installation, supporting both classic and launcher install
 - Select content packs for cars and tracks in launcher installs
 - Use configuration presets or custom configuration
