@@ -14,11 +14,22 @@
 - WebView2 runtime - Obtained automatically during installation.
 
 ### Installation
-1. Download the installer from the [Github releases page](https://github.com/HansyRod/rvgl-randomizer/releases).
+1. Download the installer from [Re-Volt World](https://www.revoltworld.net/dl/rvgl-randomizer/) or the [Github releases page](https://github.com/HansyRod/rvgl-randomizer/releases).
 2. Install to a location of your choice.
 3. Run `rvgl-randomizer.exe` to launch the application.
 
 **Note:** RVGL Randomizer creates a new profile in your RVGL installation. Outside of this profile, it doesn't affect your installation. Launching the game outside of RVGL Randomizer will continue to work with the unmodified behaviour.
+
+### Setup
+
+1. Click the Browse button and find your RVGL installation.
+2. Select the `rvgl.exe` executable.
+
+- If using a classic install: `rvgl.exe` is in the root game folder.
+- If using an RVGL Launcher install: `rvgl.exe` is in the `/packs/rvgl_win64` folder.
+
+3. In the Cars and Tracks tabs, you can see the content available on your RVGL installation.
+4. If using an RVGL Launcher install, you can toggle which content packs will be used by the randomizer.
 
 ## How does the randomization process work?
 
@@ -37,15 +48,6 @@
 ## How to Use
 
 This is a step-by-step guide of what you can do in RVGL Randomizer.
-
-### Setup
-
-In this section you can prepare your RVGL installation and available content.
-
-1. Click the Browse button and find your RVGL installation.
-2. Select the `rvgl.exe` executable.
-3. In the Cars and Tracks tabs, you can see the content available on your RVGL installation.
-4. If using an RVGL Launcher install, you can toggle which content packs will be used by the randomizer.
 
 ### Configure
 
@@ -74,6 +76,7 @@ See the [Configure Options](https://github.com/HansyRod/rvgl-randomizer/blob/dev
 In this section you can generate your randomized seed, based on your installed content and configured settings.
 
 To generate a seed, you need to provide:
+
 * **Instance Name** - a unique name for a JSON file. This file will store all chosen settings and the result of the randomization.
 * **Profile Name** - this is the in-game name for your profile in the randomized seed. The name should be different from existing profiles to ensure there are no conflicts in progress table data.
 
@@ -118,8 +121,9 @@ There are no plans to support other versions of RVGL or the original version of 
 ## Uninstall
 
 To uninstall, run the `uninstall.exe` provided in the installation folder.
-* After uninstalling, you will be asked if you want to keep or remove your data. Removing your data will delete the `AppData` folder containing the generated seeds.
-* For a complete cleanup, remove the profiles in your RVGL save data folder that were created by RVGL Randomizer.
+
+- After uninstalling, you will be asked if you want to keep or remove your data. Removing your data will delete the `AppData` folder containing the generated seeds.
+- For a complete cleanup, remove the profiles in your RVGL save data folder that were created by RVGL Randomizer.
 
 ## Known Issues / Limitations
 
