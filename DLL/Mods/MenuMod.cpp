@@ -62,6 +62,8 @@ constexpr int kMenuValueMaxWidthOffset = 0x138;
 constexpr float kMenuValueTextWidth = 8.0f;
 constexpr float kMenuValueTextHeight = 12.0f;
 constexpr float kMenuValueExtraX = 32.0f;
+constexpr float kKnockoutLapCountValueWidth = 88.0f;
+constexpr float kKnockoutFrequencyValueWidth = 110.0f;
 constexpr uint32_t kMenuValueEnabledColor = 0xffebebeb;
 constexpr uint32_t kMenuValueDisabledColor = 0xff464646;
 constexpr uint32_t RVA_OPTIONS_GAME_SETTINGS_MENU_ITEM = 0x00265460;
@@ -357,7 +359,7 @@ void DrawEliminationFrequencyMenuValue(int panelIndex, int itemIndex) {
     }
 
     const int frequency = *descriptor->valueBinding->value;
-    char text[13] = "Every Lap";
+    char text[14] = "Every Lap";
     if (frequency > 1) {
         std::snprintf(text, sizeof(text), "Every %d Laps", frequency);
     }
@@ -469,6 +471,7 @@ void InitializeKnockoutOptionsMenuItems() {
 
     g_knockoutLapCountMenuItem = *carCountMenuItem;
     g_knockoutLapCountMenuItem.labelId = kKnockoutLapCountLabelId;
+    g_knockoutLapCountMenuItem.valueWidth = kKnockoutLapCountValueWidth;
     g_knockoutLapCountMenuItem.valueBinding = &g_knockoutLapCountMenuValue;
     g_knockoutLapCountMenuItem.drawValue = DrawKnockoutLapCountMenuValue;
     g_knockoutLapCountMenuItem.decrementValue = DecrementKnockoutLapCount;
@@ -476,6 +479,7 @@ void InitializeKnockoutOptionsMenuItems() {
 
     g_eliminationFrequencyMenuItem = *carCountMenuItem;
     g_eliminationFrequencyMenuItem.labelId = kEliminationFrequencyLabelId;
+    g_eliminationFrequencyMenuItem.valueWidth = kKnockoutFrequencyValueWidth;
     g_eliminationFrequencyMenuItem.valueBinding = &g_eliminationFrequencyMenuValue;
     g_eliminationFrequencyMenuItem.drawValue = DrawEliminationFrequencyMenuValue;
     g_eliminationFrequencyMenuItem.decrementValue = DecrementEliminationFrequency;

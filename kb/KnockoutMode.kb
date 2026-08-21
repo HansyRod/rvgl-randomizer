@@ -149,6 +149,161 @@ is selected. This lets the pre-race summary and loading screen show the custom
 mode name. The original Single Race label is restored when the Start Race menu
 is rebuilt or when another Start Race mode is confirmed.
 
+## Knockout Lap Count Option
+
+The Mod Settings menu includes a `Knockout Lap Count` option with two values:
+
+- `Single Race`: leaves the native single-race lap count unchanged.
+- `Automatic`: calculates the lap count from the configured car count,
+  elimination frequency, and eliminations per event.
+
+The automatic calculation is:
+
+```text
+ceil((carCount - 1) / eliminationsPerEvent) * eliminationFrequencyLaps
+```
+
+The final remaining car is not eliminated, so the number of required events is
+the number of cars other than the winner divided by the number eliminated per
+event. The calculated value is applied to both `GameModeRuntime::laps` and
+`PlayerRaceInfoRuntime::laps` during Knockout race setup.
+
+Implementation locations:
+
+- `DLL/Mods/RandomizerState.h`: `KnockoutRuntimeState::lapCountMode`, where
+  `0` means `Single Race` and `1` means `Automatic`.
+- `DLL/Mods/MenuMod.cpp`: custom label/value binding and text rendering for
+  the Mod Settings row.
+- `DLL/Mods/KnockoutMode.cpp`: automatic lap calculation and race setup
+  application.
+
+The option is runtime-only and is not persisted to RVGL's INI.
+
+## Menu Rendering Investigation
+
+Ghidra MCP was used to trace the native frontend menu rendering path. The main
+flow is:
+
+```text
+Menu_UpdateLoop
+  -> UpdateMenuPanel
+     -> HandleMenuPanelState
+     -> HandleMenuRowInput
+     -> RenderMenuPanel
+        -> value callback at MenuItemDescriptor +0x18
+        -> DrawMenuRow for labels
+```
+
+Important native functions for the current RVGL build:
+
+| Function | Absolute address | Repo RVA | Purpose |
+| --- | ---: | ---: | --- |
+| `Menu_UpdateLoop` | `0x00544000` | not currently hooked | Per-frame frontend update and menu dispatch |
+| `CalculateMenuPanelContentExtents` | `0x00544a80` | not currently listed | Computes content width/height from registered rows |
+| `HandleMenuPanelState` | `0x00546800` | not currently listed | Updates panel animation and active position |
+| `RenderMenuPanel` | `0x0054ad70` | not currently listed | Draws panel background, values, labels, and arrows |
+| `RegisterMenuItemInActiveMenu` | `0x005453b0` | `0x001453b0` | Registers a row and updates active width limits |
+| `HandleMenuRowInput` | `0x00546b00` | not currently listed | Routes current menu actions to the panel handler |
+| `HandleGenericMenuAction` | `0x00546cf0` | `0x00146cf0` | Native row navigation and increment/decrement dispatch |
+| `DrawNumericMenuValue` | `0x0054c2e0` | `0x0014c2e0` | Native numeric value renderer |
+| `UI_DrawRoundedRect` | `0x00548640` | `0x00148640` | Draws rounded UI rectangles |
+
+`RenderMenuPanel` invokes the row callback stored at descriptor offset `+0x18`:
+
+```cpp
+drawValue = *(descriptor + 0x18);
+if (drawValue != nullptr) {
+    drawValue(panelIndex, itemIndex);
+}
+```
+
+For the custom Knockout text renderer, this callback is
+`DrawKnockoutLapCountMenuValue`, which eventually calls `RVGL_DrawUIText`.
+
+The native numeric renderer computes the value position as:
+
+```text
+x = activeSlot + 0x114       // panel/content X
+  + activeSlot + 0x134       // maximum label column width
+  + native value-column gap
+y = activeSlot + 0x118       // panel/content Y
+  + itemIndex * 16
+maxWidth = activeSlot + 0x138 // value text clipping width
+```
+
+The active menu slot uses a `0x140` byte stride. Relevant fields are:
+
+| Active slot offset | Meaning |
+| ---: | --- |
+| `0x100` | Number of registered rows |
+| `0x102` | Visible row count for scrolling menus |
+| `0x110` | Panel texture/style id |
+| `0x114` | Content X coordinate |
+| `0x118` | Content Y coordinate |
+| `0x11c` | Computed panel/content width used by the rounded rectangle |
+| `0x120` | Computed panel/content height |
+| `0x134` | Maximum label width |
+| `0x138` | Maximum value width / text max width |
+|
+
+`RegisterMenuItemInActiveMenu` reads the descriptor's `+0x08` field and uses it
+to update active slot `+0x138`. It also measures the registered label and
+updates active slot `+0x134`. `CalculateMenuPanelContentExtents` then derives
+the panel width from those active-slot values. Therefore, changing only the
+custom draw function's `maxWidth` changes clipping but does not necessarily
+change the box. Changing `MenuItemDescriptor::valueWidth` should affect the
+box only if the assignment happens before registration and the descriptor is
+not subsequently overwritten.
+
+The current descriptor layout is:
+
+```text
+MenuItemDescriptor, size 0x40
+  +0x00  labelId
+  +0x04  flags
+  +0x08  valueWidth
+  +0x0c  reserved
+  +0x10  NumericMenuValue* valueBinding
+  +0x18  drawValue(panelIndex, itemIndex)
+  +0x20  decrementValue(panelIndex)
+  +0x28  incrementValue(panelIndex)
+  +0x30  reserved
+  +0x38  reserved
+```
+
+The copied Mod Settings panel descriptor is `0x80` bytes. The fields used by
+the DLL are title label at `+0x04`, builder callback at `+0x20`, action callback
+at `+0x28`, and the native panel's remaining layout/state fields copied from
+the Game Settings panel.
+
+## Menu Debugging Checklist
+
+When a custom value appears compressed or the panel does not widen, inspect
+these values in order:
+
+1. At `RegisterMenuItemInActiveMenu` (`0x005453b0`), verify the registered
+   Knockout descriptor pointer and `descriptor + 0x08` (`valueWidth`).
+2. After registration, inspect `activeSlot + 0x138` and confirm it reflects the
+   descriptor width.
+3. At `CalculateMenuPanelContentExtents` (`0x00544a80`), inspect the width
+   inputs from active slot `+0x134` and `+0x138`.
+4. At `RenderMenuPanel` (`0x0054ad70`), inspect active slot `+0x11c` before
+   the `UI_DrawRoundedRect` call.
+5. In the custom value callback, inspect the `maxWidth` passed to
+   `RVGL_DrawUIText` and the text width/height arguments.
+
+If `descriptor + 0x08` is correct but `activeSlot + 0x138` is not, the issue
+is in registration or menu rebuilding. If both are correct but the text still
+looks compressed, the issue is in the custom renderer's text width, max width,
+or coordinate calculation rather than the panel geometry.
+
+Ghidra cleanup performed during this investigation:
+
+- Added `MenuItemDescriptor` with the layout above.
+- Confirmed the existing `NumericMenuValue` structure and its field names.
+- Added a partial `FrontendMenuPanelDescriptor` structure of size `0x80` for
+  the copied Mod Settings panel.
+
 ## Current Risks
 
 - The custom frontend labels currently patch existing locale table slots at
