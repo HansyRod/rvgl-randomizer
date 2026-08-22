@@ -109,5 +109,7 @@ struct RandomizerContext {
 
 RandomizerContext& GetRandomizerContext();
 ConfigData* GetActiveConfig();
+bool IsThirtyCarModeEnabled();
+bool IsKnockoutModeEnabled();
 
 } // namespace Randomizer

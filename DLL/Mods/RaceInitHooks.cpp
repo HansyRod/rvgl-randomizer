@@ -37,7 +37,7 @@ void Hook_DrawPostRaceLeaderboard() {
     GameMode originalGameMode = *gameMode;
     int participantCount = GetParticipantCount();
 
-    if (raceFinished && participantCount > 16) {
+    if (IsThirtyCarModeEnabled() && raceFinished && participantCount > 16) {
         *gameMode = MODE_CLOCKWORK_CARNAGE; // Override game mode to show race results in Clockwork Carnage mode
     }
 

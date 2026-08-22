@@ -277,6 +277,10 @@ void InitializeKnockoutMenuItemFromSingleRace(int slotIndex) {
 }
 
 void SelectKnockoutMode() {
+    if (!IsKnockoutModeEnabled()) {
+        return;
+    }
+
     RandomizerContext& ctx = GetRandomizerContext();
     ctx.knockoutState.menuSelectionActive = true;
     ctx.knockoutState.modeActive = true;
@@ -448,6 +452,10 @@ void DrawEliminationFrequencyMenuValue(int panelIndex, int itemIndex) {
 
 // Called every time the "Mod Options" menu is opened in the UI
 void BuildModOptionsMenu(int slotIndex) {
+    if (!IsKnockoutModeEnabled()) {
+        return;
+    }
+
     PatchModOptionsMenuLocaleStrings();
     InitializeKnockoutOptionsMenuItems();
 
@@ -595,18 +603,29 @@ void InitializeKnockoutOptionsMenuItems() {
 } // anonymous namespace
 
 bool IncrementRandomizerCarCount(int panelIndex) {
+    if (!IsThirtyCarModeEnabled()) {
+        return false;
+    }
+
     bool changed = RVGL_IncrementNumericMenuValue(panelIndex);
     SyncCarCountToVanillaSettings();
     return changed;
 }
 
 bool DecrementRandomizerCarCount(int panelIndex) {
+    if (!IsThirtyCarModeEnabled()) {
+        return false;
+    }
+
     bool changed = RVGL_DecrementNumericMenuValue(panelIndex);
     SyncCarCountToVanillaSettings();
     return changed;
 }
 
 void SyncCarCountToVanillaSettings() {
+    if (!IsThirtyCarModeEnabled()) {
+        return;
+    }
 
     RandomizerContext& ctx = GetRandomizerContext();
     int carsPerRace = ClampRandomizerCarCount(ctx.carState.carsPerRace);
@@ -623,6 +642,11 @@ void SyncCarCountToVanillaSettings() {
 }
 
 void Hook_DrawPreRaceSummary(int slotIndex) {
+    if (!IsThirtyCarModeEnabled()) {
+        Orig_DrawPreRaceSummary(slotIndex);
+        return;
+    }
+
     int& nativeCarCount = *reinterpret_cast<int*>(AbsFromRva(RVA_SETTINGS_NCARS));
     const int savedNativeCarCount = nativeCarCount;
     const int configuredCarCount = ClampRandomizerCarCount(
@@ -643,6 +667,10 @@ void Hook_DrawPreRaceSummary(int slotIndex) {
 }
 
 void PatchCarCountMenuDescriptor() {
+    if (!IsThirtyCarModeEnabled()) {
+        return;
+    }
+
     RandomizerContext& ctx = GetRandomizerContext();
     ctx.carState.carsPerRace = ClampRandomizerCarCount(ctx.carState.carsPerRace);
 
@@ -669,6 +697,10 @@ void Hook_BuildStartRaceMenu(int slotIndex) {
     PrepareKnockoutStartRaceMenuState();
     Orig_BuildStartRaceMenu(slotIndex);
 
+    if (!IsKnockoutModeEnabled()) {
+        return;
+    }
+
     PatchStartRaceMenuLocaleStrings();
     InitializeKnockoutMenuItemFromSingleRace(slotIndex);
     if (g_knockoutMenuItemInitialized) {
@@ -682,6 +714,10 @@ void Hook_BuildStartRaceMenu(int slotIndex) {
 // Called every time the "Options" menu is opened in the UI
 void Hook_BuildOptionsMenu(int slotIndex) {
     Orig_BuildOptionsMenu(slotIndex);
+
+    if (!IsKnockoutModeEnabled()) {
+        return;
+    }
 
     PatchOptionsMenuLocaleStrings();
     InitializeModOptionsMenuItem();
@@ -697,6 +733,10 @@ void Hook_BuildOptionsMenu(int slotIndex) {
 // choose option, cancel).
 bool Hook_HandleOptionsMenuAction(int slotIndex, uint32_t action) {
     const bool result = Orig_HandleOptionsMenuAction(slotIndex, action);
+    if (!IsKnockoutModeEnabled()) {
+        return result;
+    }
+
     if (action == kFrontendConfirmAction || action == kFrontendCancelAction) {
         RestoreOptionsMenuLocaleStrings();
     }
@@ -706,6 +746,11 @@ bool Hook_HandleOptionsMenuAction(int slotIndex, uint32_t action) {
 
 // Called on every action on the "Start Race" menu (navigation with up/down arrows, choose option, cancel)
 bool Hook_HandleStartRaceMenuAction(int slotIndex, uint32_t action) {
+    if (!IsKnockoutModeEnabled()) {
+        ClearKnockoutMenuSelection();
+        return Orig_HandleStartRaceMenuAction(slotIndex, action);
+    }
+
     const bool selectedKnockoutMenuItem =
         action == kFrontendConfirmAction &&
         GetSelectedMenuItemDescriptor(slotIndex) == &g_knockoutMenuItem;

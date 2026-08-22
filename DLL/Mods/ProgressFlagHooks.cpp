@@ -196,7 +196,9 @@ void Hook_Engine_UpdateRaceProgress() {
     const int trackIndex = GetCurrentTrackIndex();
     const uint32_t beforeFlags = GetTrackProgressFlags(trackIndex);
     const bool knockoutRace =
-        ctx.knockoutState.modeActive && GetGameModeRuntime().mode == MODE_SINGLE_RACE;
+        IsKnockoutModeEnabled() &&
+        ctx.knockoutState.modeActive &&
+        GetGameModeRuntime().mode == MODE_SINGLE_RACE;
     const bool knockoutRaceWasActive = knockoutRace && ctx.knockoutState.raceActive;
 
     Orig_Engine_UpdateRaceProgress();

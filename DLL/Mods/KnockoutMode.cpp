@@ -452,7 +452,7 @@ int ClampKnockoutLapCountMode(int mode) {
 
 int GetKnockoutTargetCarCount() {
     const RandomizerContext& ctx = GetRandomizerContext();
-    if (ctx.carState.carsPerRace > 0) {
+    if (IsThirtyCarModeEnabled() && ctx.carState.carsPerRace > 0) {
         return std::clamp(ctx.carState.carsPerRace, randomizerMinCarCount, randomizerMaxCarCount);
     }
 
@@ -631,7 +631,7 @@ void ResetKnockoutRaceState() {
 
 void StartKnockoutRaceIfSelected() {
     RandomizerContext& ctx = GetRandomizerContext();
-    if (!ctx.knockoutState.modeActive || !IsKnockoutRaceSupported()) {
+    if (!IsKnockoutModeEnabled() || !ctx.knockoutState.modeActive || !IsKnockoutRaceSupported()) {
         return;
     }
 
@@ -663,7 +663,7 @@ void StartKnockoutRaceIfSelected() {
 
 void FinalizeKnockoutRaceSetup() {
     RandomizerContext& ctx = GetRandomizerContext();
-    if (!ctx.knockoutState.modeActive || !IsKnockoutRaceSupported()) {
+    if (!IsKnockoutModeEnabled() || !ctx.knockoutState.modeActive || !IsKnockoutRaceSupported()) {
         return;
     }
 
@@ -686,7 +686,7 @@ void FinalizeKnockoutRaceSetup() {
 
 void UpdateKnockoutRaceProgress() {
     RandomizerContext& ctx = GetRandomizerContext();
-    if (!ctx.knockoutState.raceActive) {
+    if (!IsKnockoutModeEnabled() || !ctx.knockoutState.raceActive) {
         return;
     }
 
@@ -732,7 +732,7 @@ void UpdateKnockoutRaceProgress() {
 }
 
 void DrawKnockoutPopup() {
-    if (g_knockoutPopupLines.empty()) {
+    if (!IsKnockoutModeEnabled() || g_knockoutPopupLines.empty()) {
         return;
     }
 
@@ -791,7 +791,7 @@ void DrawKnockoutPopup() {
 
 bool DrawKnockoutResultsTable() {
     RandomizerContext& ctx = GetRandomizerContext();
-    if (!ctx.knockoutState.modeActive || g_knockoutResults.empty()) {
+    if (!IsKnockoutModeEnabled() || !ctx.knockoutState.modeActive || g_knockoutResults.empty()) {
         return false;
     }
 
