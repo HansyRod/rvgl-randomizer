@@ -79,6 +79,9 @@ constexpr uint32_t RVA_PROFILE_LOAD_AND_RESET = 0x000753c0;
 // LoadSettingsFromIni - Loads the INI file and stores settings in global variables in memory.
 constexpr uint32_t RVA_LOAD_SETTINGS_FROM_INI = 0x0007a6a0;
 
+// Ini_SaveProfile - saves the base-game profile INI file.
+constexpr uint32_t RVA_INI_SAVE_PROFILE = 0x0007bcb0;
+
 // Track_ApplyCustomUnlock - Update a track's unlock status based on its obtain condition and the player's profile.
 constexpr uint32_t RVA_TRACK_APPLY_CUSTOM_UNLOCK = 0x00053ba0;
 

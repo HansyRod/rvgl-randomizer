@@ -204,6 +204,13 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
+        AbsFromRva(RVA_INI_SAVE_PROFILE),
+        reinterpret_cast<void*>(Randomizer::Hook_Ini_SaveProfile),
+        reinterpret_cast<void**>(&Randomizer::Orig_Ini_SaveProfile),
+        "Ini_SaveProfile"
+    );
+
+    HookManager::Add(
         AbsFromRva(RVA_TRACK_APPLY_CUSTOM_UNLOCK),
         reinterpret_cast<void*>(Randomizer::Hook_Track_ApplyCustomUnlock),
         reinterpret_cast<void**>(&Randomizer::Orig_Track_ApplyCustomUnlock),
