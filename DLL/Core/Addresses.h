@@ -162,6 +162,9 @@ constexpr uint32_t RVA_LOAD_NEXT_RACE_FROM_PLAYER_RACE_INFO = 0x00006B40;
 // DrawProgressTable - draws the frontend profile progress table panel.
 constexpr uint32_t RVA_DRAW_PROGRESS_TABLE = 0x00154870;
 
+// DrawPreRaceSummary - draws the summary panel shown before a race.
+constexpr uint32_t RVA_DRAW_PRE_RACE_SUMMARY = 0x00155700;
+
 // Start-race frontend menu builder and action handler.
 constexpr uint32_t RVA_BUILD_START_RACE_MENU = 0x0015E730;
 constexpr uint32_t RVA_HANDLE_START_RACE_MENU_ACTION = 0x0015E880;

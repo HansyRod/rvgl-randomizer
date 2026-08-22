@@ -17,6 +17,7 @@ namespace Randomizer {
 
 FnBuildMenu Orig_BuildStartRaceMenu = nullptr;
 FnBuildMenu Orig_BuildOptionsMenu = nullptr;
+FnBuildMenu Orig_DrawPreRaceSummary = nullptr;
 FnHandleMenuAction Orig_HandleStartRaceMenuAction = nullptr;
 FnHandleMenuAction Orig_HandleOptionsMenuAction = nullptr;
 
@@ -619,6 +620,26 @@ void SyncCarCountToVanillaSettings() {
 
     nCars = vanillaCarCount;
     nCarsSetting = vanillaCarCount;
+}
+
+void Hook_DrawPreRaceSummary(int slotIndex) {
+    int& nativeCarCount = *reinterpret_cast<int*>(AbsFromRva(RVA_SETTINGS_NCARS));
+    const int savedNativeCarCount = nativeCarCount;
+    const int configuredCarCount = ClampRandomizerCarCount(
+        GetRandomizerContext().carState.carsPerRace
+    );
+
+    if (configuredCarCount <= vanillaMaxCarCount) {
+        Orig_DrawPreRaceSummary(slotIndex);
+        return;
+    }
+
+    // DrawPreRaceSummary reads RaceSettings + 0x10 while composing the
+    // "Racers: N (N-1 CPU)" text. Keep the native value capped for gameplay,
+    // but expose the extended value for the duration of this draw call.
+    nativeCarCount = configuredCarCount;
+    Orig_DrawPreRaceSummary(slotIndex);
+    nativeCarCount = savedNativeCarCount;
 }
 
 void PatchCarCountMenuDescriptor() {

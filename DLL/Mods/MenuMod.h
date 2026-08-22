@@ -10,6 +10,7 @@ using FnHandleMenuAction = bool(*)(int slotIndex, uint32_t action);
 
 extern FnBuildMenu Orig_BuildStartRaceMenu;
 extern FnBuildMenu Orig_BuildOptionsMenu;
+extern FnBuildMenu Orig_DrawPreRaceSummary;
 extern FnHandleMenuAction Orig_HandleStartRaceMenuAction;
 extern FnHandleMenuAction Orig_HandleOptionsMenuAction;
 
@@ -21,6 +22,7 @@ void SyncCarCountToVanillaSettings();
 
 void Hook_BuildStartRaceMenu(int slotIndex);
 void Hook_BuildOptionsMenu(int slotIndex);
+void Hook_DrawPreRaceSummary(int slotIndex);
 bool Hook_HandleOptionsMenuAction(int slotIndex, uint32_t action);
 bool Hook_HandleStartRaceMenuAction(int slotIndex, uint32_t action);
 

@@ -365,6 +365,13 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
+        AbsFromRva(RVA_DRAW_PRE_RACE_SUMMARY),
+        reinterpret_cast<void*>(Randomizer::Hook_DrawPreRaceSummary),
+        reinterpret_cast<void**>(&Randomizer::Orig_DrawPreRaceSummary),
+        "DrawPreRaceSummary"
+    );
+
+    HookManager::Add(
         AbsFromRva(RVA_HANDLE_OPTIONS_MENU_ACTION),
         reinterpret_cast<void*>(Randomizer::Hook_HandleOptionsMenuAction),
         reinterpret_cast<void**>(&Randomizer::Orig_HandleOptionsMenuAction),
