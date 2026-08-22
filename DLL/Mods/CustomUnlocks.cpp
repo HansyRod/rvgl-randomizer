@@ -186,6 +186,10 @@ void UpdateCarCustomUnlocks() {
         return;
     }
 
+    if (carState.carSelectableState.size() < static_cast<size_t>(carCount)) {
+        carState.carSelectableState.resize(carCount, false);
+    }
+
     for (int i = 0; i < carCount; ++i) {
         CarInfo& currentCar = rawPool[i];
         const int32_t obtain = static_cast<int32_t>(currentCar.obtainCondition);
@@ -197,6 +201,7 @@ void UpdateCarCustomUnlocks() {
         const CustomUnlockCondition* customUnlock = GetCarCustomUnlockCondition(i);
         if (customUnlock == nullptr) {
             currentCar.selectableByPlayer = false;
+            carState.carSelectableState[i] = false;
             LogMissingCustomCarUnlockOnce(i, currentCar);
             continue;
         }
@@ -211,10 +216,15 @@ void UpdateCarCustomUnlocks() {
 
         if (carState.checkCarUnlocksPopup &&
             isUnlocked &&
-            i < carState.carSelectableState.size() &&
             !carState.carSelectableState[i]) {
             TriggerNativeCarUnlockDialog();
         }
+
+        // Keep the transition cache independent from CarInfo::selectableByPlayer.
+        // Native car/physics synchronization can temporarily overwrite that
+        // field with false for custom obtain values because RVGL does not know
+        // how to evaluate obtain values above 5.
+        carState.carSelectableState[i] = isUnlocked;
     }
 
     carState.checkCarUnlocksPopup = true;

@@ -359,24 +359,17 @@ void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
 
 void Hook_UpdateCarSelectability() {
 
-    // Inside your hook function:
     CarInfo* rawPool = GetCarPool();
     int carCount = GetRuntimeCarCount();
 
     // Guard against accessing the pool before it is allocated by the game
     if (rawPool != nullptr && carCount > 0) {
-        CarRuntimeState& carState = GetRandomizerContext().carState;
-
         for (int i = 0; i < carCount; ++i) {
             CarInfo& currentCar = rawPool[i];
             
             // Reapply rating and obtain condition to make sure
             // UpdateCarSelectability runs based on the randomized data
             ApplyCarMods(i, &currentCar, nullptr);
-
-            if (IsCustomObtain(static_cast<int32_t>(currentCar.obtainCondition))) {
-                carState.carSelectableState[i] = currentCar.selectableByPlayer;
-            }
         }
     }
 

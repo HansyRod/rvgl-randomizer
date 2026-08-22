@@ -38,8 +38,11 @@ struct CarRuntimeState {
     // Number of cars per race
     int carsPerRace = 0;
 
-    // Custom unlock popup transition tracking. The first selectability pass
-    // seeds state silently so loading a profile does not replay old unlocks.
+    // Last evaluated custom unlock state for each car. This must remain
+    // independent from CarInfo::selectableByPlayer because native physics
+    // synchronization can overwrite that field for custom obtain values.
+    // The first selectability pass seeds state silently so loading a profile
+    // does not replay old unlocks.
     bool checkCarUnlocksPopup = false;
     std::vector<bool> carSelectableState = {};
 };
