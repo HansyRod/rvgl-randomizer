@@ -6,7 +6,6 @@
 #include "RVGLMemory.h"
 #include <algorithm>
 #include <cstring>
-#include <iostream>
 
 // ============================================================================
 // MenuMod.cpp
@@ -19,6 +18,7 @@ namespace Randomizer {
 FnBuildMenu Orig_BuildStartRaceMenu = nullptr;
 FnBuildMenu Orig_BuildOptionsMenu = nullptr;
 FnHandleMenuAction Orig_HandleStartRaceMenuAction = nullptr;
+FnHandleMenuAction Orig_HandleOptionsMenuAction = nullptr;
 
 namespace {
 
@@ -30,15 +30,15 @@ constexpr int kMenuPanelBuildFunctionOffset = 0x20;
 constexpr int kMenuPanelActionFunctionOffset = 0x28;
 constexpr int kMenuPanelDescriptorSize = 0x80;
 
-// Temporary custom labels. These patch native locale slots for now; the copied
-// locale table approach needs more investigation before it is safe in menus.
-constexpr int kKnockoutLabelId = 569;
-constexpr int kEliminationFrequencyLabelId = 570;
-constexpr int kEliminationsAtOnceLabelId = 571;
-constexpr int kKnockedOutCarStateLabelId = 572;
-constexpr int kModOptionsLabelId = 573;
-constexpr int kKnockoutLapCountLabelId = 574;
-constexpr int kNativeSingleRaceLabelId = 575;
+// Custom labels use native locale slots. LocaleStringOverride keeps the
+// original pointer so a temporary override can be restored safely.
+constexpr int kKnockoutLabelId = 0x17;
+constexpr int kEliminationFrequencyLabelId = 0x1E;
+constexpr int kEliminationsAtOnceLabelId = 0x1F;
+constexpr int kKnockedOutCarStateLabelId = 0x20;
+constexpr int kModOptionsLabelId = 0x21;
+constexpr int kKnockoutLapCountLabelId = 0x22;
+constexpr int kNativeSingleRaceLabelId = 0x15;
 
 constexpr char kKnockoutLabel[] = "Knockout";
 constexpr char kKnockoutLapCountLabel[] = "Knockout Lap Count";
@@ -53,6 +53,7 @@ constexpr char kModOptionsLabel[] = "Mod Settings";
 
 constexpr int kSingleRaceMode = MODE_SINGLE_RACE;
 constexpr int kFrontendConfirmAction = 5;
+constexpr int kFrontendCancelAction = 4;
 constexpr int kRaceSettingsRandomFlagsOffset = 0xA4;
 constexpr int kGameModeRandomFlagsOffset = 0x2E;
 constexpr int kMenuValueXOffset = 0x114;
@@ -85,8 +86,44 @@ MenuItemDescriptor g_modOptionsMenuItem = {};
 alignas(8) uint8_t g_modOptionsMenuPanel[kMenuPanelDescriptorSize] = {};
 bool g_knockoutMenuItemInitialized = false;
 bool g_modOptionsMenuItemInitialized = false;
-char* g_originalSingleRaceLabel = nullptr;
-bool g_originalSingleRaceLabelCaptured = false;
+
+struct LocaleStringOverride {
+    int labelId;
+    const char* replacement;
+    char* original = nullptr;
+    char** capturedLocaleStrings = nullptr;
+    char** overriddenLocaleStrings = nullptr;
+    bool originalCaptured = false;
+};
+
+LocaleStringOverride g_knockoutLabelOverride{
+    kKnockoutLabelId,
+    kKnockoutLabel
+};
+LocaleStringOverride g_knockoutLapCountLabelOverride{
+    kKnockoutLapCountLabelId,
+    kKnockoutLapCountLabel
+};
+LocaleStringOverride g_eliminationFrequencyLabelOverride{
+    kEliminationFrequencyLabelId,
+    kEliminationFrequencyLabel
+};
+LocaleStringOverride g_eliminationsAtOnceLabelOverride{
+    kEliminationsAtOnceLabelId,
+    kEliminationsAtOnceLabel
+};
+LocaleStringOverride g_knockedOutCarStateLabelOverride{
+    kKnockedOutCarStateLabelId,
+    kKnockedOutCarStateLabel
+};
+LocaleStringOverride g_modOptionsLabelOverride{
+    kModOptionsLabelId,
+    kModOptionsLabel
+};
+LocaleStringOverride g_singleRaceLabelOverride{
+    kNativeSingleRaceLabelId,
+    kKnockoutLabel
+};
 
 void InitializeKnockoutOptionsMenuItems();
 
@@ -144,43 +181,83 @@ MenuItemDescriptor* GetSelectedMenuItemDescriptor(int slotIndex) {
     return GetMenuItemDescriptor(slotIndex, selectedItemIndex);
 }
 
-void PatchLocaleString(int labelId, const char* text) {
+bool SaveOriginalLocaleString(LocaleStringOverride& stringOverride) {
     char** localeStrings = GetLocaleStrings();
-    if (localeStrings != nullptr) {
-        localeStrings[labelId] = const_cast<char*>(text);
+    if (localeStrings == nullptr) {
+        return false;
     }
+
+    if (!stringOverride.originalCaptured ||
+        stringOverride.capturedLocaleStrings != localeStrings) {
+        stringOverride.original = localeStrings[stringOverride.labelId];
+        stringOverride.capturedLocaleStrings = localeStrings;
+        stringOverride.originalCaptured = true;
+    }
+
+    return true;
 }
 
-void PatchKnockoutLocaleStrings() {
-    PatchLocaleString(kKnockoutLabelId, kKnockoutLabel);
-    PatchLocaleString(kKnockoutLapCountLabelId, kKnockoutLapCountLabel);
-    PatchLocaleString(kEliminationFrequencyLabelId, kEliminationFrequencyLabel);
-    PatchLocaleString(kEliminationsAtOnceLabelId, kEliminationsAtOnceLabel);
-    PatchLocaleString(kKnockedOutCarStateLabelId, kKnockedOutCarStateLabel);
-    PatchLocaleString(kModOptionsLabelId, kModOptionsLabel);
+bool OverrideLocaleString(LocaleStringOverride& stringOverride) {
+    if (!SaveOriginalLocaleString(stringOverride)) {
+        return false;
+    }
+
+    char** localeStrings = GetLocaleStrings();
+    localeStrings[stringOverride.labelId] = MutableText(stringOverride.replacement);
+    stringOverride.overriddenLocaleStrings = localeStrings;
+    return true;
+}
+
+void RestoreLocaleString(LocaleStringOverride& stringOverride) {
+    if (!stringOverride.originalCaptured ||
+        stringOverride.overriddenLocaleStrings == nullptr) {
+        return;
+    }
+
+    if (GetLocaleStrings() == stringOverride.overriddenLocaleStrings) {
+        stringOverride.overriddenLocaleStrings[stringOverride.labelId] =
+            stringOverride.original;
+    }
+
+    stringOverride.overriddenLocaleStrings = nullptr;
+}
+
+void PatchModOptionsMenuLocaleStrings() {
+    OverrideLocaleString(g_knockoutLapCountLabelOverride);
+    OverrideLocaleString(g_eliminationFrequencyLabelOverride);
+    OverrideLocaleString(g_eliminationsAtOnceLabelOverride);
+    OverrideLocaleString(g_knockedOutCarStateLabelOverride);
+}
+
+void RestoreModOptionsMenuLocaleStrings() {
+    RestoreLocaleString(g_knockoutLapCountLabelOverride);
+    RestoreLocaleString(g_eliminationFrequencyLabelOverride);
+    RestoreLocaleString(g_eliminationsAtOnceLabelOverride);
+    RestoreLocaleString(g_knockedOutCarStateLabelOverride);
+}
+
+void PatchStartRaceMenuLocaleStrings() {
+    OverrideLocaleString(g_knockoutLabelOverride);
+}
+
+void RestoreStartRaceMenuLocaleStrings() {
+    RestoreLocaleString(g_knockoutLabelOverride);
+}
+
+void PatchOptionsMenuLocaleStrings() {
+    OverrideLocaleString(g_modOptionsLabelOverride);
+}
+
+void RestoreOptionsMenuLocaleStrings() {
+    RestoreLocaleString(g_modOptionsLabelOverride);
 }
 
 void PatchSingleRaceLabelForKnockout() {
-    char** localeStrings = GetLocaleStrings();
-    if (localeStrings == nullptr) {
-        return;
-    }
-
-    if (!g_originalSingleRaceLabelCaptured) {
-        g_originalSingleRaceLabel = localeStrings[kNativeSingleRaceLabelId];
-        g_originalSingleRaceLabelCaptured = true;
-    }
-
-    localeStrings[kNativeSingleRaceLabelId] = const_cast<char*>(kKnockoutLabel);
+    OverrideLocaleString(g_singleRaceLabelOverride);
 }
 
 void RestoreSingleRaceLabel() {
-    char** localeStrings = GetLocaleStrings();
-    if (localeStrings == nullptr || !g_originalSingleRaceLabelCaptured) {
-        return;
-    }
-
-    localeStrings[kNativeSingleRaceLabelId] = g_originalSingleRaceLabel;
+    RestoreLocaleString(g_singleRaceLabelOverride);
 }
 
 void InitializeKnockoutMenuItemFromSingleRace(int slotIndex) {
@@ -222,6 +299,7 @@ void SelectKnockoutMode() {
 
 void ClearKnockoutMenuSelection() {
     RestoreSingleRaceLabel();
+    RestoreStartRaceMenuLocaleStrings();
 
     RandomizerContext& ctx = GetRandomizerContext();
     ctx.knockoutState.menuSelectionActive = false;
@@ -230,6 +308,7 @@ void ClearKnockoutMenuSelection() {
 
 void PrepareKnockoutStartRaceMenuState() {
     RestoreSingleRaceLabel();
+    RestoreStartRaceMenuLocaleStrings();
     GetRandomizerContext().knockoutState.menuSelectionActive = false;
 }
 
@@ -366,8 +445,9 @@ void DrawEliminationFrequencyMenuValue(int panelIndex, int itemIndex) {
     DrawTextMenuValue(panelIndex, itemIndex, text);
 }
 
+// Called every time the "Mod Options" menu is opened in the UI
 void BuildModOptionsMenu(int slotIndex) {
-    PatchKnockoutLocaleStrings();
+    PatchModOptionsMenuLocaleStrings();
     InitializeKnockoutOptionsMenuItems();
 
     RVGL_RegisterMenuItemInActiveMenu(
@@ -388,14 +468,24 @@ void BuildModOptionsMenu(int slotIndex) {
     );
 }
 
+// Called on every action on the "Mod Options" menu (navigation with up/down arrows, choose option, cancel)
 bool HandleModOptionsMenuAction(int slotIndex, uint32_t action) {
+
+    // This menu has no submenus, confirm action does nothing
     if (action == kFrontendConfirmAction) {
         return false;
     }
 
     const auto handleGenericMenuAction =
         reinterpret_cast<FnHandleGenericMenuAction>(AbsFromRva(RVA_HANDLE_GENERIC_MENU_ACTION));
-    return handleGenericMenuAction(slotIndex, action);
+
+    const bool result = handleGenericMenuAction(slotIndex, action);
+
+    if (action == kFrontendCancelAction) {
+        RestoreModOptionsMenuLocaleStrings();
+    }
+
+    return result;
 }
 
 void WriteModOptionsMenuPanelInt(int offset, int value) {
@@ -406,6 +496,8 @@ void WriteModOptionsMenuPanelPointer(int offset, void* value) {
     *reinterpret_cast<void**>(g_modOptionsMenuPanel + offset) = value;
 }
 
+// Runs the first time the "Options" menu is opened in the UI
+// After that, g_modOptionsMenuItemInitialized is true and this function just returns early
 void InitializeModOptionsMenuItem() {
     if (g_modOptionsMenuItemInitialized) {
         return;
@@ -551,11 +643,12 @@ void PatchCarCountMenuDescriptor() {
     SyncCarCountToVanillaSettings();
 }
 
+// Called every time the "Start Race" menu is opened in the UI
 void Hook_BuildStartRaceMenu(int slotIndex) {
     PrepareKnockoutStartRaceMenuState();
     Orig_BuildStartRaceMenu(slotIndex);
 
-    PatchKnockoutLocaleStrings();
+    PatchStartRaceMenuLocaleStrings();
     InitializeKnockoutMenuItemFromSingleRace(slotIndex);
     if (g_knockoutMenuItemInitialized) {
         RVGL_RegisterMenuItemInActiveMenu(
@@ -565,10 +658,11 @@ void Hook_BuildStartRaceMenu(int slotIndex) {
     }
 }
 
+// Called every time the "Options" menu is opened in the UI
 void Hook_BuildOptionsMenu(int slotIndex) {
     Orig_BuildOptionsMenu(slotIndex);
 
-    PatchKnockoutLocaleStrings();
+    PatchOptionsMenuLocaleStrings();
     InitializeModOptionsMenuItem();
     if (g_modOptionsMenuItemInitialized) {
         RVGL_RegisterMenuItemInActiveMenu(
@@ -578,16 +672,36 @@ void Hook_BuildOptionsMenu(int slotIndex) {
     }
 }
 
+// Called on every action on the "Options" menu (navigation with up/down arrows,
+// choose option, cancel).
+bool Hook_HandleOptionsMenuAction(int slotIndex, uint32_t action) {
+    const bool result = Orig_HandleOptionsMenuAction(slotIndex, action);
+    if (action == kFrontendConfirmAction || action == kFrontendCancelAction) {
+        RestoreOptionsMenuLocaleStrings();
+    }
+
+    return result;
+}
+
+// Called on every action on the "Start Race" menu (navigation with up/down arrows, choose option, cancel)
 bool Hook_HandleStartRaceMenuAction(int slotIndex, uint32_t action) {
-    if (action == kFrontendConfirmAction &&
-        GetSelectedMenuItemDescriptor(slotIndex) == &g_knockoutMenuItem) {
+    const bool selectedKnockoutMenuItem =
+        action == kFrontendConfirmAction &&
+        GetSelectedMenuItemDescriptor(slotIndex) == &g_knockoutMenuItem;
+
+    if (selectedKnockoutMenuItem) {
         SelectKnockoutMode();
     }
     else if (action == kFrontendConfirmAction && GetGameModeRuntime().mode == MODE_SELECT_FRONTEND) {
         ClearKnockoutMenuSelection();
     }
 
-    return Orig_HandleStartRaceMenuAction(slotIndex, action);
+    const bool result = Orig_HandleStartRaceMenuAction(slotIndex, action);
+    if (action == kFrontendConfirmAction || action == kFrontendCancelAction) {
+        RestoreStartRaceMenuLocaleStrings();
+    }
+
+    return result;
 }
 
 } // namespace Randomizer

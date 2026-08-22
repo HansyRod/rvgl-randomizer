@@ -165,6 +165,7 @@ constexpr uint32_t RVA_HANDLE_START_RACE_MENU_ACTION = 0x0015E880;
 
 // Options frontend menu builder.
 constexpr uint32_t RVA_BUILD_OPTIONS_MENU = 0x00154700;
+constexpr uint32_t RVA_HANDLE_OPTIONS_MENU_ACTION = 0x00154680;
 
 // Registers one MenuItemDescriptor in the currently active frontend menu slot.
 constexpr uint32_t RVA_REGISTER_MENU_ITEM_IN_ACTIVE_MENU = 0x001453B0;

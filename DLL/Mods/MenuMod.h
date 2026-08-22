@@ -11,6 +11,7 @@ using FnHandleMenuAction = bool(*)(int slotIndex, uint32_t action);
 extern FnBuildMenu Orig_BuildStartRaceMenu;
 extern FnBuildMenu Orig_BuildOptionsMenu;
 extern FnHandleMenuAction Orig_HandleStartRaceMenuAction;
+extern FnHandleMenuAction Orig_HandleOptionsMenuAction;
 
 // Frontend helpers exposed by the menu mod.
 bool IncrementRandomizerCarCount(int panelIndex);
@@ -20,6 +21,7 @@ void SyncCarCountToVanillaSettings();
 
 void Hook_BuildStartRaceMenu(int slotIndex);
 void Hook_BuildOptionsMenu(int slotIndex);
+bool Hook_HandleOptionsMenuAction(int slotIndex, uint32_t action);
 bool Hook_HandleStartRaceMenuAction(int slotIndex, uint32_t action);
 
 } // namespace Randomizer
