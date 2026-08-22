@@ -554,6 +554,7 @@ void FinishWinnerIfRaceResolved(const std::vector<CarEntityRuntime*>& activeCars
 
     RVGL_RegisterFinishTime(reinterpret_cast<int*>(winner), GetCurrentRaceClockMs(), 0);
     RewriteKnockoutResultTable();
+    GetRandomizerContext().knockoutState.playerWon = winner->nCarArrayIndex == 0;
     GetRandomizerContext().knockoutState.raceActive = false;
     Logger::TimestampLogf(
         "[KnockoutMode] Race resolved; winner runtimeId=%d",
@@ -622,6 +623,7 @@ void ResetKnockoutRaceState() {
         std::clamp(ctx.knockoutState.eliminationFrequencyLaps, 1, 10);
     ctx.knockoutState.eliminatedCount = 0;
     ctx.knockoutState.lastRaceClockMs = 0;
+    ctx.knockoutState.playerWon = false;
     g_knockoutResults.clear();
     g_knockoutPopupLines.clear();
     g_knockoutPopupUntilMs = 0;
@@ -647,6 +649,7 @@ void StartKnockoutRaceIfSelected() {
     ctx.knockoutState.nextEliminationLap = ctx.knockoutState.eliminationFrequencyLaps;
     ctx.knockoutState.eliminatedCount = 0;
     ctx.knockoutState.lastRaceClockMs = 0;
+    ctx.knockoutState.playerWon = false;
     g_knockoutPopupLines.clear();
     g_knockoutPopupUntilMs = 0;
 
@@ -676,6 +679,7 @@ void FinalizeKnockoutRaceSetup() {
     ApplyKnockoutLapCountOption();
     ctx.knockoutState.eliminatedCount = 0;
     ctx.knockoutState.lastRaceClockMs = static_cast<int>(GetCurrentRaceClockMs());
+    ctx.knockoutState.playerWon = false;
     g_knockoutPopupLines.clear();
     g_knockoutPopupUntilMs = 0;
 }

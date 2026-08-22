@@ -89,6 +89,7 @@ struct KnockoutRuntimeState {
     int nextEliminationLap = 1;
     int eliminatedCount = 0;
     int lastRaceClockMs = 0;
+    bool playerWon = false;
 };
 
 struct ArchipelagoRuntimeState {
