@@ -46,6 +46,40 @@ restarts, while `menuSelectionActive` records the frontend selection path.
 This avoids patching the `RaceSessionSetup` native mode jump table at
 `0x00450700`, whose known cases only cover existing RVGL modes.
 
+### Scoped Locale Label Overrides
+
+The frontend resolves a menu row's label dynamically through the shared locale
+string table. Custom descriptors therefore retain their numeric label IDs and
+temporarily override the corresponding native locale entry while their menu is
+active. `LocaleStringOverride` in `DLL/Mods/MenuMod.cpp` captures the original
+string pointer once per locale table, applies the replacement, and restores the
+original pointer without writing an old-language pointer into a newly loaded
+locale table.
+
+The overrides are scoped to the menus that use them:
+
+| Menu | Label IDs overridden | Patch point | Restore point |
+| --- | --- | --- | --- |
+| Start Race | `0x17` (`Knockout`) | `Hook_BuildStartRaceMenu` | `Hook_HandleStartRaceMenuAction` on Confirm/Cancel, or menu rebuild |
+| Options | `0x21` (`Mod Settings`) | `Hook_BuildOptionsMenu` | `Hook_HandleOptionsMenuAction` on Confirm/Cancel |
+| Mod Options | `0x22` (lap count), `0x1E` (frequency), `0x1F` (eliminations per lap), `0x20` (knocked-out car state) | `BuildModOptionsMenu` | `HandleModOptionsMenuAction` when its exit path restores the panel |
+
+The native action values are Confirm `5` (`0x5`) and Cancel `4` (`0x4`).
+Ghidra MCP confirmed Cancel through the explicit `param_2 == 4` branches in
+`FUN_005404F0` at `0x005404F0` and `FUN_00542360` at `0x00542360`.
+
+The Options menu builder is `BuildOptionsMenu` at `0x00554700`; its native
+action handler is `HandleOptionsMenuAction` at `0x00554680` (RVA
+`0x00154680`). The DLL hooks both the builder and action handler. The Mod
+Options panel continues to delegate navigation to `HandleGenericMenuAction` at
+`0x00546CF0`, with its custom action handler retaining the special Confirm
+behavior used by the panel.
+
+Label ID `0x17` is not unused: Ghidra identifies it as the Battle Tag row in
+`g_pMultiplayerModeBattleTagItemDescriptor` at `0x00665C40`, registered by
+`BuildMultiplayerModeSelectionMenu` at `0x0055E850` / `0x0055E865`. This is why
+the Knockout override must not remain active after the Start Race menu exits.
+
 ## Mod Options
 
 `BuildOptionsMenu` at `0x00554700` is hooked so the DLL can append a custom
@@ -144,10 +178,10 @@ visible and suppresses itself when a frontend menu panel is active, such as the
 pause menu.
 
 Because the native flow still stores `MODE_SINGLE_RACE`, Knockout temporarily
-patches the native Single Race locale label to `Knockout` after the custom mode
-is selected. This lets the pre-race summary and loading screen show the custom
-mode name. The original Single Race label is restored when the Start Race menu
-is rebuilt or when another Start Race mode is confirmed.
+patches the native Single Race locale label (`0x15`) to `Knockout` after the
+custom mode is selected. This lets the pre-race summary and loading screen show
+the custom mode name. The original Single Race label is restored when the Start
+Race menu is rebuilt or when another Start Race mode is confirmed.
 
 ## Knockout Lap Count Option
 
@@ -271,6 +305,29 @@ MenuItemDescriptor, size 0x40
   +0x38  reserved
 ```
 
+### Resolved Knockout Lap Count Width Issue
+
+The Knockout Lap Count row was initially cloned from the native car-count
+descriptor. In the current RVGL build, that descriptor is stored at
+`0x00664280` and its `+0x08` value is `0x42800000`, which is `64.0f`. The
+native registration function treats this field as a float, not an integer.
+
+`Single Race` is 11 visible characters and the menu font uses an 8-pixel
+character width, so the row requires `88.0f` of value-column width. The custom
+`DrawTextMenuValue` callback receives the resulting active-slot `+0x138` value
+as its `RVGL_DrawUIText` clipping width.
+
+The fix is implemented in the following locations:
+
+- `DLL/Game/RVGLMenuStructs.h`: `MenuItemDescriptor::valueWidth` is typed as
+  `float` at offset `+0x08`.
+- `DLL/Mods/MenuMod.cpp`: `g_knockoutLapCountMenuItem.valueWidth` is set to
+  `88.0f` after cloning the native descriptor and before
+  `RVGL_RegisterMenuItemInActiveMenu` is called.
+
+The Release `randomizer.dll` builds successfully with this change. A runtime
+launch is still required for visual confirmation in RVGL.
+
 The copied Mod Settings panel descriptor is `0x80` bytes. The fields used by
 the DLL are title label at `+0x04`, builder callback at `+0x20`, action callback
 at `+0x28`, and the native panel's remaining layout/state fields copied from
@@ -306,8 +363,13 @@ Ghidra cleanup performed during this investigation:
 
 ## Current Risks
 
-- The custom frontend labels currently patch existing locale table slots at
-  runtime. This is temporary; a safer custom-label strategy is still needed.
+- Custom frontend labels still borrow native locale table slots at runtime.
+  Their safety depends on keeping the menu-specific patch and restore points in
+  sync with any future frontend hooks. In particular, `0x17` must not remain
+  patched outside the Start Race menu because it is used by Battle Tag.
+- The Mod Options action handler has a special early return for Confirm; if that
+  path is changed to leave the panel, its locale restore must occur before the
+  early return.
 - Knockout is implemented as a Single Race subtype, so native profile progress
   and result screens still see `MODE_SINGLE_RACE`.
 - The options are not persisted outside the current process.
