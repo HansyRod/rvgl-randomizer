@@ -64,6 +64,8 @@ namespace Randomizer {
         bool load_extra_cups = false;
         bool is_stock_cars = false;
         bool is_stock_tracks = false;
+        bool enable_30_car_mode = false;
+        bool enable_knockout_mode = false;
     };
 
     inline bool GetOptionalBool(const json& j, const char* primaryKey, const char* fallbackKey, bool defaultValue) {
@@ -84,7 +86,9 @@ namespace Randomizer {
             {"load_extra_tracks", p.load_extra_tracks},
             {"load_extra_cups", p.load_extra_cups},
             {"is_stock_cars", p.is_stock_cars},
-            {"is_stock_tracks", p.is_stock_tracks}
+            {"is_stock_tracks", p.is_stock_tracks},
+            {"enable_30_car_mode", p.enable_30_car_mode},
+            {"enable_knockout_mode", p.enable_knockout_mode}
         };
     }
 
@@ -94,6 +98,8 @@ namespace Randomizer {
         p.load_extra_cups = GetOptionalBool(j, "load_extra_cups", "loadExtraCups", false);
         p.is_stock_cars = GetOptionalBool(j, "is_stock_cars", "isStockCars", false);
         p.is_stock_tracks = GetOptionalBool(j, "is_stock_tracks", "isStockTracks", false);
+        p.enable_30_car_mode = GetOptionalBool(j, "enable_30_car_mode", "enable30CarMode", false);
+        p.enable_knockout_mode = GetOptionalBool(j, "enable_knockout_mode", "enableKnockoutMode", false);
     }
 
     // Represents an entry in the "cars" array

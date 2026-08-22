@@ -79,6 +79,9 @@ constexpr uint32_t RVA_PROFILE_LOAD_AND_RESET = 0x000753c0;
 // LoadSettingsFromIni - Loads the INI file and stores settings in global variables in memory.
 constexpr uint32_t RVA_LOAD_SETTINGS_FROM_INI = 0x0007a6a0;
 
+// Ini_SaveProfile - saves the base-game profile INI file.
+constexpr uint32_t RVA_INI_SAVE_PROFILE = 0x0007bcb0;
+
 // Track_ApplyCustomUnlock - Update a track's unlock status based on its obtain condition and the player's profile.
 constexpr uint32_t RVA_TRACK_APPLY_CUSTOM_UNLOCK = 0x00053ba0;
 
@@ -158,6 +161,32 @@ constexpr uint32_t RVA_LOAD_NEXT_RACE_FROM_PLAYER_RACE_INFO = 0x00006B40;
 
 // DrawProgressTable - draws the frontend profile progress table panel.
 constexpr uint32_t RVA_DRAW_PROGRESS_TABLE = 0x00154870;
+
+// DrawPreRaceSummary - draws the summary panel shown before a race.
+constexpr uint32_t RVA_DRAW_PRE_RACE_SUMMARY = 0x00155700;
+
+// Start-race frontend menu builder and action handler.
+constexpr uint32_t RVA_BUILD_START_RACE_MENU = 0x0015E730;
+constexpr uint32_t RVA_HANDLE_START_RACE_MENU_ACTION = 0x0015E880;
+
+// Options frontend menu builder.
+constexpr uint32_t RVA_BUILD_OPTIONS_MENU = 0x00154700;
+constexpr uint32_t RVA_HANDLE_OPTIONS_MENU_ACTION = 0x00154680;
+
+// Registers one MenuItemDescriptor in the currently active frontend menu slot.
+constexpr uint32_t RVA_REGISTER_MENU_ITEM_IN_ACTIVE_MENU = 0x001453B0;
+
+// Shared frontend menu action handler for up/down/left/right/back navigation.
+constexpr uint32_t RVA_HANDLE_GENERIC_MENU_ACTION = 0x00146CF0;
+
+// RegisterFinishTime - adds a car to the 30-entry race result table.
+constexpr uint32_t RVA_REGISTER_FINISH_TIME = 0x000F0890;
+
+// SetCarBehaviourState - switches a live car entity between native behavior states.
+constexpr uint32_t RVA_SET_CAR_BEHAVIOUR_STATE = 0x000EFD50;
+
+// UI_SetPostRacePopup - shows the bottom-center race finish notification.
+constexpr uint32_t RVA_UI_SET_POST_RACE_POPUP = 0x00068200;
 
 // Track_LoadProgressFromFile - loads one track's profile progress flags.
 constexpr uint32_t RVA_TRACK_LOAD_PROGRESS_FROM_FILE = 0x00074db0;
@@ -266,6 +295,11 @@ constexpr uint32_t RVA_TOTAL_STARS_EARNED = 0x00b424f0;
 constexpr uint32_t RVA_MAX_POSSIBLE_STARS = 0x00b42494;
 
 constexpr uint32_t RVA_RACE_FINISHED_FLAG = 0x0a8ee7e0;
+
+// Pointer globals used by in-race results and finish notifications.
+constexpr uint32_t RVA_CURRENT_RACE_CLOCK_MS_PTR = 0x002a79d0;
+constexpr uint32_t RVA_RACE_RESULT_TABLE_PTR = 0x002a7400;
+constexpr uint32_t RVA_PLAYER_COLORS_PTR = 0x002a6d90;
 
 constexpr uint32_t RVA_SETTINGS_NCARS = 0x0aa8e930;
 constexpr uint32_t RVA_NCARS = 0x00b43488;

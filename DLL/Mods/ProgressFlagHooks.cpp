@@ -1,6 +1,8 @@
 #include "ProgressFlagHooks.h"
 #include "Addresses.h"
+#include "KnockoutMode.h"
 #include "Logger.h"
+#include "RVGLMemory.h"
 #include "ThirtyCarCupMod.h"
 #include "TrackHooks.h"
 #include <array>
@@ -18,6 +20,7 @@ enum class ProgressEventKind {
     TimeTrialChallengeBeaten,
     PracticeStarFound,
     SingleRaceWon,
+    KnockoutRaceWon,
     ChampionshipWon,
     StuntArenaStarCaught
 };
@@ -30,6 +33,8 @@ const char* GetProgressEventName(ProgressEventKind kind) {
         return "PracticeStarFound";
     case ProgressEventKind::SingleRaceWon:
         return "SingleRaceWon";
+    case ProgressEventKind::KnockoutRaceWon:
+        return "KnockoutRaceWon";
     case ProgressEventKind::ChampionshipWon:
         return "ChampionshipWon";
     case ProgressEventKind::StuntArenaStarCaught:
@@ -187,12 +192,51 @@ void Hook_Pickup_CollectProgressObject(void* pickup) {
 }
 
 void Hook_Engine_UpdateRaceProgress() {
+    RandomizerContext& ctx = GetRandomizerContext();
     const int trackIndex = GetCurrentTrackIndex();
     const uint32_t beforeFlags = GetTrackProgressFlags(trackIndex);
+    const bool knockoutRace =
+        IsKnockoutModeEnabled() &&
+        ctx.knockoutState.modeActive &&
+        GetGameModeRuntime().mode == MODE_SINGLE_RACE;
+    const bool knockoutRaceWasActive = knockoutRace && ctx.knockoutState.raceActive;
 
     Orig_Engine_UpdateRaceProgress();
 
+    TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
+    if (knockoutRace && track != nullptr && (beforeFlags & TRACKPROGRESS_RACE_WON) == 0) {
+        // Native Engine_UpdateRaceProgress treats Knockout as Single Race and
+        // sets the normal race-win bit when the player crosses the finish line.
+        // Preserve pre-existing Single Race progress, but discard a new native
+        // flag so Knockout wins remain a separate progress event.
+        track->trackProgressFlags = static_cast<TrackProgressFlags>(
+            track->trackProgressFlags & ~TRACKPROGRESS_RACE_WON
+        );
+    }
+
+    UpdateKnockoutRaceProgress();
+
     const uint32_t afterFlags = GetTrackProgressFlags(trackIndex);
+    if (knockoutRace) {
+        if (knockoutRaceWasActive && !ctx.knockoutState.raceActive && ctx.knockoutState.playerWon &&
+            track != nullptr) {
+            const uint32_t flagsBeforeKnockoutWin =
+                static_cast<uint32_t>(track->trackProgressFlags);
+            track->trackProgressFlags = static_cast<TrackProgressFlags>(
+                flagsBeforeKnockoutWin | TRACKPROGRESS_KNOCKOUT_WON
+            );
+
+            EmitNewTrackFlagEvents(
+                trackIndex,
+                flagsBeforeKnockoutWin,
+                static_cast<uint32_t>(track->trackProgressFlags),
+                TRACKPROGRESS_KNOCKOUT_WON,
+                ProgressEventKind::KnockoutRaceWon
+            );
+        }
+        return;
+    }
+
     EmitNewTrackFlagEvents(
         trackIndex,
         beforeFlags,

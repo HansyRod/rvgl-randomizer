@@ -334,7 +334,7 @@ int SpawnCar(int modelId, int skinId, const Vec3& pos) {
 
 void ExpandRaceParticipantsToThirty() {
     ThirtyCarRuntimeState& state = GetThirtyCarState();
-    if (!IsSupportedMode() || state.participantsExpanded) {
+    if (!IsThirtyCarModeEnabled() || !IsSupportedMode() || state.participantsExpanded) {
         return;
     }
 
@@ -377,7 +377,7 @@ void ExpandRaceParticipantsToThirty() {
 
 void ApplyThirtyCarGrid() {
     ThirtyCarRuntimeState& state = GetThirtyCarState();
-    if (!IsSupportedMode()) {
+    if (!IsThirtyCarModeEnabled() || !IsSupportedMode()) {
         return;
     }
 
@@ -467,7 +467,7 @@ bool MoveRuntimeCarsToBackAfterRacePositions(
 
 void MovePlayersToBackAfterRacePositions() {
     ThirtyCarRuntimeState& state = GetThirtyCarState();
-    if (!IsSupportedMode() || !state.gridApplied || state.playersMovedToBack) {
+    if (!IsThirtyCarModeEnabled() || !IsSupportedMode() || !state.gridApplied || state.playersMovedToBack) {
         return;
     }
 

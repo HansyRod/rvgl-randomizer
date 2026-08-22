@@ -3,6 +3,7 @@
 #include "Addresses.h"
 #include "RVGLStructs.h"
 #include "30CarMod.h"
+#include "KnockoutMode.h"
 #include "ThirtyCarCupMod.h"
 
 namespace Randomizer {
@@ -25,12 +26,18 @@ FnUpdateRacePositions     Orig_UpdateRacePositions     = nullptr;
 void Hook_DrawPostRaceLeaderboard() {
 
     // Logger::TimestampLogf("[RaceInitHooks] Calling DrawPostRaceLeaderboard");
+    DrawKnockoutPopup();
+
+    if (DrawKnockoutResultsTable()) {
+        return;
+    }
+
     bool raceFinished = *reinterpret_cast<bool*>(AbsFromRva(RVA_RACE_FINISHED_FLAG));
     GameMode* gameMode = reinterpret_cast<GameMode*>(AbsFromRva(RVA_GAME_MODE));
     GameMode originalGameMode = *gameMode;
     int participantCount = GetParticipantCount();
 
-    if (raceFinished && participantCount > 16) {
+    if (IsThirtyCarModeEnabled() && raceFinished && participantCount > 16) {
         *gameMode = MODE_CLOCKWORK_CARNAGE; // Override game mode to show race results in Clockwork Carnage mode
     }
 
@@ -52,8 +59,10 @@ void Hook_RaceSessionSetup(bool isRestart) {
     // *nCars = 30;
     ResetThirtyCarModState();
     ResetThirtyCarCupState();
+    ResetKnockoutRaceState();
 
     Orig_RaceSessionSetup(isRestart);
+    StartKnockoutRaceIfSelected();
     Logger::TimestampLogf("[RaceInitHooks] RaceSessionSetup completed");
 }
 
@@ -70,6 +79,7 @@ void Hook_SetupAllRaceCars() {
 
     ApplyThirtyCarGrid();
     ApplyThirtyCarCupGrid();
+    FinalizeKnockoutRaceSetup();
 
     Logger::TimestampLogf("[RaceInitHooks] SetupAllRaceCars completed");
 }

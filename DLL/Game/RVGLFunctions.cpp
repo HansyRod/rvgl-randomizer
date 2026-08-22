@@ -24,5 +24,9 @@ FnResetCurrentTrackSelectionState RVGL_ResetCurrentTrackSelectionState = reinter
 FnRaceTeardownAndSave       RVGL_RaceTeardownAndSave        = reinterpret_cast<FnRaceTeardownAndSave>(AbsFromRva(RVA_RACE_TEARDOWN_AND_SAVE));
 FnLevelDestroyAndFree       RVGL_LevelDestroyAndFree        = reinterpret_cast<FnLevelDestroyAndFree>(AbsFromRva(RVA_LEVEL_DESTROY_AND_FREE));
 FnLoadNextRaceFromPlayerRaceInfo RVGL_LoadNextRaceFromPlayerRaceInfo = reinterpret_cast<FnLoadNextRaceFromPlayerRaceInfo>(AbsFromRva(RVA_LOAD_NEXT_RACE_FROM_PLAYER_RACE_INFO));
+FnRegisterMenuItemInActiveMenu RVGL_RegisterMenuItemInActiveMenu = reinterpret_cast<FnRegisterMenuItemInActiveMenu>(AbsFromRva(RVA_REGISTER_MENU_ITEM_IN_ACTIVE_MENU));
+FnRegisterFinishTime RVGL_RegisterFinishTime                = reinterpret_cast<FnRegisterFinishTime>(AbsFromRva(RVA_REGISTER_FINISH_TIME));
+FnSetCarBehaviourState RVGL_SetCarBehaviourState            = reinterpret_cast<FnSetCarBehaviourState>(AbsFromRva(RVA_SET_CAR_BEHAVIOUR_STATE));
+FnSetPostRacePopup RVGL_SetPostRacePopup                    = reinterpret_cast<FnSetPostRacePopup>(AbsFromRva(RVA_UI_SET_POST_RACE_POPUP));
 
 } // namespace Randomizer

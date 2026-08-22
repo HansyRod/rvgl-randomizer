@@ -83,6 +83,38 @@ Randomizer behavior:
 - Missing `customUnlock` config for a custom obtain value locks the car and logs
   once.
 
+### Car Unlock Dialog Transition Tracking
+
+The native car/physics synchronization function at `0x0043c330`
+(`SyncCarInfoFromPhysicsBlock`) copies the physics `selectable` field into
+`CarInfo::selectableByPlayer`, then evaluates the car's native obtain value. RVGL
+treats custom obtain values above `5` as unknown and leaves those cars locked.
+Race, Championship, and Knockout setup can therefore temporarily overwrite a
+custom car's runtime selectability with `false`, even when the DLL's custom
+condition is already satisfied. This also happens when leaving a race without
+finishing it.
+
+The DLL must not use `CarInfo::selectableByPlayer` as the previous custom unlock
+state. `carSelectableState` stores the last result from `EvaluateCustomUnlock`
+instead:
+
+- Profile loading seeds the cache silently, preventing dialogs for existing
+  unlocks.
+- Each later `UpdateCarCustomUnlocks` pass compares the evaluated result with
+  the cached result.
+- Only a `false` to `true` transition calls `TriggerNativeCarUnlockDialog`.
+- The evaluated result is written back to both `CarInfo::selectableByPlayer`
+  and `carSelectableState`.
+
+This keeps native physics synchronization from creating false unlock
+transitions while preserving genuine custom unlock dialogs. The fix is in
+`DLL/Mods/CarHooks.cpp`, `DLL/Mods/CustomUnlocks.cpp`, and
+`DLL/Mods/RandomizerState.h`.
+
+Manual testing confirmed that the false dialog no longer appears when entering
+or abandoning Single Race, Championship, or Knockout races, and that genuine
+custom unlocks still trigger at the correct transition.
+
 Relevant globals:
 
 - `RVA_CAR_TABLE = 0x002FAB50`

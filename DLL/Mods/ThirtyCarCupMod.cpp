@@ -121,7 +121,9 @@ void CopyNativeCarModelHalfScaleFlag(PlayerRaceInfoRuntime& playerRaceInfo) {
 } // anonymous namespace
 
 bool IsThirtyCarCupActive() {
-    return g_cupState.active && IsExtendedCupOpponentGrid(g_cupState.activeCup);
+    return IsThirtyCarModeEnabled() &&
+           g_cupState.active &&
+           IsExtendedCupOpponentGrid(g_cupState.activeCup);
 }
 
 void ResetThirtyCarCupState() {
@@ -135,6 +137,10 @@ void StartThirtyCarCupState(
     const ExtendedCupResultsState& results
 ) {
     g_cupState.Reset();
+    if (!IsThirtyCarModeEnabled()) {
+        return;
+    }
+
     g_cupState.active = true;
     g_cupState.rosterGenerated = true;
     g_cupState.selectedCupIndex = selectedCupIndex;

@@ -88,6 +88,7 @@ enum TrackProgressFlags : uint32_t {
     TRACKPROGRESS_PRACTICE_STAR             = 0x08,  // Practice star earned
     TRACKPROGRESS_RACE_WON                  = 0x10,  // Race won
     TRACKPROGRESS_COMPLETED                 = 0x20,  // Track completed (bronze)
+    TRACKPROGRESS_KNOCKOUT_WON              = 0x40,  // Knockout race won (randomizer)
     TRACKPROGRESS_PROGRESS_LOADED           = 0x80000000, // Progress file already loaded this session
 };
 

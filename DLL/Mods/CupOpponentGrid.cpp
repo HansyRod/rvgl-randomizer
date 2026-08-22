@@ -340,6 +340,12 @@ void Hook_Cup_GenerateOpponentGrid() {
     const int selectedCupIndex = GetSelectedCupIndexFromSettings();
     CupProfile* cup = GetCupProfileByCupID(selectedCupIndex);
     const RandomizedCup* cupConfig = GetCupConfigByCupID(selectedCupIndex);
+    if (IsExtendedCupOpponentGrid(cup) && !IsThirtyCarModeEnabled()) {
+        ResetThirtyCarCupState();
+        Orig_Cup_GenerateOpponentGrid();
+        return;
+    }
+
     if (!ShouldGenerateOpponentGrid(cup, cupConfig)) {
         ResetThirtyCarCupState();
         Orig_Cup_GenerateOpponentGrid();

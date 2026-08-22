@@ -11,6 +11,7 @@
 #include "RaceInitHooks.h"
 #include "CupOpponentGrid.h"
 #include "ThirtyCarCupMod.h"
+#include "MenuMod.h"
 #include "Fob.h"
 #include "CallLogger.h"
 #include "Logger.h"
@@ -203,6 +204,13 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
+        AbsFromRva(RVA_INI_SAVE_PROFILE),
+        reinterpret_cast<void*>(Randomizer::Hook_Ini_SaveProfile),
+        reinterpret_cast<void**>(&Randomizer::Orig_Ini_SaveProfile),
+        "Ini_SaveProfile"
+    );
+
+    HookManager::Add(
         AbsFromRva(RVA_TRACK_APPLY_CUSTOM_UNLOCK),
         reinterpret_cast<void*>(Randomizer::Hook_Track_ApplyCustomUnlock),
         reinterpret_cast<void**>(&Randomizer::Orig_Track_ApplyCustomUnlock),
@@ -340,6 +348,41 @@ static void RegisterHooks() {
         reinterpret_cast<void*>(Randomizer::Hook_DrawProgressTable),
         reinterpret_cast<void**>(&Randomizer::Orig_DrawProgressTable),
         "DrawProgressTable"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_BUILD_START_RACE_MENU),
+        reinterpret_cast<void*>(Randomizer::Hook_BuildStartRaceMenu),
+        reinterpret_cast<void**>(&Randomizer::Orig_BuildStartRaceMenu),
+        "BuildStartRaceMenu"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_BUILD_OPTIONS_MENU),
+        reinterpret_cast<void*>(Randomizer::Hook_BuildOptionsMenu),
+        reinterpret_cast<void**>(&Randomizer::Orig_BuildOptionsMenu),
+        "BuildOptionsMenu"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_DRAW_PRE_RACE_SUMMARY),
+        reinterpret_cast<void*>(Randomizer::Hook_DrawPreRaceSummary),
+        reinterpret_cast<void**>(&Randomizer::Orig_DrawPreRaceSummary),
+        "DrawPreRaceSummary"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_HANDLE_OPTIONS_MENU_ACTION),
+        reinterpret_cast<void*>(Randomizer::Hook_HandleOptionsMenuAction),
+        reinterpret_cast<void**>(&Randomizer::Orig_HandleOptionsMenuAction),
+        "HandleOptionsMenuAction"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_HANDLE_START_RACE_MENU_ACTION),
+        reinterpret_cast<void*>(Randomizer::Hook_HandleStartRaceMenuAction),
+        reinterpret_cast<void**>(&Randomizer::Orig_HandleStartRaceMenuAction),
+        "HandleStartRaceMenuAction"
     );
 
     HookManager::Add(

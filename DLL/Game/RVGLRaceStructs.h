@@ -17,6 +17,16 @@ struct Vec3 {
     float z;
 };
 
+struct PhysicsEntityRuntime {
+    uint8_t _pad_000[0x308];
+    int32_t collisionMode;           // +0x308
+    uint8_t _pad_30C[0x34];
+    void* primaryUpdate;             // +0x340
+    void* secondaryUpdate;           // +0x348
+    void* stateUpdate;               // +0x350
+    void* collisionUpdate;           // +0x358
+};
+
 struct PhysicsBodyRuntime {
     uint8_t _pad_00[20];
     Vec3 position;                  // +0x14
@@ -39,7 +49,8 @@ struct CarEntityRuntime {
     int32_t carState;                // +0x0004
     CarEntityRuntime* pPrev;         // +0x0008
     CarEntityRuntime* pNext;         // +0x0010
-    uint8_t _pad_018[48];
+    uint8_t _pad_018[40];
+    PhysicsEntityRuntime* physicsEntity; // +0x0040
     CarTransformRuntime transform;   // +0x0048
     uint8_t _pad_0F00[23232];
     int32_t racePositionIndex;       // +0x69C0, zero-based
@@ -119,11 +130,16 @@ struct UiViewportRuntime {
 #pragma pack(pop)
 
 static_assert(sizeof(void*) == 8, "RVGL runtime layouts here assume a 64-bit process.");
+static_assert(offsetof(PhysicsEntityRuntime, collisionMode) == 0x308, "PhysicsEntityRuntime::collisionMode offset mismatch.");
+static_assert(offsetof(PhysicsEntityRuntime, primaryUpdate) == 0x340, "PhysicsEntityRuntime::primaryUpdate offset mismatch.");
+static_assert(offsetof(PhysicsEntityRuntime, stateUpdate) == 0x350, "PhysicsEntityRuntime::stateUpdate offset mismatch.");
+static_assert(offsetof(PhysicsEntityRuntime, collisionUpdate) == 0x358, "PhysicsEntityRuntime::collisionUpdate offset mismatch.");
 static_assert(offsetof(PhysicsBodyRuntime, position) == 0x14, "PhysicsBodyRuntime::position offset mismatch.");
 static_assert(offsetof(PhysicsBodyRuntime, orientationMatrix) == 0x54, "PhysicsBodyRuntime::orientationMatrix offset mismatch.");
 static_assert(offsetof(CarTransformRuntime, physicsBody) == 0x80, "CarTransformRuntime::physicsBody offset mismatch.");
 static_assert(offsetof(CarTransformRuntime, cachedPosition) == 0xDE0, "CarTransformRuntime::cachedPosition offset mismatch.");
 static_assert(sizeof(CarTransformRuntime) == 0xEB8, "CarTransformRuntime size mismatch.");
+static_assert(offsetof(CarEntityRuntime, physicsEntity) == 0x40, "CarEntityRuntime::physicsEntity offset mismatch.");
 static_assert(offsetof(CarEntityRuntime, transform) == 0x48, "CarEntityRuntime::transform offset mismatch.");
 static_assert(offsetof(CarEntityRuntime, racePositionIndex) == 0x69C0, "CarEntityRuntime::racePositionIndex offset mismatch.");
 static_assert(offsetof(CarEntityRuntime, finishTimeMs) == 0x6A48, "CarEntityRuntime::finishTimeMs offset mismatch.");
