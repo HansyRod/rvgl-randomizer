@@ -4,8 +4,10 @@
 #include "RVGLStructs.h"
 #include "MenuMod.h"
 #include "CarHooks.h"
+#include "RVGLFunctions.h"
 #include "Logger.h"
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <limits>
@@ -65,6 +67,19 @@ std::string GetRandomizerProfilePath(const char* profileName) {
     return "profiles/" + internalName + "/" + kRandomizerProfileFileName;
 }
 
+std::string ResolveRandomizerProfilePath(const std::string& virtualPath, bool isWriteMode) {
+    char mutablePath[256]{};
+    std::snprintf(mutablePath, sizeof(mutablePath), "%s", virtualPath.c_str());
+
+    char resolvedPath[256]{};
+    RVGL_VfsResolvePath(mutablePath, resolvedPath, '\0', isWriteMode, nullptr);
+    if (resolvedPath[0] != '\0') {
+        return resolvedPath;
+    }
+
+    return virtualPath;
+}
+
 int ClampCarsPerRace(int value) {
     return std::clamp(value, randomizerMinCarCount, randomizerMaxCarCount);
 }
@@ -115,7 +130,8 @@ bool SaveRandomizerProfileSettings(const char* profileName) {
     }
 
     const RandomizerContext& ctx = GetRandomizerContext();
-    std::ofstream file(path, std::ios::out | std::ios::trunc);
+    const std::string resolvedPath = ResolveRandomizerProfilePath(path, true);
+    std::ofstream file(resolvedPath, std::ios::out | std::ios::trunc);
     if (!file.is_open()) {
         Logger::TimestampLogf(
             "[ProfileHooks] Could not save custom profile settings to %s",
@@ -138,7 +154,15 @@ bool SaveRandomizerProfileSettings(const char* profileName) {
          << "KnockedOutGhostMode = "
          << ClampBinaryOption(ctx.knockoutState.knockedOutGhostMode) << "\n";
 
-    return file.good();
+    if (!file.good()) {
+        Logger::TimestampLogf(
+            "[ProfileHooks] Could not save custom profile settings to %s",
+            path.c_str()
+        );
+        return false;
+    }
+
+    return true;
 }
 
 void LoadRandomizerProfileSettings(char* profileName, int baseCarCount) {
@@ -149,7 +173,8 @@ void LoadRandomizerProfileSettings(char* profileName, int baseCarCount) {
         return;
     }
 
-    std::ifstream file(path);
+    const std::string resolvedPath = ResolveRandomizerProfilePath(path, false);
+    std::ifstream file(resolvedPath);
     if (!file.is_open()) {
         SaveRandomizerProfileSettings(profileName);
         return;
@@ -202,6 +227,7 @@ void LoadRandomizerProfileSettings(char* profileName, int baseCarCount) {
             ctx.knockoutState.knockedOutGhostMode = ClampBinaryOption(value);
         }
     }
+
 }
 
 } // anonymous namespace

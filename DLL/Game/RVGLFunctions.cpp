@@ -10,6 +10,7 @@ FnDrawNumericMenuValue      RVGL_DrawNumericMenuValue       = reinterpret_cast<F
 FnDecrementNumericMenuValue RVGL_DecrementNumericMenuValue  = reinterpret_cast<FnDecrementNumericMenuValue>(AbsFromRva(RVA_DECREMENT_NUMERIC_MENU_VALUE));
 FnIncrementNumericMenuValue RVGL_IncrementNumericMenuValue  = reinterpret_cast<FnIncrementNumericMenuValue>(AbsFromRva(RVA_INCREMENT_NUMERIC_MENU_VALUE));
 FnCreateObjectFromFob       RVGL_CreateObjectFromFob        = reinterpret_cast<FnCreateObjectFromFob>(AbsFromRva(RVA_CREATE_OBJECT_FROM_FOB));
+FnVfsResolvePath            RVGL_VfsResolvePath             = reinterpret_cast<FnVfsResolvePath>(AbsFromRva(RVA_VFS_RESOLVE_PATH));
 FnTrackFileExists           RVGL_TrackFileExists            = reinterpret_cast<FnTrackFileExists>(AbsFromRva(RVA_TRACK_FILE_EXISTS));
 FnTrackReversedDirExists    RVGL_TrackReversedDirExists     = reinterpret_cast<FnTrackReversedDirExists>(AbsFromRva(RVA_TRACK_REVERSED_DIR_EXISTS));
 FnTrackLoadProgressFromFile RVGL_TrackLoadProgressFromFile  = reinterpret_cast<FnTrackLoadProgressFromFile>(AbsFromRva(RVA_TRACK_LOAD_PROGRESS_FROM_FILE));
