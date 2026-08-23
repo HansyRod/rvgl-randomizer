@@ -1,4 +1,8 @@
-import { DEFAULT_CAR_OPTIONS, DEFAULT_TRACK_OPTIONS } from "./constants.js";
+import {
+  DEFAULT_CAR_OPTIONS,
+  DEFAULT_FEATURE_OPTIONS,
+  DEFAULT_TRACK_OPTIONS,
+} from "./constants.js";
 
 function normalizeSpecRows(rows) {
   return (rows || []).map(row => ({
@@ -39,6 +43,10 @@ export function normalizeConfigureContext(configure) {
     trackOptions: {
       ...DEFAULT_TRACK_OPTIONS,
       ...(configure.trackOptions || {}),
+    },
+    featureOptions: {
+      ...DEFAULT_FEATURE_OPTIONS,
+      ...(configure.featureOptions || {}),
     },
     carsSpecState: normalizeCarsSpecState(configure.carsSpecState),
     trackSpecState: normalizeTrackSpecState(configure.trackSpecState),

@@ -2,6 +2,7 @@ import { useAppContext } from "../AppProvider";
 
 // Configure sub-views
 import PresetsTab from "./presets/PresetsTab";
+import GlobalOptionsTab from "./globalOptions/GlobalOptionsTab";
 import CarOptionsTab from "./carOptions/CarOptionsTab";
 import StockCarsFullSpecTab from "./carSpec/StockCarsFullSpecTab";
 import DcCarsFullSpecTab from "./carSpec/DcCarsFullSpecTab";
@@ -12,6 +13,7 @@ import CupConfigPage from "./cupSpec/CupConfigPage";
 import { isEffectiveStockCarsMode } from "../validation/stockMode";
 
 const CONFIGURE_TABS = [
+  { id: "global-options",   label: "Global Options",         group: "Global", disabledKey: null },
   { id: "car-options",      label: "Car options",            group: "Cars",   disabledKey: null },
   { id: "stock-cars-spec",  label: "Stock specification",    group: "Cars",   disabledKey: "includeStockCars" },
   { id: "dc-cars-spec",     label: "DC specification",       group: "Cars",   disabledKey: "includeDcCars" },
@@ -30,7 +32,7 @@ export default function ConfigureView() {
   const { carsSpecState, trackSpecState, configureTab, preset } = configure || {};
   const activeTab = configureTab ?? "presets";
 
-  // When a named preset is active, all tabs except "presets" are locked.
+  // When a named preset is active, randomization tabs are locked.
   const isCustom = configure?.preset === "custom";
 
   const isStockMode = isEffectiveStockCarsMode(setup.scanResult, preset);
@@ -68,8 +70,8 @@ export default function ConfigureView() {
                                      : tab.disabledKey === "includeTracks"    ? !includeTracks
                                      : false;
 
-              // Disabled because a preset is active (overrides manual config)
-              const isPresetLocked = !isCustom;
+              // Global Options remain editable because they control runtime features independently.
+              const isPresetLocked = !isCustom && tab.id !== "global-options";
 
               const isDisabled = isPresetLocked || isDisabledBySpec;
 
@@ -99,6 +101,7 @@ export default function ConfigureView() {
       {/* Configure pane */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         {activeTab === "presets"        && <PresetsTab />}
+        {activeTab === "global-options" && <GlobalOptionsTab />}
         {activeTab === "car-options"     && <CarOptionsTab />}
         {activeTab === "stock-cars-spec" && <div style={{ padding: "1rem" }}><StockCarsFullSpecTab /></div>}
         {activeTab === "dc-cars-spec"    && <div style={{ padding: "1rem" }}><DcCarsFullSpecTab /></div>}

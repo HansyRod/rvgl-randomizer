@@ -1,5 +1,14 @@
 import { createContext, useContext, useState } from "react";
-import { DEFAULT_CAR_OPTIONS, DEFAULT_TRACK_OPTIONS, STOCK_CARS, DC_CARS, STOCK_TRACKS, makeDefaultCarsSpec, makeDefaultTrackSpec } from "./utils/constants";
+import {
+  DEFAULT_CAR_OPTIONS,
+  DEFAULT_FEATURE_OPTIONS,
+  DEFAULT_TRACK_OPTIONS,
+  STOCK_CARS,
+  DC_CARS,
+  STOCK_TRACKS,
+  makeDefaultCarsSpec,
+  makeDefaultTrackSpec,
+} from "./utils/constants";
 import { makeDefaultCupSpecState } from "./configure/cupSpec/CupSpecTab";
 const DEFAULT_STATE = {
   app: {
@@ -18,6 +27,7 @@ const DEFAULT_STATE = {
   configure: {
     carOptions: DEFAULT_CAR_OPTIONS,
     trackOptions: DEFAULT_TRACK_OPTIONS,
+    featureOptions: DEFAULT_FEATURE_OPTIONS,
     carsSpecState: {
       includeStockCars: true,
       includeDcCars: true,
@@ -31,7 +41,7 @@ const DEFAULT_STATE = {
     },
     cupSpecState: makeDefaultCupSpecState(),
     preset: "basic",           // Selected preset id, or "custom" for manual configuration
-    configureTab: "presets",   // Configure sub-tab: "presets" | "car-options" | "stock-cars-spec" | "dc-cars-spec" | "track-options" | "track-spec" | "cup-spec"
+    configureTab: "presets",   // Configure sub-tab: "presets" | "global-options" | "car-options" | "stock-cars-spec" | "dc-cars-spec" | "track-options" | "track-spec" | "cup-spec"
   },
   generate: {
     generatedFilePath: "",

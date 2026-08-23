@@ -196,6 +196,13 @@ runTest("normalizeConfigureContext adds custom unlock defaults to old contexts",
   assert.equal(result.carOptions.raceWinCountMin, 1);
   assert.equal(result.trackOptions.includeStuntArenaStarCount, false);
   assert.equal(result.trackOptions.stuntArenaStarCountMax, 20);
+  assert.deepEqual(result.featureOptions, {
+    loadExtraCars: false,
+    loadExtraTracks: false,
+    loadExtraCups: false,
+    enable30CarMode: false,
+    enableKnockoutMode: false,
+  });
   assert.equal(result.carsSpecState.stockCars[0].customUnlock, null);
   assert.equal(result.trackSpecState.tracks[0].customUnlock, null);
 });

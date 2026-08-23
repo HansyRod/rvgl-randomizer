@@ -257,6 +257,14 @@ export const DEFAULT_TRACK_OPTIONS = {
   stuntArenaStarCountMax: 20,
 };
 
+export const DEFAULT_FEATURE_OPTIONS = {
+  loadExtraCars: false,
+  loadExtraTracks: false,
+  loadExtraCups: false,
+  enable30CarMode: false,
+  enableKnockoutMode: false,
+};
+
 export function makeDefaultTrackSpec(ids) {
   return ids.map(id => ({
     id,
