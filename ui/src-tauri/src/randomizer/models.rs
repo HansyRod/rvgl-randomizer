@@ -220,6 +220,23 @@ pub struct TrackOptionsInput {
     pub stunt_arena_star_count_max: i32,
 }
 
+/// Runtime feature flags from the Global Options tab.
+/// Optional at the command boundary so older UI callers remain compatible.
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct FeatureOptionsInput {
+    #[serde(default)]
+    pub load_extra_cars: bool,
+    #[serde(default)]
+    pub load_extra_tracks: bool,
+    #[serde(default)]
+    pub load_extra_cups: bool,
+    #[serde(default)]
+    pub enable_30_car_mode: bool,
+    #[serde(default)]
+    pub enable_knockout_mode: bool,
+}
+
 pub fn default_unlock_mode() -> String { "random".to_string() }
 pub fn default_track_unlock_mode() -> String { "random".to_string() }
 pub fn default_pool()        -> String { "Full Random".to_string() }
@@ -308,6 +325,8 @@ pub struct ConfigGlobalOptions {
     pub load_extra_cups: bool,
     pub is_stock_cars: bool,
     pub is_stock_tracks: bool,
+    pub enable_30_car_mode: bool,
+    pub enable_knockout_mode: bool,
 }
 
 #[derive(Serialize, Debug, Clone)]

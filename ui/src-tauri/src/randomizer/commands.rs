@@ -26,6 +26,7 @@ pub fn generate_result(
     car_options: Option<CarOptionsInput>,
     track_spec_state: TrackSpecState,
     track_options: Option<TrackOptionsInput>,
+    feature_options: Option<FeatureOptionsInput>,
     cup_spec_state: Option<CupSpecState>,
     preset_id: String,
     preset_stock_mode: Option<PresetStockModeInput>,
@@ -103,6 +104,7 @@ pub fn generate_result(
         stunt_arena_star_count_min: default_one(),
         stunt_arena_star_count_max: default_stunt_arena_star_count_max(),
     });
+    let feature_opts = feature_options.unwrap_or_default();
 
     let all_cars = collect_available_cars(&scan_result);
     let all_tracks = collect_available_tracks(&scan_result);
@@ -367,6 +369,7 @@ pub fn generate_result(
     let configure = serde_json::json!({
         "carOptions": opts,
         "trackOptions": track_opts,
+        "featureOptions": feature_opts,
         "carsSpecState": cars_spec_state,
         "trackSpecState": track_spec_state,
         "cupSpecState": cup_state,
@@ -399,11 +402,13 @@ pub fn generate_result(
             ui_context,
         },
         global_options: ConfigGlobalOptions {
-            load_extra_cars: false,
-            load_extra_tracks: false,
-            load_extra_cups: false,
+            load_extra_cars: feature_opts.load_extra_cars,
+            load_extra_tracks: feature_opts.load_extra_tracks,
+            load_extra_cups: feature_opts.load_extra_cups,
             is_stock_cars,
             is_stock_tracks,
+            enable_30_car_mode: feature_opts.enable_30_car_mode,
+            enable_knockout_mode: feature_opts.enable_knockout_mode,
         },
         stock_cars,
         dc_cars,

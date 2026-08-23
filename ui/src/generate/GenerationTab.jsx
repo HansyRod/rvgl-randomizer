@@ -47,7 +47,7 @@ export default function GenerationTab({errors}) {
   
   // Destructure individual variables
   const { installPath, scanResult } = setup;
-  const { carOptions, trackOptions, carsSpecState, trackSpecState, cupSpecState } = configure;
+  const { carOptions, trackOptions, featureOptions, carsSpecState, trackSpecState, cupSpecState } = configure;
   const { generatedFilePath, instanceName, profileName, generatedHistory } = generate;
   const generatedHistoryList = Array.isArray(generatedHistory) ? generatedHistory : [];
 
@@ -134,6 +134,7 @@ export default function GenerationTab({errors}) {
         carOptions: sanitizedCarOptions,
         trackSpecState,
         trackOptions: sanitizedTrackOptions,
+        featureOptions: featureOptions ?? null,
         cupSpecState: cupSpecState ?? null,
         presetId: configure?.preset ?? "basic",
         presetStockMode: {
