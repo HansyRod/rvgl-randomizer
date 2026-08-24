@@ -1,6 +1,10 @@
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdio>
+#include <cstdint>
+#include <cstring>
+#include <limits>
 #include <random>
 #include <unordered_map>
 #include <vector>
@@ -10,13 +14,11 @@
 #include "Addresses.h"
 #include "RaceInitHooks.h"
 #include "RandomizerState.h"
+#include "ThirtyCarGrid.h"
 
 namespace Randomizer {
 
-constexpr int kGridCols = 5;
-constexpr int kGridRows = 6;
-constexpr float kColumnSpacing = 150.0f;
-constexpr float kRowSpacing = 150.0f;
+constexpr float kTraceHitEpsilon = 0.0001f;
 constexpr int kCpuRaceCarState = 3;
 constexpr int kNoInputController = 0;
 
@@ -117,6 +119,7 @@ Vec3 GetCarPos(int carId) {
     return car->transform.physicsBody->position;
 }
 
+
 void SetCarPos(int carId, const Vec3& pos) {
     CarEntityRuntime* car = GetLiveCarById(carId);
     if (car == nullptr) {
@@ -137,45 +140,56 @@ void SetCarPos(int carId, const Vec3& pos) {
     RVGL_SetCarTransform(&car->transform, spawnPosition, spawnOrientation);
 }
 
-bool CalculateThirtyCarGridPositions(
-    int existingCarCount,
-    int targetCarCount,
-    std::array<Vec3, randomizerMaxCarCount>& outPositions
-) {
-    if (existingCarCount <= 0 ||
-        targetCarCount <= 0 ||
-        targetCarCount > randomizerMaxCarCount ||
-        existingCarCount > targetCarCount) {
-        return false;
+void SetCarPosAndForwardDirection(int carId, const Vec3& pos, const Vec3& forwardDirection) {
+    CarEntityRuntime* car = GetLiveCarById(carId);
+    if (car == nullptr) {
+        return;
     }
 
-    Vec3 center{ 0.0f, 0.0f, 0.0f };
-    for (int carId = 0; carId < existingCarCount; ++carId) {
-        const Vec3 pos = GetCarPos(carId);
-        center.x += pos.x;
-        center.y += pos.y;
-        center.z += pos.z;
+    if (car->transform.physicsBody == nullptr) {
+        car->transform.cachedPosition = pos;
+        return;
     }
 
-    center.x /= static_cast<float>(existingCarCount);
-    center.y /= static_cast<float>(existingCarCount);
-    center.z /= static_cast<float>(existingCarCount);
+    Vec3 currentForward{
+        car->transform.physicsBody->orientationMatrix[6],
+        0.0f,
+        car->transform.physicsBody->orientationMatrix[8],
+    };
+    Vec3 targetForward{ forwardDirection.x, 0.0f, forwardDirection.z };
+    const float currentLength = std::sqrt(currentForward.x * currentForward.x +
+                                          currentForward.z * currentForward.z);
+    const float targetLength = std::sqrt(targetForward.x * targetForward.x +
+                                         targetForward.z * targetForward.z);
+    if (currentLength <= kTraceHitEpsilon || targetLength <= kTraceHitEpsilon) {
+        SetCarPos(carId, pos);
+        return;
+    }
+    currentForward.x /= currentLength;
+    currentForward.z /= currentLength;
+    targetForward.x /= targetLength;
+    targetForward.z /= targetLength;
 
-    const float gridCenterCol = static_cast<float>(kGridCols - 1) / 2.0f;
-    const float gridCenterRow = static_cast<float>(kGridRows - 1) / 2.0f;
+    // Rotate the current basis around the vertical axis instead of rebuilding
+    // it from scratch. This preserves any native pitch/roll at sloped starts.
+    const float cosine = currentForward.x * targetForward.x +
+                         currentForward.z * targetForward.z;
+    const float sine = currentForward.z * targetForward.x -
+                       currentForward.x * targetForward.z;
 
-    for (int gridIndex = 0; gridIndex < targetCarCount; ++gridIndex) {
-        const int row = gridIndex / kGridCols;
-        const int col = gridIndex % kGridCols;
-
-        Vec3 pos;
-        pos.x = center.x + (static_cast<float>(col) - gridCenterCol) * kColumnSpacing;
-        pos.y = center.y;
-        pos.z = center.z + (static_cast<float>(row) - gridCenterRow) * kRowSpacing;
-        outPositions[gridIndex] = pos;
+    float spawnPosition[3] = { pos.x, pos.y, pos.z };
+    float spawnOrientation[12] = {};
+    for (int i = 0; i < 9; ++i) {
+        spawnOrientation[i] = car->transform.physicsBody->orientationMatrix[i];
+    }
+    for (int rowOffset = 0; rowOffset < 9; rowOffset += 3) {
+        const float x = spawnOrientation[rowOffset];
+        const float z = spawnOrientation[rowOffset + 2];
+        spawnOrientation[rowOffset] = cosine * x + sine * z;
+        spawnOrientation[rowOffset + 2] = -sine * x + cosine * z;
     }
 
-    return true;
+    RVGL_SetCarTransform(&car->transform, spawnPosition, spawnOrientation);
 }
 
 int GetCarModel(int carId) {
@@ -388,7 +402,12 @@ void ApplyThirtyCarGrid() {
     }
 
     std::array<Vec3, randomizerMaxCarCount> gridPositions = {};
-    if (!CalculateThirtyCarGridPositions(carCount, targetCarCount, gridPositions)) {
+    std::array<Vec3, randomizerMaxCarCount> gridForwardDirections = {};
+    if (!CalculateThirtyCarGridPositions(
+            carCount,
+            targetCarCount,
+            gridPositions,
+            gridForwardDirections)) {
         return;
     }
 
@@ -399,16 +418,27 @@ void ApplyThirtyCarGrid() {
     state.runtimeCarIds.fill(-1);
 
     for (int gridIndex = 0; gridIndex < targetCarCount; ++gridIndex) {
-        const Vec3& pos = gridPositions[gridIndex];
-
         if (gridIndex < carCount) {
-            SetCarPos(gridIndex, pos);
+            const Vec3& targetPosition = gridPositions[gridIndex];
+            SetCarPosAndForwardDirection(
+                gridIndex,
+                targetPosition,
+                gridForwardDirections[gridIndex]
+            );
             state.runtimeCarIds[gridIndex] = gridIndex;
             continue;
         }
 
         const int modelId = state.generatedModelIds[gridIndex];
-        state.runtimeCarIds[gridIndex] = SpawnCar(modelId, 0, pos);
+        state.runtimeCarIds[gridIndex] = SpawnCar(modelId, 0, gridPositions[gridIndex]);
+        const int runtimeCarId = state.runtimeCarIds[gridIndex];
+        if (runtimeCarId >= 0) {
+            SetCarPosAndForwardDirection(
+                runtimeCarId,
+                gridPositions[gridIndex],
+                gridForwardDirections[gridIndex]
+            );
+        }
     }
 
     state.gridApplied = true;
@@ -474,6 +504,10 @@ void MovePlayersToBackAfterRacePositions() {
     if (MoveRuntimeCarsToBackAfterRacePositions(state.runtimeCarIds, GetTargetRaceCarCount())) {
         state.playersMovedToBack = true;
     }
+}
+
+void ResetThirtyCarPlayerPositionState() {
+    GetThirtyCarState().playersMovedToBack = false;
 }
 
 void ResetThirtyCarModState() {

@@ -9,6 +9,11 @@ namespace Randomizer {
 using FnCreateCarEntity = CarEntityRuntime*(*)(int initialState, int controllerType, int carModelId, uint64_t skinIdAndFlags, float* spawnPosition, float* spawnOrientation);
 using FnComputeSpawnOrientation = void(*)(int startSlot, float* outPosition, float* outOrientation);
 using FnSetCarTransform = void(*)(CarTransformRuntime* transform, float* position, float* orientation);
+using FnGetCollisionGridCellIndex = int(*)(Vec3* worldPoint);
+// The native function communicates its result through hitFraction and hitPlane.
+// Its return register is always non-zero, so it must not be treated as a hit test.
+using FnTraceSegmentAgainstCollisionGrid = void(*)(Vec3* startPoint, Vec3* endPoint, float* hitFraction, CollisionPlane** hitPlane);
+using FnFindTrackZoneForCarBruteForce = bool(*)(TrackZoneQueryContext* carTrackState);
 using FnDrawNumericMenuValue = void(*)(int panelIndex, int itemIndex);
 using FnDecrementNumericMenuValue = bool(*)(int panelIndex);
 using FnIncrementNumericMenuValue = bool(*)(int panelIndex);
@@ -36,6 +41,9 @@ using FnSetPostRacePopup = void(*)(char* prefixText, char* timeText, uint32_t pr
 extern FnCreateCarEntity RVGL_CreateCarEntity;
 extern FnComputeSpawnOrientation RVGL_ComputeSpawnOrientation;
 extern FnSetCarTransform RVGL_SetCarTransform;
+extern FnGetCollisionGridCellIndex RVGL_GetCollisionGridCellIndex;
+extern FnTraceSegmentAgainstCollisionGrid RVGL_TraceSegmentAgainstCollisionGrid;
+extern FnFindTrackZoneForCarBruteForce RVGL_FindTrackZoneForCarBruteForce;
 extern FnDrawNumericMenuValue RVGL_DrawNumericMenuValue;
 extern FnDecrementNumericMenuValue RVGL_DecrementNumericMenuValue;
 extern FnIncrementNumericMenuValue RVGL_IncrementNumericMenuValue;

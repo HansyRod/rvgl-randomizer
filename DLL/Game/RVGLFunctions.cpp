@@ -6,6 +6,9 @@ namespace Randomizer {
 FnCreateCarEntity           RVGL_CreateCarEntity            = reinterpret_cast<FnCreateCarEntity>(AbsFromRva(RVA_CREATE_CAR_ENTITY));
 FnComputeSpawnOrientation   RVGL_ComputeSpawnOrientation    = reinterpret_cast<FnComputeSpawnOrientation>(AbsFromRva(RVA_COMPUTE_SPAWN_ORIENT));
 FnSetCarTransform           RVGL_SetCarTransform            = reinterpret_cast<FnSetCarTransform>(AbsFromRva(RVA_SET_CAR_TRANSFORM));
+FnGetCollisionGridCellIndex RVGL_GetCollisionGridCellIndex  = reinterpret_cast<FnGetCollisionGridCellIndex>(AbsFromRva(RVA_GET_COLLISION_GRID_CELL_INDEX));
+FnTraceSegmentAgainstCollisionGrid RVGL_TraceSegmentAgainstCollisionGrid = reinterpret_cast<FnTraceSegmentAgainstCollisionGrid>(AbsFromRva(RVA_TRACE_SEGMENT_COLLISION_GRID));
+FnFindTrackZoneForCarBruteForce RVGL_FindTrackZoneForCarBruteForce = reinterpret_cast<FnFindTrackZoneForCarBruteForce>(AbsFromRva(RVA_FIND_TRACK_ZONE_FOR_CAR_BRUTE_FORCE));
 FnDrawNumericMenuValue      RVGL_DrawNumericMenuValue       = reinterpret_cast<FnDrawNumericMenuValue>(AbsFromRva(RVA_DRAW_NUMERIC_MENU_VALUE));
 FnDecrementNumericMenuValue RVGL_DecrementNumericMenuValue  = reinterpret_cast<FnDecrementNumericMenuValue>(AbsFromRva(RVA_DECREMENT_NUMERIC_MENU_VALUE));
 FnIncrementNumericMenuValue RVGL_IncrementNumericMenuValue  = reinterpret_cast<FnIncrementNumericMenuValue>(AbsFromRva(RVA_INCREMENT_NUMERIC_MENU_VALUE));

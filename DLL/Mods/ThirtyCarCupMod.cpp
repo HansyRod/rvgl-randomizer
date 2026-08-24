@@ -1,5 +1,6 @@
 #include "ThirtyCarCupMod.h"
 #include "30CarMod.h"
+#include "ThirtyCarGrid.h"
 #include "CupOpponentGrid.h"
 #include "ExtendedCupResults.h"
 #include "ExtendedCupStandingsTable.h"
@@ -241,12 +242,23 @@ void ApplyThirtyCarCupGrid() {
     }
 
     std::array<Vec3, randomizerMaxCarCount> gridPositions = {};
-    if (!CalculateThirtyCarGridPositions(carCount, targetCarCount, gridPositions)) {
+    std::array<Vec3, randomizerMaxCarCount> gridForwardDirections = {};
+    if (!CalculateThirtyCarGridPositions(
+            carCount,
+            targetCarCount,
+            gridPositions,
+            gridForwardDirections)) {
         return;
     }
 
     for (int gridIndex = 0; gridIndex < targetCarCount; ++gridIndex) {
-        SetCarPos(gridIndex, gridPositions[gridIndex]);
+        if (gridIndex < carCount) {
+            SetCarPosAndForwardDirection(
+                gridIndex,
+                gridPositions[gridIndex],
+                gridForwardDirections[gridIndex]
+            );
+        }
         g_cupState.runtimeCarIds[gridIndex] = gridIndex;
     }
 

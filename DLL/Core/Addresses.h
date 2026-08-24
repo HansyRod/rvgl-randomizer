@@ -205,6 +205,14 @@ constexpr uint32_t RVA_UPDATE_RACE_POSITIONS = 0x000075F0;
 constexpr uint32_t RVA_CREATE_CAR_ENTITY       = 0x000F03A0;
 constexpr uint32_t RVA_COMPUTE_SPAWN_ORIENT    = 0x000A71D0;
 constexpr uint32_t RVA_SET_CAR_TRANSFORM       = 0x000A76F0;
+constexpr uint32_t RVA_GET_COLLISION_GRID_CELL_INDEX = 0x0011AB80;
+constexpr uint32_t RVA_TRACE_SEGMENT_COLLISION_GRID = 0x0011E790;
+// Checks a query point against every waypoint-associated race-route OBB.
+constexpr uint32_t RVA_FIND_TRACK_ZONE_FOR_CAR_BRUTE_FORCE = 0x0000FFB0;
+
+// Runtime route-section graph loaded from the current track's .pan file.
+constexpr uint32_t RVA_ROUTE_SECTION_COUNT = 0x002E3AE8;
+constexpr uint32_t RVA_ROUTE_SECTIONS = 0x002E3AF0;
 
 constexpr uint32_t RVA_LOAD_OBJECTS_FROM_FOB = 0x000eb940;
 constexpr uint32_t RVA_CREATE_OBJECT_FROM_FOB = 0x000eb740;

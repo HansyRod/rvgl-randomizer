@@ -17,6 +17,44 @@ struct Vec3 {
     float z;
 };
 
+struct CollisionPlane {
+    float normalX;
+    float normalY;
+    float normalZ;
+    float distance;
+};
+
+// Minimal layout consumed by FindTrackZoneForCarBruteForce. The native query
+// reads worldPosition and writes the two matched indices; it does not require
+// a complete live-car object for this route-zone test.
+struct TrackZoneQueryContext {
+    uint8_t _pad_000[0x50];
+    Vec3 worldPosition;                  // +0x050
+    uint8_t _pad_05C[0x6778];
+    int32_t preferredWaypointNodeIndex;  // +0x67D4
+    int32_t matchedRouteSectionIndex;    // +0x67D8
+    int32_t matchedWaypointNodeIndex;    // +0x67DC
+};
+
+static_assert(offsetof(TrackZoneQueryContext, worldPosition) == 0x50,
+              "TrackZoneQueryContext::worldPosition offset mismatch.");
+static_assert(offsetof(TrackZoneQueryContext, preferredWaypointNodeIndex) == 0x67D4,
+              "TrackZoneQueryContext::preferredWaypointNodeIndex offset mismatch.");
+static_assert(sizeof(TrackZoneQueryContext) == 0x67E0,
+              "TrackZoneQueryContext size mismatch.");
+
+// Runtime representation of one .pan route section. The eight links form the
+// track's directed route graph and are resolved by RVGL's route loader.
+struct RouteSectionRuntime {
+    Vec3 position;                        // +0x00
+    float routeDistance;                  // +0x0C
+    RouteSectionRuntime* nextSections[4]; // +0x10
+    RouteSectionRuntime* previousSections[4]; // +0x30
+};
+
+static_assert(sizeof(RouteSectionRuntime) == 0x50,
+              "RouteSectionRuntime size mismatch.");
+
 struct PhysicsEntityRuntime {
     uint8_t _pad_000[0x308];
     int32_t collisionMode;           // +0x308

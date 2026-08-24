@@ -75,6 +75,7 @@ void Hook_AssignStartPositions() {
 
 void Hook_SetupAllRaceCars() {
     Logger::TimestampLogf("[RaceInitHooks] Calling SetupAllRaceCars");
+    ResetThirtyCarPlayerPositionState();
     Orig_SetupAllRaceCars();
 
     ApplyThirtyCarGrid();
