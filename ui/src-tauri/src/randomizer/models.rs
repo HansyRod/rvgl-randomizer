@@ -345,6 +345,17 @@ pub struct ConfigData {
 // CUP SPEC — input types from the UI
 // ============================================================================
 
+/// Native RVGL championship cups support up to 16 cars.
+pub const NATIVE_MAX_CUP_CARS: u32 = 16;
+/// The randomizer's extended championship-cup runtime supports up to 30 cars.
+pub const EXTENDED_MAX_CUP_CARS: u32 = 30;
+/// Extended cup points cover every possible finishing position.
+pub const CUP_POINTS_TABLE_LENGTH: usize = EXTENDED_MAX_CUP_CARS as usize;
+
+pub fn cup_car_limit(enable_30_car_mode: bool) -> u32 {
+    if enable_30_car_mode { EXTENDED_MAX_CUP_CARS } else { NATIVE_MAX_CUP_CARS }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum CupStageMode {
@@ -498,7 +509,12 @@ fn default_laps_max()        -> u32       { 8 }
 fn default_num_stages_min()  -> u32       { 3 }
 fn default_num_stages_max()  -> u32       { 6 }
 pub fn default_points_table()    -> Vec<i32>  {
-    vec![10, 6, 4, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    vec![
+        10, 6, 4, 3, 2, 1, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0,
+    ]
 }
 
 // ============================================================================

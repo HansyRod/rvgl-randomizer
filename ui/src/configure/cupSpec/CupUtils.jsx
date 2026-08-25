@@ -1,4 +1,15 @@
 // No React hook imports needed for this module
+import {
+  NATIVE_MAX_CUP_CARS,
+  EXTENDED_MAX_CUP_CARS,
+  CUP_POINTS_TABLE_LENGTH,
+} from "../../utils/constants";
+
+export {
+  NATIVE_MAX_CUP_CARS,
+  EXTENDED_MAX_CUP_CARS,
+  CUP_POINTS_TABLE_LENGTH,
+};
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -11,7 +22,23 @@ export const DEFAULT_CARS_PER_CLASS = [
   [0, 0, 1, 3, 3, 0],
 ];
 export const RATING_LABELS = ["Rookie", "Amateur", "Advanced", "Semi-Pro", "Pro", "Super Pro"];
-export const DEFAULT_POINTS = [10, 6, 4, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+export const DEFAULT_POINTS = [
+  10, 6, 4, 3, 2, 1, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0
+];
+
+export function getCupCarLimit(enable30CarMode) {
+  return enable30CarMode ? EXTENDED_MAX_CUP_CARS : NATIVE_MAX_CUP_CARS;
+}
+
+export function normalizePointsTable(points) {
+  return Array.from(
+    { length: CUP_POINTS_TABLE_LENGTH },
+    (_, index) => points?.[index] ?? 0
+  );
+}
 export const STAGE_MODES = [
   {
     id: "default",
@@ -218,23 +245,25 @@ export function CarsPerClassEditor({ carsPerClass, numCars, onChange }) {
   );
 }
 
-export function PointsTableEditor({ points, numCars, onChange }) {
-  const maxActive = Math.min(numCars || 8, 16);
+export function PointsTableEditor({ points, numCars, maxPositions = 16, onChange }) {
+  const activePositions = Math.min(numCars || 8, maxPositions);
   return (
     <div className="cup-points-table">
-      <div className="cup-cpc-title" style={{ marginBottom: "0.5rem" }}>Points Table (1st → 16th)</div>
+      <div className="cup-cpc-title" style={{ marginBottom: "0.5rem" }}>
+        Points Table (1st → {activePositions}{positionSuffix(activePositions)})
+      </div>
       <div className="cup-points-grid">
-        {Array.from({ length: 16 }, (_, i) => (
+        {Array.from({ length: maxPositions }, (_, i) => (
           <div key={i} className="cup-points-cell">
-            <label className="cup-points-label">{i + 1}{i === 0 ? "st" : i === 1 ? "nd" : i === 2 ? "rd" : "th"}</label>
+            <label className="cup-points-label">{i + 1}{positionSuffix(i + 1)}</label>
             <input
               type="number"
               min={0}
               max={99}
               value={points[i] ?? 0}
-              disabled={i >= maxActive}
+              disabled={i >= activePositions}
               onChange={e => {
-                const next = [...points];
+                const next = normalizePointsTable(points);
                 next[i] = Math.max(0, parseInt(e.target.value) || 0);
                 onChange(next);
               }}
@@ -245,4 +274,16 @@ export function PointsTableEditor({ points, numCars, onChange }) {
       </div>
     </div>
   );
+}
+
+function positionSuffix(position) {
+  const lastTwo = position % 100;
+  if (lastTwo >= 11 && lastTwo <= 13) return "th";
+
+  switch (position % 10) {
+    case 1: return "st";
+    case 2: return "nd";
+    case 3: return "rd";
+    default: return "th";
+  }
 }

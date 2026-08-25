@@ -1,12 +1,140 @@
 import { getAllTracksFromScan, getTrackSpecAvailableFolders, isGenericTrackSpecPool } from "./validationUtils";
+import {
+  NATIVE_MAX_CUP_CARS,
+  EXTENDED_MAX_CUP_CARS,
+  CUP_POINTS_TABLE_LENGTH,
+} from "../utils/constants.js";
 
 const CUP_NAMES = ["Bronze Cup", "Silver Cup", "Gold Cup", "Platinum Cup"];
 
-export function validateCupSpec(cupSpecState, trackSpecState, scanResult) {
+function formatPosition(position) {
+  const lastTwo = position % 100;
+  if (lastTwo >= 11 && lastTwo <= 13) return `${position}th`;
+
+  switch (position % 10) {
+    case 1: return `${position}st`;
+    case 2: return `${position}nd`;
+    case 3: return `${position}rd`;
+    default: return `${position}th`;
+  }
+}
+
+export function validateCupSpec(cupSpecState, trackSpecState, scanResult, featureOptions = {}) {
   const errors = [];
   const warnings = [];
 
   if (!cupSpecState?.enabled) return { errors, warnings };
+
+  const maxCupCars = featureOptions.enable30CarMode
+    ? EXTENDED_MAX_CUP_CARS
+    : NATIVE_MAX_CUP_CARS;
+  const globalNumCars = cupSpecState.numCars ?? 8;
+  const globalPerRacePlace = cupSpecState.perRaceRequiredPlace ?? 3;
+  const globalOverallPlace = cupSpecState.overallRequiredPlace ?? 1;
+  const globalPoints = cupSpecState.pointsTable;
+
+  const isValidInteger = value => Number.isInteger(value);
+  const isValidCarCount = value =>
+    isValidInteger(value) && value >= 1 && value <= maxCupCars;
+
+  const checkCarCount = (value, label, field, id) => {
+    if (!isValidCarCount(value)) {
+      const extendedModeHint = !featureOptions.enable30CarMode &&
+        typeof value === "number" &&
+        value > NATIVE_MAX_CUP_CARS
+        ? " Enable 30-Car Mode to use up to 30 cars."
+        : "";
+      errors.push({
+        id,
+        scope: "cupSpec",
+        field,
+        message: `${label}: Choose a total car count from 1 through ${maxCupCars}.${extendedModeHint}`
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const checkRequiredPlace = (value, numCars, label, field, id) => {
+    const upperBound = isValidCarCount(numCars) ? numCars : maxCupCars;
+    if (!isValidInteger(value) || value < 1 || value > upperBound) {
+      errors.push({
+        id,
+        scope: "cupSpec",
+        field,
+        message: `${label}: Choose a finishing position from 1st through ${formatPosition(upperBound)} place.`
+      });
+    }
+  };
+
+  const checkPointsTable = (points, numCars, label, field, idPrefix) => {
+    if (!Array.isArray(points)) {
+      errors.push({
+        id: `${idPrefix}_missing`,
+        scope: "cupSpec",
+        field,
+        message: `${label}: Enter points for every finishing position in this cup.`
+      });
+      return;
+    }
+
+    const activePositions = isValidCarCount(numCars) ? numCars : 1;
+    if (points.length < activePositions) {
+      errors.push({
+        id: `${idPrefix}_too_short`,
+        scope: "cupSpec",
+        field,
+        message: `${label}: Add points values through ${formatPosition(activePositions)} place.`
+      });
+    }
+
+    if (points.length > CUP_POINTS_TABLE_LENGTH) {
+      errors.push({
+        id: `${idPrefix}_too_long`,
+        scope: "cupSpec",
+        field,
+        message: `${label}: Remove points values after ${formatPosition(CUP_POINTS_TABLE_LENGTH)} place.`
+      });
+    }
+
+    const invalidIndex = points.findIndex(value => !isValidInteger(value) || value < 0);
+    if (invalidIndex !== -1) {
+      errors.push({
+        id: `${idPrefix}_invalid_value`,
+        scope: "cupSpec",
+        field,
+        message: `${label}: Points for ${formatPosition(invalidIndex + 1)} place must be zero or greater.`
+      });
+    }
+  };
+
+  checkCarCount(
+    globalNumCars,
+    "Global settings",
+    "numCars",
+    "cup_num_cars_invalid_global"
+  );
+  checkRequiredPlace(
+    globalPerRacePlace,
+    globalNumCars,
+    "Global settings: Minimum position per race",
+    "perRaceRequiredPlace",
+    "cup_per_race_place_invalid_global"
+  );
+  checkRequiredPlace(
+    globalOverallPlace,
+    globalNumCars,
+    "Global settings: Minimum overall position",
+    "overallRequiredPlace",
+    "cup_overall_place_invalid_global"
+  );
+  checkPointsTable(
+    globalPoints,
+    globalNumCars,
+    "Global points table",
+    "pointsTable",
+    "cup_points_invalid_global"
+  );
 
   // ── Per-cup cars-per-class sum ─────────────────────────────────────────────
   // Default distributions (designed for 8 cars, sum = 7 each).
@@ -20,19 +148,76 @@ export function validateCupSpec(cupSpecState, trackSpecState, scanResult) {
   cupSpecState.cups?.forEach((cup, i) => {
     // Effective numCars for this cup
     const numCars = cup.overrideNumCars
-      ? (cup.numCars ?? cupSpecState.numCars)
-      : cupSpecState.numCars;
+      ? (cup.numCars ?? globalNumCars)
+      : globalNumCars;
 
-    const expected = numCars - 1;
+    const numCarsIsValid = cup.overrideNumCars
+      ? checkCarCount(
+          numCars,
+          CUP_NAMES[i],
+          `cups[${i}].numCars`,
+          `cup_num_cars_invalid_${i}`
+        )
+      : isValidCarCount(globalNumCars);
+
+    const perRacePlace = cup.overridePerRacePlace
+      ? (cup.perRaceRequiredPlace ?? globalPerRacePlace)
+      : globalPerRacePlace;
+    const overallPlace = cup.overrideOverallPlace
+      ? (cup.overallRequiredPlace ?? globalOverallPlace)
+      : globalOverallPlace;
+
+    if (cup.overridePerRacePlace || cup.overrideNumCars) {
+      checkRequiredPlace(
+        perRacePlace,
+        numCars,
+        `${CUP_NAMES[i]}: Minimum position per race`,
+        `cups[${i}].perRaceRequiredPlace`,
+        `cup_per_race_place_invalid_${i}`
+      );
+    }
+    if (cup.overrideOverallPlace || cup.overrideNumCars) {
+      checkRequiredPlace(
+        overallPlace,
+        numCars,
+        `${CUP_NAMES[i]}: Minimum overall position`,
+        `cups[${i}].overallRequiredPlace`,
+        `cup_overall_place_invalid_${i}`
+      );
+    }
+    if (cup.overridePointsTable) {
+      checkPointsTable(
+        cup.pointsTable,
+        numCars,
+        `${CUP_NAMES[i]} points table`,
+        `cups[${i}].pointsTable`,
+        `cup_points_invalid_${i}`
+      );
+    } else if (cup.overrideNumCars) {
+      checkPointsTable(
+        globalPoints,
+        numCars,
+        `${CUP_NAMES[i]} inherited points table`,
+        "pointsTable",
+        `cup_points_invalid_${i}`
+      );
+    }
+
+    const expected = numCarsIsValid ? numCars - 1 : null;
 
     // Effective carsPerClass for this cup
     const effectiveCpc = cup.overrideCarsPerClass
       ? (cup.carsPerClass || [])
       : (DEFAULT_CARS_PER_CLASS[i] || []);
 
-    const sum = effectiveCpc.reduce((s, v) => s + (Number(v) || 0), 0);
+    const cpcIsValid = Array.isArray(effectiveCpc) &&
+      effectiveCpc.length === 6 &&
+      effectiveCpc.every(value => isValidInteger(value) && value >= 0);
+    const sum = cpcIsValid
+      ? effectiveCpc.reduce((s, v) => s + v, 0)
+      : 0;
 
-    if (sum !== expected) {
+    if (expected !== null && (!cpcIsValid || sum !== expected)) {
       const hint = !cup.overrideCarsPerClass
         ? " Enable the Cars per Class override to configure it."
         : "";
@@ -40,7 +225,9 @@ export function validateCupSpec(cupSpecState, trackSpecState, scanResult) {
         id: `cup_cpc_mismatch_${i}`,
         scope: "cupSpec",
         field: `cups[${i}].carsPerClass`,
-        message: `${CUP_NAMES[i]} Cars per Class must add up to ${expected}. It currently adds up to ${sum}.${hint}`
+        message: cpcIsValid
+          ? `${CUP_NAMES[i]} Cars per Class must add up to ${expected} CPU opponents. It currently adds up to ${sum}.${hint}`
+          : `${CUP_NAMES[i]} Cars per Class cannot include a negative number of cars for a class.${hint}`
       });
     }
   });

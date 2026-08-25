@@ -265,6 +265,10 @@ export const DEFAULT_FEATURE_OPTIONS = {
   enableKnockoutMode: false,
 };
 
+export const NATIVE_MAX_CUP_CARS = 16;
+export const EXTENDED_MAX_CUP_CARS = 30;
+export const CUP_POINTS_TABLE_LENGTH = EXTENDED_MAX_CUP_CARS;
+
 export function makeDefaultTrackSpec(ids) {
   return ids.map(id => ({
     id,

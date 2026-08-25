@@ -58,11 +58,13 @@ fn roll_laps(min: u32, max: u32, rng: &mut Rng) -> u32 {
     min + rng.next_usize((max - min + 1) as usize) as u32
 }
 
-/// Build a padding points table that is exactly 16 entries long.
+/// Build a points table that is exactly wide enough for every supported cup
+/// finishing position. Short input tables are padded with zeroes; long input
+/// tables are truncated at the contract boundary.
 fn pad_points(src: &[i32]) -> Vec<i32> {
     let mut v = src.to_vec();
-    v.truncate(16);
-    while v.len() < 16 { v.push(0); }
+    v.truncate(CUP_POINTS_TABLE_LENGTH);
+    while v.len() < CUP_POINTS_TABLE_LENGTH { v.push(0); }
     v
 }
 

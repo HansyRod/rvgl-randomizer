@@ -747,3 +747,69 @@ runTest("validateCupSpec reports missing user-defined stage tracks without throw
     /Bronze Cup, Stage 1: "missing_track" is not available in the current track setup\./
   );
 });
+
+runTest("validateCupSpec allows a valid 30-car cup when 30-Car Mode is enabled", () => {
+  const results = validateCupSpec(
+    {
+      enabled: true,
+      stageMode: "default",
+      numCars: 30,
+      perRaceRequiredPlace: 30,
+      overallRequiredPlace: 30,
+      pointsTable: Array(30).fill(0),
+      cups: [{
+        overrideCarsPerClass: true,
+        carsPerClass: [29, 0, 0, 0, 0, 0],
+      }],
+    },
+    { tracks: [] },
+    { installType: "classic", tracks: [] },
+    { enable30CarMode: true }
+  );
+
+  assert.deepEqual(results.errors, []);
+});
+
+runTest("validateCupSpec rejects extended car counts when 30-Car Mode is disabled", () => {
+  const results = validateCupSpec(
+    {
+      enabled: true,
+      stageMode: "default",
+      numCars: 17,
+      perRaceRequiredPlace: 3,
+      overallRequiredPlace: 1,
+      pointsTable: Array(17).fill(0),
+      cups: [{
+        overrideCarsPerClass: true,
+        carsPerClass: [16, 0, 0, 0, 0, 0],
+      }],
+    },
+    { tracks: [] },
+    { installType: "classic", tracks: [] },
+    { enable30CarMode: false }
+  );
+
+  assert.ok(results.errors.some(error => error.id === "cup_num_cars_invalid_global"));
+});
+
+runTest("validateCupSpec requires points for every active cup position", () => {
+  const results = validateCupSpec(
+    {
+      enabled: true,
+      stageMode: "default",
+      numCars: 17,
+      perRaceRequiredPlace: 3,
+      overallRequiredPlace: 1,
+      pointsTable: Array(16).fill(0),
+      cups: [{
+        overrideCarsPerClass: true,
+        carsPerClass: [16, 0, 0, 0, 0, 0],
+      }],
+    },
+    { tracks: [] },
+    { installType: "classic", tracks: [] },
+    { enable30CarMode: true }
+  );
+
+  assert.ok(results.errors.some(error => error.id === "cup_points_invalid_global_too_short"));
+});

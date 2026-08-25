@@ -13,6 +13,8 @@ import {
   StageRow,
   CarsPerClassEditor,
   PointsTableEditor,
+  getCupCarLimit,
+  normalizePointsTable,
 } from "./CupUtils";
 
 // ─── OverrideRow ──────────────────────────────────────────────────────────────
@@ -45,7 +47,8 @@ export default function CupConfigPage({ cupIndex }) {
   const { state, updateCategoryCtx } = useAppContext();
   const { setup, configure } = state;
   const { scanResult } = setup;
-  const { trackSpecState, cupSpecState, preset } = configure;
+  const { trackSpecState, cupSpecState, preset, featureOptions } = configure;
+  const maxCupCars = getCupCarLimit(featureOptions?.enable30CarMode);
   const isStockTracksMode = scanResult ? isEffectiveStockTracksMode(scanResult, preset) : false;
   const slotCount = isStockTracksMode ? 13 : 14;
 
@@ -53,18 +56,31 @@ export default function CupConfigPage({ cupIndex }) {
   const globalState = cupSpecState;
   const name = CUP_NAMES[cupIndex];
 
-  // Persist a single field on this cup's spec object
-  const setCup = useCallback((key, val) => {
+  // Persist one or more fields on this cup's spec object
+  const setCupFields = useCallback((updates) => {
     const cups = cupSpecState.cups.map(c =>
-      c.index === cupIndex ? { ...c, [key]: val } : c
+      c.index === cupIndex ? { ...c, ...updates } : c
     );
     updateCategoryCtx("configure", { cupSpecState: { ...cupSpecState, cups } });
   }, [cupSpecState, cupIndex, updateCategoryCtx]);
 
+  // Persist a single field on this cup's spec object
+  const setCup = useCallback((key, val) => {
+    setCupFields({ [key]: val });
+  }, [setCupFields]);
+
   const setCupIntWithDefault = useCallback((key, val, defaultVal) => {
     const intVal = parseInt(val);
-    setCup(key, isNaN(intVal) ? defaultVal : intVal);
-  }, [setCup]);
+    const nextValue = isNaN(intVal) ? defaultVal : intVal;
+    if (key === "numCars") {
+      setCupFields({
+        numCars: nextValue,
+        pointsTable: normalizePointsTable(cupSpec.pointsTable ?? globalState.pointsTable),
+      });
+    } else {
+      setCup(key, nextValue);
+    }
+  }, [cupSpec.pointsTable, globalState.pointsTable, setCup, setCupFields]);
 
   // Effective values (cup override if active, else global)
   const eff = {
@@ -291,7 +307,7 @@ export default function CupConfigPage({ cupIndex }) {
               onToggle={v => setCup("overrideNumCars", v)}
             >
               <input
-                type="number" min={1} max={16}
+                type="number" min={1} max={maxCupCars}
                 value={cupSpec.numCars ?? globalState.numCars}
                 onChange={e => setCupIntWithDefault("numCars", e.target.value, 8)}
                 disabled={!cupSpec.overrideNumCars}
@@ -323,7 +339,7 @@ export default function CupConfigPage({ cupIndex }) {
               onToggle={v => setCup("overridePerRacePlace", v)}
             >
               <input
-                type="number" min={1} max={16}
+                type="number" min={1} max={maxCupCars}
                 value={cupSpec.perRaceRequiredPlace ?? globalState.perRaceRequiredPlace}
                 onChange={e => setCupIntWithDefault("perRaceRequiredPlace", e.target.value, 3)}
                 disabled={!cupSpec.overridePerRacePlace}
@@ -339,7 +355,7 @@ export default function CupConfigPage({ cupIndex }) {
               onToggle={v => setCup("overrideOverallPlace", v)}
             >
               <input
-                type="number" min={1} max={16}
+                type="number" min={1} max={maxCupCars}
                 value={cupSpec.overallRequiredPlace ?? globalState.overallRequiredPlace}
                 onChange={e => setCupIntWithDefault("overallRequiredPlace", e.target.value, 1)}
                 disabled={!cupSpec.overrideOverallPlace}
@@ -423,7 +439,19 @@ export default function CupConfigPage({ cupIndex }) {
             <input
               type="checkbox"
               checked={cupSpec.overridePointsTable}
-              onChange={e => setCup("overridePointsTable", e.target.checked)}
+              onChange={e => {
+                const overriding = e.target.checked;
+                if (overriding) {
+                  setCupFields({
+                    overridePointsTable: true,
+                    pointsTable: normalizePointsTable(
+                      cupSpec.pointsTable ?? globalState.pointsTable ?? DEFAULT_POINTS
+                    ),
+                  });
+                } else {
+                  setCup("overridePointsTable", false);
+                }
+              }}
             />
             <h2 className="co-section-title" style={{ margin: 0 }}>Points Table</h2>
           </label>
@@ -434,6 +462,7 @@ export default function CupConfigPage({ cupIndex }) {
             <PointsTableEditor
               points={cupSpec.pointsTable ?? [...DEFAULT_POINTS]}
               numCars={effectiveNumCars}
+              maxPositions={maxCupCars}
               onChange={v => cupSpec.overridePointsTable && setCup("pointsTable", v)}
             />
           </div>
