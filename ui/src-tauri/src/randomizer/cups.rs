@@ -662,6 +662,7 @@ pub fn generate_cups(
             overall_required_place: overall,
             cars_per_class,
             points_table: pad_points(&points),
+            opponents: None,
             stages,
             custom_unlock: None,
         });
@@ -693,6 +694,7 @@ fn default_cups(
         overall_required_place: overall,
         cars_per_class: default_cars_per_class(i),
         points_table: pad_points(&cup_state.points_table),
+        opponents: None,
         stages: build_default_stages(i, resolved_tracks, scan, rng),
         custom_unlock: None,
     }).collect()
@@ -708,6 +710,7 @@ pub fn make_default_cup_spec_rust(index: usize) -> CupSpec {
         override_per_race_place: false,
         override_overall_place: false,
         override_points_table: false,
+        override_opponents: false,
         override_num_stages_min: false,
         override_num_stages_max: false,
         override_num_laps_min: false,
@@ -720,6 +723,7 @@ pub fn make_default_cup_spec_rust(index: usize) -> CupSpec {
         overall_required_place: None,
         points_table: None,
         cars_per_class: None,
+        opponents: vec![],
         num_laps_min: None,
         num_laps_max: None,
         num_stages_min: None,

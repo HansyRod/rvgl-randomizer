@@ -25,6 +25,7 @@ export function makeDefaultCupSpec(index) {
     overridePerRacePlace: false,
     overrideOverallPlace: false,
     overridePointsTable: false,
+    overrideOpponents: false,
     overrideNumStagesMin: false,
     overrideNumStagesMax: false,
     overrideNumLapsMin: false,
@@ -42,6 +43,7 @@ export function makeDefaultCupSpec(index) {
     overallRequiredPlace: 1,
     pointsTable: [...DEFAULT_POINTS],
     carsPerClass: [...DEFAULT_CARS_PER_CLASS[index]],
+    opponents: [],
   };
 }
 

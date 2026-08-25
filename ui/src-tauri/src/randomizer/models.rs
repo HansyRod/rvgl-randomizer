@@ -398,6 +398,17 @@ pub struct UserStageSpec {
     pub is_mirror: Option<bool>,
 }
 
+/// A user-selected opponent source for a cup.
+///
+/// Slot references are resolved against the randomized car list later in the
+/// generation pipeline. Car references already contain the final car folder.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum CupOpponentReference {
+    Slot { category: String, index: usize },
+    Car { folder: String },
+}
+
 /// Per-cup configuration.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -413,6 +424,7 @@ pub struct CupSpec {
     #[serde(default)] pub override_per_race_place: bool,
     #[serde(default)] pub override_overall_place: bool,
     #[serde(default)] pub override_points_table: bool,
+    #[serde(default)] pub override_opponents: bool,
     #[serde(default)] pub override_num_stages_min: bool,
     #[serde(default)] pub override_num_stages_max: bool,
     #[serde(default)] pub override_num_laps_min: bool,
@@ -431,6 +443,9 @@ pub struct CupSpec {
     pub points_table: Option<Vec<i32>>,
     /// cars_per_class[0..5] = Rookie..SuperPro; sum must == num_cars - 1
     pub cars_per_class: Option<Vec<u32>>,
+    /// Specific opponent references, resolved to final car folders during generation.
+    #[serde(default)]
+    pub opponents: Vec<CupOpponentReference>,
     /// Per-cup laps range (used when override_stage_mode=true and effective mode is Random)
     pub num_laps_min: Option<u32>,
     pub num_laps_max: Option<u32>,
@@ -551,6 +566,8 @@ pub struct RandomizedCup {
     pub cars_per_class: Vec<u32>,
     #[serde(rename = "pointsTable")]
     pub points_table: Vec<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub opponents: Option<Vec<String>>,
     pub stages: Vec<RandomizedCupStage>,
     #[serde(rename = "customUnlock", skip_serializing_if = "Option::is_none")]
     pub custom_unlock: Option<CustomUnlockCondition>,
