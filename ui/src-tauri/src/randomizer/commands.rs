@@ -352,7 +352,13 @@ pub fn generate_result(
             make_default_cup_spec_rust(3),
         ],
     });
-    let cups = generate_cups(&cup_state, &cup_tracks, &scan_result, &mut rng);
+    let cups = generate_cups(
+        &cup_state,
+        &cup_tracks,
+        &scan_result,
+        &mut rng,
+        feature_opts.enable_30_car_mode,
+    );
 
     // 4. Assemble UiContext
     let required_packs: Vec<String> = match &scan_result.install_type {

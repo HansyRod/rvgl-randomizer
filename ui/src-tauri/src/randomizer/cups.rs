@@ -68,6 +68,14 @@ fn pad_points(src: &[i32]) -> Vec<i32> {
     v
 }
 
+fn normalize_num_cars(value: u32, max_cars: u32) -> u32 {
+    value.clamp(1, max_cars)
+}
+
+fn normalize_required_place(value: u32, num_cars: u32) -> u32 {
+    value.clamp(1, num_cars)
+}
+
 /// Static defaults per cup index.
 fn default_cars_per_class(cup_index: usize) -> Vec<u32> {
     match cup_index {
@@ -519,9 +527,12 @@ pub fn generate_cups(
     resolved_tracks: &[RandomizedTrack],
     scan: &ScanResult,
     rng: &mut Rng,
+    enable_30_car_mode: bool,
 ) -> Vec<RandomizedCup> {
+    let max_cup_cars = cup_car_limit(enable_30_car_mode);
+
     if !cup_state.enabled || resolved_tracks.is_empty() {
-        return default_cups(cup_state, resolved_tracks, scan, rng);
+        return default_cups(cup_state, resolved_tracks, scan, rng, max_cup_cars);
     }
 
     // cross-cup first-appearance tracker (only used in Default/Random modes
@@ -545,21 +556,36 @@ pub fn generate_cups(
             cup_state.stage_mode.clone()
         };
 
-        let num_cars = if cup_spec.map(|c| c.override_num_cars).unwrap_or(false) {
-            cup_spec.and_then(|c| c.num_cars).unwrap_or(cup_state.num_cars)
-        } else { cup_state.num_cars };
+        let num_cars = normalize_num_cars(
+            if cup_spec.map(|c| c.override_num_cars).unwrap_or(false) {
+                cup_spec.and_then(|c| c.num_cars).unwrap_or(cup_state.num_cars)
+            } else {
+                cup_state.num_cars
+            },
+            max_cup_cars,
+        );
 
         let num_tries = if cup_spec.map(|c| c.override_num_tries).unwrap_or(false) {
             cup_spec.and_then(|c| c.num_tries).unwrap_or(cup_state.num_tries)
         } else { cup_state.num_tries };
 
-        let per_race = if cup_spec.map(|c| c.override_per_race_place).unwrap_or(false) {
-            cup_spec.and_then(|c| c.per_race_required_place).unwrap_or(cup_state.per_race_required_place)
-        } else { cup_state.per_race_required_place };
+        let per_race = normalize_required_place(
+            if cup_spec.map(|c| c.override_per_race_place).unwrap_or(false) {
+                cup_spec.and_then(|c| c.per_race_required_place).unwrap_or(cup_state.per_race_required_place)
+            } else {
+                cup_state.per_race_required_place
+            },
+            num_cars,
+        );
 
-        let overall = if cup_spec.map(|c| c.override_overall_place).unwrap_or(false) {
-            cup_spec.and_then(|c| c.overall_required_place).unwrap_or(cup_state.overall_required_place)
-        } else { cup_state.overall_required_place };
+        let overall = normalize_required_place(
+            if cup_spec.map(|c| c.override_overall_place).unwrap_or(false) {
+                cup_spec.and_then(|c| c.overall_required_place).unwrap_or(cup_state.overall_required_place)
+            } else {
+                cup_state.overall_required_place
+            },
+            num_cars,
+        );
 
         let points = if cup_spec.map(|c| c.override_points_table).unwrap_or(false) {
             cup_spec.and_then(|c| c.points_table.clone()).unwrap_or_else(|| cup_state.points_table.clone())
@@ -651,15 +677,20 @@ fn default_cups(
     resolved_tracks: &[RandomizedTrack],
     scan: &ScanResult,
     rng: &mut Rng,
+    max_cup_cars: u32,
 ) -> Vec<RandomizedCup> {
+    let num_cars = normalize_num_cars(cup_state.num_cars, max_cup_cars);
+    let per_race = normalize_required_place(cup_state.per_race_required_place, num_cars);
+    let overall = normalize_required_place(cup_state.overall_required_place, num_cars);
+
     (0..4).map(|i| RandomizedCup {
         name: cup_name(i).to_string(),
         difficulty: (i as i32) + 1,
         obtain_condition: cup_obtain(i),
-        num_cars: cup_state.num_cars,
+        num_cars,
         num_tries: cup_state.num_tries,
-        per_race_required_place: cup_state.per_race_required_place,
-        overall_required_place: cup_state.overall_required_place,
+        per_race_required_place: per_race,
+        overall_required_place: overall,
         cars_per_class: default_cars_per_class(i),
         points_table: pad_points(&cup_state.points_table),
         stages: build_default_stages(i, resolved_tracks, scan, rng),
@@ -694,5 +725,30 @@ pub fn make_default_cup_spec_rust(index: usize) -> CupSpec {
         num_stages_min: None,
         num_stages_max: None,
         stages: vec![],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pad_points_always_returns_the_extended_table_length() {
+        assert_eq!(pad_points(&[1, 2]).len(), CUP_POINTS_TABLE_LENGTH);
+        assert_eq!(pad_points(&vec![1; CUP_POINTS_TABLE_LENGTH + 5]).len(), CUP_POINTS_TABLE_LENGTH);
+    }
+
+    #[test]
+    fn cup_car_limit_matches_the_runtime_feature_flag() {
+        assert_eq!(cup_car_limit(false), NATIVE_MAX_CUP_CARS);
+        assert_eq!(cup_car_limit(true), EXTENDED_MAX_CUP_CARS);
+    }
+
+    #[test]
+    fn cup_values_are_clamped_to_the_effective_car_count() {
+        assert_eq!(normalize_num_cars(0, NATIVE_MAX_CUP_CARS), 1);
+        assert_eq!(normalize_num_cars(30, NATIVE_MAX_CUP_CARS), NATIVE_MAX_CUP_CARS);
+        assert_eq!(normalize_num_cars(30, EXTENDED_MAX_CUP_CARS), EXTENDED_MAX_CUP_CARS);
+        assert_eq!(normalize_required_place(30, 16), 16);
     }
 }
