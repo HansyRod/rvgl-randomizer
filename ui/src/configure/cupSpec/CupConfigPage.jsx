@@ -16,6 +16,8 @@ import {
   getCupCarLimit,
   normalizePointsTable,
 } from "./CupUtils";
+import CupOpponentEditor from "./CupOpponentEditor";
+import { getCupOpponentCandidates } from "./CupOpponentUtils";
 
 // ─── OverrideRow ──────────────────────────────────────────────────────────────
 // A single row in the override table.
@@ -47,7 +49,7 @@ export default function CupConfigPage({ cupIndex }) {
   const { state, updateCategoryCtx } = useAppContext();
   const { setup, configure } = state;
   const { scanResult } = setup;
-  const { trackSpecState, cupSpecState, preset, featureOptions } = configure;
+  const { trackSpecState, cupSpecState, carsSpecState, preset, featureOptions } = configure;
   const maxCupCars = getCupCarLimit(featureOptions?.enable30CarMode);
   const isStockTracksMode = scanResult ? isEffectiveStockTracksMode(scanResult, preset) : false;
   const slotCount = isStockTracksMode ? 13 : 14;
@@ -156,6 +158,16 @@ export default function CupConfigPage({ cupIndex }) {
   const effectiveNumCars = cupSpec.overrideNumCars
     ? (cupSpec.numCars ?? globalState.numCars)
     : globalState.numCars;
+
+  const effectiveCarsPerClass = cupSpec.overrideCarsPerClass
+    ? (cupSpec.carsPerClass ?? DEFAULT_CARS_PER_CLASS[cupIndex])
+    : DEFAULT_CARS_PER_CLASS[cupIndex];
+
+  const opponentCandidates = useMemo(() => getCupOpponentCandidates({
+    scanResult,
+    carsSpecState,
+    preset,
+  }), [scanResult, carsSpecState, preset]);
 
   const stageCount = (cupSpec.stages || []).length;
 
@@ -285,6 +297,35 @@ export default function CupConfigPage({ cupIndex }) {
       </section>
 
       {/* ── Override table ── */}
+      {/* Specific opponent selections */}
+      <section className="co-section">
+        <div className="cup-override-section-header">
+          <label className="co-checkbox-row">
+            <input
+              type="checkbox"
+              checked={cupSpec.overrideOpponents}
+              onChange={e => setCup("overrideOpponents", e.target.checked)}
+            />
+            <h2 className="co-section-title" style={{ margin: 0 }}>Specific Opponents</h2>
+          </label>
+        </div>
+        {cupSpec.overrideOpponents
+          ?
+          <div className="cup-override-controls">
+            <CupOpponentEditor
+              candidatesByRating={opponentCandidates}
+              carsPerClass={effectiveCarsPerClass}
+              opponents={cupSpec.opponents}
+              onChange={v => setCup("opponents", v)}
+            />
+          </div>
+          :
+          <p className="co-desc cup-override-hint">
+            Specific opponents are disabled for this cup.
+          </p>
+        }
+      </section>
+
       <section className="cup-ov-table-section">
         <h3>Override Summary</h3>
         <p>Choose which settings to override and compare the cup value with the global value.</p>

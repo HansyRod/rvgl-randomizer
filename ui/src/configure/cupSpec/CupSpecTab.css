@@ -145,6 +145,96 @@
 }
 
 /* ── Points table ── */
+/* Specific opponents */
+.cup-opponents-editor {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.85rem;
+}
+
+.cup-opponents-editor > .co-desc {
+  margin: 0 0 0.75rem;
+}
+
+.cup-opponents-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.cup-opponent-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.65rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+}
+
+.cup-opponent-group-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cup-opponent-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cup-opponent-choice.fallback .cup-opponent-select {
+  border-color: #f0a030;
+}
+
+.cup-opponent-select-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.cup-opponent-remove-hidden {
+  visibility: hidden;
+}
+
+.cup-opponent-select {
+  width: 100%;
+  min-width: 0;
+  padding: 0.3rem 1.4rem 0.3rem 0.4rem;
+  font-size: 0.8rem;
+}
+
+.cup-opponent-empty,
+.cup-opponent-fallback-note {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.cup-opponent-empty {
+  font-style: italic;
+}
+
+.cup-opponent-fallback-note {
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+@media (max-width: 800px) {
+  .cup-opponents-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .cup-opponents-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .cup-points-table {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
@@ -469,4 +559,3 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
-
