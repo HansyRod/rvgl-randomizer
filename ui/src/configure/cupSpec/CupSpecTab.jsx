@@ -101,7 +101,6 @@ export default function CupSpecTab() {
   }, [set]);
 
   const stageMode = cupSpecState.stageMode;
-  const userDefinedMode = stageMode === "userDefined";
 
   const globalNumCars = cupSpecState.numCars;
   const globalLapsMin = cupSpecState.numLapsMin;

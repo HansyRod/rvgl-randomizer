@@ -315,6 +315,9 @@ export function validateCupSpec(
           }
 
           if (seenReferences.has(key)) {
+            const ratingLabel = Number.isInteger(rating)
+              ? `${RATING_LABELS[rating]} `
+              : "";
             errors.push({
               id: `cup_opponent_duplicate_${i}_${rating}_${opponentIndex}`,
               scope: "cupSpec",
