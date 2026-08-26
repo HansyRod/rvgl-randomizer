@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { appLocalDataDir, join } from '@tauri-apps/api/path';
 import { open, confirm } from '@tauri-apps/plugin-dialog';
 import { useAppContext } from '../AppProvider';
 import HistoryPanel from "../components/HistoryPanel";
@@ -267,8 +268,16 @@ export default function GenerationTab({errors}) {
   };
 
   const handleLoadFile = async () => {
+    let defaultPath;
+    try {
+      defaultPath = await join(await appLocalDataDir(), "generated");
+    } catch (err) {
+      console.error("Failed to determine generated seed directory:", err);
+    }
+
     const file = getSelectedPath(await open({
       multiple: false,
+      defaultPath,
       filters: [{ name: "JSON Config", extensions: ["json"] }],
     }));
     if (!file) return;
