@@ -12,6 +12,8 @@ use std::ffi::CString;
 use std::path::Path;
 use tauri::{Manager};
 
+use crate::scanner::verify_rvgl_executable_path;
+
 use windows::Win32::{
     Foundation::{CloseHandle, STILL_ACTIVE},
     System::{
@@ -131,6 +133,10 @@ pub fn launch_game(
     packlist: Option<Vec<String>>,
     profile_name: String,
 ) -> Result<LaunchResult, String> {
+
+    // Revalidate immediately before injection in case the executable changed
+    // after the installation was selected or while the app was closed.
+    verify_rvgl_executable_path(Path::new(&rvgl_exe_path))?;
 
     // --- Resolve randomizer.dll from the Tauri resource directory ---
     let mut dll_path = app_handle

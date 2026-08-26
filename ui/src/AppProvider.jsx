@@ -21,6 +21,7 @@ const DEFAULT_STATE = {
   setup: {
     installPath: "",
     scanResult: null,
+    installError: "",
     setupTab: "install", // Setup sub-tab: "install" | "cars" | "tracks"
     installHistory: [], // List of { path, installType }
   },

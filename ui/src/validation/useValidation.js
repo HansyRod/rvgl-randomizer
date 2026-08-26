@@ -30,6 +30,14 @@ export function useValidation() {
       }
     };
 
+    if (setup.installError && !setup.scanResult) {
+      errors.push({
+        id: "scan_install_invalid",
+        scope: "scan",
+        message: setup.installError,
+      });
+    }
+
     if (setup.scanResult) {
       collect(validateScan(setup.scanResult, preset));
       collect(validateSelectedPreset(configure, setup.scanResult, PRESETS));
