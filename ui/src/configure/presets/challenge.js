@@ -420,7 +420,7 @@ export const CHALLENGE_PRESET = {
         },
         {
           ...makeDefaultCupSpec(2),
-          carsPerClass: [0, 0, 2, 7, 2, 0],
+          carsPerClass: [0, 0, 0, 2, 7, 2],
           numCars: 12,
           numTries: 1,
           pointsTable: [15, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0, 0, 0],
