@@ -3,6 +3,7 @@
 #include "Addresses.h"
 #include "RVGLStructs.h"
 #include "30CarMod.h"
+#include "GridShuffle.h"
 #include "KnockoutMode.h"
 #include "ThirtyCarCupMod.h"
 
@@ -80,6 +81,7 @@ void Hook_SetupAllRaceCars() {
 
     ApplyThirtyCarGrid();
     ApplyThirtyCarCupGrid();
+    ApplyStartingGridShuffle();
     FinalizeKnockoutRaceSetup();
 
     Logger::TimestampLogf("[RaceInitHooks] SetupAllRaceCars completed");
