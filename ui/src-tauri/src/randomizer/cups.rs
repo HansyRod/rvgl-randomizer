@@ -1,4 +1,4 @@
-use crate::scanner::{ScanResult, InstallType};
+use crate::scanner::{Car, InstallType, ScanResult};
 
 use super::models::*;
 use super::rng::Rng;
@@ -100,6 +100,57 @@ fn cup_name(cup_index: usize) -> &'static str {
 /// obtain_condition: Bronze = 0 (always unlocked), others = 1 (Championship)
 fn cup_obtain(cup_index: usize) -> i32 {
     if cup_index == 0 { 0 } else { 1 }
+}
+
+fn resolve_opponent_reference(
+    reference: &CupOpponentReference,
+    stock_resolved: &[Option<Car>],
+    dc_resolved: &[Option<Car>],
+) -> Option<String> {
+    match reference {
+        CupOpponentReference::Car { folder } if !folder.is_empty() => Some(folder.clone()),
+        CupOpponentReference::Car { .. } => None,
+        CupOpponentReference::Slot { category, index } => {
+            let slots = if category.eq_ignore_ascii_case("stock") {
+                stock_resolved
+            } else if category.eq_ignore_ascii_case("dc") {
+                dc_resolved
+            } else {
+                return None;
+            };
+
+            slots
+                .get(*index)
+                .and_then(|car| car.as_ref())
+                .map(|car| car.folder_name.clone())
+        }
+    }
+}
+
+/// Resolve the UI's rating-bucketed opponent references into the flat list
+/// consumed by the DLL. References are flattened in rating order, and all
+/// configured entries are retained because Cars Per Class controls how many
+/// entries the runtime ultimately uses.
+fn resolve_cup_opponents(
+    cup_spec: Option<&CupSpec>,
+    stock_resolved: &[Option<Car>],
+    dc_resolved: &[Option<Car>],
+) -> Option<Vec<String>> {
+    let cup_spec = cup_spec?;
+    if !cup_spec.override_opponents {
+        return None;
+    }
+
+    Some(
+        cup_spec
+            .opponents
+            .iter()
+            .flat_map(|bucket| bucket.iter())
+            .filter_map(|reference| {
+                resolve_opponent_reference(reference, stock_resolved, dc_resolved)
+            })
+            .collect(),
+    )
 }
 
 // ============================================================================
@@ -525,6 +576,8 @@ fn resolve_user_variant(
 pub fn generate_cups(
     cup_state: &CupSpecState,
     resolved_tracks: &[RandomizedTrack],
+    stock_resolved: &[Option<Car>],
+    dc_resolved: &[Option<Car>],
     scan: &ScanResult,
     rng: &mut Rng,
     enable_30_car_mode: bool,
@@ -603,6 +656,8 @@ pub fn generate_cups(
             cup_spec.and_then(|c| c.num_laps_max).unwrap_or(cup_state.num_laps_max)
         } else { cup_state.num_laps_max };
 
+        let opponents = resolve_cup_opponents(cup_spec, stock_resolved, dc_resolved);
+
         // Num stages: use per-cup override when override_stage_mode is active, else global (only applies to Random mode)
         let num_stages_min = if cup_spec.map(|c| c.override_num_stages_min).unwrap_or(false) {
             cup_spec.and_then(|c| c.num_stages_min).unwrap_or(cup_state.num_stages_min)
@@ -662,7 +717,7 @@ pub fn generate_cups(
             overall_required_place: overall,
             cars_per_class,
             points_table: pad_points(&points),
-            opponents: None,
+            opponents,
             stages,
             custom_unlock: None,
         });
@@ -754,5 +809,53 @@ mod tests {
         assert_eq!(normalize_num_cars(30, NATIVE_MAX_CUP_CARS), NATIVE_MAX_CUP_CARS);
         assert_eq!(normalize_num_cars(30, EXTENDED_MAX_CUP_CARS), EXTENDED_MAX_CUP_CARS);
         assert_eq!(normalize_required_place(30, 16), 16);
+    }
+
+    fn test_car(folder_name: &str) -> Car {
+        Car {
+            folder_name: folder_name.to_string(),
+            name: folder_name.to_string(),
+            rating: 0,
+            obtain_method: 0,
+            is_system_car: false,
+            has_valid_file: true,
+            carbox_filename: None,
+            pool: crate::scanner::Pool::Stock,
+        }
+    }
+
+    #[test]
+    fn cup_opponents_resolve_car_and_slot_references_in_rating_order() {
+        let cup_spec = CupSpec {
+            index: 0,
+            override_opponents: true,
+            opponents: vec![
+                vec![
+                    CupOpponentReference::Car { folder: "direct".to_string() },
+                    CupOpponentReference::Slot { category: "stock".to_string(), index: 0 },
+                ],
+                vec![CupOpponentReference::Slot { category: "dc".to_string(), index: 1 }],
+            ],
+            ..make_default_cup_spec_rust(0)
+        };
+        let stock = vec![Some(test_car("stock_car"))];
+        let dc = vec![None, Some(test_car("dc_car"))];
+
+        assert_eq!(
+            resolve_cup_opponents(Some(&cup_spec), &stock, &dc),
+            Some(vec![
+                "direct".to_string(),
+                "stock_car".to_string(),
+                "dc_car".to_string(),
+            ])
+        );
+    }
+
+    #[test]
+    fn cup_opponents_are_omitted_without_the_override() {
+        let cup_spec = make_default_cup_spec_rust(0);
+        let stock = vec![Some(test_car("stock_car"))];
+
+        assert_eq!(resolve_cup_opponents(Some(&cup_spec), &stock, &[]), None);
     }
 }

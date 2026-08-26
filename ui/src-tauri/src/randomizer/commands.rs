@@ -355,6 +355,8 @@ pub fn generate_result(
     let cups = generate_cups(
         &cup_state,
         &cup_tracks,
+        &stock_resolved,
+        &dc_resolved,
         &scan_result,
         &mut rng,
         feature_opts.enable_30_car_mode,
