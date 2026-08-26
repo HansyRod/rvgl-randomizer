@@ -443,9 +443,10 @@ pub struct CupSpec {
     pub points_table: Option<Vec<i32>>,
     /// cars_per_class[0..5] = Rookie..SuperPro; sum must == num_cars - 1
     pub cars_per_class: Option<Vec<u32>>,
-    /// Specific opponent references, resolved to final car folders during generation.
+    /// Specific opponent references grouped by final rating, resolved to final
+    /// car folders during generation.
     #[serde(default)]
-    pub opponents: Vec<CupOpponentReference>,
+    pub opponents: Vec<Vec<CupOpponentReference>>,
     /// Per-cup laps range (used when override_stage_mode=true and effective mode is Random)
     pub num_laps_min: Option<u32>,
     pub num_laps_max: Option<u32>,

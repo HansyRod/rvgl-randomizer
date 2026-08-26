@@ -48,9 +48,11 @@ function getFixedRating(row, car) {
   const attrRating = String(row?.attrRating ?? "");
   if (/^[0-5]$/.test(attrRating)) return Number(attrRating);
 
-  // "Unchanged" is only resolvable when this row identifies a concrete car.
-  if (attrRating === "Unchanged" && Number.isInteger(car?.rating)) {
-    return car.rating;
+  // "Unchanged" means the final attribute rating matches the source rating.
+  if (attrRating === "Unchanged") {
+    const sourceRating = String(row?.sourceRating ?? "");
+    if (/^[0-5]$/.test(sourceRating)) return Number(sourceRating);
+    if (Number.isInteger(car?.rating)) return car.rating;
   }
 
   return null;
@@ -65,7 +67,11 @@ function makeCandidate({ category, index, car, rating }) {
       : `${category.label} Slot ${index + 1}`,
     folder: car?.folderName ?? null,
     reference: isCarReference
-      ? { type: "car", folder: car.folderName }
+      ? {
+          type: "car",
+          folder: car.folderName,
+          name: car.name || car.folderName,
+        }
       : { type: "slot", category: category.key, index },
   };
 }

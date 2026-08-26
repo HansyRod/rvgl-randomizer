@@ -723,7 +723,7 @@ pub fn make_default_cup_spec_rust(index: usize) -> CupSpec {
         overall_required_place: None,
         points_table: None,
         cars_per_class: None,
-        opponents: vec![],
+        opponents: vec![vec![]; 6],
         num_laps_min: None,
         num_laps_max: None,
         num_stages_min: None,

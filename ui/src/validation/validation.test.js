@@ -813,3 +813,154 @@ runTest("validateCupSpec requires points for every active cup position", () => {
 
   assert.ok(results.errors.some(error => error.id === "cup_points_invalid_global_too_short"));
 });
+
+runTest("validateCupSpec allows per-rating fallback entries without a global opponent cap", () => {
+  const cars = STOCK_CARS.slice(0, 16).map((folderName) => makeCar(folderName, 0));
+  const carsSpecState = {
+    includeStockCars: true,
+    includeDcCars: false,
+    stockCars: cars.map((car, index) => ({
+      sourcePool: "Full Random",
+      attrRating: index < 8 ? "0" : "1",
+    })),
+    dcCars: [],
+  };
+  const opponents = [
+    Array.from({ length: 8 }, (_, index) => ({ type: "slot", category: "stock", index })),
+    Array.from({ length: 8 }, (_, index) => ({ type: "slot", category: "stock", index: index + 8 })),
+    [], [], [], [],
+  ];
+
+  const results = validateCupSpec(
+    {
+      enabled: true,
+      numCars: 15,
+      perRaceRequiredPlace: 3,
+      overallRequiredPlace: 1,
+      pointsTable: Array(15).fill(0),
+      cups: [{
+        overrideCarsPerClass: true,
+        carsPerClass: [7, 7, 0, 0, 0, 0],
+        overrideOpponents: true,
+        opponents,
+      }],
+    },
+    { tracks: [] },
+    makeClassicScan({ cars }),
+    { enable30CarMode: false },
+    carsSpecState,
+    "custom"
+  );
+
+  assert.equal(
+    results.errors.some(error => error.id.startsWith("cup_opponent_")),
+    false
+  );
+});
+
+runTest("validateCupSpec rejects duplicate and over-capacity opponent references", () => {
+  const cars = STOCK_CARS.slice(0, 3).map((folderName) => makeCar(folderName, 0));
+  const carsSpecState = {
+    includeStockCars: true,
+    includeDcCars: false,
+    stockCars: cars.map(() => ({ sourcePool: "Full Random", attrRating: "0" })),
+    dcCars: [],
+  };
+  const opponents = [[
+    { type: "slot", category: "stock", index: 0 },
+    { type: "slot", category: "stock", index: 0 },
+    { type: "slot", category: "stock", index: 1 },
+    { type: "slot", category: "stock", index: 2 },
+  ], [], [], [], [], []];
+
+  const results = validateCupSpec(
+    {
+      enabled: true,
+      numCars: 2,
+      perRaceRequiredPlace: 1,
+      overallRequiredPlace: 1,
+      pointsTable: [0, 0],
+      cups: [{
+        overrideCarsPerClass: true,
+        carsPerClass: [1, 0, 0, 0, 0, 0],
+        overrideOpponents: true,
+        opponents,
+      }],
+    },
+    { tracks: [] },
+    makeClassicScan({ cars }),
+    { enable30CarMode: false },
+    carsSpecState,
+    "custom"
+  );
+
+  assert.ok(results.errors.some(error => error.id === "cup_opponent_duplicate_0_0_1"));
+  assert.ok(results.errors.some(error => error.id === "cup_opponent_count_invalid_0_0"));
+});
+
+runTest("validateCupSpec rejects opponent references whose final rating is no longer known", () => {
+  const cars = [makeCar("rc", 0)];
+  const results = validateCupSpec(
+    {
+      enabled: true,
+      numCars: 2,
+      perRaceRequiredPlace: 1,
+      overallRequiredPlace: 1,
+      pointsTable: [0, 0],
+      cups: [{
+        overrideCarsPerClass: true,
+        carsPerClass: [1, 0, 0, 0, 0, 0],
+        overrideOpponents: true,
+        opponents: [[{ type: "car", folder: "rc" }], [], [], [], [], []],
+      }],
+    },
+    { tracks: [] },
+    makeClassicScan({ cars }),
+    { enable30CarMode: false },
+    {
+      includeStockCars: true,
+      includeDcCars: false,
+      stockCars: [{ sourcePool: "rc", attrRating: "Random" }],
+      dcCars: [],
+    },
+    "custom"
+  );
+
+  assert.ok(results.errors.some(error => error.id === "cup_opponent_invalid_0_0_0"));
+});
+
+runTest("validateCupSpec preserves the original rating for unavailable opponent selections", () => {
+  const cars = [makeCar("rc", 1)];
+  const results = validateCupSpec(
+    {
+      enabled: true,
+      numCars: 2,
+      perRaceRequiredPlace: 1,
+      overallRequiredPlace: 1,
+      pointsTable: [0, 0],
+      cups: [{
+        overrideCarsPerClass: true,
+        carsPerClass: [1, 0, 0, 0, 0, 0],
+        overrideOpponents: true,
+        opponents: [
+          [{ type: "car", folder: "rc", name: "Genghis Kar" }],
+          [], [], [], [], [],
+        ],
+      }],
+    },
+    { tracks: [] },
+    makeClassicScan({ cars }),
+    { enable30CarMode: false },
+    {
+      includeStockCars: true,
+      includeDcCars: false,
+      stockCars: [{ sourcePool: "rc", attrRating: "Random" }],
+      dcCars: [],
+    },
+    "custom"
+  );
+
+  const error = results.errors.find(error => error.id === "cup_opponent_invalid_0_0_0");
+  assert.ok(error);
+  assert.match(error.message, /Choose a different Rookie car or slot\./);
+});

@@ -26,6 +26,19 @@ function getGroupedCandidates(candidates, selected, currentIndex) {
   })).filter(group => group.candidates.length > 0);
 }
 
+function getUnavailableReferenceLabel(reference) {
+  if (reference?.type === "car") {
+    return `Unavailable car: ${reference.name || reference.folder || "Unknown"}`;
+  }
+
+  if (reference?.type === "slot") {
+    const category = reference.category === "dc" ? "DC" : "Stock";
+    return `Unavailable ${category} Slot ${(reference.index ?? 0) + 1}`;
+  }
+
+  return "Unavailable opponent";
+}
+
 export default function CupOpponentEditor({
   candidatesByRating,
   carsPerClass,
@@ -41,14 +54,9 @@ export default function CupOpponentEditor({
     )
   );
 
-  const selectedByRating = candidatesByRating.map(() => []);
-  (opponents || []).forEach(reference => {
-    const candidate = candidateByReference.get(getCupOpponentReferenceKey(reference));
-    if (candidate) selectedByRating[candidate.rating].push(reference);
-  });
-
   const updateRatingSelections = (rating, index, value) => {
-    const current = [...selectedByRating[rating]];
+    const nextSelections = opponents.map(selectionGroup => [...selectionGroup]);
+    const current = [...opponents[rating]];
     const reference = candidatesByRating[rating].candidates.find(candidate =>
       getCupOpponentReferenceKey(candidate.reference) === value
     )?.reference;
@@ -59,16 +67,8 @@ export default function CupOpponentEditor({
       current.splice(index, 1);
     }
 
-    const currentRatingKeys = new Set(
-      candidatesByRating[rating].candidates.map(candidate =>
-        getCupOpponentReferenceKey(candidate.reference)
-      )
-    );
-    const otherRatings = (opponents || []).filter(existing =>
-      !currentRatingKeys.has(getCupOpponentReferenceKey(existing))
-    );
-
-    onChange([...otherRatings, ...current]);
+    nextSelections[rating] = current;
+    onChange(nextSelections);
   };
 
   return (
@@ -81,25 +81,32 @@ export default function CupOpponentEditor({
         {RATING_LABELS.map((label, rating) => {
           const quota = getClassQuota(carsPerClass, rating);
           const maxSelections = quota > 0 ? quota + 1 : 0;
-          const selected = selectedByRating[rating];
+          const selected = opponents[rating] || [];
           const candidates = candidatesByRating[rating]?.candidates || [];
-          const visibleCount = maxSelections === 0
-            ? 0
-            : Math.min(maxSelections, Math.max(1, selected.length + 1));
+          const visibleCount = Math.max(
+            selected.length,
+            maxSelections > selected.length ? selected.length + 1 : 0
+          );
 
           return (
             <div key={label} className="cup-opponent-group">
               <div className="cup-opponent-group-title">{label}</div>
-              {maxSelections === 0 ? (
+              {visibleCount === 0 && maxSelections === 0 ? (
                 <p className="cup-opponent-empty">No opponents of this class.</p>
-              ) : candidates.length === 0 ? (
-                <p className="cup-opponent-empty">No fixed-rating choices available.</p>
               ) : (
                 Array.from({ length: visibleCount }, (_, index) => {
-                  const selectedReference = selected[index];
-                  const selectedKey = getCupOpponentReferenceKey(selectedReference);
-                  const isFallback = visibleCount === maxSelections && index === maxSelections - 1;
-                  const candidateGroups = getGroupedCandidates(candidates, selected, index);
+                    const selectedReference = selected[index];
+                    const selectedKey = getCupOpponentReferenceKey(selectedReference);
+                    const selectedCandidate = candidateByReference.get(selectedKey);
+                    const isUnavailable = Boolean(
+                      selectedReference &&
+                      (!selectedCandidate || selectedCandidate.rating !== rating)
+                    );
+                    const hasNoCandidates = candidates.length === 0;
+                    const isFallback = maxSelections > 0 &&
+                      index === maxSelections - 1 && visibleCount >= maxSelections;
+                    const isOverCapacity = index >= maxSelections;
+                    const candidateGroups = getGroupedCandidates(candidates, selected, index);
 
                   return (
                     <div
@@ -115,9 +122,21 @@ export default function CupOpponentEditor({
                       <select
                         value={selectedKey}
                         onChange={e => updateRatingSelections(rating, index, e.target.value)}
-                        className="cup-opponent-select"
+                        className={`cup-opponent-select${isUnavailable ? " unavailable" : ""}${isOverCapacity ? " over-capacity" : ""}`}
+                        disabled={hasNoCandidates}
                       >
-                        <option value="" disabled hidden>Choose an opponent...</option>
+                        {!selectedKey && hasNoCandidates ? (
+                          <option value="">No opponents available to choose</option>
+                        ) : (
+                          <option value="" disabled hidden>Choose an opponent...</option>
+                        )}
+                        {isUnavailable && (
+                          <optgroup label="Unavailable">
+                            <option value={selectedKey}>
+                              {getUnavailableReferenceLabel(selectedReference)}
+                            </option>
+                          </optgroup>
+                        )}
                         {candidateGroups.map(group => (
                           <optgroup key={group.type} label={group.label}>
                             {group.candidates.map(candidate => {

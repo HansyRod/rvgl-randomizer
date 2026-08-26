@@ -190,6 +190,12 @@
   border-color: #f0a030;
 }
 
+.cup-opponent-select.unavailable,
+.cup-opponent-select.over-capacity {
+  border-color: #d85050;
+  box-shadow: 0 0 0 1px rgba(216, 80, 80, 0.25);
+}
+
 .cup-opponent-select-row {
   display: flex;
   align-items: center;

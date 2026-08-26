@@ -4,8 +4,24 @@ import {
   EXTENDED_MAX_CUP_CARS,
   CUP_POINTS_TABLE_LENGTH,
 } from "../utils/constants.js";
+import {
+  getCupOpponentCandidates,
+  getCupOpponentReferenceKey,
+} from "../configure/cupSpec/CupOpponentUtils";
 
 const CUP_NAMES = ["Bronze Cup", "Silver Cup", "Gold Cup", "Platinum Cup"];
+const RATING_LABELS = ["Rookie", "Amateur", "Advanced", "Semi-Pro", "Pro", "Super Pro"];
+
+function getOpponentReferenceLabel(reference) {
+  if (reference?.type === "car") {
+    return reference.name || reference.folder || "Unknown car";
+  }
+  if (reference?.type === "slot") {
+    const category = reference.category === "dc" ? "DC" : "Stock";
+    return `${category} Slot ${(reference.index ?? 0) + 1}`;
+  }
+  return "Unknown opponent";
+}
 
 function formatPosition(position) {
   const lastTwo = position % 100;
@@ -19,7 +35,14 @@ function formatPosition(position) {
   }
 }
 
-export function validateCupSpec(cupSpecState, trackSpecState, scanResult, featureOptions = {}) {
+export function validateCupSpec(
+  cupSpecState,
+  trackSpecState,
+  scanResult,
+  featureOptions = {},
+  carsSpecState = {},
+  preset = "custom"
+) {
   const errors = [];
   const warnings = [];
 
@@ -229,6 +252,116 @@ export function validateCupSpec(cupSpecState, trackSpecState, scanResult, featur
           ? `${CUP_NAMES[i]} Cars per Class must add up to ${expected} CPU opponents. It currently adds up to ${sum}.${hint}`
           : `${CUP_NAMES[i]} Cars per Class cannot include a negative number of cars for a class.${hint}`
       });
+    }
+
+    // ── Specific opponents ──
+    // Cars Per Class determines how many configured opponents are used for a
+    // rating. A non-zero class may have one additional fallback entry, but
+    // there is no global limit on the total opponents reference list.
+    if (cup.overrideOpponents && scanResult) {
+      const opponents = cup.opponents;
+
+      if (!Array.isArray(opponents)) {
+        errors.push({
+          id: `cup_opponents_invalid_${i}`,
+          scope: "cupSpec",
+          field: `cups[${i}].opponents`,
+          message: `${CUP_NAMES[i]} Specific Opponents must contain one list for each rating.`
+        });
+      } else if (
+        opponents.length !== RATING_LABELS.length ||
+        opponents.some(selectionGroup => !Array.isArray(selectionGroup))
+      ) {
+        errors.push({
+          id: `cup_opponents_invalid_${i}`,
+          scope: "cupSpec",
+          field: `cups[${i}].opponents`,
+          message: `${CUP_NAMES[i]} Specific Opponents must contain one list for each rating.`
+        });
+      } else {
+        const candidateByKey = new Map(
+          getCupOpponentCandidates({ scanResult, carsSpecState, preset })
+            .flatMap(group => group.candidates)
+            .map(candidate => [
+              getCupOpponentReferenceKey(candidate.reference),
+              candidate,
+            ])
+        );
+        const seenReferences = new Set();
+        const countsByRating = Array(RATING_LABELS.length).fill(0);
+        const reportUnavailable = (reference, rating, opponentIndex, field) => {
+          const ratingLabel = Number.isInteger(rating)
+            ? `${RATING_LABELS[rating]} `
+            : "";
+          errors.push({
+            id: `cup_opponent_invalid_${i}_${rating}_${opponentIndex}`,
+            scope: "cupSpec",
+            field,
+            message:
+              `${CUP_NAMES[i]} - Specific Opponents: ` +
+              `${getOpponentReferenceLabel(reference)} is no longer available. ` +
+              `Choose a different ${ratingLabel}car or slot.`
+          });
+        };
+
+        const validateReference = (reference, rating, opponentIndex, field) => {
+          const key = getCupOpponentReferenceKey(reference);
+          const candidate = candidateByKey.get(key);
+
+          if (!key || !candidate ||
+              candidate.rating !== rating) {
+            reportUnavailable(reference, rating, opponentIndex, field);
+            return;
+          }
+
+          if (seenReferences.has(key)) {
+            errors.push({
+              id: `cup_opponent_duplicate_${i}_${rating}_${opponentIndex}`,
+              scope: "cupSpec",
+              field,
+              message:
+                `${CUP_NAMES[i]} - Specific Opponents: ` +
+                `${getOpponentReferenceLabel(reference)} is already selected. ` +
+                `Choose a different ${ratingLabel}car or slot.`
+            });
+            return;
+          }
+
+          seenReferences.add(key);
+          countsByRating[rating] += 1;
+        };
+
+        opponents.forEach((selectionGroup, rating) => {
+          selectionGroup.forEach((reference, opponentIndex) => {
+            validateReference(
+              reference,
+              rating,
+              opponentIndex,
+              `cups[${i}].opponents[${rating}][${opponentIndex}]`
+            );
+          });
+        });
+
+        if (cpcIsValid) {
+          countsByRating.forEach((count, rating) => {
+            const quota = effectiveCpc[rating];
+            const maximum = quota === 0 ? 0 : quota + 1;
+            if (count <= maximum) return;
+
+            const limitDescription = quota === 0
+              ? "Cars Per Class is set to 0 for this class"
+              : `Cars Per Class allows ${quota} CPU opponent${quota === 1 ? "" : "s"} plus one fallback`;
+            errors.push({
+              id: `cup_opponent_count_invalid_${i}_${rating}`,
+              scope: "cupSpec",
+              field: `cups[${i}].opponents`,
+              message:
+                `${CUP_NAMES[i]} has too many ${RATING_LABELS[rating]} opponents configured. ` +
+                `${limitDescription} (maximum ${maximum}).`
+            });
+          });
+        }
+      }
     }
   });
 

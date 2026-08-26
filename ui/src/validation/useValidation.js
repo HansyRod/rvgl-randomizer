@@ -59,7 +59,9 @@ export function useValidation() {
         configure.cupSpecState,
         configure.trackSpecState,
         setup.scanResult,
-        configure.featureOptions
+        configure.featureOptions,
+        configure.carsSpecState,
+        preset
       ));
     }
 

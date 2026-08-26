@@ -43,7 +43,7 @@ export function makeDefaultCupSpec(index) {
     overallRequiredPlace: 1,
     pointsTable: [...DEFAULT_POINTS],
     carsPerClass: [...DEFAULT_CARS_PER_CLASS[index]],
-    opponents: [],
+    opponents: Array.from({ length: 6 }, () => []),
   };
 }
 
