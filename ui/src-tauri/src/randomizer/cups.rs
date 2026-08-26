@@ -340,6 +340,24 @@ impl CupUsage {
     }
 }
 
+fn track_is_available_for_cup(
+    folder: &str,
+    scan: &ScanResult,
+    opts: &CupSpecState,
+    per_cup_usage: &CupUsage,
+) -> bool {
+    match opts.same_track_handling {
+        SameTrackHandling::Forbid => !per_cup_usage.has_used(folder),
+        SameTrackHandling::AllowAny => true,
+        SameTrackHandling::AllowVariants => {
+            let used = per_cup_usage.used_variants(folder);
+            allowed_variants(folder, scan, opts)
+                .iter()
+                .any(|variant| !used.contains(variant))
+        }
+    }
+}
+
 fn build_random_stages(
     resolved: &[RandomizedTrack],
     scan: &ScanResult,
@@ -355,20 +373,13 @@ fn build_random_stages(
 
     for _ in 0..num_stages {
         // 1. Determine candidate tracks respecting same-track handling
-        let candidates: Vec<&RandomizedTrack> = resolved.iter().filter(|t| {
-            match opts.same_track_handling {
-                SameTrackHandling::Forbid => !per_cup_usage.has_used(&t.folder),
-                SameTrackHandling::AllowAny => true,
-                SameTrackHandling::AllowVariants => {
-                    // Track is usable if there's at least one variant not yet used
-                    let used = per_cup_usage.used_variants(&t.folder);
-                    let available = allowed_variants(&t.folder, scan, opts);
-                    available.iter().any(|v| !used.contains(v))
-                }
-            }
-        }).collect();
+        let candidates: Vec<&RandomizedTrack> = resolved
+            .iter()
+            .filter(|track| track_is_available_for_cup(&track.folder, scan, opts, per_cup_usage))
+            .collect();
 
-        // Fallback: if no candidates (all tracks used/exhausted), allow any
+        // Fallback: if no candidates remain, allow any track so generation
+        // still produces the requested number of stages.
         let candidates = if candidates.is_empty() {
             resolved.iter().collect::<Vec<_>>()
         } else {
@@ -437,6 +448,7 @@ fn build_user_defined_stages(
     scan: &ScanResult,
     opts: &CupSpecState,
     cross_cup_usage: &mut CupUsage,
+    per_cup_usage: &mut CupUsage,
     laps_min: u32,
     laps_max: u32,
     rng: &mut Rng,
@@ -445,7 +457,7 @@ fn build_user_defined_stages(
 
     for spec in stage_specs.iter().take(16) {
         // 1. Select track
-        let track_folder = select_track_for_stage(spec, resolved, scan, rng);
+        let track_folder = select_track_for_stage(spec, resolved, scan, opts, per_cup_usage, rng);
         let folder = match &track_folder {
             Some(f) => f.clone(),
             None => continue,
@@ -454,6 +466,7 @@ fn build_user_defined_stages(
         // 2. Determine variant
         let variant = resolve_user_variant(spec, &folder, scan, opts, cross_cup_usage, rng);
 
+        per_cup_usage.record(&folder, variant);
         cross_cup_usage.record(&folder, variant);
 
         // Laps: use per-stage range if specified, else fall back to cup-level range
@@ -475,13 +488,19 @@ fn select_track_for_stage(
     spec: &UserStageSpec,
     resolved: &[RandomizedTrack],
     scan: &ScanResult,
+    opts: &CupSpecState,
+    per_cup_usage: &CupUsage,
     rng: &mut Rng,
 ) -> Option<String> {
     // Slot-based selection: "slot:N" maps directly to resolved[N]
     if let Some(slot_str) = spec.source_pool.strip_prefix("slot:") {
         if let Ok(idx) = slot_str.parse::<usize>() {
             if idx < resolved.len() {
-                return Some(resolved[idx].folder.clone());
+                let track = &resolved[idx];
+                if track_is_available_for_cup(&track.folder, scan, opts, per_cup_usage) {
+                    return Some(track.folder.clone());
+                }
+                return None;
             }
         }
         // Out-of-range or malformed slot — fall through to random
@@ -491,16 +510,26 @@ fn select_track_for_stage(
         && !spec.source_pool.starts_with(|c: char| c.is_ascii_digit())
     {
         if resolved.iter().any(|t| t.folder.eq_ignore_ascii_case(&spec.source_pool)) {
-            return Some(spec.source_pool.clone());
+            if track_is_available_for_cup(&spec.source_pool, scan, opts, per_cup_usage) {
+                return Some(spec.source_pool.clone());
+            }
+            return None;
         }
         // Not in resolved list — fall through to random
     }
 
     // Difficulty pool filter ("1".."4")
     let candidates: Vec<&RandomizedTrack> = if let Ok(diff) = spec.source_pool.parse::<i32>() {
-        resolved.iter().filter(|t| t.difficulty == diff).collect()
+        resolved
+            .iter()
+            .filter(|t| t.difficulty == diff)
+            .filter(|t| track_is_available_for_cup(&t.folder, scan, opts, per_cup_usage))
+            .collect()
     } else {
-        resolved.iter().collect()
+        resolved
+            .iter()
+            .filter(|t| track_is_available_for_cup(&t.folder, scan, opts, per_cup_usage))
+            .collect()
     };
 
     // If reverse is forced true, prefer tracks with has_reversed=true
@@ -702,7 +731,8 @@ pub fn generate_cups(
                 // UserDefined mode: guarantee_first_normal is auto-disabled per spec
                 build_user_defined_stages(
                     stage_specs, resolved_tracks, scan, cup_state,
-                    &mut cross_cup_usage, laps_min, laps_max, rng,
+                    &mut cross_cup_usage, &mut per_cup_usage,
+                    laps_min, laps_max, rng,
                 )
             }
         };
@@ -790,6 +820,8 @@ pub fn make_default_cup_spec_rust(index: usize) -> CupSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scanner::{InstallType, Track};
+    use std::collections::HashSet;
 
     #[test]
     fn pad_points_always_returns_the_extended_table_length() {
@@ -857,5 +889,131 @@ mod tests {
         let stock = vec![Some(test_car("stock_car"))];
 
         assert_eq!(resolve_cup_opponents(Some(&cup_spec), &stock, &[]), None);
+    }
+
+    fn test_cup_state(same_track_handling: SameTrackHandling) -> CupSpecState {
+        CupSpecState {
+            enabled: true,
+            stage_mode: CupStageMode::Random,
+            guarantee_first_normal: true,
+            same_track_handling,
+            allow_reverse: true,
+            allow_mirror: true,
+            allow_reverse_mirror: true,
+            num_cars: 8,
+            num_tries: 3,
+            per_race_required_place: 3,
+            overall_required_place: 1,
+            points_table: default_points_table(),
+            num_laps_min: 2,
+            num_laps_max: 8,
+            num_stages_min: 3,
+            num_stages_max: 6,
+            cups: vec![],
+        }
+    }
+
+    fn test_scan_with_reversed_tracks(folders: &[&str]) -> ScanResult {
+        ScanResult {
+            install_type: InstallType::Classic,
+            cars: None,
+            tracks: Some(
+                folders
+                    .iter()
+                    .map(|folder| Track {
+                        folder_name: (*folder).to_string(),
+                        name: (*folder).to_string(),
+                        has_reversed: true,
+                        track_type: 0,
+                        difficulty: 1,
+                        has_valid_file: true,
+                    })
+                    .collect(),
+            ),
+            content_packs: None,
+        }
+    }
+
+    fn test_randomized_tracks(folders: &[&str]) -> Vec<RandomizedTrack> {
+        folders
+            .iter()
+            .map(|folder| RandomizedTrack {
+                folder: (*folder).to_string(),
+                difficulty: 1,
+                obtain: 0,
+                custom_unlock: None,
+            })
+            .collect()
+    }
+
+    fn test_random_stage_specs(count: usize) -> Vec<UserStageSpec> {
+        (0..count)
+            .map(|_| UserStageSpec {
+                source_pool: "Random".to_string(),
+                num_laps: Some(5),
+                num_laps_min: None,
+                num_laps_max: None,
+                is_reverse: Some(true),
+                is_mirror: Some(true),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn random_stages_keep_the_fallback_when_the_pool_is_exhausted() {
+        let tracks = test_randomized_tracks(&["track_a", "track_b", "track_c", "track_d", "track_e"]);
+        let scan = test_scan_with_reversed_tracks(&["track_a", "track_b", "track_c", "track_d", "track_e"]);
+        let options = test_cup_state(SameTrackHandling::Forbid);
+        let mut cross_cup_usage = CupUsage::new();
+        let mut per_cup_usage = CupUsage::new();
+        let mut rng = Rng::new();
+
+        let stages = build_random_stages(
+            &tracks,
+            &scan,
+            &options,
+            &mut cross_cup_usage,
+            &mut per_cup_usage,
+            6,
+            2,
+            2,
+            &mut rng,
+        );
+
+        assert_eq!(stages.len(), 6);
+        assert_eq!(
+            stages.iter().map(|stage| stage.track_folder.as_str()).collect::<HashSet<_>>().len(),
+            5
+        );
+    }
+
+    #[test]
+    fn user_defined_random_stages_respect_forbid() {
+        let folders = ["track_a", "track_b", "track_c", "track_d", "track_e"];
+        let tracks = test_randomized_tracks(&folders);
+        let scan = test_scan_with_reversed_tracks(&folders);
+        let options = test_cup_state(SameTrackHandling::Forbid);
+        let mut cross_cup_usage = CupUsage::new();
+        let mut per_cup_usage = CupUsage::new();
+        let mut rng = Rng::new();
+
+        let stages = build_user_defined_stages(
+            &test_random_stage_specs(5),
+            &tracks,
+            &scan,
+            &options,
+            &mut cross_cup_usage,
+            &mut per_cup_usage,
+            2,
+            2,
+            &mut rng,
+        );
+
+        assert_eq!(stages.len(), 5);
+        assert!(stages.iter().all(|stage| stage.is_reverse && stage.is_mirror));
+        assert_eq!(
+            stages.iter().map(|stage| stage.track_folder.as_str()).collect::<HashSet<_>>().len(),
+            stages.len()
+        );
     }
 }
