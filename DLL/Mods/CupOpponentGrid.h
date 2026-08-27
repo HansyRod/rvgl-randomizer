@@ -23,5 +23,6 @@ namespace Randomizer {
     void Hook_Cup_GenerateOpponentGrid();
 
     bool IsExtendedCupOpponentGrid(CupProfile* cup);
+    bool IsCupWithFixedOpponents();
 
 } // namespace Randomizer

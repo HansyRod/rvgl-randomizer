@@ -265,16 +265,33 @@ void ApplyThirtyCarCupGrid() {
     g_cupState.gridApplied = true;
 }
 
-void MoveThirtyCarCupPlayerToBackAfterRacePositions() {
-    if (!IsThirtyCarCupActive() ||
-        !g_cupState.gridApplied ||
-        g_cupState.playerMovedToBack ||
-        g_cupState.activeCup == nullptr) {
+void MoveCupPlayerToBackAfterRacePositions() {
+    const bool expandedCup = IsThirtyCarCupActive();
+    const bool fixedOpponentCup = IsCupWithFixedOpponents();
+    if ((!expandedCup && !fixedOpponentCup) || g_cupState.playerMovedToBack) {
         return;
     }
 
-    const int targetCarCount = std::clamp(g_cupState.activeCup->numCars, 0, kMaxCupCars);
-    if (MoveRuntimeCarsToBackAfterRacePositions(g_cupState.runtimeCarIds, targetCarCount)) {
+    std::array<int, kMaxCupCars> runtimeCarIds = {};
+    runtimeCarIds.fill(-1);
+    int targetCarCount = 0;
+
+    if (expandedCup) {
+        if (!g_cupState.gridApplied || g_cupState.activeCup == nullptr) {
+            return;
+        }
+
+        targetCarCount = std::clamp(g_cupState.activeCup->numCars, 0, kMaxCupCars);
+        runtimeCarIds = g_cupState.runtimeCarIds;
+    }
+    else {
+        targetCarCount = std::clamp(GetParticipantCount(), 0, kMaxCupCars);
+        for (int carId = 0; carId < targetCarCount; ++carId) {
+            runtimeCarIds[carId] = carId;
+        }
+    }
+
+    if (MoveRuntimeCarsToBackAfterRacePositions(runtimeCarIds, targetCarCount)) {
         g_cupState.playerMovedToBack = true;
     }
 }

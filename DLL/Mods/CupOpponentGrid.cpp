@@ -336,6 +336,11 @@ bool IsExtendedCupOpponentGrid(CupProfile* cup) {
     return cup != nullptr && cup->numCars > kNativeCupCars && cup->numCars <= kMaxCupCars;
 }
 
+bool IsCupWithFixedOpponents() {
+    const RandomizedCup* cupConfig = GetCupConfigByCupID(GetSelectedCupIndexFromSettings());
+    return HasConfiguredOpponents(cupConfig);
+}
+
 void Hook_Cup_GenerateOpponentGrid() {
     const int selectedCupIndex = GetSelectedCupIndexFromSettings();
     CupProfile* cup = GetCupProfileByCupID(selectedCupIndex);

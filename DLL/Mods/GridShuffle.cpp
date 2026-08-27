@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "30CarMod.h"
-#include "CupHooks.h"
+#include "CupOpponentGrid.h"
 #include "RandomizerState.h"
 #include "RVGLMemory.h"
 #include "RVGLStructs.h"
@@ -14,9 +14,6 @@
 namespace Randomizer {
 
 namespace {
-
-constexpr int kNativeCupCars = vanillaMaxCarCount;
-constexpr int kMaxGridCars = randomizerMaxCarCount;
 
 struct GridSlot {
     Vec3 position;
@@ -74,10 +71,17 @@ void ShuffleGridCars(const std::vector<int>& carIds) {
 void ApplyStartingGridShuffle() {
     std::vector<int> gridCarIds;
     const ThirtyCarRuntimeState& state = GetRandomizerContext().thirtyCarState;
+    const bool expandedCup = IsThirtyCarCupActive();
+    const bool expandedSingleRace = !expandedCup && state.gridApplied;
+    const bool fixedOpponentCup = IsCupWithFixedOpponents();
+
+    if (!expandedSingleRace && !expandedCup && !fixedOpponentCup) {
+        return;
+    }
 
     // Expanded single races/knockouts may spawn cars with runtime IDs that do
-    // not match their participant indexes; expanded cups retain index-based IDs.
-    if (!IsThirtyCarCupActive() && state.gridApplied) {
+    // not match their participant indexes; cups retain index-based IDs.
+    if (expandedSingleRace) {
         gridCarIds.reserve(randomizerMaxCarCount);
         for (const int runtimeCarId : state.runtimeCarIds) {
             if (runtimeCarId >= 0) {

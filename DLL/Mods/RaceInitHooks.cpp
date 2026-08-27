@@ -104,7 +104,7 @@ bool Hook_AddParticipantAndCount(int carType, int spawnType, int carID, int skin
 void Hook_UpdateRacePositions() {
     Orig_UpdateRacePositions();
     MovePlayersToBackAfterRacePositions();
-    MoveThirtyCarCupPlayerToBackAfterRacePositions();
+    MoveCupPlayerToBackAfterRacePositions();
 }
 
 
