@@ -104,7 +104,8 @@ export default function GenerationTab({errors}) {
       const filteredSpecState = {
         ...carsSpecState,
         stockCars: carsSpecState.includeStockCars === false ? [] : carsSpecState.stockCars,
-        dcCars: carsSpecState.includeDcCars === false ? [] : carsSpecState.dcCars
+        dcCars: carsSpecState.includeDcCars === false ? [] : carsSpecState.dcCars,
+        extraCars: carsSpecState.extraCars || []
       };
 
       const showRatingOptions = carOptions?.unlockMode === "random" || carOptions?.unlockMode === "randomRatings";
