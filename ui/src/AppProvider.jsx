@@ -10,7 +10,7 @@ import {
   makeDefaultTrackSpec,
 } from "./utils/constants";
 import { makeDefaultCupSpecState } from "./configure/cupSpec/CupSpecTab";
-const DEFAULT_STATE = {
+export const DEFAULT_STATE = {
   app: {
     isLoading: true,
     theme: "dark",
@@ -33,7 +33,8 @@ const DEFAULT_STATE = {
       includeStockCars: true,
       includeDcCars: true,
       stockCars: makeDefaultCarsSpec(STOCK_CARS),
-      dcCars: makeDefaultCarsSpec(DC_CARS)
+      dcCars: makeDefaultCarsSpec(DC_CARS),
+      extraCars: []
     },
     trackSpecState: {
       includeTracks: true,

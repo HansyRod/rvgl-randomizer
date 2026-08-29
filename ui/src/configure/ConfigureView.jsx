@@ -6,6 +6,7 @@ import GlobalOptionsTab from "./globalOptions/GlobalOptionsTab";
 import CarOptionsTab from "./carOptions/CarOptionsTab";
 import StockCarsFullSpecTab from "./carSpec/StockCarsFullSpecTab";
 import DcCarsFullSpecTab from "./carSpec/DcCarsFullSpecTab";
+import ExtraCarsFullSpecTab from "./carSpec/ExtraCarsFullSpecTab";
 import TrackOptionsTab from "./trackOptions/TrackOptionsTab";
 import TrackSpecTab from "./trackOptions/TrackSpecTab";
 import CupSpecTab from "./cupSpec/CupSpecTab";
@@ -17,6 +18,7 @@ const CONFIGURE_TABS = [
   { id: "car-options",      label: "Car options",            group: "Cars",   disabledKey: null },
   { id: "stock-cars-spec",  label: "Stock specification",    group: "Cars",   disabledKey: "includeStockCars" },
   { id: "dc-cars-spec",     label: "DC specification",       group: "Cars",   disabledKey: "includeDcCars" },
+  { id: "extra-cars-spec",  label: "Extras specification",   group: "Cars",   disabledKey: null },
   { id: "track-options",    label: "Track options",          group: "Tracks", disabledKey: null },
   { id: "track-spec",       label: "Track specification",    group: "Tracks", disabledKey: "includeTracks" },
   { id: "cup-spec",         label: "Cup Settings",        group: "Cups",   disabledKey: null },
@@ -105,6 +107,7 @@ export default function ConfigureView() {
         {activeTab === "car-options"     && <CarOptionsTab />}
         {activeTab === "stock-cars-spec" && <div style={{ padding: "1rem" }}><StockCarsFullSpecTab /></div>}
         {activeTab === "dc-cars-spec"    && <div style={{ padding: "1rem" }}><DcCarsFullSpecTab /></div>}
+        {activeTab === "extra-cars-spec" && <div style={{ padding: "1rem" }}><ExtraCarsFullSpecTab /></div>}
         {activeTab === "track-options"   && <TrackOptionsTab />}
         {activeTab === "track-spec"      && <div style={{ padding: "1rem" }}><TrackSpecTab /></div>}
         {activeTab === "cup-spec"        && <div style={{ padding: "1rem" }}><CupSpecTab /></div>}

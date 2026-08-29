@@ -18,6 +18,7 @@ function normalizeCarsSpecState(carsSpecState) {
     ...carsSpecState,
     stockCars: normalizeSpecRows(carsSpecState.stockCars),
     dcCars: normalizeSpecRows(carsSpecState.dcCars),
+    extraCars: normalizeSpecRows(carsSpecState.extraCars),
   };
 }
 

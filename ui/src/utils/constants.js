@@ -281,7 +281,11 @@ export function makeDefaultTrackSpec(ids) {
 }
 
 export function makeDefaultCarsSpec(ids) {
-  return ids.map(id => ({
+  return ids.map(makeDefaultCarSpec);
+}
+
+export function makeDefaultCarSpec(id) {
+  return {
     id,
     sourcePool: "Full Random",
     sourceRating: "Random",
@@ -289,5 +293,5 @@ export function makeDefaultCarsSpec(ids) {
     attrRating: "Random",
     attrObtain: "Random",
     customUnlock: null,
-  }));
+  };
 }
