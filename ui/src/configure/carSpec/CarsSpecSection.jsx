@@ -1,6 +1,6 @@
 import { useState, useMemo, memo, useCallback } from "react";
 import "./CarsFullSpecTab.css";
-import { RATINGS_LIST, OBTAINS_LIST } from "../../utils/constants";
+import { RATINGS_LIST, OBTAINS_LIST, makeDefaultCarSpec } from "../../utils/constants";
 import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
 import { getPlayableCarsFromScan, getPlayableTracksFromScan, indexByFolder } from "../../utils/scanContent";
 import CarSpecRow from "./CarSpecRow";
@@ -10,7 +10,7 @@ import { useAppContext } from "../../AppProvider";
 
 const SpecRow = memo(CarSpecRow);
 
-export default function CarsSpecSection({title, categoryKey, includeKey, defaultCarsList}) {
+export default function CarsSpecSection({title, categoryKey, includeKey, defaultCarsList, isDynamic = false}) {
 
   const { state, updateCategoryCtx } = useAppContext();
 
@@ -91,7 +91,8 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
     return map;
   }, [availableCars, activePacks, scanResult]);
 
-  const isEnabled = carsSpecState[includeKey] !== false;
+  const isEnabled = includeKey ? carsSpecState[includeKey] !== false : true;
+  const categoryRows = carsSpecState?.[categoryKey] || [];
   const startingCarsActive =
     categoryKey === "stockCars" &&
     carOptions?.enableStartingCars &&
@@ -134,6 +135,29 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
 
     updateCategoryCtx("configure", { carsSpecState: { ...carsSpecState, [categoryKey]: newList } });
   };
+
+  const addExtraCar = () => {
+    const existingIds = new Set(categoryRows.map(row => row.id));
+    let nextIndex = categoryRows.length + 1;
+    while (existingIds.has(`extra-${nextIndex}`)) nextIndex += 1;
+    const nextRow = makeDefaultCarSpec(`extra-${nextIndex}`);
+    updateCategoryCtx("configure", {
+      carsSpecState: {
+        ...carsSpecState,
+        [categoryKey]: [...categoryRows, nextRow],
+      },
+    });
+  };
+
+  const removeExtraCar = useCallback((index) => {
+    const nextRows = categoryRows.filter((_, rowIndex) => rowIndex !== index);
+    updateCategoryCtx("configure", {
+      carsSpecState: {
+        ...carsSpecState,
+        [categoryKey]: nextRows,
+      },
+    });
+  }, [carsSpecState, categoryKey, categoryRows, updateCategoryCtx]);
 
   const updateRow = useCallback((index, updates) => {
     const newCategory = [...carsSpecState[categoryKey]];
@@ -210,7 +234,7 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
         <div className="cars-spec-section">
           <h2>{title}</h2>
           <div className="spec-grid">
-            <div className="spec-grid-header">
+            <div className={`spec-grid-header${isDynamic ? " has-remove" : ""}`}>
               <div style={{ display: "flex", alignItems: "center" }}>Target Slot</div>
               <div className="column-group">
                 <div className="column-group-title">Car Choice</div>
@@ -227,8 +251,9 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
                   <div style={{ flex: 1 }}>Obtain</div>
                 </div>
               </div>
+              {isDynamic && <div />}
             </div>
-            {carsSpecState[categoryKey].map((row, index) => (
+            {categoryRows.map((row, index) => (
               // Starting car locks only apply to stock slots in the configured range.
               (() => {
                 const isStartingSlot = startingCount > 0 && index < startingCount;
@@ -248,11 +273,17 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
                 lockStartingPool={isStartingSlot && !!carOptions?.enableStartingCarsPool}
                 lockStartingRating={isStartingSlot && !!carOptions?.enableStartingCarsRating}
                 lockStartingObtain={isStartingSlot}
+                onRemove={isDynamic ? removeExtraCar : undefined}
               />
                 );
               })()
             ))}
           </div>
+          {isDynamic && (
+            <button type="button" className="primary add-car-slot-button" onClick={addExtraCar}>
+              Add Car Slot
+            </button>
+          )}
         </div>
       </div>
     </div>

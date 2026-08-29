@@ -69,10 +69,38 @@
   border-color: var(--accent);
 }
 
+.spec-grid-header.has-remove,
+.spec-grid-row.has-remove {
+  grid-template-columns: 120px 4fr 3fr 22px;
+}
+
 .car-id {
   font-weight: bold;
   font-family: monospace;
   font-size: 0.95rem
+}
+
+.car-remove-button {
+  width: 22px;
+  flex-shrink: 0;
+  padding: 0 0.3rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.car-remove-button:hover {
+  color: #e05050;
+  border-color: transparent;
+}
+
+.add-car-slot-button {
+  display: block;
+  margin-left: auto;
+  margin-top: 0.75rem;
 }
 
 .column-group {

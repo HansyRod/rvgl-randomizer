@@ -4,7 +4,7 @@ import { getCustomUnlockSelectionLabel, isCustomUnlockMethod } from "../../utils
 const CURRENT_CUSTOM_UNLOCK = "Current Custom Unlock";
 
 export default function CarSpecRow({index, rowState, updateRow, carByFolder, sourcePoolOptionsJSX, poolValidOptions, carOptions, onOpenSearch,
-  onOpenCustomUnlock, trackByFolder, lockStartingPool, lockStartingRating, lockStartingObtain}) {
+  onOpenCustomUnlock, trackByFolder, lockStartingPool, lockStartingRating, lockStartingObtain, onRemove}) {
   if (!rowState) return null;
 
   const id = rowState.id;
@@ -36,7 +36,7 @@ export default function CarSpecRow({index, rowState, updateRow, carByFolder, sou
   const customUnlockAttrObtainOptions = ATTR_OBTAINS_LIST.filter(opt => isCustomUnlockMethod(opt.val));
 
   return (
-    <div className="spec-grid-row">
+    <div className={`spec-grid-row${onRemove ? " has-remove" : ""}`}>
       <div className="car-id">{id}</div>
       <div className="specs-horizontal">
         <div className="field-group">
@@ -142,6 +142,17 @@ export default function CarSpecRow({index, rowState, updateRow, carByFolder, sou
           </select>
         </div>
       </div>
+      {onRemove && (
+        <button
+          type="button"
+          className="car-remove-button"
+          onClick={() => onRemove(index)}
+          aria-label={`Remove ${id}`}
+          title="Remove car slot"
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
 };
