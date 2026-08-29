@@ -50,6 +50,7 @@ export const RANDOM_STOCKS_PRESET = {
       includeStockCars: true,
       includeDcCars: false,
       dcCars: [],
+      extraCars: [],
       stockCars: [
         {
           attrObtain: "0",

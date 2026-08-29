@@ -137,6 +137,7 @@ export const BALANCED_PRESET = {
           sourceRating: "4"
         }
       ],
+      extraCars: [],
       stockCars: [
         {
           attrObtain: "0",

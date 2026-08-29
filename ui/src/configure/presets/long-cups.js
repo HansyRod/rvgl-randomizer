@@ -163,6 +163,7 @@ export const LONG_CUPS_PRESET = {
           sourceRating: "5"
         }
       ],
+      extraCars: [],
       stockCars: [
         {
           attrObtain: "0",

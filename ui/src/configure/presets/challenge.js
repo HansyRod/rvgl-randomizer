@@ -162,6 +162,7 @@ export const CHALLENGE_PRESET = {
           sourceRating: "5"
         }
       ],
+      extraCars: [],
       stockCars: [
         {
           attrObtain: "0",

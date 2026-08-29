@@ -192,6 +192,7 @@ export const ALL_ROOKIES_PRESET = {
           sourceRating: "Random"
         }
       ],
+      extraCars: [],
       stockCars: [
         {
           attrObtain: "0",

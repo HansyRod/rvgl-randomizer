@@ -32,7 +32,8 @@ export const FULL_RANDOM_PRESET = {
       includeStockCars: true,
       includeDcCars: true,
       stockCars: makeDefaultCarsSpec(STOCK_CARS),
-      dcCars: makeDefaultCarsSpec(DC_CARS)
+      dcCars: makeDefaultCarsSpec(DC_CARS),
+      extraCars: []
     },
     cupSpecState: {
       ...makeDefaultCupSpecState(),

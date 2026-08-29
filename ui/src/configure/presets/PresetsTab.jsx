@@ -13,6 +13,7 @@ import {
   makeDefaultTrackSpec,
 } from "../../utils/constants";
 import { makeDefaultCupSpecState } from "../cupSpec/CupSpecTab";
+import { normalizeConfigureContext } from "../../utils/configureContext";
 
 // ─── Preset definitions ───────────────────────────────────────────────────────
 // Each preset contains the exact configure sub-state that will be applied when
@@ -34,6 +35,7 @@ function makeDefaultCustomConfigure() {
       includeDcCars: true,
       stockCars: makeDefaultCarsSpec(STOCK_CARS),
       dcCars: makeDefaultCarsSpec(DC_CARS),
+      extraCars: [],
     },
     trackSpecState: {
       includeTracks: true,
@@ -146,9 +148,10 @@ export default function PresetsTab() {
   // Apply a named preset: overwrite all configure option slices and record the
   // selected preset id so the sidebar knows to lock the other tabs.
   function handleSelectPreset(preset) {
+    const nextConfigure = normalizeConfigureContext(preset.configure);
     updateCategoryCtx("configure", {
       preset: preset.id,
-      ...preset.configure,
+      ...nextConfigure,
     });
   }
 
@@ -169,7 +172,7 @@ export default function PresetsTab() {
 
     updateCategoryCtx("configure", {
       preset: "custom",
-      ...nextConfigure,
+      ...normalizeConfigureContext(nextConfigure),
     });
     setIsCustomDialogOpen(false);
   }
