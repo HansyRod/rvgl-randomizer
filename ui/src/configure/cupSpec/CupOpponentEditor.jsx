@@ -32,7 +32,9 @@ function getUnavailableReferenceLabel(reference) {
   }
 
   if (reference?.type === "slot") {
-    const category = reference.category === "dc" ? "DC" : "Stock";
+    const category = reference.category === "dc" ? "DC"
+      : reference.category === "extra" ? "Extra"
+        : "Stock";
     return `Unavailable ${category} Slot ${(reference.index ?? 0) + 1}`;
   }
 

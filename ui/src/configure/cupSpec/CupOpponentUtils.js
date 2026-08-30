@@ -18,6 +18,13 @@ export const CUP_OPPONENT_CATEGORIES = [
     includeKey: "includeDcCars",
     defaultFolders: DC_CARS,
   },
+  {
+    key: "extra",
+    label: "Extra",
+    specKey: "extraCars",
+    includeKey: null,
+    defaultFolders: [],
+  },
 ];
 
 const RATING_COUNT = RATING_LABELS.length;
@@ -111,8 +118,10 @@ export function getCupOpponentCandidates({
 
   for (const category of CUP_OPPONENT_CATEGORIES) {
     const isStockMode = category.key === "dc" && isEffectiveStockCarsMode(scanResult, preset);
-    const isCategoryRandomized =
-      carsSpecState?.[category.includeKey] !== false && !isStockMode;
+    const rows = carsSpecState?.[category.specKey] || [];
+    const isCategoryRandomized = category.key === "extra"
+      ? rows.length > 0
+      : carsSpecState?.[category.includeKey] !== false && !isStockMode;
 
     if (!isCategoryRandomized) {
       // When a category is not randomized, its stock/DC roster remains in
@@ -130,7 +139,6 @@ export function getCupOpponentCandidates({
       continue;
     }
 
-    const rows = carsSpecState?.[category.specKey] || [];
     rows.forEach((row, index) => {
       const specificCar = isSpecificCarPool(row?.sourcePool)
         ? getCarByFolder(availableCars, row.sourcePool)
