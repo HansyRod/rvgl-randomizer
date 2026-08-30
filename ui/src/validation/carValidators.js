@@ -10,6 +10,7 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
 
   const includeStock = carsSpecState?.includeStockCars !== false;
   const includeDC = carsSpecState?.includeDcCars !== false;
+  const extraRows = carsSpecState?.extraCars || [];
 
   const allCars = getAllCarsFromScan(scanResult);
   const allFolders = new Set(allCars.map(c => c.folderName.toLowerCase()));
@@ -109,9 +110,14 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
       availableTrackFolders,
     });
   }
+  validateCustomUnlockRows(extraRows, errors, {
+    scope: "carSpec",
+    rowLabelPrefix: "Extra car",
+    availableTrackFolders,
+  });
 
   // No car randomization, don't run the remaining checks
-  if (!includeStock && !includeDC) {
+  if (!includeStock && !includeDC && extraRows.length === 0) {
     return { errors, warnings, infos };
   }
 
@@ -150,7 +156,8 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
   // Get list of specific cars from the configuration
   const specificCars = [
     ...(includeStock ? (carsSpecState?.stockCars || []) : STOCK_CARS.map((c) => { return { sourcePool: c } })),
-    ...(includeDC && !isStockMode ? (carsSpecState?.dcCars || []) : (!isStockMode ? DC_CARS.map((c) => { return { sourcePool: c } }) : []))
+    ...(includeDC && !isStockMode ? (carsSpecState?.dcCars || []) : (!isStockMode ? DC_CARS.map((c) => { return { sourcePool: c } }) : [])),
+    ...extraRows,
   ].filter((row) => {
     return (
       row.sourcePool &&
@@ -174,7 +181,7 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
   });
 
   if (duplicateCars.size > 0) {
-    warnings.push({
+    errors.push({
       id: "cars_duplicate_specific_refs",
       scope: "carOptions",
       message: `Some cars are present in multiple slots: ${formatValidationList(Array.from(duplicateCars))}.`
@@ -184,7 +191,8 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
   // Check distribution constraints are satisfiable
   const totalSlots =
     (includeStock ? (carsSpecState?.stockCars?.length ?? STOCK_CARS.length) : 0) +
-    (includeDC && !isStockMode ? (carsSpecState?.dcCars?.length ?? DC_CARS.length) : 0);
+    (includeDC && !isStockMode ? (carsSpecState?.dcCars?.length ?? DC_CARS.length) : 0) +
+    extraRows.length;
 
   const checkDistribution = (distMap, label) => {
     const ratings = Object.entries(distMap);
