@@ -172,18 +172,24 @@ pub fn generate_result(
     } else {
         Vec::new()
     };
+    let mut final_specs_extra = cars_spec_state.extra_cars.clone();
 
     // Identify slots that need a random pool rating.
-    // Distribution constraints are global across stock + DC.
+    // Distribution constraints are global across stock + DC + Extra.
     let flexible_stock_indices: Vec<usize> = final_specs_stock.iter().enumerate()
         .filter(|(_, s)| s.source_rating == "Random" && !is_specific_car_pool(&s.source_pool))
         .map(|(i, _)| i).collect();
     let flexible_dc_indices: Vec<usize> = final_specs_dc.iter().enumerate()
         .filter(|(_, s)| s.source_rating == "Random" && !is_specific_car_pool(&s.source_pool))
         .map(|(i, _)| i).collect();
+    let flexible_extra_indices: Vec<usize> = final_specs_extra.iter().enumerate()
+        .filter(|(_, s)| s.source_rating == "Random" && !is_specific_car_pool(&s.source_pool))
+        .map(|(i, _)| i).collect();
 
     // Allocate source ratings (Pool Distribution) globally.
-    let total_flexible = flexible_stock_indices.len() + flexible_dc_indices.len();
+    let total_flexible = flexible_stock_indices.len()
+        + flexible_dc_indices.len()
+        + flexible_extra_indices.len();
     let pool_ratings_all = allocate_ratings(
         total_flexible,
         &opts.pool_rating_distributions,
@@ -202,11 +208,17 @@ pub fn generate_result(
             final_specs_dc[*i].source_rating = r.to_string();
         }
     }
+    for i in &flexible_extra_indices {
+        if let Some(r) = pr_iter.next() {
+            final_specs_extra[*i].source_rating = r.to_string();
+        }
+    }
 
     // 2. Resolve car list (constrained slots first)
-    let (stock_resolved, dc_resolved) = resolve_car_list(
+    let (stock_resolved, dc_resolved, extra_resolved) = resolve_car_list(
         &final_specs_stock,
         &final_specs_dc,
+        &final_specs_extra,
         &all_cars,
         &scan_result,
         &mut rng,
@@ -219,9 +231,13 @@ pub fn generate_result(
         .filter(|(_, s)| s.attr_rating == "Random").map(|(i, _)| i).collect();
     let random_attr_dc_indices: Vec<usize> = final_specs_dc.iter().enumerate()
         .filter(|(_, s)| s.attr_rating == "Random").map(|(i, _)| i).collect();
+    let random_attr_extra_indices: Vec<usize> = final_specs_extra.iter().enumerate()
+        .filter(|(_, s)| s.attr_rating == "Random").map(|(i, _)| i).collect();
 
-    // Attribute rating distributions are also global across stock + DC.
-    let total_random_attr = random_attr_stock_indices.len() + random_attr_dc_indices.len();
+    // Attribute rating distributions are also global across stock + DC + Extra.
+    let total_random_attr = random_attr_stock_indices.len()
+        + random_attr_dc_indices.len()
+        + random_attr_extra_indices.len();
     let allocated_attr_all = allocate_ratings(
         total_random_attr,
         &opts.attr_rating_distributions,
@@ -240,6 +256,12 @@ pub fn generate_result(
     for i in &random_attr_dc_indices {
         if let Some(r) = ar_iter.next() {
             attr_dc_map.insert(*i, r);
+        }
+    }
+    let mut attr_extra_map: std::collections::HashMap<usize, i32> = std::collections::HashMap::new();
+    for i in &random_attr_extra_indices {
+        if let Some(r) = ar_iter.next() {
+            attr_extra_map.insert(*i, r);
         }
     }
 
@@ -267,6 +289,19 @@ pub fn generate_result(
             }
             dc_cars.push(build_randomized_car(car, &spec, &mut rng, &opts));
             dc_car_specs.push(spec);
+        }
+    }
+
+    let mut extra_cars = Vec::new();
+    let mut extra_car_specs = Vec::new();
+    for i in 0..final_specs_extra.len() {
+        if let Some(car) = &extra_resolved[i] {
+            let mut spec = final_specs_extra[i].clone();
+            if let Some(&r) = attr_extra_map.get(&i) {
+                spec.attr_rating = r.to_string();
+            }
+            extra_cars.push(build_randomized_car(car, &spec, &mut rng, &opts));
+            extra_car_specs.push(spec);
         }
     }
 
@@ -326,6 +361,7 @@ pub fn generate_result(
 
     apply_car_custom_unlocks(&mut stock_cars, &stock_car_specs, &cup_tracks, &opts, "Stock car", &mut rng)?;
     apply_car_custom_unlocks(&mut dc_cars, &dc_car_specs, &cup_tracks, &opts, "DC car", &mut rng)?;
+    apply_car_custom_unlocks(&mut extra_cars, &extra_car_specs, &cup_tracks, &opts, "Extra car", &mut rng)?;
 
     // Phase 3: Cup generation (depends on resolved track list)
     let cup_state = cup_spec_state.unwrap_or_else(|| CupSpecState {
@@ -357,6 +393,7 @@ pub fn generate_result(
         &cup_tracks,
         &stock_resolved,
         &dc_resolved,
+        &extra_resolved,
         &scan_result,
         &mut rng,
         feature_opts.enable_30_car_mode,
@@ -386,6 +423,7 @@ pub fn generate_result(
 
     let mut generated_car_folders: Vec<String> = stock_cars.iter().map(|c| c.folder.clone()).collect();
     generated_car_folders.extend(dc_cars.iter().map(|c| c.folder.clone()));
+    generated_car_folders.extend(extra_cars.iter().map(|c| c.folder.clone()));
 
     let generated_track_folders: Vec<String> = tracks.iter().map(|t| t.folder.clone()).collect();
 
@@ -420,6 +458,7 @@ pub fn generate_result(
         },
         stock_cars,
         dc_cars,
+        extra_cars,
         tracks,
         cups,
     };

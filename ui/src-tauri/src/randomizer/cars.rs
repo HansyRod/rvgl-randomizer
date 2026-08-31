@@ -161,7 +161,7 @@ fn candidate_set_pool_only<'a>(
 // ============================================================================
 
 struct SlotWork {
-    category: &'static str, // "stock" | "dc"
+    category: &'static str, // "stock" | "dc" | "extra"
     index: usize,
     spec: CarSpec, // We'll use a modified spec with resolved ratings
 }
@@ -169,10 +169,11 @@ struct SlotWork {
 pub fn resolve_car_list(
     specs_stock: &[CarSpec],
     specs_dc: &[CarSpec],
+    specs_extra: &[CarSpec],
     all_cars: &[Car],
     scan: &ScanResult,
     rng: &mut Rng,
-) -> (Vec<Option<Car>>, Vec<Option<Car>>) {
+) -> (Vec<Option<Car>>, Vec<Option<Car>>, Vec<Option<Car>>) {
     // Build work items with current candidate counts
     let mut work: Vec<(SlotWork, usize)> = Vec::new();
 
@@ -184,14 +185,20 @@ pub fn resolve_car_list(
         let count = candidate_set(spec, all_cars, scan).len();
         work.push((SlotWork { category: "dc", index: i, spec: spec.clone() }, count));
     }
+    for (i, spec) in specs_extra.iter().enumerate() {
+        let count = candidate_set(spec, all_cars, scan).len();
+        work.push((SlotWork { category: "extra", index: i, spec: spec.clone() }, count));
+    }
 
-    // Sort: fewest candidates first, stable (keeps original order within same count)
+    // Sort: fewest candidates first, stable (keeps Stock -> DC -> Extra
+    // order when candidate counts are equal).
     work.sort_by_key(|(_, cnt)| *cnt);
 
     // Resolve slots
     let mut used_folders: HashSet<String> = HashSet::new();
     let mut stock_results: Vec<Option<Car>> = vec![None; specs_stock.len()];
     let mut dc_results: Vec<Option<Car>> = vec![None; specs_dc.len()];
+    let mut extra_results: Vec<Option<Car>> = vec![None; specs_extra.len()];
 
     for (slot, _) in &work {
         let candidates = candidate_set(&slot.spec, all_cars, scan);
@@ -228,11 +235,12 @@ pub fn resolve_car_list(
         match slot.category {
             "stock" => stock_results[slot.index] = chosen,
             "dc" => dc_results[slot.index] = chosen,
+            "extra" => extra_results[slot.index] = chosen,
             _ => {}
         }
     }
 
-    (stock_results, dc_results)
+    (stock_results, dc_results, extra_results)
 }
 
 // ============================================================================
@@ -386,4 +394,123 @@ pub fn allocate_ratings(
 
     rng.shuffle(&mut result);
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::scanner::{InstallType, ScanResult};
+
+    fn car(folder_name: &str, pool: Pool) -> Car {
+        Car {
+            folder_name: folder_name.to_string(),
+            name: folder_name.to_string(),
+            rating: 2,
+            obtain_method: 1,
+            is_system_car: false,
+            has_valid_file: true,
+            carbox_filename: None,
+            pool,
+        }
+    }
+
+    fn spec(id: &str, source_pool: &str) -> CarSpec {
+        CarSpec {
+            id: id.to_string(),
+            source_pool: source_pool.to_string(),
+            source_rating: "Random".to_string(),
+            source_obtain: "Random".to_string(),
+            attr_rating: "Unchanged".to_string(),
+            attr_obtain: "Unchanged".to_string(),
+            custom_unlock: None,
+        }
+    }
+
+    fn scan() -> ScanResult {
+        ScanResult {
+            install_type: InstallType::Classic,
+            cars: None,
+            tracks: None,
+            content_packs: None,
+        }
+    }
+
+    #[test]
+    fn extra_specific_assignment_reserves_a_car_before_a_broader_stock_slot() {
+        let cars = vec![
+            car("stock_a", Pool::Stock),
+            car("stock_b", Pool::Stock),
+            car("custom_a", Pool::Custom),
+        ];
+        let stock_specs = vec![spec("stock-1", "Full Random")];
+        let extra_specs = vec![spec("extra-1", "stock_a")];
+
+        let (stock, dc, extra) = resolve_car_list(
+            &stock_specs,
+            &[],
+            &extra_specs,
+            &cars,
+            &scan(),
+            &mut Rng::new(),
+        );
+
+        assert_eq!(extra[0].as_ref().map(|car| car.folder_name.as_str()), Some("stock_a"));
+        assert_ne!(stock[0].as_ref().map(|car| car.folder_name.as_str()), Some("stock_a"));
+        assert!(dc.is_empty());
+    }
+
+    #[test]
+    fn extra_specs_use_the_same_car_attribute_builder() {
+        let options = CarOptionsInput {
+            unlock_mode: "random".to_string(),
+            num_starting_cars: 0,
+            enable_starting_cars_pool: false,
+            starting_cars_pool: "Full Random".to_string(),
+            enable_starting_cars_rating: false,
+            starting_cars_rating: "Random".to_string(),
+            include_cheat_only: false,
+            include_stunt_arena: false,
+            include_starting_car: true,
+            include_championship: true,
+            include_time_trial: true,
+            include_practice_stars: true,
+            include_single_race: true,
+            include_specific_race_win: false,
+            include_specific_practice_star: false,
+            include_specific_time_trial: false,
+            include_race_win_count: false,
+            include_practice_star_count: false,
+            include_time_trial_count: false,
+            include_stunt_arena_star_count: false,
+            specific_race_win_track_count_min: 1,
+            specific_race_win_track_count_max: 1,
+            specific_practice_star_track_count_min: 1,
+            specific_practice_star_track_count_max: 1,
+            specific_time_trial_track_count_min: 1,
+            specific_time_trial_track_count_max: 1,
+            race_win_count_min: 1,
+            race_win_count_max: 14,
+            practice_star_count_min: 1,
+            practice_star_count_max: 14,
+            time_trial_count_min: 1,
+            time_trial_count_max: 14,
+            stunt_arena_star_count_min: 1,
+            stunt_arena_star_count_max: 20,
+            include_super_pro: true,
+            pool_rating_distributions: std::collections::HashMap::new(),
+            attr_rating_distributions: std::collections::HashMap::new(),
+        };
+        let extra = build_randomized_car(
+            &car("extra_a", Pool::Custom),
+            &spec("extra-1", "Custom"),
+            &mut Rng::new(),
+            &options,
+        );
+
+        assert_eq!(extra.folder, "extra_a");
+        assert_eq!(extra.rating, 2);
+        assert_eq!(extra.obtain, 1);
+        assert!(extra.selectable_player);
+        assert!(extra.selectable_cpu);
+    }
 }

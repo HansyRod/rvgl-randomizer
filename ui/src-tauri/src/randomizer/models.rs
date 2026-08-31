@@ -28,6 +28,8 @@ pub struct CarsSpecState {
     pub stock_cars: Vec<CarSpec>,
     #[serde(default)]
     pub dc_cars: Vec<CarSpec>,
+    #[serde(default)]
+    pub extra_cars: Vec<CarSpec>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -337,6 +339,8 @@ pub struct ConfigData {
     pub stock_cars: Vec<RandomizedCar>,
     #[serde(rename = "dcCars")]
     pub dc_cars: Vec<RandomizedCar>,
+    #[serde(rename = "extraCars")]
+    pub extra_cars: Vec<RandomizedCar>,
     pub tracks: Vec<RandomizedTrack>,
     pub cups: Vec<RandomizedCup>,
 }

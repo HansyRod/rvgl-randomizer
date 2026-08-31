@@ -106,6 +106,7 @@ fn resolve_opponent_reference(
     reference: &CupOpponentReference,
     stock_resolved: &[Option<Car>],
     dc_resolved: &[Option<Car>],
+    extra_resolved: &[Option<Car>],
 ) -> Option<String> {
     match reference {
         CupOpponentReference::Car { folder } if !folder.is_empty() => Some(folder.clone()),
@@ -115,6 +116,8 @@ fn resolve_opponent_reference(
                 stock_resolved
             } else if category.eq_ignore_ascii_case("dc") {
                 dc_resolved
+            } else if category.eq_ignore_ascii_case("extra") {
+                extra_resolved
             } else {
                 return None;
             };
@@ -135,6 +138,7 @@ fn resolve_cup_opponents(
     cup_spec: Option<&CupSpec>,
     stock_resolved: &[Option<Car>],
     dc_resolved: &[Option<Car>],
+    extra_resolved: &[Option<Car>],
 ) -> Option<Vec<String>> {
     let cup_spec = cup_spec?;
     if !cup_spec.override_opponents {
@@ -147,7 +151,7 @@ fn resolve_cup_opponents(
             .iter()
             .flat_map(|bucket| bucket.iter())
             .filter_map(|reference| {
-                resolve_opponent_reference(reference, stock_resolved, dc_resolved)
+                resolve_opponent_reference(reference, stock_resolved, dc_resolved, extra_resolved)
             })
             .collect(),
     )
@@ -607,6 +611,7 @@ pub fn generate_cups(
     resolved_tracks: &[RandomizedTrack],
     stock_resolved: &[Option<Car>],
     dc_resolved: &[Option<Car>],
+    extra_resolved: &[Option<Car>],
     scan: &ScanResult,
     rng: &mut Rng,
     enable_30_car_mode: bool,
@@ -685,7 +690,7 @@ pub fn generate_cups(
             cup_spec.and_then(|c| c.num_laps_max).unwrap_or(cup_state.num_laps_max)
         } else { cup_state.num_laps_max };
 
-        let opponents = resolve_cup_opponents(cup_spec, stock_resolved, dc_resolved);
+        let opponents = resolve_cup_opponents(cup_spec, stock_resolved, dc_resolved, extra_resolved);
 
         // Num stages: use per-cup override when override_stage_mode is active, else global (only applies to Random mode)
         let num_stages_min = if cup_spec.map(|c| c.override_num_stages_min).unwrap_or(false) {
@@ -866,19 +871,24 @@ mod tests {
                     CupOpponentReference::Car { folder: "direct".to_string() },
                     CupOpponentReference::Slot { category: "stock".to_string(), index: 0 },
                 ],
-                vec![CupOpponentReference::Slot { category: "dc".to_string(), index: 1 }],
+                vec![
+                    CupOpponentReference::Slot { category: "dc".to_string(), index: 1 },
+                    CupOpponentReference::Slot { category: "extra".to_string(), index: 0 },
+                ],
             ],
             ..make_default_cup_spec_rust(0)
         };
         let stock = vec![Some(test_car("stock_car"))];
         let dc = vec![None, Some(test_car("dc_car"))];
+        let extra = vec![Some(test_car("extra_car"))];
 
         assert_eq!(
-            resolve_cup_opponents(Some(&cup_spec), &stock, &dc),
+            resolve_cup_opponents(Some(&cup_spec), &stock, &dc, &extra),
             Some(vec![
                 "direct".to_string(),
                 "stock_car".to_string(),
                 "dc_car".to_string(),
+                "extra_car".to_string(),
             ])
         );
     }
@@ -888,7 +898,7 @@ mod tests {
         let cup_spec = make_default_cup_spec_rust(0);
         let stock = vec![Some(test_car("stock_car"))];
 
-        assert_eq!(resolve_cup_opponents(Some(&cup_spec), &stock, &[]), None);
+        assert_eq!(resolve_cup_opponents(Some(&cup_spec), &stock, &[], &[]), None);
     }
 
     fn test_cup_state(same_track_handling: SameTrackHandling) -> CupSpecState {
