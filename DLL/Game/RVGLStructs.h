@@ -350,6 +350,31 @@ struct CarPhysicsData {         // ~0xAAC bytes
     int32_t     transmission;     // +0xaa8
 };  // Total: ~0xAAC bytes
 
+// ----------------------------------------------------------------------------
+// Directory scanning structures
+//
+// These layouts are used by RVGL's VFS directory scanner. DirScan_Next returns
+// a pointer to a DirEntry and receives a DirScanState allocated by its caller.
+// OSDirHandle is intentionally opaque here; the DLL only stores its pointer in
+// DirScanState and never accesses the handle fields directly.
+// ----------------------------------------------------------------------------
+struct OSDirHandle;
+
+struct DirScanState {
+    char         path[256];       // +0x000
+    int32_t      vfsMountIndex;   // +0x100
+    uint8_t      _pad_104[4];     // +0x104
+    OSDirHandle* pDirHandle;      // +0x108
+};
+static_assert(sizeof(DirScanState) == 0x110, "DirScanState size mismatch");
+
+struct DirEntry {
+    uint8_t _unused[6];           // +0x000
+    uint16_t nameLen;             // +0x006
+    char name[256];               // +0x008
+};
+static_assert(sizeof(DirEntry) == 0x108, "DirEntry size mismatch");
+
 #pragma pack(pop)
 
 // Shared runtime layouts are split by domain to keep this umbrella header manageable.

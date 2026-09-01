@@ -120,6 +120,13 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
+        AbsFromRva(RVA_DIR_SCAN_NEXT),
+        reinterpret_cast<void*>(Randomizer::Hook_DirScanNext),
+        reinterpret_cast<void**>(&Randomizer::Orig_DirScanNext),
+        "DirScan_Next"
+    );
+
+    HookManager::Add(
         AbsFromRva(RVA_SYNC_CAR_INFO_FROM_PHYSICS),
         reinterpret_cast<void*>(Randomizer::Hook_SyncCarInfoFromPhysics),
         reinterpret_cast<void**>(&Randomizer::Orig_SyncCarInfoFromPhysics),

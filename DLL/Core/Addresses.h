@@ -27,6 +27,12 @@ constexpr uint32_t RVA_LOAD_VANILLA_CAR_POOL   = 0x0003F140;
 // Ghidra signature: void LoadCustomCarPool (void)
 constexpr uint32_t RVA_LOAD_CUSTOM_CAR_POOL = 0x0003fac0;
 
+// DirScan_Next — returns the next VFS directory entry.
+// Used by the custom-car hook to skip unconfigured folders before RVGL
+// reallocates the car pool and loads their files.
+// Ghidra signature: DirEntry* DirScan_Next (DirScanState*)
+constexpr uint32_t RVA_DIR_SCAN_NEXT = 0x00137250;
+
 // CreateCarbox — sets up the frontend textures for car selection.
 // Ghidra signature: void __fastcall CreateCarbox(void* param_1)
 constexpr uint32_t RVA_CREATE_CARBOX = 0x001570d0;

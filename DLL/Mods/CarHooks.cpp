@@ -6,6 +6,7 @@
 #include "Image.h"
 #include "GameUtils.h"
 #include "CustomUnlocks.h"
+#include <algorithm>
 #include <unordered_set>
 
 namespace {
@@ -26,6 +27,71 @@ static const char* defaultCars[49] = {
     "bigvolt", "bossvolt", "jg6rc",   "tc12",    "tc10",     "tc8",       "tc11",
     "tc9",     "jg1jg7",   "tc7",     "jg3loco", "jg4snw35", "jg5purpxl", "jg2fulonx"
 };
+
+std::string GetCarFolderName(const std::string& path) {
+    if (path.compare(0, 5, "cars/") == 0) {
+        return path.substr(5);
+    }
+    if (path.compare(0, 5, "cars\\") == 0) {
+        return path.substr(5);
+    }
+    return path;
+}
+
+bool IsSameCarFolder(const std::string& left, const char* right) {
+    if (right == nullptr) {
+        return false;
+    }
+
+    const std::string normalizedLeft = GetCarFolderName(left);
+    const std::string normalizedRight = GetCarFolderName(right);
+    return _stricmp(normalizedLeft.c_str(), normalizedRight.c_str()) == 0;
+}
+
+bool IsConfiguredExtraCarFolder(const char* folderName) {
+    Randomizer::ConfigData* config = Randomizer::GetActiveConfig();
+    if (config == nullptr || folderName == nullptr) {
+        return false;
+    }
+
+    for (const Randomizer::RandomizedCar& extraCar : config->extraCars) {
+        if (IsSameCarFolder(extraCar.folder, folderName)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+int GetExtraCarSlot(const Randomizer::ConfigData& config, const CarInfo& car) {
+    for (int i = 0; i < static_cast<int>(config.extraCars.size()); ++i) {
+        if (IsSameCarFolder(config.extraCars[i].folder, car.internalName)) {
+            return i;
+        }
+    }
+
+    return static_cast<int>(config.extraCars.size());
+}
+
+void SortCustomCarsByExtraSlot(CarInfo* customPool, int firstCustomCar, int customCount,
+                               const Randomizer::ConfigData& config) {
+    if (customPool == nullptr || customCount <= firstCustomCar || config.extraCars.empty()) {
+        return;
+    }
+
+    // RVGL has already sorted this range by rating. Keep that order for
+    // unconfigured custom cars, while moving configured extras into their
+    // randomizer slot order at the front of the custom section.
+    std::stable_sort(
+        customPool + firstCustomCar,
+        customPool + customCount,
+        [&config](const CarInfo& left, const CarInfo& right) {
+            return GetExtraCarSlot(config, left) < GetExtraCarSlot(config, right);
+        }
+    );
+}
+
+bool filterCustomCarFolders = false;
 
 void InitHardcodedCarPath(int index) {
 
@@ -78,6 +144,7 @@ namespace Randomizer {
 FnLoadVanillaCarPool     Orig_LoadVanillaCarPool     = nullptr;
 FnLoadTextureByName      Orig_LoadTextureByName      = nullptr;
 FnLoadCustomCarPool      Orig_LoadCustomCarPool      = nullptr;
+FnDirScanNext             Orig_DirScanNext            = nullptr;
 FnSyncCarInfoFromPhysics Orig_SyncCarInfoFromPhysics = nullptr;
 FnUpdateCarSelectability Orig_UpdateCarSelectability = nullptr;
 
@@ -96,6 +163,21 @@ RandomizedCar* GetCarConfigByRuntimeIndex(int carIndex) {
         const int dcIndex = carIndex - 35;
         if (dcIndex < static_cast<int>(config->dcCars.size())) {
             return &config->dcCars[dcIndex];
+        }
+    }
+
+    return nullptr;
+}
+
+RandomizedCar* GetExtraCarConfigByInternalName(const std::string& carName) {
+    ConfigData* config = GetActiveConfig();
+    if (config == nullptr) {
+        return nullptr;
+    }
+
+    for (RandomizedCar& extraCar : config->extraCars) {
+        if (IsSameCarFolder(extraCar.folder, carName.c_str())) {
+            return &extraCar;
         }
     }
 
@@ -260,23 +342,56 @@ unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLeve
 }
 
 
+DirEntry* Hook_DirScanNext(DirScanState* state) {
+
+    if (Orig_DirScanNext == nullptr) {
+        return nullptr;
+    }
+
+    if (!filterCustomCarFolders) {
+        return Orig_DirScanNext(state);
+    }
+
+    // Keep asking RVGL for entries until one is selected for an Extra slot.
+    // Returning only selected entries makes RVGL perform its normal allocation,
+    // parsing, skin loading, checksum, and cleanup work for those cars.
+    DirEntry* entry = Orig_DirScanNext(state);
+    while (entry != nullptr) {
+        if (IsConfiguredExtraCarFolder(entry->name)) {
+            return entry;
+        }
+
+        entry = Orig_DirScanNext(state);
+    }
+
+    return nullptr;
+}
+
 void Hook_LoadCustomCarPool() {
 
     ConfigData* config = GetActiveConfig();
     RandomizerContext& ctx = GetRandomizerContext();
     CarRuntimeState& carState = ctx.carState;
 
-    // If the config explicitly says not to load extra cars,
-    // skip calling the original function which loads them from disk.
-    if (config != nullptr && !config->global_options.load_extra_cars) {
+    // With neither the load-all flag nor selected Extra cars, there is no
+    // custom-car work for this hook to perform.
+    if (config != nullptr && !config->global_options.load_extra_cars && config->extraCars.empty()) {
         return;
     }
 
-    // Let RVGL load the custom cars from disk into memory first
+    // When load_extra_cars is false, Hook_DirScanNext filters the directory
+    // entries before RVGL reallocates the pool or loads any files. When it is
+    // true, the original loader sees every custom-car entry unchanged.
+    filterCustomCarFolders = config != nullptr && !config->global_options.load_extra_cars;
     Orig_LoadCustomCarPool();
+    filterCustomCarFolders = false;
 
     CarInfo* customPool = GetCarPool();
     int customCount     = GetRuntimeCarCount();
+
+    if (config != nullptr) {
+        SortCustomCarsByExtraSlot(customPool, carState.carCount, customCount, *config);
+    }
 
     // Check if any cars were added to the car table
     if (customPool != nullptr && customCount > carState.carCount) {
@@ -338,6 +453,9 @@ void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
 
     if (config != nullptr) {
         RandomizedCar* carConfigPtr = GetCarConfigByRuntimeIndex(carIndex);
+        if (carConfigPtr == nullptr && carIndex >= 49) {
+            carConfigPtr = GetExtraCarConfigByInternalName(carName);
+        }
 
         if (carConfigPtr != nullptr) {
             RandomizedCar& carConfig = *carConfigPtr;

@@ -242,9 +242,31 @@ namespace Randomizer {
         ConfigGlobalOptions global_options;
         std::vector<RandomizedCar> stockCars;
         std::vector<RandomizedCar> dcCars;
+        std::vector<RandomizedCar> extraCars;
         std::vector<RandomizedTrack> tracks;
         std::vector<RandomizedCup> cups;
     };
-    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConfigData, metadata, global_options, stockCars, dcCars, tracks, cups)
+
+    inline void to_json(json& j, const ConfigData& p) {
+        j = json{
+            {"metadata", p.metadata},
+            {"global_options", p.global_options},
+            {"stockCars", p.stockCars},
+            {"dcCars", p.dcCars},
+            {"extraCars", p.extraCars},
+            {"tracks", p.tracks},
+            {"cups", p.cups}
+        };
+    }
+
+    inline void from_json(const json& j, ConfigData& p) {
+        j.at("metadata").get_to(p.metadata);
+        j.at("global_options").get_to(p.global_options);
+        j.at("stockCars").get_to(p.stockCars);
+        j.at("dcCars").get_to(p.dcCars);
+        p.extraCars = j.value("extraCars", std::vector<RandomizedCar>{});
+        j.at("tracks").get_to(p.tracks);
+        j.at("cups").get_to(p.cups);
+    }
 
 } // namespace Randomizer
