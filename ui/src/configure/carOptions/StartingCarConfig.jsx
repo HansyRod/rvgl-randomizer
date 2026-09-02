@@ -3,7 +3,7 @@ import { useAppContext } from "../../AppProvider";
 import { RATINGS_LIST, STOCK_CARS, DC_CARS } from "../../utils/constants";
 import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
 import { getPlayableCarsFromScan } from "../../utils/scanContent";
-import { getObtainByMode, getRatingByMode } from "./CarOptionsUtils";
+import { alignDistributionsWithSpec, getObtainByMode, getRatingByMode } from "./CarOptionsUtils";
 
 export default function StartingCarConfig() {
 
@@ -75,7 +75,10 @@ export default function StartingCarConfig() {
   }
 
   const commit = (newOpts, newSpec) => {
-    updateCategoryCtx("configure", { carOptions: newOpts, carsSpecState: newSpec });
+    updateCategoryCtx("configure", {
+      carOptions: alignDistributionsWithSpec(newOpts, newSpec),
+      carsSpecState: newSpec,
+    });
   };
 
   const handleEnableStartingCars = (checked) => {

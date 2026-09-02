@@ -1,6 +1,6 @@
 import { CAR_RATINGS } from "../../utils/constants";
 
-export default function RatingDistTable({ title, desc, data, onChange, includeSuperPro }) {
+export default function RatingDistTable({ title, desc, data, onChange, includeSuperPro, maxSlots }) {
   const ratings = ["0", "1", "2", "3", "4", "5"];
   
   return (
@@ -36,7 +36,7 @@ export default function RatingDistTable({ title, desc, data, onChange, includeSu
                 <td>
                   <input 
                     type="number" 
-                    min={0} max={42} 
+                    min={0} max={maxSlots}
                     value={dist.min} 
                     disabled={locked || !dist.enabled}
                     onChange={e => onChange(rid, "min", parseInt(e.target.value) || 0)}
@@ -45,7 +45,7 @@ export default function RatingDistTable({ title, desc, data, onChange, includeSu
                 <td>
                   <input 
                     type="number" 
-                    min={0} max={42} 
+                    min={0} max={maxSlots}
                     value={dist.max} 
                     disabled={locked || !dist.enabled}
                     onChange={e => onChange(rid, "max", parseInt(e.target.value) || 0)}

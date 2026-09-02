@@ -10,6 +10,7 @@ export default function CarRatingsConfig() {
   const { configure: { carOptions, carsSpecState } } = state;
   
   const { includeSuperPro, poolRatingDistributions, attrRatingDistributions } = carOptions;
+  const totalSlots = getIncludedSlots(carsSpecState);
 
   const handleSuperProToggle = (val) => {
     const next = { ...carOptions, includeSuperPro: val };
@@ -61,7 +62,6 @@ export default function CarRatingsConfig() {
       ...carOptions[ratingTable],
       [ratingStr]: nextEntry
     };
-    const totalSlots = getIncludedSlots(carsSpecState);
     const normalized = normalizeDistributionMap(rawMap, fixedCarCountByRating, totalSlots);
     const nextCarOptions = { ...carOptions, [ratingTable]: normalized };
 
@@ -85,6 +85,7 @@ export default function CarRatingsConfig() {
           data={poolRatingDistributions}
           onChange={(rid, f, v) => updateDist("pool", rid, f, v)}
           includeSuperPro={includeSuperPro}
+          maxSlots={totalSlots}
         />
         <RatingDistTable 
           title="Target Rating Distribution" 
@@ -92,6 +93,7 @@ export default function CarRatingsConfig() {
           data={attrRatingDistributions}
           onChange={(rid, f, v) => updateDist("attr", rid, f, v)}
           includeSuperPro={includeSuperPro}
+          maxSlots={totalSlots}
         />
       </div>
     </section>

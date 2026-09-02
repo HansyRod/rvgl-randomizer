@@ -1,10 +1,9 @@
 import "./CarOptionsTab.css";
-import { STOCK_CARS, DC_CARS } from "../../utils/constants";
-import { useAppContext } from "../../AppProvider";
+import { useAppContext, DEFAULT_STATE } from "../../AppProvider";
 import StartingCarConfig from "./StartingCarConfig";
 import CarRatingsConfig from "./CarRatingsConfig";
 import CustomUnlockMethodsTable from "./CustomUnlockMethodsTable";
-import { applyModeRules, makeDefaultSpec, alignDistributionsWithSpec } from "./CarOptionsUtils";
+import { applyModeRules, alignDistributionsWithSpec } from "./CarOptionsUtils";
 import { isEffectiveStockCarsMode } from "../../validation/stockMode";
 import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
 
@@ -65,10 +64,7 @@ export default function CarOptionsTab() {
   const handleModeSelect = (modeId) => {
 
     // Auto-initialise FullSpec state if the user hasn't been there yet
-    const base = carsSpecState ?? {
-      stockCars: makeDefaultSpec(STOCK_CARS),
-      dcCars:    makeDefaultSpec(DC_CARS),
-    };
+    const base = carsSpecState ?? DEFAULT_STATE.configure.carsSpecState;
 
     const newStockCars = base.stockCars.map((car, i) => {
 
@@ -129,9 +125,17 @@ export default function CarOptionsTab() {
       return normalizeCustomUnlockRow(out);
     });
 
-    const newCarsSpecState = { stockCars: newStockCars, dcCars: newDcCars };
+    const newCarsSpecState = {
+      ...base,
+      stockCars: newStockCars,
+      dcCars: newDcCars,
+      extraCars: base.extraCars || [],
+    };
     const newCarOptions = { ...carOptions, unlockMode: modeId };
-    updateCategoryCtx("configure", { carsSpecState: newCarsSpecState, carOptions: newCarOptions });
+    updateCategoryCtx("configure", {
+      carsSpecState: newCarsSpecState,
+      carOptions: alignDistributionsWithSpec(newCarOptions, newCarsSpecState),
+    });
   };
 
   const showAllowedMethods = (unlockMode === "random" || unlockMode === "randomUnlock");
@@ -140,7 +144,8 @@ export default function CarOptionsTab() {
 
   const includeStockCars = carsSpecState?.includeStockCars !== false;
   const includeDcCars    = carsSpecState?.includeDcCars !== false;
-  const noneSelected = !includeStockCars && !includeDcCars;
+  const hasExtraCars = (carsSpecState?.extraCars?.length ?? 0) > 0;
+  const noneSelected = !includeStockCars && !includeDcCars && !hasExtraCars;
 
   const handleInclude = (key, value) => {
     const newCarsSpecState = { ...carsSpecState, [key]: value };

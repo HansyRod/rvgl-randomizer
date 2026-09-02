@@ -7,6 +7,7 @@ import CarSpecRow from "./CarSpecRow";
 import CarSearchModal from "./CarSearchModal";
 import CustomUnlockModal from "../customUnlocks/CustomUnlockModal";
 import { useAppContext } from "../../AppProvider";
+import { alignDistributionsWithSpec } from "../carOptions/CarOptionsUtils";
 
 const SpecRow = memo(CarSpecRow);
 
@@ -100,6 +101,13 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
     (carOptions?.numStartingCars || 0) > 0;
   const startingCount = startingCarsActive ? (carOptions?.numStartingCars || 0) : 0;
 
+  const alignDistributionsAndUpdateConfigure = useCallback((nextState) => {
+    updateCategoryCtx("configure", {
+      carsSpecState: nextState,
+      carOptions: alignDistributionsWithSpec(carOptions, nextState),
+    });
+  }, [carOptions, updateCategoryCtx]);
+
   const applyPreset = (preset) => {
 
     const currentList = carsSpecState[categoryKey] || [];
@@ -133,7 +141,7 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
       };
     });
 
-    updateCategoryCtx("configure", { carsSpecState: { ...carsSpecState, [categoryKey]: newList } });
+    alignDistributionsAndUpdateConfigure({ ...carsSpecState, [categoryKey]: newList });
   };
 
   const addExtraCar = () => {
@@ -141,23 +149,19 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
     let nextIndex = categoryRows.length + 1;
     while (existingIds.has(`extra-${nextIndex}`)) nextIndex += 1;
     const nextRow = makeDefaultCarSpec(`extra-${nextIndex}`);
-    updateCategoryCtx("configure", {
-      carsSpecState: {
-        ...carsSpecState,
-        [categoryKey]: [...categoryRows, nextRow],
-      },
+    alignDistributionsAndUpdateConfigure({
+      ...carsSpecState,
+      [categoryKey]: [...categoryRows, nextRow],
     });
   };
 
   const removeExtraCar = useCallback((index) => {
     const nextRows = categoryRows.filter((_, rowIndex) => rowIndex !== index);
-    updateCategoryCtx("configure", {
-      carsSpecState: {
-        ...carsSpecState,
-        [categoryKey]: nextRows,
-      },
+    alignDistributionsAndUpdateConfigure({
+      ...carsSpecState,
+      [categoryKey]: nextRows,
     });
-  }, [carsSpecState, categoryKey, categoryRows, updateCategoryCtx]);
+  }, [carsSpecState, categoryKey, categoryRows, alignDistributionsAndUpdateConfigure]);
 
   const updateRow = useCallback((index, updates) => {
     const newCategory = [...carsSpecState[categoryKey]];
@@ -170,8 +174,8 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
       ...carsSpecState,
       [categoryKey]: newCategory,
     };
-    updateCategoryCtx("configure", { carsSpecState: nextState });
-  }, [carsSpecState, categoryKey, updateCategoryCtx]);
+    alignDistributionsAndUpdateConfigure(nextState);
+  }, [carsSpecState, categoryKey, alignDistributionsAndUpdateConfigure]);
 
   const customUnlockModalRowState = customUnlockModalRow === null
     ? null

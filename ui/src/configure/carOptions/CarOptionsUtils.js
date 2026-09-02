@@ -22,7 +22,8 @@ export function getIncludedSlots(specState) {
   if (!specState) return 0;
   const stock = specState.includeStockCars === false ? 0 : (specState.stockCars?.length ?? STOCK_CARS.length);
   const dc = specState.includeDcCars === false ? 0 : (specState.dcCars?.length ?? DC_CARS.length);
-  return stock + dc;
+  const extra = specState.extraCars?.length ?? 0;
+  return stock + dc + extra;
 }
 
 export function countFixedRatings(specState, key) {
@@ -38,6 +39,7 @@ export function countFixedRatings(specState, key) {
 
   if (specState.includeStockCars !== false) applyRows(specState.stockCars);
   if (specState.includeDcCars !== false) applyRows(specState.dcCars);
+  applyRows(specState.extraCars);
   return out;
 }
 
@@ -45,8 +47,8 @@ export function normalizeDistributionMap(distMap, fixedCounts, totalSlots) {
   const normalized = {};
 
   for (const rid of RATING_IDS) {
-    const src = distMap?.[rid] ?? { enabled: false, min: 0, max: 42 };
-    let min = Math.max(0, Number(src.min) || 0);
+    const src = distMap?.[rid] ?? { enabled: false, min: 0, max: totalSlots };
+    let min = Math.min(totalSlots, Math.max(0, Number(src.min) || 0));
     min = Math.max(min, fixedCounts[rid] || 0);
     let max = Math.max(0, Number(src.max) || 0);
     if (max < min) max = min;
@@ -101,10 +103,14 @@ export function resetFixedRatingsToRandom(specState, key, rid, keepCount) {
     ...specState,
     stockCars: [...(specState.stockCars || [])],
     dcCars: [...(specState.dcCars || [])],
+    extraCars: [...(specState.extraCars || [])],
   };
 
   // Prefer preserving earlier slots; revert from the end.
   const buckets = [];
+  for (let i = clone.extraCars.length - 1; i >= 0; i -= 1) {
+    if (String(clone.extraCars[i]?.[key]) === rid) buckets.push({ cat: "extraCars", i });
+  }
   if (clone.includeDcCars !== false) {
     for (let i = clone.dcCars.length - 1; i >= 0; i -= 1) {
       if (String(clone.dcCars[i]?.[key]) === rid) buckets.push({ cat: "dcCars", i });
