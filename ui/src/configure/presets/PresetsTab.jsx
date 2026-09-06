@@ -12,7 +12,7 @@ import {
   makeDefaultCarsSpec,
   makeDefaultTrackSpec,
 } from "../../utils/constants";
-import { makeDefaultCupSpecState } from "../cupSpec/CupSpecTab";
+import { makeDefaultCupSpecState } from "../cupSpec/CupSpecDefaults";
 import { normalizeConfigureContext } from "../../utils/configureContext";
 
 // ─── Preset definitions ───────────────────────────────────────────────────────

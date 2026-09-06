@@ -1,5 +1,5 @@
 import { DEFAULT_CAR_OPTIONS, DEFAULT_TRACK_OPTIONS } from "../../utils/constants";
-import { makeDefaultCupSpecState } from "../cupSpec/CupSpecTab";
+import { makeDefaultCupSpecState } from "../cupSpec/CupSpecDefaults";
 import { getStockModePresetErrors } from "./presetValidation";
 
 export const BALANCED_PRESET = {

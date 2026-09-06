@@ -1,5 +1,5 @@
 import { DEFAULT_CAR_OPTIONS, STOCK_CARS, DC_CARS, STOCK_TRACKS, makeDefaultCarsSpec, makeDefaultTrackSpec } from "../../utils/constants";
-import { makeDefaultCupSpecState } from "../cupSpec/CupSpecTab";
+import { makeDefaultCupSpecState } from "../cupSpec/CupSpecDefaults";
 import { getStockModePresetErrors } from "./presetValidation";
 
 export const FULL_RANDOM_PRESET = {

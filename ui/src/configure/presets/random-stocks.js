@@ -1,5 +1,5 @@
-import { DEFAULT_CAR_OPTIONS, DEFAULT_TRACK_OPTIONS, DC_CARS, makeDefaultCarsSpec, STOCK_CARS, STOCK_TRACKS } from "../../utils/constants";
-import { makeDefaultCupSpecState } from "../cupSpec/CupSpecTab";
+import { DEFAULT_CAR_OPTIONS, DEFAULT_TRACK_OPTIONS, STOCK_CARS, STOCK_TRACKS } from "../../utils/constants";
+import { makeDefaultCupSpecState } from "../cupSpec/CupSpecDefaults";
 
 import { countEligibleCarsByFolderNames, countEligibleTracksByFolderNames } from "./presetValidation";
 

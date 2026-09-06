@@ -9,7 +9,7 @@ import {
   makeDefaultCarsSpec,
   makeDefaultTrackSpec,
 } from "./utils/constants";
-import { makeDefaultCupSpecState } from "./configure/cupSpec/CupSpecTab";
+import { makeDefaultCupSpecState } from "./configure/cupSpec/CupSpecDefaults";
 export const DEFAULT_STATE = {
   app: {
     isLoading: true,

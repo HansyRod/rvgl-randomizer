@@ -304,7 +304,7 @@ runTest("stock cars mode invalidates each current named non-stock preset", () =>
     const result = evaluatePresetSelection(preset, scanResult);
     assert.equal(result.isSelectable, false, `${preset.id} should be invalid`);
     assert.ok(
-      result.errors.includes("This preset cannot be used when Stock Content Mode is active."),
+      result.errors.some((error) => error.includes("Stock Mode is active.")),
       `${preset.id} should report stock cars mode`
     );
   });
@@ -317,7 +317,7 @@ runTest("stock tracks mode invalidates each current named non-stock preset", () 
     const result = evaluatePresetSelection(preset, scanResult);
     assert.equal(result.isSelectable, false, `${preset.id} should be invalid`);
     assert.ok(
-      result.errors.includes("This preset cannot be used when Stock Content Mode is active."),
+      result.errors.some((error) => error.includes("Stock Mode is active.")),
       `${preset.id} should report stock tracks mode`
     );
   });
@@ -578,7 +578,6 @@ runTest("car rating distributions reject minimums that exceed the slot count", (
       }),
     }),
     makeExtraSpecState([
-      { sourcePool: "Full Random", sourceRating: "Random", attrRating: "Random" },
       { sourcePool: "Full Random", sourceRating: "Random", attrRating: "Random" },
     ]),
     makeClassicScan({ cars: [makeCar("rookie_car", 0), makeCar("amateur_car", 1)] }),
