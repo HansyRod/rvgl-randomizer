@@ -302,12 +302,66 @@ pub fn build_randomized_car(car: &Car, spec: &CarSpec, rng: &mut Rng, car_option
     }
 }
 
+/// Count source ratings that are already fixed before pool-rating allocation.
+/// Numeric source ratings are fixed directly; specific-car pools are fixed to
+/// the scanned rating of the selected car.
+pub fn count_fixed_source_ratings(specs: &[CarSpec], all_cars: &[Car]) -> [usize; 6] {
+    let mut counts = [0usize; 6];
+
+    for spec in specs {
+        let rating = if is_specific_car_pool(&spec.source_pool) {
+            all_cars
+                .iter()
+                .find(|car| car.folder_name.eq_ignore_ascii_case(&spec.source_pool))
+                .map(|car| car.rating)
+        } else {
+            spec.source_rating.parse::<i32>().ok()
+        };
+
+        if let Some(rating) = rating {
+            if (0..=5).contains(&rating) {
+                counts[rating as usize] += 1;
+            }
+        }
+    }
+
+    counts
+}
+
+/// Count attribute ratings that are fixed before target-rating allocation.
+/// `Unchanged` attributes become fixed after the source car is resolved.
+pub fn count_fixed_attribute_ratings(
+    specs: &[CarSpec],
+    resolved: &[Option<Car>],
+) -> [usize; 6] {
+    let mut counts = [0usize; 6];
+
+    for (spec, car) in specs.iter().zip(resolved.iter()) {
+        let rating = if spec.attr_rating == "Random" {
+            None
+        } else if let Ok(rating) = spec.attr_rating.parse::<i32>() {
+            Some(rating)
+        } else {
+            car.as_ref().map(|resolved_car| resolved_car.rating)
+        };
+
+        if let Some(rating) = rating {
+            if (0..=5).contains(&rating) {
+                counts[rating as usize] += 1;
+            }
+        }
+    }
+
+    counts
+}
+
 // ============================================================================
 // Global Distribution Allocator
 // ============================================================================
 
 pub fn allocate_ratings(
     count: usize,
+    fixed_counts: &[usize; 6],
     distributions: &std::collections::HashMap<String, RatingDist>,
     include_super_pro: bool,
     rng: &mut Rng,
@@ -315,11 +369,9 @@ pub fn allocate_ratings(
     let mut result = Vec::with_capacity(count);
     if count == 0 { return result; }
 
-    // Build the set of valid rating indices.
-    // A rating is excluded only if:
-    //   - It is Super Pro (index 5) and include_super_pro is false, OR
-    //   - It has an explicit distribution entry with max == 0.
-    // Ratings absent from the map are unrestricted (no forced zero).
+    // Build the set of ratings that can receive a new random assignment.
+    // Disabled distribution rows are unrestricted; only enabled rows impose
+    // a maximum on the flexible rows. Fixed rows are accounted for below.
     let all_indices: Vec<usize> = (0..=5).collect();
     let allowed_indices: Vec<usize> = all_indices
         .into_iter()
@@ -328,9 +380,10 @@ pub fn allocate_ratings(
             if i == 5 && !include_super_pro {
                 return false;
             }
-            // If there is an explicit entry with max == 0, exclude this rating
+            // An enabled maximum applies to the complete result, so fixed
+            // rows consume part of its available capacity.
             if let Some(dist) = distributions.get(&i.to_string()) {
-                return dist.max > 0;
+                return !dist.enabled || fixed_counts[i] < dist.max;
             }
             // Not in the map → unrestricted, always allowed
             true
@@ -344,26 +397,33 @@ pub fn allocate_ratings(
     let mut remaining = count;
     let mut counts = vec![0usize; 6]; // index == rating value
 
-    // 1. Assign minimums for ratings that have an explicit distribution entry.
-    //    Cap each minimum against that rating's max and the remaining budget.
+    // 1. Assign the portion of each enabled minimum not already covered by
+    //    fixed rows. Min/max values describe the complete result, not only the
+    //    rows whose value is randomized here.
     for &i in &allowed_indices {
         if let Some(dist) = distributions.get(&i.to_string()) {
-            let m = dist.min.min(dist.max).min(remaining);
+            if !dist.enabled {
+                continue;
+            }
+            let target_min = dist.min.min(dist.max);
+            let m = target_min.saturating_sub(fixed_counts[i]).min(remaining);
             counts[i] = m;
             remaining -= m;
         }
     }
 
-    // 2. Distribute the remaining slots randomly, respecting per-rating maximums.
-    //    Ratings without a map entry are considered unbounded (no upper limit).
+    // 2. Distribute the remaining slots randomly, respecting enabled
+    //    maximums after fixed rows have been accounted for.
     while remaining > 0 {
         let candidates: Vec<usize> = allowed_indices
             .iter()
             .cloned()
             .filter(|&i| {
                 if let Some(dist) = distributions.get(&i.to_string()) {
-                    // Respect the explicit maximum
-                    counts[i] < dist.max
+                    if !dist.enabled {
+                        return true;
+                    }
+                    counts[i] < dist.max.saturating_sub(fixed_counts[i])
                 } else {
                     // No restriction on this rating — always a valid candidate
                     true
@@ -433,6 +493,103 @@ mod tests {
             tracks: None,
             content_packs: None,
         }
+    }
+
+    #[test]
+    fn rating_distribution_minimums_include_fixed_rows() {
+        let mut distributions = std::collections::HashMap::new();
+        distributions.insert(
+            "1".to_string(),
+            RatingDist { enabled: true, min: 4, max: 4 },
+        );
+        let fixed_counts = [0, 2, 0, 0, 0, 0];
+
+        let allocated = allocate_ratings(
+            2,
+            &fixed_counts,
+            &distributions,
+            true,
+            &mut Rng::new(),
+        );
+
+        assert_eq!(allocated.len(), 2);
+        assert_eq!(allocated.iter().filter(|&&rating| rating == 1).count(), 2);
+    }
+
+    #[test]
+    fn rating_distribution_maximums_include_fixed_rows() {
+        let mut distributions = std::collections::HashMap::new();
+        distributions.insert(
+            "1".to_string(),
+            RatingDist { enabled: true, min: 0, max: 3 },
+        );
+        let fixed_counts = [0, 2, 0, 0, 0, 0];
+
+        let allocated = allocate_ratings(
+            3,
+            &fixed_counts,
+            &distributions,
+            true,
+            &mut Rng::new(),
+        );
+
+        assert_eq!(allocated.len(), 3);
+        assert!(allocated.iter().filter(|&&rating| rating == 1).count() <= 1);
+    }
+
+    #[test]
+    fn disabled_rating_distributions_are_unrestricted() {
+        let mut distributions = std::collections::HashMap::new();
+        for rating in 0..=5 {
+            distributions.insert(
+                rating.to_string(),
+                RatingDist { enabled: false, min: 0, max: 0 },
+            );
+        }
+
+        let allocated = allocate_ratings(
+            1,
+            &[0, 0, 0, 0, 0, 0],
+            &distributions,
+            true,
+            &mut Rng::new(),
+        );
+
+        assert_eq!(allocated.len(), 1);
+    }
+
+    #[test]
+    fn fixed_source_ratings_include_numeric_and_specific_car_specs() {
+        let cars = vec![
+            car("custom_a", Pool::Custom),
+            Car { rating: 4, ..car("specific_a", Pool::Custom) },
+        ];
+        let mut numeric = spec("stock-1", "Stock");
+        numeric.source_rating = "3".to_string();
+        let specific = spec("extra-1", "specific_a");
+        let random = spec("dc-1", "Full Random");
+
+        let counts = count_fixed_source_ratings(&[numeric, specific, random], &cars);
+
+        assert_eq!(counts, [0, 0, 0, 1, 1, 0]);
+    }
+
+    #[test]
+    fn fixed_attribute_ratings_include_numeric_and_unchanged_specs() {
+        let mut numeric = spec("stock-1", "Stock");
+        numeric.attr_rating = "2".to_string();
+        let unchanged = spec("extra-1", "Custom");
+        let mut random = spec("dc-1", "Full Random");
+        random.attr_rating = "Random".to_string();
+        let resolved = vec![
+            Some(car("stock_a", Pool::Stock)),
+            Some(Car { rating: 4, ..car("custom_a", Pool::Custom) }),
+            Some(Car { rating: 1, ..car("dc_a", Pool::Dc) }),
+        ];
+
+        let counts = count_fixed_attribute_ratings(&[numeric, unchanged, random], &resolved);
+
+        assert_eq!(counts, [0, 0, 1, 0, 1, 0]);
     }
 
     #[test]

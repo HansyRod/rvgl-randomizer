@@ -190,8 +190,16 @@ pub fn generate_result(
     let total_flexible = flexible_stock_indices.len()
         + flexible_dc_indices.len()
         + flexible_extra_indices.len();
+    let mut pool_fixed_counts = [0usize; 6];
+    for specs in [&final_specs_stock, &final_specs_dc, &final_specs_extra] {
+        let fixed_counts = count_fixed_source_ratings(specs, &all_cars);
+        for (total, fixed) in pool_fixed_counts.iter_mut().zip(fixed_counts) {
+            *total += fixed;
+        }
+    }
     let pool_ratings_all = allocate_ratings(
         total_flexible,
+        &pool_fixed_counts,
         &opts.pool_rating_distributions,
         opts.include_super_pro,
         &mut rng,
@@ -238,8 +246,20 @@ pub fn generate_result(
     let total_random_attr = random_attr_stock_indices.len()
         + random_attr_dc_indices.len()
         + random_attr_extra_indices.len();
+    let mut attr_fixed_counts = [0usize; 6];
+    for (specs, resolved) in [
+        (&final_specs_stock[..], &stock_resolved[..]),
+        (&final_specs_dc[..], &dc_resolved[..]),
+        (&final_specs_extra[..], &extra_resolved[..]),
+    ] {
+        let fixed_counts = count_fixed_attribute_ratings(specs, resolved);
+        for (total, fixed) in attr_fixed_counts.iter_mut().zip(fixed_counts) {
+            *total += fixed;
+        }
+    }
     let allocated_attr_all = allocate_ratings(
         total_random_attr,
+        &attr_fixed_counts,
         &opts.attr_rating_distributions,
         opts.include_super_pro,
         &mut rng,
