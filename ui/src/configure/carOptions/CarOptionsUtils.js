@@ -126,6 +126,12 @@ export const getObtainByMode = (modeId) => {
   }
 }
 
+export const isRatingLockedByMode = (modeId) =>
+  modeId === "unchanged" || modeId === "randomUnlock";
+
+export const isObtainLockedByMode = (modeId) =>
+  modeId === "unchanged" || modeId === "randomRatings";
+
 export const applyModeRules = (car, index, modeId, carOpts) => {
   const out = { ...car };
 
@@ -151,11 +157,15 @@ export const applyModeRules = (car, index, modeId, carOpts) => {
     if (carOpts.enableStartingCarsRating) {
       out.sourceRating = carOpts.startingCarsRating;
     }
-    if (modeId === "random" || modeId === "randomUnlock") {
+    if (obtain === "Random") {
+      if (isObtainLockedByMode(carOpts.unlockMode)) {
+        out.sourceObtain = "Random";
+      }
       out.attrObtain = "0"; // Force "Starting Car" instead of random attribute
     }
-    else {
-      out.sourceObtain = "0"; // Force "Starting Car" in source pool; it will be unchanged for these modes
+    else if (obtain === "Unchanged") {
+      out.sourceObtain = "0"; // Force "Starting Car" in source pool
+      out.attrObtain = "Unchanged";
     }
   }
 

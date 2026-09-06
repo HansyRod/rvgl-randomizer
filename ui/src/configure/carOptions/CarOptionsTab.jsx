@@ -3,7 +3,12 @@ import { useAppContext, DEFAULT_STATE } from "../../AppProvider";
 import StartingCarConfig from "./StartingCarConfig";
 import CarRatingsConfig from "./CarRatingsConfig";
 import CustomUnlockMethodsTable from "./CustomUnlockMethodsTable";
-import { applyModeRules } from "./CarOptionsUtils";
+import {
+  applyModeRules,
+  getIncludedCarSlotCounts,
+  isObtainLockedByMode,
+  isRatingLockedByMode,
+} from "./CarOptionsUtils";
 import { isEffectiveStockCarsMode } from "../../validation/stockMode";
 import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
 
@@ -65,6 +70,9 @@ export default function CarOptionsTab() {
 
     // Auto-initialise FullSpec state if the user hasn't been there yet
     const base = carsSpecState ?? DEFAULT_STATE.configure.carsSpecState;
+    const slotCounts = getIncludedCarSlotCounts(base);
+    const dcOffset = slotCounts.stock;
+    const extraOffset = slotCounts.stock + slotCounts.dc;
 
     const newStockCars = base.stockCars.map((car, i) => {
 
@@ -101,7 +109,7 @@ export default function CarOptionsTab() {
     const newDcCars = base.dcCars.map((car, i) => {
 
       if (modeId !== "baseGame") {
-        return normalizeCustomUnlockRow(applyModeRules(car, i + 28, modeId, carOptions));
+        return normalizeCustomUnlockRow(applyModeRules(car, i + dcOffset, modeId, carOptions));
       }
 
       const out = { ...car };
@@ -125,11 +133,40 @@ export default function CarOptionsTab() {
       return normalizeCustomUnlockRow(out);
     });
 
+    const newExtraCars = (base.extraCars || []).map((car, i) => {
+      if (modeId === "baseGame") {
+        const out = { ...car };
+        const globalIndex = i + extraOffset;
+        const wasStartingCar =
+          carOptions.unlockMode !== "baseGame" &&
+          carOptions.enableStartingCars && globalIndex < (carOptions.numStartingCars || 0);
+
+        if (isRatingLockedByMode(carOptions.unlockMode)) {
+          out.attrRating = "Random";
+        }
+        if (isObtainLockedByMode(carOptions.unlockMode) || wasStartingCar) {
+          out.attrObtain = "Random";
+        }
+        if (wasStartingCar && carOptions.enableStartingCarsPool) {
+          out.sourcePool = "Full Random";
+        }
+        if (wasStartingCar && carOptions.enableStartingCarsRating) {
+          out.sourceRating = "Random";
+        }
+
+        return normalizeCustomUnlockRow(out);
+      }
+
+      return normalizeCustomUnlockRow(
+        applyModeRules(car, i + extraOffset, modeId, carOptions)
+      );
+    });
+
     const newCarsSpecState = {
       ...base,
       stockCars: newStockCars,
       dcCars: newDcCars,
-      extraCars: base.extraCars || [],
+      extraCars: newExtraCars,
     };
     const newCarOptions = { ...carOptions, unlockMode: modeId };
     updateCategoryCtx("configure", {

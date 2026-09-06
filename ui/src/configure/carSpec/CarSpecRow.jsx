@@ -1,10 +1,12 @@
 import { CAR_RATINGS, OBTAIN_METHODS, RATINGS_LIST, ATTR_RATINGS_LIST, OBTAINS_LIST, ATTR_OBTAINS_LIST } from "../../utils/constants";
 import { getCustomUnlockSelectionLabel, isCustomUnlockMethod } from "../../utils/customUnlockState";
+import { isObtainLockedByMode, isRatingLockedByMode } from "../carOptions/CarOptionsUtils";
 
 const CURRENT_CUSTOM_UNLOCK = "Current Custom Unlock";
 
 export default function CarSpecRow({index, rowState, updateRow, carByFolder, sourcePoolOptionsJSX, poolValidOptions, carOptions, onOpenSearch,
-  onOpenCustomUnlock, trackByFolder, lockStartingPool, lockStartingRating, lockStartingObtain, onRemove}) {
+  onOpenCustomUnlock, trackByFolder, lockStartingPool, lockStartingRating, lockStartingObtain, onRemove,
+  allowBaseGameAttributeEdits = false}) {
   if (!rowState) return null;
 
   const id = rowState.id;
@@ -23,8 +25,13 @@ export default function CarSpecRow({index, rowState, updateRow, carByFolder, sou
   const disableSourcePool = lockStartingPool;
   const disableSourceRating = isSpecificCar || lockStartingRating;
   const disableSourceObtain = isSpecificCar || (lockStartingObtain && (carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomRatings"));
-  const disableAttrRating = carOptions?.unlockMode === "baseGame" || carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomUnlock";
-  const disableAttrObtain = lockStartingObtain || carOptions?.unlockMode === "baseGame" || carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomRatings";
+  const disableAttrRating =
+    (!allowBaseGameAttributeEdits && carOptions?.unlockMode === "baseGame") ||
+    isRatingLockedByMode(carOptions?.unlockMode);
+  const disableAttrObtain =
+    lockStartingObtain ||
+    (!allowBaseGameAttributeEdits && carOptions?.unlockMode === "baseGame") ||
+    isObtainLockedByMode(carOptions?.unlockMode);
   const hasCustomUnlock = isCustomUnlockMethod(rowState.attrObtain);
   const customUnlockSelectionLabel = getCustomUnlockSelectionLabel(rowState.customUnlock, trackByFolder);
   const defaultAttrObtainOptions = ATTR_OBTAINS_LIST.filter(opt => opt.val === "Random" || opt.val === "Unchanged");

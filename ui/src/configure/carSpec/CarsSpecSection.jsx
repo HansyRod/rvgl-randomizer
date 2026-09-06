@@ -185,7 +185,7 @@ export default function CarsSpecSection({title, categoryKey, includeKey, isDynam
         </div>
       )}
 
-      {carOptions?.unlockMode === "baseGame" && (
+      {carOptions?.unlockMode === "baseGame" && categoryKey !== "extraCars" && (
         <div className="section-lock-info">
           🔒 <strong>Attributes are locked</strong> — Car Options is set to <em>Base Game Distribution</em>.
         </div>
@@ -239,6 +239,7 @@ export default function CarsSpecSection({title, categoryKey, includeKey, isDynam
                 lockStartingPool={isStartingSlot && !!carOptions?.enableStartingCarsPool}
                 lockStartingRating={isStartingSlot && !!carOptions?.enableStartingCarsRating}
                 lockStartingObtain={isStartingSlot}
+                allowBaseGameAttributeEdits={categoryKey === "extraCars"}
                 onRemove={isDynamic ? removeExtraCar : undefined}
               />
                 );
