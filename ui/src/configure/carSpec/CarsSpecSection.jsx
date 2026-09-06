@@ -7,7 +7,13 @@ import CarSpecRow from "./CarSpecRow";
 import CarSearchModal from "./CarSearchModal";
 import CustomUnlockModal from "../customUnlocks/CustomUnlockModal";
 import { useAppContext } from "../../AppProvider";
-import { getIncludedCarSlotCounts } from "../carOptions/CarOptionsUtils";
+import {
+  applyModeRules,
+  applyStartingCarOverrides,
+  getIncludedCarSlotCounts,
+  normalizeExtraCarRowIds,
+  resetStartingCarOverrides,
+} from "../carOptions/CarOptionsUtils";
 
 const SpecRow = memo(CarSpecRow);
 
@@ -110,28 +116,59 @@ export default function CarsSpecSection({title, categoryKey, includeKey, isDynam
     Math.min(startingCount - categoryOffset, categoryRows.length)
   );
 
-  const addExtraCar = () => {
-    const existingIds = new Set(categoryRows.map(row => row.id));
-    let nextIndex = categoryRows.length + 1;
-    while (existingIds.has(`extra-${nextIndex}`)) nextIndex += 1;
-    const nextRow = makeDefaultCarSpec(`extra-${nextIndex}`);
-    updateCategoryCtx("configure", {
-      carsSpecState: {
-        ...carsSpecState,
-        [categoryKey]: [...categoryRows, nextRow],
-      },
-    });
+  const isStartingGlobalIndex = (globalIndex) =>
+    startingCarsActive && globalIndex < startingCount;
+
+  const normalizeExtraRowForCurrentMode = (row, globalIndex) => {
+    let out = row;
+    if (carOptions?.unlockMode !== "baseGame") {
+      out = applyModeRules(row, globalIndex, carOptions.unlockMode, carOptions);
+      if (isStartingGlobalIndex(globalIndex)) {
+        out = applyStartingCarOverrides(out, carOptions);
+      }
+    }
+    return normalizeCustomUnlockRow(out);
   };
 
-  const removeExtraCar = useCallback((index) => {
-    const nextRows = categoryRows.filter((_, rowIndex) => rowIndex !== index);
+  const addExtraCar = () => {
+    const nextRow = normalizeExtraRowForCurrentMode(
+      makeDefaultCarSpec(`extra-${categoryRows.length + 1}`),
+      categoryOffset + categoryRows.length
+    );
+    const nextRows = normalizeExtraCarRowIds([...categoryRows, nextRow]);
     updateCategoryCtx("configure", {
       carsSpecState: {
         ...carsSpecState,
         [categoryKey]: nextRows,
       },
     });
-  }, [carsSpecState, categoryKey, categoryRows, updateCategoryCtx]);
+  };
+
+  const removeExtraCar = useCallback((index) => {
+    const nextRows = categoryRows.filter((_, rowIndex) => rowIndex !== index);
+    const oldIndexByRow = new Map(categoryRows.map((row, rowIndex) => [row, rowIndex]));
+    const normalizedRows = nextRows.map((row, newIndex) => {
+      const oldIndex = oldIndexByRow.get(row);
+      if (oldIndex === undefined) return row;
+
+      const wasStarting = isStartingGlobalIndex(categoryOffset + oldIndex);
+      const isStarting = isStartingGlobalIndex(categoryOffset + newIndex);
+      if (wasStarting === isStarting) return row;
+
+      const normalizedRow = isStarting
+        ? applyStartingCarOverrides(row, carOptions)
+        : resetStartingCarOverrides(row, carOptions);
+      return normalizeCustomUnlockRow(normalizedRow);
+    });
+    const renumberedRows = normalizeExtraCarRowIds(normalizedRows);
+
+    updateCategoryCtx("configure", {
+      carsSpecState: {
+        ...carsSpecState,
+        [categoryKey]: renumberedRows,
+      },
+    });
+  }, [carOptions, carsSpecState, categoryKey, categoryOffset, categoryRows, isStartingGlobalIndex, updateCategoryCtx]);
 
   const updateRow = useCallback((index, updates) => {
     const newCategory = [...carsSpecState[categoryKey]];

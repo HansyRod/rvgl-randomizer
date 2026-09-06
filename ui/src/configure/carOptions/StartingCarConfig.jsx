@@ -3,7 +3,11 @@ import { useAppContext } from "../../AppProvider";
 import { RATINGS_LIST } from "../../utils/constants";
 import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
 import { getPlayableCarsFromScan } from "../../utils/scanContent";
-import { getIncludedCarSlotCounts, getObtainByMode, getRatingByMode } from "./CarOptionsUtils";
+import {
+  applyStartingCarOverrides,
+  getIncludedCarSlotCounts,
+  resetStartingCarOverrides,
+} from "./CarOptionsUtils";
 
 export default function StartingCarConfig() {
 
@@ -38,16 +42,7 @@ export default function StartingCarConfig() {
       rows.map((row, i) => {
         const globalIdx = offset + i;
         const isStarting = globalIdx < count;
-        let out = { ...row };
-        if (isStarting) {
-          if (getObtainByMode(opts.unlockMode) === "Random") {
-            out.attrObtain = "0";
-          } else {
-            out.sourceObtain = "0";
-          }
-          if (opts.enableStartingCarsPool) out.sourcePool = opts.startingCarsPool;
-          if (opts.enableStartingCarsRating) out.sourceRating = opts.startingCarsRating;
-        }
+        const out = isStarting ? applyStartingCarOverrides(row, opts) : row;
         return normalizeCustomUnlockRow(out);
       });
 
@@ -57,13 +52,7 @@ export default function StartingCarConfig() {
   function resetStartingOverrides(specState, opts, fromIdx, toIdx) {
     const resetRow = (row, globalIdx) => {
       if (globalIdx < fromIdx || globalIdx >= toIdx) return row;
-      const out = { ...row };
-      // reset forced obtain and rating
-      out.attrObtain = getObtainByMode(opts.unlockMode) || "Random";
-      out.attrRating = getRatingByMode(opts.unlockMode) || "Random";
-      out.sourceObtain = "Random";
-      if (opts.enableStartingCarsPool) out.sourcePool = "Full Random";
-      if (opts.enableStartingCarsRating) out.sourceRating = "Random";
+      const out = resetStartingCarOverrides(row, opts);
       return normalizeCustomUnlockRow(out);
     };
 

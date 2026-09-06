@@ -3,6 +3,7 @@ import {
   DEFAULT_FEATURE_OPTIONS,
   DEFAULT_TRACK_OPTIONS,
 } from "./constants.js";
+import { normalizeExtraCarRowIds } from "../configure/carOptions/CarOptionsUtils";
 
 function normalizeSpecRows(rows) {
   return (rows || []).map(row => ({
@@ -18,7 +19,7 @@ function normalizeCarsSpecState(carsSpecState) {
     ...carsSpecState,
     stockCars: normalizeSpecRows(carsSpecState.stockCars),
     dcCars: normalizeSpecRows(carsSpecState.dcCars),
-    extraCars: normalizeSpecRows(carsSpecState.extraCars),
+    extraCars: normalizeExtraCarRowIds(normalizeSpecRows(carsSpecState.extraCars)),
   };
 }
 

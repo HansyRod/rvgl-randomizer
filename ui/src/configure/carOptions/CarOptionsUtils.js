@@ -43,6 +43,12 @@ export function getIncludedSlots(specState) {
   return getIncludedCarSlotCounts(specState).total;
 }
 
+export const normalizeExtraCarRowIds = (rows = []) =>
+  rows.map((row, index) => ({
+    ...row,
+    id: `extra-${index + 1}`,
+  }));
+
 function isSpecificCarPool(sourcePool) {
   return typeof sourcePool === "string" &&
     sourcePool !== "Full Random" &&
@@ -131,6 +137,41 @@ export const isRatingLockedByMode = (modeId) =>
 
 export const isObtainLockedByMode = (modeId) =>
   modeId === "unchanged" || modeId === "randomRatings";
+
+export const applyStartingCarOverrides = (row, opts) => {
+  const out = { ...row };
+
+  if (getObtainByMode(opts.unlockMode) === "Random") {
+    out.attrObtain = "0";
+  } else {
+    out.sourceObtain = "0";
+  }
+
+  if (opts.enableStartingCarsPool) {
+    out.sourcePool = opts.startingCarsPool;
+  }
+  if (opts.enableStartingCarsRating) {
+    out.sourceRating = opts.startingCarsRating;
+  }
+
+  return out;
+};
+
+export const resetStartingCarOverrides = (row, opts) => {
+  const out = { ...row };
+
+  out.attrObtain = getObtainByMode(opts.unlockMode) || "Random";
+  out.attrRating = getRatingByMode(opts.unlockMode) || "Random";
+  out.sourceObtain = "Random";
+  if (opts.enableStartingCarsPool) {
+    out.sourcePool = "Full Random";
+  }
+  if (opts.enableStartingCarsRating) {
+    out.sourceRating = "Random";
+  }
+
+  return out;
+};
 
 export const applyModeRules = (car, index, modeId, carOpts) => {
   const out = { ...car };
