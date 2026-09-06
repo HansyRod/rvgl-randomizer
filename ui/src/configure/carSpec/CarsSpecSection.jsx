@@ -10,7 +10,7 @@ import { useAppContext } from "../../AppProvider";
 
 const SpecRow = memo(CarSpecRow);
 
-export default function CarsSpecSection({title, categoryKey, includeKey, defaultCarsList, isDynamic = false}) {
+export default function CarsSpecSection({title, categoryKey, includeKey, isDynamic = false}) {
 
   const { state, updateCategoryCtx } = useAppContext();
 
@@ -21,7 +21,6 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
   const { scanResult } = setup;
   const { carOptions, carsSpecState } = configure;
   
-  const [presetSelection, setPresetSelection] = useState("Full Random");
   const [searchModalRow, setSearchModalRow] = useState(null);
   const [customUnlockModalRow, setCustomUnlockModalRow] = useState(null);
 
@@ -99,44 +98,6 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
     carOptions?.unlockMode !== "baseGame" &&
     (carOptions?.numStartingCars || 0) > 0;
   const startingCount = startingCarsActive ? (carOptions?.numStartingCars || 0) : 0;
-
-  const applyPreset = (preset) => {
-
-    const currentList = carsSpecState[categoryKey] || [];
-    const newList = defaultCarsList.map((id, index) => {
-      const currentCar = currentList[index] || {};
-      const isBaseGame = carOptions?.unlockMode === "baseGame";
-      const isUnchanged = carOptions?.unlockMode === "unchanged";
-      const isStartingSlot =
-        categoryKey === "stockCars" &&
-        carOptions?.enableStartingCars &&
-        (carOptions?.numStartingCars || 0) > 0 &&
-        index < (carOptions?.numStartingCars || 0);
-      const preserveStartingPool = isStartingSlot && !!carOptions?.enableStartingCarsPool;
-      const preserveStartingRating = isStartingSlot && !!carOptions?.enableStartingCarsRating;
-
-      return {
-        id,
-        sourcePool: preserveStartingPool
-          ? (currentCar.sourcePool ?? carOptions?.startingCarsPool ?? "Full Random")
-          : (preset === "Original Content" ? (carByFolder[id] ? id : "Full Random") : "Full Random"),
-        sourceRating: preserveStartingRating
-          ? (currentCar.sourceRating ?? carOptions?.startingCarsRating ?? "Random")
-          : "Random",
-        sourceObtain: "Random",
-        attrRating: isBaseGame 
-          ? (currentCar.attrRating ?? "Random")
-          : (preset === "Original Content" ? "Unchanged" : "Random"),
-        attrObtain: (isBaseGame || isUnchanged)
-          ? (currentCar.attrObtain ?? "Random")
-          : (preset === "Original Content" ? "Unchanged" : "Random")
-      };
-    });
-
-    updateCategoryCtx("configure", {
-      carsSpecState: { ...carsSpecState, [categoryKey]: newList },
-    });
-  };
 
   const addExtraCar = () => {
     const existingIds = new Set(categoryRows.map(row => row.id));
@@ -226,15 +187,6 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
 
 
       <div className="cars-full-spec" style={{ opacity: isEnabled ? 1 : 0.5, pointerEvents: isEnabled ? "auto" : "none" }}>
-        <div className="presets-row">
-          <label>Presets:</label>
-          <select value={presetSelection} onChange={e => setPresetSelection(e.target.value)}>
-            <option value="Full Random">Full Random</option>
-            <option value="Original Content">Original Content</option>
-          </select>
-          <button className="primary" onClick={() => applyPreset(presetSelection)}>Apply</button>
-        </div>
-
         <div className="cars-spec-section">
           <h2>{title}</h2>
           <div className="spec-grid">

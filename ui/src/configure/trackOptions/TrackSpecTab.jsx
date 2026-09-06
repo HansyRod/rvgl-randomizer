@@ -21,7 +21,6 @@ export default function TrackSpecTab() {
   const { scanResult } = setup;
   const { trackOptions, trackSpecState : specState } = configure;
 
-  const [presetSelection, setPresetSelection] = useState("Full Random");
   const [searchModalRow, setSearchModalRow] = useState(null);
   const [customUnlockModalRow, setCustomUnlockModalRow] = useState(null);
   const isEnabled = specState?.includeTracks !== false;
@@ -75,32 +74,6 @@ export default function TrackSpecTab() {
     });
   }, [specState, updateCategoryCtx]);
 
-  const applyPreset = () => {
-
-    const rows = (specState?.tracks || []).map((row, i) => {
-      if (presetSelection === "Original Content") {
-        return {
-          ...row,
-          sourcePool: row.id || STOCK_TRACKS[i] || "Full Random",
-          sourceDifficulty: "Random",
-        };
-      }
-      return {
-        ...row,
-        sourcePool: "Full Random",
-        sourceDifficulty: "Random",
-      };
-    });
-
-    updateCategoryCtx("configure", {
-      trackSpecState: {
-        ...specState, 
-        tracks: rows
-      }
-    });
-
-  };
-
   const mode = trackOptions?.unlockMode;
   const lockDifficulty = mode === "randomUnlock" || mode === "unchanged" || mode === "baseGame";
   const lockObtain = mode === "randomDifficulty" || mode === "unchanged" || mode === "baseGame";
@@ -146,15 +119,6 @@ export default function TrackSpecTab() {
       )}
 
       <div className="cars-full-spec" style={{ opacity: isEnabled ? 1 : 0.5, pointerEvents: isEnabled ? "auto" : "none" }}>
-        <div className="presets-row">
-          <label>Presets:</label>
-          <select value={presetSelection} onChange={e => setPresetSelection(e.target.value)}>
-            <option value="Full Random">Full Random</option>
-            <option value="Original Content">Original Content</option>
-          </select>
-          <button className="primary" onClick={applyPreset}>Apply</button>
-        </div>
-
         <div className="cars-spec-section">
           <h2>Track Spec</h2>
           <div className="spec-grid">

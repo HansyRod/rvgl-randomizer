@@ -5,7 +5,6 @@ export default function ExtraCarsFullSpecTab() {
     <CarsSpecSection
       title="Extra Cars"
       categoryKey="extraCars"
-      defaultCarsList={[]}
       isDynamic
     />
   );

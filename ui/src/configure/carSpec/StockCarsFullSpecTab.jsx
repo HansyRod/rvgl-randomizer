@@ -1,5 +1,4 @@
 import CarsSpecSection from "./CarsSpecSection";
-import { STOCK_CARS } from "../../utils/constants";
 
 export default function StockCarsFullSpecTab() {
 
@@ -8,7 +7,6 @@ export default function StockCarsFullSpecTab() {
       title="Stock Cars"
       categoryKey="stockCars"
       includeKey="includeStockCars"
-      defaultCarsList={STOCK_CARS}
     />
   );
 }

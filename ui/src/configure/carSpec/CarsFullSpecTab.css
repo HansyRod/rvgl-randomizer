@@ -6,22 +6,6 @@
   box-sizing: border-box;
 }
 
-.presets-row {
-  /* display: flex; temporarily removed */
-  display: none;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  padding: 1rem;
-  background-color: var(--bg-secondary);
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-}
-
-.presets-row label {
-  font-weight: bold;
-}
-
 .cars-spec-section {
   margin-bottom: 2rem;
 }
