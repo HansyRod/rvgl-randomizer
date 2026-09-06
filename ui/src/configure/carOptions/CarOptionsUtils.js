@@ -18,12 +18,29 @@ export function isNumericRating(v) {
   return RATING_IDS.includes(String(v));
 }
 
-export function getIncludedSlots(specState) {
-  if (!specState) return 0;
-  const stock = specState.includeStockCars === false ? 0 : (specState.stockCars?.length ?? STOCK_CARS.length);
-  const dc = specState.includeDcCars === false ? 0 : (specState.dcCars?.length ?? DC_CARS.length);
+export function getIncludedCarSlotCounts(specState) {
+  if (!specState) {
+    return { stock: 0, dc: 0, extra: 0, total: 0 };
+  }
+
+  const stock = specState.includeStockCars === false
+    ? 0
+    : (specState.stockCars?.length ?? STOCK_CARS.length);
+  const dc = specState.includeDcCars === false
+    ? 0
+    : (specState.dcCars?.length ?? DC_CARS.length);
   const extra = specState.extraCars?.length ?? 0;
-  return stock + dc + extra;
+
+  return {
+    stock,
+    dc,
+    extra,
+    total: stock + dc + extra,
+  };
+}
+
+export function getIncludedSlots(specState) {
+  return getIncludedCarSlotCounts(specState).total;
 }
 
 function isSpecificCarPool(sourcePool) {

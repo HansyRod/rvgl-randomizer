@@ -7,6 +7,7 @@ import CarSpecRow from "./CarSpecRow";
 import CarSearchModal from "./CarSearchModal";
 import CustomUnlockModal from "../customUnlocks/CustomUnlockModal";
 import { useAppContext } from "../../AppProvider";
+import { getIncludedCarSlotCounts } from "../carOptions/CarOptionsUtils";
 
 const SpecRow = memo(CarSpecRow);
 
@@ -92,12 +93,22 @@ export default function CarsSpecSection({title, categoryKey, includeKey, isDynam
 
   const isEnabled = includeKey ? carsSpecState[includeKey] !== false : true;
   const categoryRows = carsSpecState?.[categoryKey] || [];
+  const slotCounts = getIncludedCarSlotCounts(carsSpecState);
+  const categoryOffsets = {
+    stockCars: 0,
+    dcCars: slotCounts.stock,
+    extraCars: slotCounts.stock + slotCounts.dc,
+  };
+  const categoryOffset = categoryOffsets[categoryKey] || 0;
   const startingCarsActive =
-    categoryKey === "stockCars" &&
     carOptions?.enableStartingCars &&
     carOptions?.unlockMode !== "baseGame" &&
     (carOptions?.numStartingCars || 0) > 0;
   const startingCount = startingCarsActive ? (carOptions?.numStartingCars || 0) : 0;
+  const startingRowsInCategory = Math.max(
+    0,
+    Math.min(startingCount - categoryOffset, categoryRows.length)
+  );
 
   const addExtraCar = () => {
     const existingIds = new Set(categoryRows.map(row => row.id));
@@ -179,9 +190,9 @@ export default function CarsSpecSection({title, categoryKey, includeKey, isDynam
           🔒 <strong>Attributes are locked</strong> — Car Options is set to <em>Base Game Distribution</em>.
         </div>
       )}
-      {categoryKey === "stockCars" && carOptions?.enableStartingCars && (carOptions?.numStartingCars || 0) > 0 && (
+      {startingRowsInCategory > 0 && (
         <div className="section-lock-info">
-          🔒 <strong>Starting Car Configuration is active</strong> — first <em>{carOptions.numStartingCars}</em> stock slots have locked obtain (Starting Car){carOptions?.enableStartingCarsPool ? ", pool locked by Car Options" : ""}{carOptions?.enableStartingCarsRating ? ", rating locked by Car Options" : ""}.
+          🔒 <strong>Starting Car Configuration is active</strong> — <em>{startingRowsInCategory}</em> row{startingRowsInCategory === 1 ? "" : "s"} in this section are locked as Starting Cars{carOptions?.enableStartingCarsPool ? ", pool locked by Car Options" : ""}{carOptions?.enableStartingCarsRating ? ", rating locked by Car Options" : ""}.
         </div>
       )}
 
@@ -210,9 +221,8 @@ export default function CarsSpecSection({title, categoryKey, includeKey, isDynam
               {isDynamic && <div />}
             </div>
             {categoryRows.map((row, index) => (
-              // Starting car locks only apply to stock slots in the configured range.
               (() => {
-                const isStartingSlot = startingCount > 0 && index < startingCount;
+                const isStartingSlot = startingCount > 0 && categoryOffset + index < startingCount;
                 return (
               <SpecRow
                 key={row.id}

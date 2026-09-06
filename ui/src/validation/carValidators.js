@@ -2,7 +2,7 @@ import { formatValidationList, getAllCarsFromScan, getAllTracksFromScan, getTrac
 import { isEffectiveStockCarsMode, isEffectiveStockTracksMode } from "./stockMode";
 import { getCustomUnlockTrackCountMax, hasEnabledCustomUnlockMethod, validateCustomUnlockRanges, validateCustomUnlockRows } from "./customUnlockValidators";
 import { STOCK_CARS, DC_CARS, ATTR_RATINGS_LIST } from "../utils/constants";
-import { countFixedRatings } from "../configure/carOptions/CarOptionsUtils";
+import { countFixedRatings, getIncludedSlots } from "../configure/carOptions/CarOptionsUtils";
 
 const RATING_IDS = ["0", "1", "2", "3", "4", "5"];
 
@@ -192,10 +192,10 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
   }
 
   // Check distribution constraints are satisfiable
-  const totalSlots =
-    (includeStock ? (carsSpecState?.stockCars?.length ?? STOCK_CARS.length) : 0) +
-    (includeDC && !isStockMode ? (carsSpecState?.dcCars?.length ?? DC_CARS.length) : 0) +
-    extraRows.length;
+  const totalSlots = getIncludedSlots({
+    ...carsSpecState,
+    includeDcCars: includeDC && !isStockMode,
+  });
 
   const checkDistribution = (distMap, label, fixedCounts) => {
     const entries = RATING_IDS.map((rating) => ({
