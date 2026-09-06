@@ -54,7 +54,8 @@ state.configure
 │   ├── includeStockCars  bool
 │   ├── includeDcCars    bool
 │   ├── stockCars[]       CarSpec[28]        (Stock Cars Spec tab)
-│   └── dcCars[]          CarSpec[14]        (DC Cars Spec tab)
+│   ├── dcCars[]          CarSpec[14]        (DC Cars Spec tab)
+│   └── extraCars[]       CarSpec[]          (Extras specification page)
 ├── trackOptions        TrackOptionsInput   (Track Options tab)
 ├── trackSpecState
 │   ├── includeTracks    bool
@@ -103,9 +104,15 @@ car has been selected.
 
 1. Reads the current `carsSpecState` (or creates defaults from `STOCK_CARS` /
    `DC_CARS` if not yet initialised).
-2. Iterates every row in `stockCars` and `dcCars` and calls `applyModeRules`
-   to set `attrRating` and `attrObtain` in each row.
-3. Writes back both `carsSpecState` and `carOptions` simultaneously.
+2. Iterates every row in `stockCars`, `dcCars`, and `extraCars` and calls
+   `applyModeRules` to set `attrRating` and `attrObtain` in each row. Extra
+   rows use their global slot offset so Starting Car rules cover the complete
+   Stock/DC/Extra sequence.
+3. Writes back both `carsSpecState` and `carOptions` simultaneously. Existing
+   Extra rows are preserved and normalized for the selected mode. When
+   switching to Base Game Distribution, Extra-row attributes remain editable;
+   values that were previously locked by the old mode or Starting Car
+   configuration are reset to their random/unlocked defaults.
 
 **Base Game Distribution pattern** — applied directly in `handleModeSelect`
 without going through `applyModeRules`:
@@ -148,9 +155,9 @@ random; these checkboxes only gate the edge cases.
 Visible when `unlockMode` is `random` or `randomRatings`.
 
 **Include Super Pro** (`includeSuperPro`, default `true`) — when unchecked,
-forces `poolRatingDistributions["5"]` and `attrRatingDistributions["5"]` to
-`{ enabled: true, min: 0, max: 0 }`, effectively banning Super Pro from all
-rolls.
+locks the Super Pro rows in both tables and sets their minimum and maximum to
+`0`, effectively banning Super Pro from all rolls. The row's enabled state is
+preserved, but Rust excludes Super Pro while this option is disabled.
 
 **Car Pool Rating Distribution** (`poolRatingDistributions`) — constraints on
 which *source car ratings* may be picked for each slot (controls the car
@@ -179,15 +186,29 @@ Both tables share the same structure, rendered by `RatingDistTable`:
    placed in any enabled bucket.
 5. Shuffle the final flat list before assigning.
 
-**Normalization** — `CarOptionsUtils.js → normalizeDistributionMap` is called
-every time a distribution value changes:
+**Distribution edits and validation** — `CarOptionsUtils.js →
+normalizeDistributionMap` is called every time a distribution value changes.
+It only normalizes the edited values locally:
 
-- `min` is clamped to `Math.max(min, fixedCount[rating])` where `fixedCount`
-  is the number of spec rows already locked to that rating.
-- If the total `sum(min)` exceeds available slots, minimums are reduced
-  proportionally, but never below the fixed floor from the spec.
-- If all ratings are enabled, `sum(max)` must be able to cover all slots; if
-  not, the highest max is expanded automatically.
+- Numeric values below zero are converted to `0`.
+- The minimum and maximum remain coupled: raising a minimum raises its maximum
+  when necessary, and lowering a maximum lowers its minimum when necessary.
+- It does not change fixed spec rows, reduce minimums in other ratings, or
+  expand maximums to make the table fit automatically.
+
+The validation layer checks each enabled distribution row and prevents
+generation when:
+
+- a minimum or maximum is outside `0..totalSlots`;
+- a minimum exceeds its maximum;
+- fixed source/target ratings cannot fit within the configured distribution;
+- the enabled minimum values exceed the available slot count; or
+- all ratings are enabled but their maximum values cannot cover every slot.
+
+For the Car Pool Rating Distribution, validation also checks whether the
+scanned car pool contains enough cars to satisfy each enabled minimum. Changes
+to spec rows or to the total slot count do not silently rewrite distribution
+values; the resulting combination is validated instead.
 
 ### 2.4 Starting Car Configuration
 
@@ -196,23 +217,28 @@ Visible when `unlockMode` is not `baseGame`.
 **Enable custom starting car configuration** (`enableStartingCars`) — master
 toggle; requires `numStartingCars ≥ 1` (auto-set to 1 if toggled on while 0).
 
-**Number of starting cars** (`numStartingCars`, 1–42) — the first N stock slots
-are treated as "starting cars". This means:
+**Number of starting cars** (`numStartingCars`) — the first N slots in the
+global enabled Stock/DC/Extra sequence are treated as "starting cars". The
+maximum is the number of enabled Stock and DC rows plus the number of Extra
+rows. This means:
 
 - In modes `random` / `randomUnlock`, `attrObtain` is forced to `"0"` (Starting
   Car) in the spec rows.
 - In modes `unchanged` / `randomRatings`, `sourceObtain` is forced to `"0"`.
 
 **Starting Cars: Set Source Pool** (`enableStartingCarsPool` + `startingCarsPool`)
-— when enabled, the source pool dropdown for the first N stock slots is locked
+— when enabled, the source pool dropdown for the first N global slots is locked
 to the chosen pool and the user cannot change it per-row.
 
 **Starting Cars: Set Rating** (`enableStartingCarsRating` + `startingCarsRating`)
-— when enabled, the source rating for the first N stock slots is locked to the
-chosen rating.
+— when enabled, the source rating for the first N global slots is locked to
+the chosen rating.
 
 Both locks are enforced in `CarsSpecSection.jsx` by passing `lockStartingPool`,
 `lockStartingRating`, and `lockStartingObtain` props to each `CarSpecRow`.
+Starting Car validation also checks that the aggregate source pool and each
+starting row's source constraints can resolve to valid starting cars. Invalid
+combinations prevent generation.
 
 ---
 
@@ -298,9 +324,11 @@ The following locks grey out columns and prevent user edits:
 |---|---|
 | `unlockMode === "unchanged"` or `"randomUnlock"` | attrRating |
 | `unlockMode === "unchanged"` or `"randomRatings"` | attrObtain |
-| `unlockMode === "baseGame"` | Both attrRating and attrObtain |
-| Slot is in Starting Car range AND `enableStartingCarsPool` AND `unlockMode` is `random` or `randomUnlock` | sourcePool |
-| Slot is in Starting Car range AND `enableStartingCarsRating` AND `unlockMode` is `random` or `randomUnlock` | sourceRating |
+| `unlockMode === "baseGame"` on Stock/DC rows | Both attrRating and attrObtain |
+| `unlockMode === "baseGame"` on Extra rows | Neither attribute is locked by the mode |
+| Slot is in Starting Car range AND `enableStartingCarsPool` | sourcePool |
+| Slot is in Starting Car range AND `enableStartingCarsRating` | sourceRating |
+| Slot is in Starting Car range AND `unlockMode` is `unchanged` or `randomRatings` | sourceObtain |
 | Slot is in Starting Car range AND `unlockMode` is `random` or `randomUnlock` | attrObtain (forced to Starting Car) |
 | Pool is a specific car folder | sourceRating, sourceObtain |
 
@@ -623,6 +651,8 @@ Defined in `ui/src/utils/constants.js` and `AppProvider.jsx`.
 { id: "<folderName>", sourcePool: "Full Random", sourceRating: "Random",
   sourceObtain: "Random", attrRating: "Random", attrObtain: "Random" }
 ```
+The `carsSpecState` object also contains `extraCars: []`. Extra rows use the
+same structure and are appended dynamically on the Extras specification page.
 
 ### Default TrackSpecState
 

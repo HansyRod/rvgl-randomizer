@@ -1,0 +1,213 @@
+================================================================================
+
+EXTRA CAR SLOTS
+
+================================================================================
+
+PURPOSE
+
+Extra Car Slots extend car randomization beyond the vanilla Stock and DC slots.
+Players can add any number of extra specification rows and give each row the
+same randomization criteria available to Stock/DC cars. The generated
+configuration uses a separate `extraCars` array.
+
+The implementation is intentionally staged in this order:
+
+1. UI (JavaScript)
+2. Generation (Rust)
+3. Injection (C++)
+
+CURRENT STATUS
+
+The UI, Rust generation, and DLL injection work described here has been
+implemented. The remaining work is focused on broader regression and runtime
+validation.
+
+UI DESIGN
+
+The Configure view contains an `Extras specification` page. It uses the shared
+car specification controls, so each extra row supports source pool, source
+rating, source obtainability, target rating, target obtainability, and custom
+unlock criteria just like a Stock/DC row.
+
+The page remains useful when it has no rows: an `Add Car Slot` button is always
+visible. Extra rows always receive sequential display IDs (`extra-1` through
+`extra-N`); the list is renumbered after rows are added, removed, or loaded
+from saved state. Each row has a remove button at the far-right end of the
+row. The remove button uses the same compact, transparent X-button style used
+by the Cup pages.
+
+`makeDefaultCarSpec(id)` creates one row object. `makeDefaultCarsSpec(ids)` is
+implemented as a mapping operation over that factory, keeping single-row and
+multi-row defaults consistent.
+
+The dynamic behavior is kept small inside `CarsSpecSection`:
+
+- use the selected category's rows instead of a fixed Stock/DC list;
+- add and remove rows for the dynamic Extra category;
+- add the action column only for dynamic rows; and
+- keep the action button as the final DOM child of the row.
+
+The spec-page preset controls are dead code and remain hidden. Extra-slot
+support does not add dynamic preset target handling.
+
+STARTING CARS AND SLOT COUNTS
+
+Extra rows can be starting cars. The maximum number of starting cars is the
+number of enabled Stock slots plus enabled DC slots plus the number of Extra
+rows. Starting-car lock/configuration logic therefore uses the global slot
+range, with Extra slots following the enabled Stock and DC slots.
+
+Changing the car randomization mode normalizes Extra rows using their global
+slot indices, including Starting Car overrides. Base Game Distribution leaves
+Extra-row rating and obtain attributes editable; values that were locked by the
+previous mode or Starting Car configuration are reset when entering that mode.
+
+The same total-slot calculation is used by the Car Pool Rating Distribution and
+Target Rating Distribution tables. Their maximum is allowed to be zero when
+there are no enabled Stock/DC slots and no Extra rows; when Extra rows exist,
+they contribute to the maximum even if Stock/DC randomization is disabled.
+
+RANDOMIZATION AND POOL SEMANTICS
+
+An Extra row may randomize to a Stock/DC car. That is valid when the selected
+car is not already present in the final randomized Stock/DC pool. Extra-car
+candidate selection must therefore use the remaining-pool behavior rather than
+rejecting every vanilla-folder candidate.
+
+Validation should reject a direct vanilla-folder assignment to an Extra row
+only when the corresponding Stock/DC randomization is disabled. This is the
+same duplicate-protection rule used for assigning a disabled Stock car to a DC
+slot; it should not prevent valid assignments when the vanilla car is already
+being randomized and can be removed from the remaining pool.
+
+Extra rows participate in duplicate specific-car warnings, fixed-rating slot
+counts used by distribution validation, and the enabled-slot count used by the
+Car Options settings. Distribution values are not silently rewritten when
+Extra rows are added, removed, or edited; invalid combinations are reported by
+validation and prevent generation.
+
+CUP OPPONENTS
+
+Players may select Extra slots and Extra cars as explicit cup opponents. Cup
+opponent handling therefore has an `Extra` category and stable slot references
+for Extra rows, in addition to concrete-car candidates where appropriate. The
+normal runtime pool may also select loaded Extra cars.
+
+DATA FLOW
+
+The UI state and generation payload preserve:
+
+    carsSpecState.extraCars: []
+
+Existing presets are normalized with an empty `extraCars` array when they do
+not contain the new field. The generation payload carries Extra rows alongside
+`stockCars` and `dcCars`; no Rust or C++ behavior should be inferred from the
+presence of the UI field alone.
+
+RUST GENERATION WORK (COMPLETED)
+
+The Rust model carries Extra rows and generation produces an `extraCars` result
+array alongside `stockCars` and `dcCars`. Extra rows use the same criteria and
+randomized properties as Stock/DC rows while coordinating all three pools.
+
+The resolver sorts all rows by the number of candidates. Specific car requests
+normally have one candidate and therefore resolve before broader slots. The
+sort is stable, so equal candidate counts retain the configured Stock, DC,
+Extra order. The same unused-car preference and fallback behavior used by
+Stock/DC rows is applied to Extra rows as well. This allows an Extra row to use
+a Stock/DC car when it remains available in the shared pool.
+
+Validation rejects a direct vanilla-folder assignment to an Extra row when the
+corresponding Stock/DC randomization is disabled, or when the same specific car
+is requested elsewhere.
+
+Extra slots are represented independently of their eventual RVGL runtime
+indices. The generated configuration preserves Extra slot order in the
+`extraCars` array, while the DLL maps a loaded Extra car by its stable internal
+folder name rather than assuming `extraCars[0]`, `extraCars[1]`, and so on are
+RVGL runtime indices. Stock and DC configuration continue to use their
+vanilla-index lookups.
+
+INJECTION WORK (COMPLETED)
+
+`loadExtraCars` remains the switch controlling whether the DLL loads Extra
+cars. The UI should pass the Extra configuration without trying to own this
+runtime decision.
+
+`ConfigData` now consumes and serializes the `extraCars` array. No special
+`ConfigManager.cpp` parsing path is needed because it already deserializes the
+root object through `ConfigData`.
+
+`Hook_LoadVanillaCarPool` continues to load the Stock and DC cars. The custom
+loader now behaves as follows:
+
+- with `load_extra_cars` enabled, the original loader sees every custom-car
+  directory;
+- with it disabled and `extraCars` non-empty, the `DirScan_Next` detour skips
+  unconfigured folders before RVGL reallocates the pool or loads their files;
+- with it disabled and `extraCars` empty, the custom-loader hook exits early;
+  and
+- selected cars continue through RVGL's normal allocation, parsing, skin
+  loading, checksum, ownership, and cleanup behavior.
+
+The directory detour uses typed `DirScanState` and `DirEntry` structures. Ghidra
+verified `DirScanState` as 272 bytes (`path[256]`, `vfsMountIndex`, padding, and
+`pDirHandle`) and `DirEntry` as 264 bytes (unused header, `nameLen`, and
+`name[256]`). `OSDirHandle` remains opaque because the DLL only stores its
+pointer.
+
+After the original custom loader finishes, RVGL has sorted the custom section
+by `CarInfo::rating`, using display name as the tie-breaker. The DLL then moves
+configured Extra cars into the order of the `extraCars` array. When all custom
+cars are loaded, unconfigured cars remain after the configured Extras in their
+existing relative order. The live RVGL pool is reordered before the DLL
+snapshot is extended, so both use the same runtime indices.
+
+`ApplyCarMods` is run for each newly loaded custom car. Extra configuration is
+looked up by internal folder name, allowing rating and obtain overrides to be
+applied after the custom pool has been reordered.
+
+The relevant verified RVGL addresses are `LoadCustomCarPool` at `0043fac0`,
+`DirScan_Next` at `00537250`, `DirScan_Open` at `00537120`, and
+`DirScan_Close` at `005375a0`.
+
+COMPLETED VALIDATION CHECKLIST
+
+- The Extras page shows `Add Car Slot` with zero rows.
+- Rows can be added, edited, and removed without affecting Stock/DC rows.
+- Extra rows can be locked as starting cars, and the maximum reflects all
+  enabled Stock/DC slots plus Extra rows.
+- Starting Car validation checks both aggregate availability and each starting
+  row's effective source pool, source rating, source obtain, and target obtain
+  settings.
+- Extra row IDs remain sequential from `extra-1` through `extra-N` after rows
+  are added, removed, or loaded from saved state.
+- Both rating-distribution tables use the same total-slot maximum, including
+  the intentional zero maximum when the total is zero.
+- Distribution values remain user-controlled when slot counts or spec rows
+  change. Negative edits become zero and minimum/maximum pairs stay coupled,
+  but fixed-rating conflicts, out-of-range values, and unsatisfiable sums are
+  reported as validation issues instead of changing other settings.
+- Specific cars and unchanged source/target ratings contribute to the fixed
+  rating counts used when validating both distribution tables.
+- A valid Stock/DC candidate can be assigned to an Extra row when it is absent
+  from the final Stock/DC pool.
+- Disabled Stock/DC vanilla-folder assignments to Extra rows are rejected.
+- Extra slots and concrete Extra cars are available to cup opponent selection.
+- Old presets load with `extraCars: []`.
+- The combined UI and Rust test command passes: `npm test` from the `ui`
+  directory runs the JavaScript validation suite and `cargo test` for the
+  Tauri Rust crate.
+
+REMAINING WORK: RUNTIME VALIDATION
+
+- Verify the DLL at runtime with multiple custom folders and mixed
+  Stock/DC/Extra assignments.
+- Verify both custom-loading modes: load all custom cars, and load only the
+  selected Extra cars.
+- Verify Extra list order remains slot order even when native car ratings differ.
+- Verify selected Extra cars receive rating, obtain, and custom-unlock behavior
+  after pool reordering.
+- Verify missing folders, duplicate resolved Extra folders, and Extra slots
+  resolved to vanilla Stock/DC cars do not corrupt the pool or indices.
