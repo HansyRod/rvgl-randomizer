@@ -26,14 +26,38 @@ export function getIncludedSlots(specState) {
   return stock + dc + extra;
 }
 
-export function countFixedRatings(specState, key) {
+function isSpecificCarPool(sourcePool) {
+  return typeof sourcePool === "string" &&
+    sourcePool !== "Full Random" &&
+    sourcePool !== "Stock" &&
+    sourcePool !== "DC" &&
+    sourcePool !== "Custom" &&
+    !sourcePool.startsWith("Pack:");
+}
+
+function getFixedRating(row, key, availableCars) {
+  const specificCar = isSpecificCarPool(row?.sourcePool)
+    ? availableCars.find(car => car?.folderName?.toLowerCase() === row.sourcePool.toLowerCase())
+    : null;
+
+  if (key === "sourceRating" && specificCar) return specificCar.rating;
+  if (isNumericRating(row?.[key])) return row[key];
+
+  if (key === "attrRating" && row?.attrRating === "Unchanged") {
+    return specificCar?.rating ?? row?.sourceRating;
+  }
+
+  return null;
+}
+
+export function countFixedRatings(specState, key, availableCars = []) {
   const out = { "0": 0, "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
   if (!specState) return out;
 
   const applyRows = (rows = []) => {
     for (const row of rows) {
-      const val = row?.[key];
-      if (isNumericRating(val)) out[String(val)] += 1;
+      const fixedRating = String(getFixedRating(row, key, availableCars));
+      if (isNumericRating(fixedRating)) out[fixedRating] += 1;
     }
   };
 
@@ -43,93 +67,18 @@ export function countFixedRatings(specState, key) {
   return out;
 }
 
-export function normalizeDistributionMap(distMap, fixedCounts, totalSlots) {
+export function normalizeDistributionMap(distMap, totalSlots) {
   const normalized = {};
 
   for (const rid of RATING_IDS) {
     const src = distMap?.[rid] ?? { enabled: false, min: 0, max: totalSlots };
-    let min = Math.min(totalSlots, Math.max(0, Number(src.min) || 0));
-    min = Math.max(min, fixedCounts[rid] || 0);
+    const min = Math.max(0, Number(src.min) || 0);
     let max = Math.max(0, Number(src.max) || 0);
     if (max < min) max = min;
     normalized[rid] = { enabled: !!src.enabled, min, max };
   }
 
-  // Keep sum(min) within available slots by reducing only above fixed floors.
-  // Disabled rows should not consume budget unless the spec enforces fixed picks.
-  const minConstrainedRatings = RATING_IDS.filter(
-    rid => normalized[rid].enabled || (fixedCounts[rid] || 0) > 0
-  );
-  let minSum = minConstrainedRatings.reduce((s, rid) => s + normalized[rid].min, 0);
-  if (minSum > totalSlots) {
-    let overflow = minSum - totalSlots;
-    const reducible = [...minConstrainedRatings].sort(
-      (a, b) =>
-        (normalized[b].min - (fixedCounts[b] || 0)) -
-        (normalized[a].min - (fixedCounts[a] || 0))
-    );
-    for (const rid of reducible) {
-      if (overflow <= 0) break;
-      const floor = fixedCounts[rid] || 0;
-      const canDrop = Math.max(0, normalized[rid].min - floor);
-      const drop = Math.min(canDrop, overflow);
-      normalized[rid].min -= drop;
-      if (normalized[rid].max < normalized[rid].min) normalized[rid].max = normalized[rid].min;
-      overflow -= drop;
-    }
-  }
-
-  // If all ratings are enabled, max-sum must be able to cover all slots.
-  const allEnabled = RATING_IDS.every(rid => normalized[rid].enabled);
-  if (allEnabled) {
-    let maxSum = RATING_IDS.reduce((s, rid) => s + normalized[rid].max, 0);
-    if (maxSum < totalSlots) {
-      let missing = totalSlots - maxSum;
-      for (const rid of RATING_IDS) {
-        if (missing <= 0) break;
-        normalized[rid].max += missing;
-        missing = 0;
-      }
-    }
-  }
-
   return normalized;
-}
-
-export function resetFixedRatingsToRandom(specState, key, rid, keepCount) {
-  if (!specState) return specState;
-
-  const clone = {
-    ...specState,
-    stockCars: [...(specState.stockCars || [])],
-    dcCars: [...(specState.dcCars || [])],
-    extraCars: [...(specState.extraCars || [])],
-  };
-
-  // Prefer preserving earlier slots; revert from the end.
-  const buckets = [];
-  for (let i = clone.extraCars.length - 1; i >= 0; i -= 1) {
-    if (String(clone.extraCars[i]?.[key]) === rid) buckets.push({ cat: "extraCars", i });
-  }
-  if (clone.includeDcCars !== false) {
-    for (let i = clone.dcCars.length - 1; i >= 0; i -= 1) {
-      if (String(clone.dcCars[i]?.[key]) === rid) buckets.push({ cat: "dcCars", i });
-    }
-  }
-  if (clone.includeStockCars !== false) {
-    for (let i = clone.stockCars.length - 1; i >= 0; i -= 1) {
-      if (String(clone.stockCars[i]?.[key]) === rid) buckets.push({ cat: "stockCars", i });
-    }
-  }
-
-  let toReset = Math.max(0, buckets.length - keepCount);
-  for (const b of buckets) {
-    if (toReset <= 0) break;
-    clone[b.cat][b.i] = { ...clone[b.cat][b.i], [key]: "Random" };
-    toReset -= 1;
-  }
-
-  return clone;
 }
 
 export const getRatingByMode = (modeId) => {
@@ -196,22 +145,3 @@ export const applyModeRules = (car, index, modeId, carOpts) => {
   return out;
 };
 
-export const alignDistributionsWithSpec = (currentCarOptions, newSpecState) => {
-  if (!newSpecState) return currentCarOptions;
-
-  // 1. Calculate total slots and fixed counts from the NEW spec state
-  const totalSlots = getIncludedSlots(newSpecState);
-  const sourceFixed = countFixedRatings(newSpecState, "sourceRating");
-  const attrFixed = countFixedRatings(newSpecState, "attrRating");
-
-  // 2. Normalize both the pool and attr maps using those counts
-  const nextPool = normalizeDistributionMap(currentCarOptions.poolRatingDistributions, sourceFixed, totalSlots);
-  const nextAttr = normalizeDistributionMap(currentCarOptions.attrRatingDistributions, attrFixed, totalSlots);
-
-  // 3. Return a new carOptions object with the aligned maps
-  return {
-    ...currentCarOptions,
-    poolRatingDistributions: nextPool,
-    attrRatingDistributions: nextAttr,
-  };
-}

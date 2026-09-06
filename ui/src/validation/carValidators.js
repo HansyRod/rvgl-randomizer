@@ -2,6 +2,9 @@ import { formatValidationList, getAllCarsFromScan, getAllTracksFromScan, getTrac
 import { isEffectiveStockCarsMode, isEffectiveStockTracksMode } from "./stockMode";
 import { getCustomUnlockTrackCountMax, hasEnabledCustomUnlockMethod, validateCustomUnlockRanges, validateCustomUnlockRows } from "./customUnlockValidators";
 import { STOCK_CARS, DC_CARS, ATTR_RATINGS_LIST } from "../utils/constants";
+import { countFixedRatings } from "../configure/carOptions/CarOptionsUtils";
+
+const RATING_IDS = ["0", "1", "2", "3", "4", "5"];
 
 export function validateCarOptions(carOptions, carsSpecState, scanResult, preset, trackSpecState) {
   const errors = [];
@@ -194,22 +197,87 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
     (includeDC && !isStockMode ? (carsSpecState?.dcCars?.length ?? DC_CARS.length) : 0) +
     extraRows.length;
 
-  const checkDistribution = (distMap, label) => {
-    const ratings = Object.entries(distMap);
+  const checkDistribution = (distMap, label, fixedCounts) => {
+    const entries = RATING_IDS.map((rating) => ({
+      rating,
+      dist: distMap?.[rating],
+      ratingLabel: ATTR_RATINGS_LIST.find((item) => item.val === rating)?.label || rating,
+    }));
+    const enabledEntries = entries.filter(({ dist }) => dist?.enabled);
 
-    // Only validate maxSum for rating distributions if all ratings are enabled
-    // Otherwise any remaining cars can use the unrestricted ratings
-    if (ratings.some((r) => !r.enabled)) {
-      return;
+    enabledEntries.forEach(({ rating, dist, ratingLabel }) => {
+      const min = Number(dist.min);
+      const max = Number(dist.max);
+      const fixedCount = fixedCounts[rating] || 0;
+
+      if (!Number.isFinite(min) || min < 0 || min > totalSlots) {
+        errors.push({
+          id: `cars_dist_min_range_${label}_${rating}`,
+          scope: "carOptions",
+          message: `${label}: ${ratingLabel} minimum must be between 0 and ${totalSlots}.`
+        });
+      }
+
+      if (!Number.isFinite(max) || max < 0 || max > totalSlots) {
+        errors.push({
+          id: `cars_dist_max_range_${label}_${rating}`,
+          scope: "carOptions",
+          message: `${label}: ${ratingLabel} maximum must be between 0 and ${totalSlots}.`
+        });
+      }
+
+      if (Number.isFinite(min) && Number.isFinite(max) && min > max) {
+        errors.push({
+          id: `cars_dist_min_above_max_${label}_${rating}`,
+          scope: "carOptions",
+          message: `${label}: ${ratingLabel} minimum cannot be greater than its maximum.`
+        });
+      }
+
+      if (fixedCount > min) {
+        warnings.push({
+          id: `cars_dist_fixed_min_${label}_${rating}`,
+          scope: "carOptions",
+          message: `${label}: ${ratingLabel} has ${fixedCount} fixed slot${fixedCount === 1 ? "" : "s"}, but its minimum is only ${min}.`
+        });
+      }
+
+      if (fixedCount > max) {
+        errors.push({
+          id: `cars_dist_fixed_max_${label}_${rating}`,
+          scope: "carOptions",
+          message: `${label}: ${ratingLabel} has ${fixedCount} fixed slot${fixedCount === 1 ? "" : "s"}, but its maximum is only ${max}.`
+        });
+      }
+    });
+
+    const minSum = enabledEntries.reduce((sum, { dist }) => {
+      const min = Number(dist.min);
+      return sum + (Number.isFinite(min) ? min : 0);
+    }, 0);
+    if (minSum > totalSlots) {
+      errors.push({
+        id: `cars_dist_min_sum_too_high_${label}`,
+        scope: "carOptions",
+        message: `${label} minimum values total ${minSum}, which exceeds the ${totalSlots} available slots.`
+      });
     }
 
-    const maxSum = ratings.reduce((s, [, d]) => s + d.max, 0);
-    if (maxSum < totalSlots) {
-      warnings.push({
-        id: `cars_dist_max_too_low_${label}`,
-        scope: "carOptions",
-        message: `${label} cannot cover all selected car slots with the current maximum values. Results may not fully match this distribution.`
-      });
+    // When every rating is constrained, the maxima must still be able to
+    // accommodate every slot. Disabled ratings are intentionally unrestricted.
+    const allRatingsEnabled = entries.every(({ dist }) => dist?.enabled);
+    if (allRatingsEnabled) {
+      const maxSum = entries.reduce((sum, { dist }) => {
+        const max = Number(dist.max);
+        return sum + (Number.isFinite(max) ? max : 0);
+      }, 0);
+      if (maxSum < totalSlots) {
+        errors.push({
+          id: `cars_dist_max_too_low_${label}`,
+          scope: "carOptions",
+          message: `${label} cannot cover all selected car slots with the current maximum values.`
+        });
+      }
     }
   };
 
@@ -226,10 +294,10 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
 
       if (ratingCars.length < ratingDist.min) {
         const label = ATTR_RATINGS_LIST.find((item) => item.val === rating).label;
-        warnings.push({
+        errors.push({
           id: `cars_dist_min_too_low_${label}`,
           scope: "carOptions",
-          message: `There are not enough ${label} cars available to meet this minimum. Results may use fewer than requested.`
+          message: `There are not enough ${label} cars available to meet this minimum.`
         });
       }
 
@@ -237,11 +305,19 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
   }
 
   if (carOptions.poolRatingDistributions) {
-    checkDistribution(carOptions.poolRatingDistributions, "Car Pool Rating Distribution");
+    checkDistribution(
+      carOptions.poolRatingDistributions,
+      "Car Pool Rating Distribution",
+      countFixedRatings(carsSpecState, "sourceRating", allCars)
+    );
     checkSource(carOptions.poolRatingDistributions);
   }
   if (carOptions.attrRatingDistributions) {
-    checkDistribution(carOptions.attrRatingDistributions, "Target Rating Distribution");
+    checkDistribution(
+      carOptions.attrRatingDistributions,
+      "Target Rating Distribution",
+      countFixedRatings(carsSpecState, "attrRating", allCars)
+    );
   }
 
   if (carOptions.enableStartingCars && carOptions.numStartingCars > 0) {

@@ -3,7 +3,7 @@ import { useAppContext, DEFAULT_STATE } from "../../AppProvider";
 import StartingCarConfig from "./StartingCarConfig";
 import CarRatingsConfig from "./CarRatingsConfig";
 import CustomUnlockMethodsTable from "./CustomUnlockMethodsTable";
-import { applyModeRules, alignDistributionsWithSpec } from "./CarOptionsUtils";
+import { applyModeRules } from "./CarOptionsUtils";
 import { isEffectiveStockCarsMode } from "../../validation/stockMode";
 import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
 
@@ -134,7 +134,7 @@ export default function CarOptionsTab() {
     const newCarOptions = { ...carOptions, unlockMode: modeId };
     updateCategoryCtx("configure", {
       carsSpecState: newCarsSpecState,
-      carOptions: alignDistributionsWithSpec(newCarOptions, newCarsSpecState),
+      carOptions: newCarOptions,
     });
   };
 
@@ -149,10 +149,9 @@ export default function CarOptionsTab() {
 
   const handleInclude = (key, value) => {
     const newCarsSpecState = { ...carsSpecState, [key]: value };
-    const aligned = alignDistributionsWithSpec(carOptions, newCarsSpecState);
     updateCategoryCtx("configure", {
       carsSpecState: newCarsSpecState,
-      carOptions: aligned,
+      carOptions,
     });
   };
 

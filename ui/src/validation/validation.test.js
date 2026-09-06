@@ -15,7 +15,7 @@ import { validateTrackSpec } from "./trackValidators.js";
 import { isEffectiveStockCarsMode, isEffectiveStockTracksMode } from "./stockMode.js";
 import { formatValidationList } from "./validationUtils.js";
 import { normalizeConfigureContext } from "../utils/configureContext.js";
-import { STOCK_CARS, STOCK_TRACKS } from "../utils/constants.js";
+import { DEFAULT_CAR_OPTIONS, STOCK_CARS, STOCK_TRACKS } from "../utils/constants.js";
 
 function runTest(name, fn) {
   try {
@@ -63,6 +63,44 @@ function makeCarsByRating(counts) {
   });
 
   return cars;
+}
+
+function makeDistributionMap(overrides = {}) {
+  return Object.fromEntries(
+    ["0", "1", "2", "3", "4", "5"].map((rating) => [
+      rating,
+      {
+        ...DEFAULT_CAR_OPTIONS.poolRatingDistributions[rating],
+        ...overrides[rating],
+      },
+    ])
+  );
+}
+
+function makeCarOptions(overrides = {}) {
+  return {
+    unlockMode: "random",
+    includeStartingCar: true,
+    includeChampionship: false,
+    includeTimeTrial: false,
+    includePracticeStars: false,
+    includeSingleRace: false,
+    includeCheatOnly: false,
+    includeStuntArena: false,
+    poolRatingDistributions: makeDistributionMap(),
+    attrRatingDistributions: makeDistributionMap(),
+    ...overrides,
+  };
+}
+
+function makeExtraSpecState(rows) {
+  return {
+    includeStockCars: false,
+    includeDcCars: false,
+    stockCars: [],
+    dcCars: [],
+    extraCars: rows,
+  };
 }
 
 function makeStockCarsScan() {
@@ -512,6 +550,73 @@ runTest("custom car unlock methods count as allowed unlock methods", () => {
   );
 
   assert.equal(results.errors.some((error) => error.id === "cars_no_unlock_methods"), false);
+});
+
+runTest("car rating distributions reject values outside the available slot range", () => {
+  const results = validateCarOptions(
+    makeCarOptions({
+      poolRatingDistributions: makeDistributionMap({
+        "0": { enabled: true, min: 2, max: 2 },
+      }),
+    }),
+    makeExtraSpecState([{ sourcePool: "Full Random", sourceRating: "Random", attrRating: "Random" }]),
+    makeClassicScan({ cars: [makeCar("rookie_car", 0)] }),
+    "custom"
+  );
+
+  assert.ok(results.errors.some((error) => error.id === "cars_dist_min_range_Car Pool Rating Distribution_0"));
+  assert.ok(results.errors.some((error) => error.id === "cars_dist_max_range_Car Pool Rating Distribution_0"));
+});
+
+runTest("car rating distributions reject minimums that exceed the slot count", () => {
+  const results = validateCarOptions(
+    makeCarOptions({
+      poolRatingDistributions: makeDistributionMap({
+        "0": { enabled: true, min: 1, max: 2 },
+        "1": { enabled: true, min: 1, max: 2 },
+      }),
+    }),
+    makeExtraSpecState([
+      { sourcePool: "Full Random", sourceRating: "Random", attrRating: "Random" },
+      { sourcePool: "Full Random", sourceRating: "Random", attrRating: "Random" },
+    ]),
+    makeClassicScan({ cars: [makeCar("rookie_car", 0), makeCar("amateur_car", 1)] }),
+    "custom"
+  );
+
+  assert.ok(results.errors.some((error) => error.id === "cars_dist_min_sum_too_high_Car Pool Rating Distribution"));
+});
+
+runTest("car rating distributions reject maximums that cannot cover all slots", () => {
+  const poolRatingDistributions = makeDistributionMap();
+  Object.values(poolRatingDistributions).forEach((distribution) => {
+    distribution.enabled = true;
+    distribution.max = 0;
+  });
+
+  const results = validateCarOptions(
+    makeCarOptions({ poolRatingDistributions }),
+    makeExtraSpecState([{ sourcePool: "Full Random", sourceRating: "Random", attrRating: "Random" }]),
+    makeClassicScan({ cars: [makeCar("rookie_car", 0)] }),
+    "custom"
+  );
+
+  assert.ok(results.errors.some((error) => error.id === "cars_dist_max_too_low_Car Pool Rating Distribution"));
+});
+
+runTest("car rating distributions reject fixed specific cars above the configured maximum", () => {
+  const results = validateCarOptions(
+    makeCarOptions({
+      poolRatingDistributions: makeDistributionMap({
+        "0": { enabled: true, min: 0, max: 0 },
+      }),
+    }),
+    makeExtraSpecState([{ sourcePool: "rookie_car", sourceRating: "Random", attrRating: "Random" }]),
+    makeClassicScan({ cars: [makeCar("rookie_car", 0)] }),
+    "custom"
+  );
+
+  assert.ok(results.errors.some((error) => error.id === "cars_dist_fixed_max_Car Pool Rating Distribution_0"));
 });
 
 runTest("custom track unlock methods count as allowed unlock methods", () => {
