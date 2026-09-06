@@ -2,9 +2,89 @@ import { formatValidationList, getAllCarsFromScan, getAllTracksFromScan, getTrac
 import { isEffectiveStockCarsMode, isEffectiveStockTracksMode } from "./stockMode";
 import { getCustomUnlockTrackCountMax, hasEnabledCustomUnlockMethod, validateCustomUnlockRanges, validateCustomUnlockRows } from "./customUnlockValidators";
 import { STOCK_CARS, DC_CARS, ATTR_RATINGS_LIST } from "../utils/constants";
-import { countFixedRatings, getIncludedSlots } from "../configure/carOptions/CarOptionsUtils";
+import { countFixedRatings, getIncludedCarSlotCounts, getIncludedSlots } from "../configure/carOptions/CarOptionsUtils";
 
 const RATING_IDS = ["0", "1", "2", "3", "4", "5"];
+const GENERIC_CAR_POOLS = new Set(["Full Random", "Stock", "DC", "Custom"]);
+
+function isSpecificCarPool(sourcePool) {
+  return Boolean(
+    sourcePool &&
+    !GENERIC_CAR_POOLS.has(sourcePool) &&
+    !sourcePool.startsWith("Pack:")
+  );
+}
+
+function getPoolCandidates(sourcePool, allCars, scanResult) {
+  if (sourcePool === "Stock") {
+    return allCars.filter(car => car.pool === "stock");
+  }
+  if (sourcePool === "DC") {
+    return allCars.filter(car => car.pool === "dc");
+  }
+  if (sourcePool === "Custom") {
+    return allCars.filter(car => car.pool === "custom");
+  }
+  if (sourcePool?.startsWith("Pack:")) {
+    const packName = sourcePool.slice("Pack:".length);
+    const pack = (scanResult.contentPacks || []).find(p => p.name === packName);
+    const packFolders = new Set(
+      (pack?.cars || [])
+        .map(car => car.folderName?.toLowerCase())
+        .filter(Boolean)
+    );
+    return allCars.filter(car => packFolders.has(car.folderName?.toLowerCase()));
+  }
+  if (isSpecificCarPool(sourcePool)) {
+    const folderName = sourcePool.toLowerCase();
+    return allCars.filter(car => car.folderName?.toLowerCase() === folderName);
+  }
+  return allCars;
+}
+
+function getStartingRowCandidates(row, allCars, scanResult, modeLocksObtain) {
+  const sourcePool = row.sourcePool || "Full Random";
+  let candidates = getPoolCandidates(sourcePool, allCars, scanResult);
+  const specificCar = isSpecificCarPool(sourcePool);
+
+  if (modeLocksObtain) {
+    // The UI locks source obtain to Starting Car in these modes. Treat a
+    // stale row value as invalid rather than allowing generation to select a
+    // non-starting obtain method.
+    if (row.sourceObtain !== "0" || row.attrObtain !== "Unchanged") {
+      return [];
+    }
+
+    candidates = candidates.filter(car => car.obtainMethod === 0);
+  } else if (row.attrObtain !== "0") {
+    // Random and Random Unlock modes make the target obtain value the
+    // Starting Car value for starting slots.
+    return [];
+  }
+
+  // Specific cars intentionally ignore source rating/obtain filters in the
+  // generator, but they still need to be an actual Starting Car when the
+  // target obtain is unchanged.
+  if (specificCar) {
+    return candidates;
+  }
+
+  if (row.sourceRating && row.sourceRating !== "Random") {
+    const sourceRating = Number.parseInt(row.sourceRating, 10);
+    if (Number.isFinite(sourceRating)) {
+      candidates = candidates.filter(car => car.rating === sourceRating);
+    }
+  }
+
+  if (!modeLocksObtain && row.sourceObtain && row.sourceObtain !== "Random") {
+    const sourceObtain = Number.parseInt(row.sourceObtain, 10);
+    if (Number.isFinite(sourceObtain)) {
+      candidates = candidates.filter(car => car.obtainMethod === sourceObtain);
+    }
+  }
+
+  return candidates;
+}
 
 export function validateCarOptions(carOptions, carsSpecState, scanResult, preset, trackSpecState) {
   const errors = [];
@@ -320,8 +400,11 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
     );
   }
 
-  if (carOptions.enableStartingCars && carOptions.numStartingCars > 0) {
-    
+  if (
+    carOptions.enableStartingCars &&
+    carOptions.unlockMode !== "baseGame" &&
+    carOptions.numStartingCars > 0
+  ) {
     let candidates = allCars;
 
     // If mode doesn't randomize obtain, the source pool must already have
@@ -336,19 +419,8 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
 
     // Pool constraint
     if (carOptions.enableStartingCarsPool) {
-      const pool = carOptions.startingCarsPool;
-      if (pool === "Stock") {
-        candidates = candidates.filter(c => c.pool === "stock");
-      } else if (pool === "DC") {
-        candidates = candidates.filter(c => c.pool === "dc");
-      } else if (pool === "Custom") {
-        candidates = candidates.filter(c => c.pool === "custom");
-      } else if (pool.startsWith("Pack:")) {
-        const packName = pool.slice("Pack:".length);
-        const pack = (scanResult.contentPacks || []).find(p => p.name === packName);
-        const packFolders = new Set((pack?.cars || []).map(c => c.folderName.toLowerCase()));
-        candidates = candidates.filter(c => packFolders.has(c.folderName.toLowerCase()));
-      }
+      const pool = carOptions.startingCarsPool || "Full Random";
+      candidates = getPoolCandidates(pool, candidates, scanResult);
       // "Full Random" — no pool filter
     }
 
@@ -367,6 +439,48 @@ export function validateCarOptions(carOptions, carsSpecState, scanResult, preset
         message:
           `The current starting car rules need ${carOptions.numStartingCars} cars, ` +
           `but only ${candidates.length} match. Reduce the count or broaden the filters.`
+      });
+    }
+
+    // Validate each starting slot against the effective source and target
+    // rules. The aggregate check above catches an undersized overall pool,
+    // while this check catches rows whose specific source constraints cannot
+    // produce a valid Starting Car (including stale mode-locked values).
+    const slotCounts = getIncludedCarSlotCounts({
+      ...carsSpecState,
+      includeDcCars: includeDC && !isStockMode,
+    });
+    const startingRows = [];
+    const appendStartingRows = (rows, count, label) => {
+      for (let index = 0; index < count; index += 1) {
+        startingRows.push({
+          row: rows?.[index],
+          label: `${label} slot ${index + 1}`,
+        });
+      }
+    };
+
+    appendStartingRows(carsSpecState?.stockCars, slotCounts.stock, "Stock");
+    appendStartingRows(carsSpecState?.dcCars, slotCounts.dc, "DC");
+    appendStartingRows(extraRows, slotCounts.extra, "Extra");
+
+    const unavailableRows = startingRows
+      .slice(0, carOptions.numStartingCars)
+      .filter(({ row }) => {
+        if (!row) {
+          return true;
+        }
+        return getStartingRowCandidates(row, allCars, scanResult, modeLocksObtain).length === 0;
+      })
+      .map(({ row, label }) => `${label}${row?.id ? ` (${row.id})` : ""}`);
+
+    if (unavailableRows.length > 0) {
+      errors.push({
+        id: "cars_starting_slot_unavailable",
+        scope: "carOptions",
+        message:
+          `These Starting Car slots cannot produce a valid Starting Car: ` +
+          `${formatValidationList(unavailableRows)}. Adjust their source pool, rating, or obtain settings.`
       });
     }
   }

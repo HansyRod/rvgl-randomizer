@@ -27,12 +27,13 @@ function runTest(name, fn) {
   }
 }
 
-function makeCar(folderName, rating) {
+function makeCar(folderName, rating, overrides = {}) {
   return {
     folderName,
     rating,
     isSystemCar: false,
     hasValidFile: true,
+    ...overrides,
   };
 }
 
@@ -617,6 +618,78 @@ runTest("car rating distributions reject fixed specific cars above the configure
   );
 
   assert.ok(results.errors.some((error) => error.id === "cars_dist_fixed_max_Car Pool Rating Distribution_0"));
+});
+
+runTest("starting-car validation rejects a specific non-starting car in a source-locked mode", () => {
+  const results = validateCarOptions(
+    makeCarOptions({
+      unlockMode: "unchanged",
+      enableStartingCars: true,
+      numStartingCars: 1,
+    }),
+    makeExtraSpecState([{
+      id: "extra-1",
+      sourcePool: "custom_car",
+      sourceRating: "Random",
+      sourceObtain: "0",
+      attrRating: "Random",
+      attrObtain: "Unchanged",
+    }]),
+    makeClassicScan({
+      cars: [makeCar("custom_car", 0, { obtainMethod: 1 })],
+    }),
+    "custom"
+  );
+
+  assert.ok(results.errors.some((error) => error.id === "cars_starting_insufficient"));
+  assert.ok(results.errors.some((error) => error.id === "cars_starting_slot_unavailable"));
+});
+
+runTest("starting-car validation checks source constraints on each extra row", () => {
+  const results = validateCarOptions(
+    makeCarOptions({
+      enableStartingCars: true,
+      numStartingCars: 1,
+    }),
+    makeExtraSpecState([{
+      id: "extra-1",
+      sourcePool: "Full Random",
+      sourceRating: "5",
+      sourceObtain: "Random",
+      attrRating: "Random",
+      attrObtain: "0",
+    }]),
+    makeClassicScan({
+      cars: [makeCar("custom_car", 0, { obtainMethod: 1 })],
+    }),
+    "custom"
+  );
+
+  assert.equal(results.errors.some((error) => error.id === "cars_starting_insufficient"), false);
+  assert.ok(results.errors.some((error) => error.id === "cars_starting_slot_unavailable"));
+});
+
+runTest("starting-car validation allows non-starting source cars when target obtain is forced", () => {
+  const results = validateCarOptions(
+    makeCarOptions({
+      enableStartingCars: true,
+      numStartingCars: 1,
+    }),
+    makeExtraSpecState([{
+      id: "extra-1",
+      sourcePool: "custom_car",
+      sourceRating: "Random",
+      sourceObtain: "Random",
+      attrRating: "Random",
+      attrObtain: "0",
+    }]),
+    makeClassicScan({
+      cars: [makeCar("custom_car", 0, { obtainMethod: 1 })],
+    }),
+    "custom"
+  );
+
+  assert.equal(results.errors.some((error) => error.id === "cars_starting_slot_unavailable"), false);
 });
 
 runTest("custom track unlock methods count as allowed unlock methods", () => {
