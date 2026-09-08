@@ -72,6 +72,8 @@ pub struct Track {
     pub folder_name: String,
     pub name: String,
     pub has_reversed: bool,
+    pub track_length_normal: Option<f32>,
+    pub track_length_reverse: Option<f32>,
     pub track_type: i32,
     pub difficulty: i32,
     pub has_valid_file: bool,
@@ -248,6 +250,24 @@ fn calculate_sha256<R: Read>(mut reader: R) -> Result<String, std::io::Error> {
 mod tests {
     use super::*;
     use std::io::Cursor;
+
+    #[test]
+    fn reads_track_length_from_pan_header() {
+        let mut pan_data = vec![0u8; 12];
+        pan_data[0..4].copy_from_slice(&44u32.to_le_bytes());
+        pan_data[8..12].copy_from_slice(&149458.7f32.to_le_bytes());
+
+        let length = read_track_length_from_bytes(&pan_data).expect("length should be present");
+
+        assert!((length - 747.2935).abs() < 0.01);
+    }
+
+    #[test]
+    fn ignores_pan_header_without_length_data() {
+        let pan_data = vec![0u8; 12];
+
+        assert_eq!(read_track_length_from_bytes(&pan_data), None);
+    }
 
     #[test]
     fn calculates_sha256_for_file_contents() {
@@ -522,7 +542,16 @@ fn scan_levels_folder_sync(folder_path: &Path) -> Vec<Track> {
                     let folder_name = folder_name_str.to_string();
                     let has_reversed = path.join("reversed").is_dir();
                     let inf_path = path.join(format!("{}.inf", folder_name));
+                    let normal_pan_path = path.join(format!("{}.pan", folder_name));
+                    let reverse_pan_path =
+                        path.join("reversed").join(format!("{}.pan", folder_name));
                     let has_valid_file = inf_path.is_file();
+                    let track_length_normal = read_track_length(&normal_pan_path);
+                    let track_length_reverse = if has_reversed {
+                        read_track_length(&reverse_pan_path)
+                    } else {
+                        None
+                    };
 
                     let mut name = folder_name.clone();
                     let mut track_type = None;
@@ -603,6 +632,8 @@ fn scan_levels_folder_sync(folder_path: &Path) -> Vec<Track> {
                         folder_name,
                         name,
                         has_reversed,
+                        track_length_normal,
+                        track_length_reverse,
                         track_type: final_track_type,
                         difficulty,
                         has_valid_file,
@@ -629,6 +660,29 @@ fn scan_levels_folder_sync(folder_path: &Path) -> Vec<Track> {
         }
     });
     tracks
+}
+
+fn read_track_length(path: &Path) -> Option<f32> {
+    let bytes = fs::read(path).ok()?;
+
+    read_track_length_from_bytes(&bytes)
+}
+
+fn read_track_length_from_bytes(bytes: &[u8]) -> Option<f32> {
+    // RVGL stores the track length at byte offset 8 in the .pan header. The
+    // value is in internal units and the game converts it to meters by
+    // dividing by 200. The first header word is used as a presence guard.
+    if bytes.len() < 12 {
+        return None;
+    }
+
+    let header_guard = u32::from_le_bytes(bytes[0..4].try_into().ok()?);
+    if header_guard == 0 {
+        return None;
+    }
+
+    let raw_length = f32::from_le_bytes(bytes[8..12].try_into().ok()?);
+    Some(raw_length / 200.0)
 }
 
 fn parse_param_value<'a>(line: &'a str, key: &str) -> Option<&'a str> {

@@ -2,6 +2,21 @@ import CardImage from "./CardImage";
 import { CAR_RATINGS, OBTAIN_METHODS, TRACK_DIFFICULTIES } from "../utils/constants";
 import { getImageSrc } from "../utils/helpers";
 
+function formatTrackLength(track) {
+  if (track.trackLengthNormal == null) return null;
+
+  const normalLength = Math.trunc(track.trackLengthNormal);
+  const reverseLength = track.trackLengthReverse == null
+    ? null
+    : Math.trunc(track.trackLengthReverse);
+
+  if (reverseLength != null && reverseLength !== normalLength) {
+    return `${normalLength} m / ${reverseLength} m (R)`;
+  }
+
+  return `${normalLength} m`;
+}
+
 export default function PoolGrid({ items, rootPath, activeTab, ratingFilter }) {
   if (!items || items.length === 0) {
     return <p style={{ opacity: 0.5, fontStyle: 'italic', fontSize: '0.9rem' }}>Empty or loading...</p>;
@@ -42,6 +57,11 @@ export default function PoolGrid({ items, rootPath, activeTab, ratingFilter }) {
                 <div className="card-subtitle">
                   <span className="badge">Difficulty: {TRACK_DIFFICULTIES[item.difficulty] || "Unknown"}</span>
                 </div>
+                {item.trackLengthNormal != null && (
+                  <div className="card-subtitle">
+                    <span className="badge">Length: {formatTrackLength(item)}</span>
+                  </div>
+                )}
                 {item.hasReversed && (
                   <div className="card-subtitle">
                     <span className="badge badge-obtain">Has Reverse Version</span>

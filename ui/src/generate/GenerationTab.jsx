@@ -11,6 +11,7 @@ import "./GenerationTab.css";
 import { PRESETS } from "../configure/presets";
 import { DEFAULT_CAR_OPTIONS } from '../utils/constants';
 import { normalizeConfigureContext } from "../utils/configureContext";
+import { refreshTracks } from "../utils/trackScan";
 
 const { poolRatingDistributions, attrRatingDistributions } = DEFAULT_CAR_OPTIONS;
 
@@ -251,13 +252,14 @@ export default function GenerationTab({errors}) {
             if (newPack.useCars && (!newPack.cars || newPack.cars.length === 0)) {
               newPack.cars = await invoke("scan_cars_folder", { folderPath: `${newPack.absolutePath}\\cars` });
             }
-            if (newPack.useTracks && (!newPack.tracks || newPack.tracks.length === 0)) {
-              newPack.tracks = await invoke("scan_levels_folder", { folderPath: `${newPack.absolutePath}\\levels` });
-            }
             updatedPacks.push(newPack);
           }
           
-          const updatedScanResult = { ...currentScanResult, contentPacks: updatedPacks };
+          const updatedScanResult = await refreshTracks(
+            { ...currentScanResult, contentPacks: updatedPacks },
+            metadata.uiContext.setup?.installPath || installPath,
+          );
+          currentScanResult = updatedScanResult;
           updateCategoryCtx("setup", { scanResult: updatedScanResult });
         } catch (err) {
           console.error("Failed to fetch packs while loading seed:", err);

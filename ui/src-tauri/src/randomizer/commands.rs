@@ -549,6 +549,8 @@ mod tests {
             folder_name: folder_name.to_string(),
             name: folder_name.to_string(),
             has_reversed: false,
+            track_length_normal: None,
+            track_length_reverse: None,
             track_type: 0,
             difficulty: 1,
             has_valid_file: true,
