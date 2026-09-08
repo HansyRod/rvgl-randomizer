@@ -33,6 +33,20 @@ function normalizeTrackSpecState(trackSpecState) {
   };
 }
 
+function normalizeCupSpecState(cupSpecState) {
+  if (!cupSpecState) return cupSpecState;
+
+  return {
+    ...cupSpecState,
+    maxRaceLength: cupSpecState.maxRaceLength ?? null,
+    cups: (cupSpecState.cups || []).map(cup => ({
+      ...cup,
+      overrideMaxRaceLength: cup.overrideMaxRaceLength ?? false,
+      maxRaceLength: cup.maxRaceLength ?? null,
+    })),
+  };
+}
+
 export function normalizeConfigureContext(configure) {
   if (!configure) return configure;
 
@@ -52,6 +66,7 @@ export function normalizeConfigureContext(configure) {
     },
     carsSpecState: normalizeCarsSpecState(configure.carsSpecState),
     trackSpecState: normalizeTrackSpecState(configure.trackSpecState),
+    cupSpecState: normalizeCupSpecState(configure.cupSpecState),
   };
 }
 

@@ -433,6 +433,7 @@ pub struct CupSpec {
     #[serde(default)] pub override_num_stages_max: bool,
     #[serde(default)] pub override_num_laps_min: bool,
     #[serde(default)] pub override_num_laps_max: bool,
+    #[serde(default)] pub override_max_race_length: bool,
 
 
     // ── per-cup stage mode (only meaningful when override_stage_mode = true) ──
@@ -454,6 +455,9 @@ pub struct CupSpec {
     /// Per-cup laps range (used when override_stage_mode=true and effective mode is Random)
     pub num_laps_min: Option<u32>,
     pub num_laps_max: Option<u32>,
+    /// Optional maximum total race length in meters for this cup.
+    #[serde(default)]
+    pub max_race_length: Option<u32>,
 
     // ── stage configuration ───────────────────────────────────────────
     /// Stage count range for Random mode (always per-cup)
@@ -509,6 +513,9 @@ pub struct CupSpecState {
     pub num_laps_min: u32,
     #[serde(default = "default_laps_max")]
     pub num_laps_max: u32,
+    /// Optional maximum total race length in meters for all cups.
+    #[serde(default)]
+    pub max_race_length: Option<u32>,
 
     // ── global stage count range ───────────────────────────────────────
     #[serde(default = "default_num_stages_min")]

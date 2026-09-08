@@ -399,6 +399,7 @@ pub fn generate_result(
         points_table: default_points_table(),
         num_laps_min: 2,
         num_laps_max: 8,
+        max_race_length: None,
         num_stages_min: 3,
         num_stages_max: 6,
         cups: vec![

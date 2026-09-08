@@ -805,6 +805,7 @@ pub fn make_default_cup_spec_rust(index: usize) -> CupSpec {
         override_num_stages_max: false,
         override_num_laps_min: false,
         override_num_laps_max: false,
+        override_max_race_length: false,
 
         stage_mode: CupStageMode::Default,
         num_cars: None,
@@ -816,6 +817,7 @@ pub fn make_default_cup_spec_rust(index: usize) -> CupSpec {
         opponents: vec![vec![]; 6],
         num_laps_min: None,
         num_laps_max: None,
+        max_race_length: None,
         num_stages_min: None,
         num_stages_max: None,
         stages: vec![],
@@ -917,6 +919,7 @@ mod tests {
             points_table: default_points_table(),
             num_laps_min: 2,
             num_laps_max: 8,
+            max_race_length: None,
             num_stages_min: 3,
             num_stages_max: 6,
             cups: vec![],
