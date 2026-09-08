@@ -2,19 +2,21 @@ import CardImage from "./CardImage";
 import { CAR_RATINGS, OBTAIN_METHODS, TRACK_DIFFICULTIES } from "../utils/constants";
 import { getImageSrc } from "../utils/helpers";
 
-function formatTrackLength(track) {
-  if (track.trackLengthNormal == null) return null;
-
-  const normalLength = Math.trunc(track.trackLengthNormal);
-  const reverseLength = track.trackLengthReverse == null
-    ? null
-    : Math.trunc(track.trackLengthReverse);
-
-  if (reverseLength != null && reverseLength !== normalLength) {
-    return `${normalLength} m / ${reverseLength} m (R)`;
+function formatLengthBadge(track) {
+  if (track.trackLengthNormal != null) {
+    return `Length: ${Math.trunc(track.trackLengthNormal)} m`;
   }
+  return null;
+}
 
-  return `${normalLength} m`;
+function formatReverseBadge(track) {
+  if (track.trackLengthReverse != null) {
+    return `Reverse Length: ${Math.trunc(track.trackLengthReverse)} m`;
+  }
+  if (track.hasReversed) {
+    return "Has Reverse Version";
+  }
+  return null;
 }
 
 export default function PoolGrid({ items, rootPath, activeTab, ratingFilter }) {
@@ -59,12 +61,12 @@ export default function PoolGrid({ items, rootPath, activeTab, ratingFilter }) {
                 </div>
                 {item.trackLengthNormal != null && (
                   <div className="card-subtitle">
-                    <span className="badge">Length: {formatTrackLength(item)}</span>
+                    <span className="badge">{formatLengthBadge(item)}</span>
                   </div>
                 )}
                 {item.hasReversed && (
                   <div className="card-subtitle">
-                    <span className="badge badge-obtain">Has Reverse Version</span>
+                    <span className="badge badge-obtain">{formatReverseBadge(item)}</span>
                   </div>
                 )}
               </>
