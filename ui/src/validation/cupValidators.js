@@ -382,7 +382,29 @@ export function validateCupSpec(
 
   checkLaps(cupSpecState.numLapsMin, cupSpecState.numLapsMax, "Global settings");
 
+  const checkMaxRaceLength = (value, label) => {
+    if (value != null && (!Number.isInteger(value) || value < 1)) {
+      errors.push({
+        id: `cup_max_race_length_invalid_${label}`,
+        scope: "cupSpec",
+        message: `${label}: Maximum race length must be a positive whole number of meters.`
+      });
+    }
+  };
+
+  checkMaxRaceLength(
+    cupSpecState.toggleMaxRaceLength ? cupSpecState.maxRaceLengthValue : null,
+    "Global settings"
+  );
+
   cupSpecState.cups?.forEach((cup, i) => {
+
+    if (cup.overrideMaxRaceLength) {
+      checkMaxRaceLength(
+        cup.toggleMaxRaceLength ? cup.maxRaceLengthValue : null,
+        CUP_NAMES[i]
+      );
+    }
 
     const effectiveStageMode = cup.overrideStageMode ? cup.stageMode : cupSpecState.stageMode;
     const effectiveNumLapsMin = cup.overrideNumLapsMin ? cup.numLapsMin : cupSpecState.numLapsMin;

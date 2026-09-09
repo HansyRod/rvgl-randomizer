@@ -455,9 +455,12 @@ pub struct CupSpec {
     /// Per-cup laps range (used when override_stage_mode=true and effective mode is Random)
     pub num_laps_min: Option<u32>,
     pub num_laps_max: Option<u32>,
-    /// Optional maximum total race length in meters for this cup.
+    /// Whether the maximum race length limit is enabled for this cup.
     #[serde(default)]
-    pub max_race_length: Option<u32>,
+    pub toggle_max_race_length: bool,
+    /// Maximum total race length in meters for this cup.
+    #[serde(default = "default_max_race_length_value")]
+    pub max_race_length_value: u32,
 
     // ── stage configuration ───────────────────────────────────────────
     /// Stage count range for Random mode (always per-cup)
@@ -513,9 +516,12 @@ pub struct CupSpecState {
     pub num_laps_min: u32,
     #[serde(default = "default_laps_max")]
     pub num_laps_max: u32,
-    /// Optional maximum total race length in meters for all cups.
+    /// Whether the maximum race length limit is enabled for all cups.
     #[serde(default)]
-    pub max_race_length: Option<u32>,
+    pub toggle_max_race_length: bool,
+    /// Maximum total race length in meters for all cups.
+    #[serde(default = "default_max_race_length_value")]
+    pub max_race_length_value: u32,
 
     // ── global stage count range ───────────────────────────────────────
     #[serde(default = "default_num_stages_min")]
@@ -533,6 +539,7 @@ fn default_per_race_place()  -> u32       { 3 }
 fn default_overall_place()   -> u32       { 1 }
 fn default_laps_min()        -> u32       { 2 }
 fn default_laps_max()        -> u32       { 8 }
+pub(crate) fn default_max_race_length_value() -> u32 { 3000 }
 fn default_num_stages_min()  -> u32       { 3 }
 fn default_num_stages_max()  -> u32       { 6 }
 pub fn default_points_table()    -> Vec<i32>  {

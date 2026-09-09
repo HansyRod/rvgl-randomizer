@@ -15,24 +15,29 @@ import {
   PointsTableEditor,
   getCupCarLimit,
   normalizePointsTable,
+  DEFAULT_MAX_RACE_LENGTH,
 } from "./CupUtils";
 import CupOpponentEditor from "./CupOpponentEditor";
 import { getCupOpponentCandidates } from "./CupOpponentUtils";
 
 // ─── OverrideRow ──────────────────────────────────────────────────────────────
 // A single row in the override table.
-function OverrideRow({ label, globalValue, overriding, onToggle, children }) {
+function OverrideRow({ label, globalValue, overriding, onToggle, disabled = false, showOverride = true, children }) {
   return (
-    <tr className={`cup-override-row${overriding ? " is-overriding" : ""}`}>
+    <tr className={`cup-override-row${overriding ? " is-overriding" : ""}${disabled ? " disabled" : ""}`}>
       <td className="cup-ov-label">{label}</td>
       <td className="cup-ov-global">
         <span className="cup-ov-global-value">{globalValue}</span>
       </td>
       <td className="cup-ov-check">
-        <input type="checkbox" checked={overriding} onChange={e => onToggle(e.target.checked)} />
+        {showOverride
+          ? (
+            <input type="checkbox" checked={overriding} onChange={e => onToggle(e.target.checked)} disabled={disabled} />
+          )
+          : <span className="cup-ov-linked-setting">See above</span>}
       </td>
       <td className="cup-ov-input">
-        <div className={overriding ? "" : "cup-ov-disabled"}>
+        <div className={overriding && !disabled ? "" : "cup-ov-disabled"}>
           {children}
         </div>
       </td>
@@ -95,6 +100,8 @@ export default function CupConfigPage({ cupIndex }) {
     numStagesMax: cupSpec.overrideStageMode    ? (cupSpec.numStagesMax ?? globalState.numStagesMax)                 : globalState.numStagesMax,
     numLapsMin:   cupSpec.overrideStageMode    ? (cupSpec.numLapsMin ?? globalState.numLapsMin)                     : globalState.numLapsMin,
     numLapsMax:   cupSpec.overrideStageMode    ? (cupSpec.numLapsMax ?? globalState.numLapsMax)                     : globalState.numLapsMax,
+    toggleMaxRaceLength: cupSpec.overrideMaxRaceLength  ? (cupSpec.toggleMaxRaceLength ?? globalState.toggleMaxRaceLength) : globalState.toggleMaxRaceLength,
+    maxRaceLengthValue:  cupSpec.overrideMaxRaceLength  ? (cupSpec.maxRaceLengthValue ?? globalState.maxRaceLengthValue ?? DEFAULT_MAX_RACE_LENGTH) : (globalState.maxRaceLengthValue ?? DEFAULT_MAX_RACE_LENGTH),
   };
 
   const isRandomMode = eff.stageMode === "random";
@@ -401,6 +408,49 @@ export default function CupConfigPage({ cupIndex }) {
                 onChange={e => setCupIntWithDefault("overallRequiredPlace", e.target.value, 1)}
                 disabled={!cupSpec.overrideOverallPlace}
                 className="co-number-input"
+              />
+            </OverrideRow>
+
+            {/* Maximum race length uses one override with separate enabled and value rows. */}
+            <OverrideRow
+              label="Toggle Maximum Race Length Limit"
+              globalValue={globalState.toggleMaxRaceLength ? "Enabled" : "Disabled"}
+              overriding={cupSpec.overrideMaxRaceLength}
+              onToggle={overriding => setCupFields({
+                overrideMaxRaceLength: overriding,
+                ...(overriding && !cupSpec.toggleMaxRaceLength
+                  ? { toggleMaxRaceLength: true }
+                  : {}),
+              })}
+            >
+              <label className={`cup-max-race-length-enable${cupSpec.overrideMaxRaceLength ? "" : " disabled"}`}>
+                <input
+                  type="checkbox"
+                  checked={eff.toggleMaxRaceLength}
+                  onChange={e => setCup("toggleMaxRaceLength", e.target.checked)}
+                  disabled={!cupSpec.overrideMaxRaceLength}
+                  aria-label="Enable maximum race length for this cup"
+                />
+                <span>{eff.toggleMaxRaceLength ? "Enabled" : "Disabled"}</span>
+              </label>
+            </OverrideRow>
+
+            <OverrideRow
+              label="Maximum Race Length (meters)"
+              globalValue={globalState.toggleMaxRaceLength ? `${globalState.maxRaceLengthValue} m` : "Disabled"}
+              overriding={cupSpec.overrideMaxRaceLength}
+              disabled={!eff.toggleMaxRaceLength}
+              showOverride={false}
+              onToggle={() => {}}
+            >
+              <input
+                type="number"
+                min={1}
+                value={eff.maxRaceLengthValue}
+                onChange={e => setCupIntWithDefault("maxRaceLengthValue", e.target.value, DEFAULT_MAX_RACE_LENGTH)}
+                disabled={!eff.toggleMaxRaceLength || !cupSpec.overrideMaxRaceLength}
+                className="co-number-input"
+                aria-label="Maximum race length in meters"
               />
             </OverrideRow>
 

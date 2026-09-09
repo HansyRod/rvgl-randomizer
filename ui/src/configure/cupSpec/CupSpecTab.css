@@ -547,9 +547,31 @@
   font-weight: 500;
 }
 
+.cup-ov-linked-setting {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+.cup-max-race-length-enable {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.cup-max-race-length-enable.disabled {
+  cursor: not-allowed;
+}
+
+.cup-max-race-length-enable input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+}
+
 .cup-ov-disabled {
   opacity: 0.5;
-  pointer-events: none;
 }
 
 .cup-ov-table input[type="number"] {

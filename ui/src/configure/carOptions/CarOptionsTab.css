@@ -263,6 +263,11 @@
   font-size: 0.9rem;
 }
 
+.co-number-input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .co-hint {
   font-size: 0.8rem;
   color: var(--text-secondary);

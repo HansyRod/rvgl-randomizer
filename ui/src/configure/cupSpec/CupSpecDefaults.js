@@ -1,6 +1,7 @@
 import {
   DEFAULT_POINTS,
   DEFAULT_CARS_PER_CLASS,
+  DEFAULT_MAX_RACE_LENGTH,
 } from "./CupUtils.jsx";
 
 export function makeDefaultCupSpec(index) {
@@ -26,7 +27,8 @@ export function makeDefaultCupSpec(index) {
     numStagesMax: 6,
     numLapsMin: 2,
     numLapsMax: 8,
-    maxRaceLength: null,
+    toggleMaxRaceLength: false,
+    maxRaceLengthValue: DEFAULT_MAX_RACE_LENGTH,
     stages: [],
     numCars: 8,
     numTries: 3,
@@ -54,7 +56,8 @@ export function makeDefaultCupSpecState() {
     pointsTable: [...DEFAULT_POINTS],
     numLapsMin: 2,
     numLapsMax: 8,
-    maxRaceLength: null,
+    toggleMaxRaceLength: false,
+    maxRaceLengthValue: DEFAULT_MAX_RACE_LENGTH,
     numStagesMin: 3,
     numStagesMax: 6,
     cups: [0, 1, 2, 3].map(makeDefaultCupSpec),

@@ -4,6 +4,7 @@ import {
   DEFAULT_TRACK_OPTIONS,
 } from "./constants.js";
 import { normalizeExtraCarRowIds } from "../configure/carOptions/CarOptionsUtils";
+import { DEFAULT_MAX_RACE_LENGTH } from "../configure/cupSpec/CupUtils";
 
 function normalizeSpecRows(rows) {
   return (rows || []).map(row => ({
@@ -38,11 +39,13 @@ function normalizeCupSpecState(cupSpecState) {
 
   return {
     ...cupSpecState,
-    maxRaceLength: cupSpecState.maxRaceLength ?? null,
+    toggleMaxRaceLength: cupSpecState.toggleMaxRaceLength ?? false,
+    maxRaceLengthValue: cupSpecState.maxRaceLengthValue ?? DEFAULT_MAX_RACE_LENGTH,
     cups: (cupSpecState.cups || []).map(cup => ({
       ...cup,
       overrideMaxRaceLength: cup.overrideMaxRaceLength ?? false,
-      maxRaceLength: cup.maxRaceLength ?? null,
+      toggleMaxRaceLength: cup.toggleMaxRaceLength ?? false,
+      maxRaceLengthValue: cup.maxRaceLengthValue ?? DEFAULT_MAX_RACE_LENGTH,
     })),
   };
 }

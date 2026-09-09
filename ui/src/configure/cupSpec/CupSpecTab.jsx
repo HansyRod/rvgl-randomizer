@@ -8,6 +8,7 @@ import {
   PointsTableEditor,
   getCupCarLimit,
   normalizePointsTable,
+  DEFAULT_MAX_RACE_LENGTH,
 } from "./CupUtils";
 export { makeDefaultCupSpec, makeDefaultCupSpecState } from "./CupSpecDefaults";
 
@@ -49,6 +50,7 @@ export default function CupSpecTab() {
   const globalLapsMax = cupSpecState.numLapsMax;
   const globalNumStagesMin = cupSpecState.numStagesMin;
   const globalNumStagesMax = cupSpecState.numStagesMax;
+  const globalToggleMaxRaceLength = cupSpecState.toggleMaxRaceLength;
 
   return (
     <div className="car-options-tab cup-spec-tab">
@@ -229,6 +231,31 @@ export default function CupSpecTab() {
                   onChange={e => setIntWithDefault("numLapsMax", e.target.value, 8)}
                   className="co-number-input" />
               </div>
+            </div>
+            <div style={{ marginTop: "1rem" }}>
+              <label className="co-checkbox-row" style={{ marginBottom: "0.5rem" }}>
+                <input
+                  type="checkbox"
+                  checked={globalToggleMaxRaceLength}
+                  onChange={e => set(
+                    "toggleMaxRaceLength",
+                    e.target.checked
+                  )}
+                />
+                <span>Limit maximum race length (meters)</span>
+              </label>
+              <p className="co-desc" style={{ marginBottom: "0.5rem" }}>
+                Caps laps after a track and variant are randomly selected. It does not affect which tracks are assigned to cup stages, and does not apply when you choose a specific track for a cup yourself.
+              </p>
+              <input
+                type="number"
+                min={1}
+                value={cupSpecState.maxRaceLengthValue}
+                onChange={e => setIntWithDefault("maxRaceLengthValue", e.target.value, DEFAULT_MAX_RACE_LENGTH)}
+                disabled={!globalToggleMaxRaceLength}
+                className="co-number-input"
+                aria-label="Maximum race length in meters"
+              />
             </div>
           </section>
 

@@ -15,6 +15,7 @@ export {
 
 export const CUP_NAMES = ["Bronze Cup", "Silver Cup", "Gold Cup", "Platinum Cup"];
 export const CUP_DIFFICULTIES = [1, 2, 3, 4]; // fixed, never shown to user
+export const DEFAULT_MAX_RACE_LENGTH = 3000;
 export const DEFAULT_CARS_PER_CLASS = [
   [7, 0, 0, 0, 0, 0],
   [0, 4, 3, 0, 0, 0],
