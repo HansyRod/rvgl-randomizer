@@ -1,4 +1,4 @@
-use crate::scanner::{Car, InstallType, ScanResult};
+use crate::scanner::{Car, InstallType, ScanResult, Track};
 
 use super::models::*;
 use super::rng::Rng;
@@ -7,9 +7,9 @@ use super::rng::Rng;
 // Cup generation helpers
 // ============================================================================
 
-/// Returns a track's has_reversed value by looking it up from the scan result.
+/// Looks up a track in the scan result.
 /// Searches only packs that have use_tracks=true for launcher installs.
-fn track_has_reversed(folder: &str, scan: &ScanResult) -> bool {
+fn scanned_track<'a>(folder: &str, scan: &'a ScanResult) -> Option<&'a Track> {
     match &scan.install_type {
         InstallType::Classic => {
             scan.tracks
@@ -17,8 +17,6 @@ fn track_has_reversed(folder: &str, scan: &ScanResult) -> bool {
                 .unwrap_or(&[])
                 .iter()
                 .find(|t| t.folder_name.eq_ignore_ascii_case(folder))
-                .map(|t| t.has_reversed)
-                .unwrap_or(false)
         }
         InstallType::Launcher => {
             scan.content_packs
@@ -28,10 +26,61 @@ fn track_has_reversed(folder: &str, scan: &ScanResult) -> bool {
                 .filter(|p| p.use_tracks)
                 .flat_map(|p| p.tracks.iter())
                 .find(|t| t.folder_name.eq_ignore_ascii_case(folder))
-                .map(|t| t.has_reversed)
-                .unwrap_or(false)
         }
     }
+}
+
+fn track_has_reversed(folder: &str, scan: &ScanResult) -> bool {
+    scanned_track(folder, scan)
+        .map(|track| track.has_reversed)
+        .unwrap_or(false)
+}
+
+/// Returns the length for the selected track variant. Mirrors use the same
+/// length as their corresponding normal or reverse variant.
+fn track_length_for_variant(folder: &str, is_reverse: bool, scan: &ScanResult) -> Option<f32> {
+    let track = scanned_track(folder, scan)?;
+    if is_reverse {
+        track.track_length_reverse
+    } else {
+        track.track_length_normal
+    }
+}
+
+/// Cap a stage's lap count using the selected variant's track length.
+/// A race always retains at least one lap, even when one lap exceeds the cap.
+fn cap_stage_laps(
+    stage: &mut RandomizedCupStage,
+    scan: &ScanResult,
+    max_race_length: Option<u32>,
+) {
+    let Some(max_race_length) = max_race_length.filter(|length| *length > 0) else {
+        return;
+    };
+    let Some(track_length) = track_length_for_variant(&stage.track_folder, stage.is_reverse, scan)
+        .filter(|length| length.is_finite() && *length > 0.0)
+    else {
+        return;
+    };
+
+    let max_laps = ((max_race_length as f32) / track_length).floor() as u32;
+    stage.num_laps = stage.num_laps.min(max_laps.max(1));
+}
+
+/// An explicit folder source is the one user-defined source that must not be
+/// affected by the maximum race length setting. Slots, difficulty pools, and
+/// random sources still choose a track during generation and may be capped.
+fn is_difficulty_pool(source_pool: &str) -> bool {
+    matches!(source_pool, "1" | "2" | "3" | "4")
+}
+
+fn is_explicit_track_source(source_pool: &str, resolved: &[RandomizedTrack]) -> bool {
+    source_pool != "Random"
+        && !source_pool.starts_with("slot:")
+        && !is_difficulty_pool(source_pool)
+        && resolved
+            .iter()
+            .any(|track| track.folder.eq_ignore_ascii_case(source_pool))
 }
 
 /// Variant = (is_reverse, is_mirror)
@@ -183,16 +232,19 @@ fn build_default_stages(
     resolved: &[RandomizedTrack],
     scan: &ScanResult,
     rng: &mut Rng,
+    max_race_length: Option<u32>,
 ) -> Vec<RandomizedCupStage> {
     let laps = default_laps_per_stage(cup_index);
     
     let make_stage = |folder: &str, is_reverse: bool, is_mirror: bool, num_laps: u32| {
-        RandomizedCupStage {
+        let mut stage = RandomizedCupStage {
             track_folder: folder.to_string(),
             num_laps,
             is_reverse,
             is_mirror,
-        }
+        };
+        cap_stage_laps(&mut stage, scan, max_race_length);
+        stage
     };
     let push_stage_at = |stages: &mut Vec<RandomizedCupStage>, idx: usize, is_reverse: bool, is_mirror: bool, num_laps: u32| {
         if let Some(track) = resolved.get(idx) {
@@ -371,6 +423,7 @@ fn build_random_stages(
     num_stages: u32,
     laps_min: u32,
     laps_max: u32,
+    max_race_length: Option<u32>,
     rng: &mut Rng,
 ) -> Vec<RandomizedCupStage> {
     let mut stages = Vec::new();
@@ -400,12 +453,14 @@ fn build_random_stages(
         per_cup_usage.record(&track.folder, variant);
         cup_usage.record(&track.folder, variant);
 
-        stages.push(RandomizedCupStage {
+        let mut stage = RandomizedCupStage {
             track_folder: track.folder.clone(),
             num_laps: roll_laps(laps_min, laps_max, rng),
             is_reverse: variant.0,
             is_mirror: variant.1,
-        });
+        };
+        cap_stage_laps(&mut stage, scan, max_race_length);
+        stages.push(stage);
     }
 
     stages
@@ -455,11 +510,14 @@ fn build_user_defined_stages(
     per_cup_usage: &mut CupUsage,
     laps_min: u32,
     laps_max: u32,
+    max_race_length: Option<u32>,
     rng: &mut Rng,
 ) -> Vec<RandomizedCupStage> {
     let mut stages = Vec::new();
 
     for spec in stage_specs.iter().take(16) {
+        let explicit_track = is_explicit_track_source(&spec.source_pool, resolved);
+
         // 1. Select track
         let track_folder = select_track_for_stage(spec, resolved, scan, opts, per_cup_usage, rng);
         let folder = match &track_folder {
@@ -477,12 +535,16 @@ fn build_user_defined_stages(
         let stage_laps_min = spec.num_laps_min.unwrap_or(laps_min);
         let stage_laps_max = spec.num_laps_max.unwrap_or(laps_max);
 
-        stages.push(RandomizedCupStage {
+        let mut stage = RandomizedCupStage {
             track_folder: folder,
             num_laps: spec.num_laps.unwrap_or_else(|| roll_laps(stage_laps_min, stage_laps_max, rng)),
             is_reverse: variant.0,
             is_mirror: variant.1,
-        });
+        };
+        if !explicit_track {
+            cap_stage_laps(&mut stage, scan, max_race_length);
+        }
+        stages.push(stage);
     }
 
     stages
@@ -509,9 +571,9 @@ fn select_track_for_stage(
         }
         // Out-of-range or malformed slot — fall through to random
     }
-    // Specific folder name (not "Random", not a digit prefix, not "slot:")
+    // Specific folder name (not "Random", not a difficulty pool, not "slot:")
     else if spec.source_pool != "Random"
-        && !spec.source_pool.starts_with(|c: char| c.is_ascii_digit())
+        && !is_difficulty_pool(&spec.source_pool)
     {
         if resolved.iter().any(|t| t.folder.eq_ignore_ascii_case(&spec.source_pool)) {
             if track_is_available_for_cup(&spec.source_pool, scan, opts, per_cup_usage) {
@@ -602,12 +664,29 @@ fn resolve_user_variant(
     all_allowed[rng.next_usize(all_allowed.len())]
 }
 
+fn effective_max_race_length(
+    cup_state: &CupSpecState,
+    cup_spec: Option<&CupSpec>,
+) -> Option<u32> {
+    let (enabled, value) = if cup_spec.map(|cup| cup.override_max_race_length).unwrap_or(false) {
+        (
+            cup_spec.map(|cup| cup.toggle_max_race_length).unwrap_or(false),
+            cup_spec.map(|cup| cup.max_race_length_value).unwrap_or(0),
+        )
+    } else {
+        (cup_state.toggle_max_race_length, cup_state.max_race_length_value)
+    };
+
+    enabled.then_some(value).filter(|length| *length > 0)
+}
+
 // ============================================================================
 // Top-level cup generation — called from generate_result
 // ============================================================================
 
 pub fn generate_cups(
     cup_state: &CupSpecState,
+    track_randomization_enabled: bool,
     resolved_tracks: &[RandomizedTrack],
     stock_resolved: &[Option<Car>],
     dc_resolved: &[Option<Car>],
@@ -619,7 +698,14 @@ pub fn generate_cups(
     let max_cup_cars = cup_car_limit(enable_30_car_mode);
 
     if !cup_state.enabled || resolved_tracks.is_empty() {
-        return default_cups(cup_state, resolved_tracks, scan, rng, max_cup_cars);
+        return default_cups(
+            cup_state,
+            track_randomization_enabled,
+            resolved_tracks,
+            scan,
+            rng,
+            max_cup_cars,
+        );
     }
 
     // cross-cup first-appearance tracker (only used in Default/Random modes
@@ -690,6 +776,8 @@ pub fn generate_cups(
             cup_spec.and_then(|c| c.num_laps_max).unwrap_or(cup_state.num_laps_max)
         } else { cup_state.num_laps_max };
 
+        let max_race_length = effective_max_race_length(cup_state, cup_spec);
+
         let opponents = resolve_cup_opponents(cup_spec, stock_resolved, dc_resolved, extra_resolved);
 
         // Num stages: use per-cup override when override_stage_mode is active, else global (only applies to Random mode)
@@ -705,7 +793,17 @@ pub fn generate_cups(
 
         let stages = match effective_mode {
             CupStageMode::Default => {
-                let s = build_default_stages(cup_index, resolved_tracks, scan, rng);
+                let s = build_default_stages(
+                    cup_index,
+                    resolved_tracks,
+                    scan,
+                    rng,
+                    if track_randomization_enabled {
+                        max_race_length
+                    } else {
+                        None
+                    },
+                );
                 // Register default stages into cross_cup_usage so later cups see them
                 for stage in &s {
                     let v = (stage.is_reverse, stage.is_mirror);
@@ -727,7 +825,7 @@ pub fn generate_cups(
                 build_random_stages(
                     resolved_tracks, scan, cup_state,
                     &mut cross_cup_usage, &mut per_cup_usage,
-                    num_stages, laps_min, laps_max, rng,
+                    num_stages, laps_min, laps_max, max_race_length, rng,
                 )
             }
 
@@ -737,7 +835,7 @@ pub fn generate_cups(
                 build_user_defined_stages(
                     stage_specs, resolved_tracks, scan, cup_state,
                     &mut cross_cup_usage, &mut per_cup_usage,
-                    laps_min, laps_max, rng,
+                    laps_min, laps_max, max_race_length, rng,
                 )
             }
         };
@@ -765,6 +863,7 @@ pub fn generate_cups(
 /// so the DLL still processes them correctly.
 fn default_cups(
     cup_state: &CupSpecState,
+    track_randomization_enabled: bool,
     resolved_tracks: &[RandomizedTrack],
     scan: &ScanResult,
     rng: &mut Rng,
@@ -785,7 +884,19 @@ fn default_cups(
         cars_per_class: default_cars_per_class(i),
         points_table: pad_points(&cup_state.points_table),
         opponents: None,
-        stages: build_default_stages(i, resolved_tracks, scan, rng),
+        stages: build_default_stages(
+            i,
+            resolved_tracks,
+            scan,
+            rng,
+            if track_randomization_enabled {
+                cup_state
+                    .toggle_max_race_length
+                    .then_some(cup_state.max_race_length_value)
+            } else {
+                None
+            },
+        ),
         custom_unlock: None,
     }).collect()
 }
@@ -951,6 +1062,31 @@ mod tests {
         }
     }
 
+    fn test_scan_with_lengths(
+        tracks: &[(&str, Option<f32>, Option<f32>)],
+    ) -> ScanResult {
+        ScanResult {
+            install_type: InstallType::Classic,
+            cars: None,
+            tracks: Some(
+                tracks
+                    .iter()
+                    .map(|(folder, normal, reverse)| Track {
+                        folder_name: (*folder).to_string(),
+                        name: (*folder).to_string(),
+                        has_reversed: reverse.is_some(),
+                        track_length_normal: *normal,
+                        track_length_reverse: *reverse,
+                        track_type: 0,
+                        difficulty: 1,
+                        has_valid_file: true,
+                    })
+                    .collect(),
+            ),
+            content_packs: None,
+        }
+    }
+
     fn test_randomized_tracks(folders: &[&str]) -> Vec<RandomizedTrack> {
         folders
             .iter()
@@ -994,6 +1130,7 @@ mod tests {
             6,
             2,
             2,
+            None,
             &mut rng,
         );
 
@@ -1023,6 +1160,7 @@ mod tests {
             &mut per_cup_usage,
             2,
             2,
+            None,
             &mut rng,
         );
 
@@ -1032,5 +1170,111 @@ mod tests {
             stages.iter().map(|stage| stage.track_folder.as_str()).collect::<HashSet<_>>().len(),
             stages.len()
         );
+    }
+
+    #[test]
+    fn max_race_length_caps_laps_using_the_selected_variant_length() {
+        let scan = test_scan_with_lengths(&[("track_a", Some(1011.0), Some(900.0))]);
+        let mut normal_stage = RandomizedCupStage {
+            track_folder: "track_a".to_string(),
+            num_laps: 3,
+            is_reverse: false,
+            is_mirror: false,
+        };
+        cap_stage_laps(&mut normal_stage, &scan, Some(2500));
+        assert_eq!(normal_stage.num_laps, 2);
+
+        let mut reverse_stage = RandomizedCupStage {
+            track_folder: "track_a".to_string(),
+            num_laps: 3,
+            is_reverse: true,
+            is_mirror: true,
+        };
+        cap_stage_laps(&mut reverse_stage, &scan, Some(2500));
+        assert_eq!(reverse_stage.num_laps, 2);
+    }
+
+    #[test]
+    fn max_race_length_keeps_at_least_one_lap_and_ignores_missing_lengths() {
+        let scan = test_scan_with_lengths(&[
+            ("long_track", Some(3000.0), None),
+            ("unknown_track", None, None),
+        ]);
+        let mut long_stage = RandomizedCupStage {
+            track_folder: "long_track".to_string(),
+            num_laps: 4,
+            is_reverse: false,
+            is_mirror: false,
+        };
+        cap_stage_laps(&mut long_stage, &scan, Some(2500));
+        assert_eq!(long_stage.num_laps, 1);
+
+        let mut unknown_stage = RandomizedCupStage {
+            track_folder: "unknown_track".to_string(),
+            num_laps: 4,
+            is_reverse: false,
+            is_mirror: false,
+        };
+        cap_stage_laps(&mut unknown_stage, &scan, Some(2500));
+        assert_eq!(unknown_stage.num_laps, 4);
+    }
+
+    #[test]
+    fn default_stages_keep_native_laps_when_tracks_are_not_randomized() {
+        let folders = [
+            "track_0", "track_1", "track_2", "track_3", "track_4", "track_5", "track_6",
+            "track_7", "track_8", "track_9", "track_10", "track_11", "track_12", "track_13",
+        ];
+        let tracks = test_randomized_tracks(&folders);
+        let scan_entries: Vec<(&str, Option<f32>, Option<f32>)> = folders
+            .iter()
+            .map(|folder| (*folder, Some(1000.0), None))
+            .collect();
+        let scan = test_scan_with_lengths(&scan_entries);
+        let mut options = test_cup_state(SameTrackHandling::Forbid);
+        options.stage_mode = CupStageMode::Default;
+        options.toggle_max_race_length = true;
+        options.max_race_length_value = 1000;
+
+        let mut rng = Rng::new();
+        let native_cups = generate_cups(
+            &options,
+            false,
+            &tracks,
+            &[],
+            &[],
+            &[],
+            &scan,
+            &mut rng,
+            false,
+        );
+        assert_eq!(native_cups[0].stages[0].num_laps, 3);
+
+        let mut rng = Rng::new();
+        let randomized_cups = generate_cups(
+            &options,
+            true,
+            &tracks,
+            &[],
+            &[],
+            &[],
+            &scan,
+            &mut rng,
+            false,
+        );
+        assert_eq!(randomized_cups[0].stages[0].num_laps, 1);
+    }
+
+    #[test]
+    fn only_valid_explicit_folder_sources_are_exempt_from_the_lap_cap() {
+        let tracks = test_randomized_tracks(&["track_a", "1customtrack"]);
+
+        assert!(is_explicit_track_source("track_a", &tracks));
+        assert!(is_explicit_track_source("TRACK_A", &tracks));
+        assert!(is_explicit_track_source("1customtrack", &tracks));
+        assert!(!is_explicit_track_source("Random", &tracks));
+        assert!(!is_explicit_track_source("1", &tracks));
+        assert!(!is_explicit_track_source("slot:0", &tracks));
+        assert!(!is_explicit_track_source("missing_track", &tracks));
     }
 }

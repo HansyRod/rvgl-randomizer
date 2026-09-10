@@ -412,6 +412,7 @@ pub fn generate_result(
     });
     let cups = generate_cups(
         &cup_state,
+        track_spec_state.include_tracks,
         &cup_tracks,
         &stock_resolved,
         &dc_resolved,
