@@ -783,22 +783,34 @@ export const THIRTY_CAR_CUPS_PRESET = {
         {
           ...makeDefaultCupSpec(0),
           carsPerClass: [29, 0, 0, 0, 0, 0],
-          overrideCarsPerClass: true
+          overrideCarsPerClass: true,
+          overrideMaxRaceLength: true,
+          toggleMaxRaceLength: true,
+          maxRaceLengthValue: 2500
         },
         {
           ...makeDefaultCupSpec(1),
           carsPerClass: [0, 17, 12, 0, 0, 0],
           overrideCarsPerClass: true,
+          overrideMaxRaceLength: true,
+          toggleMaxRaceLength: true,
+          maxRaceLengthValue: 3250
         },
         {
           ...makeDefaultCupSpec(2),
           carsPerClass: [0, 0, 17, 12, 0, 0],
           overrideCarsPerClass: true,
+          overrideMaxRaceLength: true,
+          toggleMaxRaceLength: true,
+          maxRaceLengthValue: 4000
         },
         {
           ...makeDefaultCupSpec(3),
           carsPerClass: [0, 0, 5, 12, 12, 0],
           overrideCarsPerClass: true,
+          overrideMaxRaceLength: true,
+          toggleMaxRaceLength: true,
+          maxRaceLengthValue: 4750
         }
       ]
 

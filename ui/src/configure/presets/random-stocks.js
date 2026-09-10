@@ -1,5 +1,5 @@
 import { DEFAULT_CAR_OPTIONS, DEFAULT_TRACK_OPTIONS, STOCK_CARS, STOCK_TRACKS } from "../../utils/constants";
-import { makeDefaultCupSpecState } from "../cupSpec/CupSpecDefaults";
+import { makeDefaultCupSpec, makeDefaultCupSpecState } from "../cupSpec/CupSpecDefaults";
 
 import { countEligibleCarsByFolderNames, countEligibleTracksByFolderNames } from "./presetValidation";
 
@@ -289,7 +289,33 @@ export const RANDOM_STOCKS_PRESET = {
       numLapsMax: 6,
       numLapsMin: 3,
       numStagesMax: 5,
-      numStagesMin: 4
+      numStagesMin: 4,
+      cups: [
+        {
+          ...makeDefaultCupSpec(0),
+          overrideMaxRaceLength: true,
+          toggleMaxRaceLength: true,
+          maxRaceLengthValue: 2500,
+        },
+        {
+          ...makeDefaultCupSpec(1),
+          overrideMaxRaceLength: true,
+          toggleMaxRaceLength: true,
+          maxRaceLengthValue: 3250,
+        },
+        {
+          ...makeDefaultCupSpec(2),
+          overrideMaxRaceLength: true,
+          toggleMaxRaceLength: true,
+          maxRaceLengthValue: 4000,
+        },
+        {
+          ...makeDefaultCupSpec(3),
+          overrideMaxRaceLength: true,
+          toggleMaxRaceLength: true,
+          maxRaceLengthValue: 4750,
+        },
+      ]
     },
     trackOptions: {
       ...DEFAULT_TRACK_OPTIONS,

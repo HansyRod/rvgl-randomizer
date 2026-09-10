@@ -1,5 +1,5 @@
 import { DEFAULT_CAR_OPTIONS, DEFAULT_TRACK_OPTIONS } from "../../utils/constants";
-import { makeDefaultCupSpecState } from "../cupSpec/CupSpecDefaults";
+import { makeDefaultCupSpec, makeDefaultCupSpecState } from "../cupSpec/CupSpecDefaults";
 import { getStockModePresetErrors } from "./presetValidation";
 
 export const BALANCED_PRESET = {
@@ -367,6 +367,32 @@ export const BALANCED_PRESET = {
     },
     cupSpecState: {
       ...makeDefaultCupSpecState(),
+      cups: [
+        {
+          ...makeDefaultCupSpec(0),
+          overrideMaxRaceLength: true,
+          toggleMaxRaceLength: true,
+          maxRaceLengthValue: 2500,
+        },
+        {
+          ...makeDefaultCupSpec(1),
+          overrideMaxRaceLength: true,
+          toggleMaxRaceLength: true,
+          maxRaceLengthValue: 3250,
+        },
+        {
+          ...makeDefaultCupSpec(2),
+          overrideMaxRaceLength: true,
+          toggleMaxRaceLength: true,
+          maxRaceLengthValue: 4000,
+        },
+        {
+          ...makeDefaultCupSpec(3),
+          overrideMaxRaceLength: true,
+          toggleMaxRaceLength: true,
+          maxRaceLengthValue: 4750,
+        },
+      ],
     },
     trackOptions: {
       ...DEFAULT_TRACK_OPTIONS,
