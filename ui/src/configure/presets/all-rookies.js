@@ -125,7 +125,7 @@ export const ALL_ROOKIES_PRESET = {
           id: "tc8",
           sourceObtain: "Random",
           sourcePool: "Full Random",
-          sourceRating: "2"
+          sourceRating: "Random"
         },
         {
           attrObtain: "4",
