@@ -1,6 +1,7 @@
 #include <windows.h>
 #include "HookManager.h"
 #include "Logger.h"
+#include "NativePatches.h"
 #include "RandomizerInit.h"
 
 // ============================================================================
@@ -29,12 +30,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
         Sleep(50);
 
         Logger::Init(hModule);
+        NativePatches::InstallAll();
         HookManager::InstallAll();
         Randomizer::Initialize();
         break;
 
     case DLL_PROCESS_DETACH:
         HookManager::RemoveAll();
+        NativePatches::RemoveAll();
         Logger::Shutdown();
         break;
     }

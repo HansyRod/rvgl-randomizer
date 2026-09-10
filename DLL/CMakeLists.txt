@@ -45,6 +45,7 @@ add_library(randomizer SHARED
     # Core — hook infrastructure, DLL entry point
     Core/dllmain.cpp
     Core/HookManager.cpp
+    Core/NativePatches.cpp
 
     # Mods — individual mod logic
     Mods/RandomizerState.cpp
