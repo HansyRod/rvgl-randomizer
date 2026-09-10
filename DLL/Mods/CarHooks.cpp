@@ -348,7 +348,7 @@ DirEntry* Hook_DirScanNext(DirScanState* state) {
         return nullptr;
     }
 
-    if (!filterCustomCarFolders) {
+    if (!filterCustomCarFolders || state == nullptr || _stricmp(state->path, "cars") != 0) {
         return Orig_DirScanNext(state);
     }
 
