@@ -211,7 +211,7 @@ pub fn launch_game(
 
         launcher_args.push(format!("-basepath \"{}\"", basepath.display()));
         launcher_args.push(format!("-prefpath \"{}\"", prefpath.display()));
-        launcher_args.push(format!("-packlist rvgl-randomizer-{}", profile_name));
+        launcher_args.push(format!("-packlist \"rvgl-randomizer-{}\"", profile_name));
     }
 
     // Append any user-supplied extra args after the launcher-specific ones.
@@ -220,7 +220,7 @@ pub fn launch_game(
     }
 
     // Always append -profile last.
-    launcher_args.push(format!("-profile {}", profile_name));
+    launcher_args.push(format!("-profile \"{}\"", profile_name));
 
     let final_args = launcher_args.join(" ");
 
