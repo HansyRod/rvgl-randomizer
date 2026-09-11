@@ -125,11 +125,6 @@ To uninstall, run the `uninstall.exe` provided in the installation folder.
 - After uninstalling, you will be asked if you want to keep or remove your data. Removing your data will delete the `AppData` folder containing the generated seeds.
 - For a complete cleanup, remove the profiles in your RVGL save data folder that were created by RVGL Randomizer.
 
-## Known Issues / Limitations
-
-* Practice Star unlocks can break with randomized track setups, as some custom tracks don't have practice stars.
-* In some custom tracks which have their own soundtrack, the game is playing the default game soundtrack ("Redbook") instead.
-
 ## Credits and Special Thanks
 
 * [Theman](https://www.revoltworld.net/user/ilarihalonen/) and [Sinaosal](https://www.revoltworld.net/user/sinaosal/), they shared their modding knowledge without which this work wouldn't be possible.
