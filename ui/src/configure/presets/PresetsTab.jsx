@@ -205,6 +205,7 @@ export default function PresetsTab() {
           const isSelected = selectedPreset === preset.id;
           const validationState = presetValidity[preset.id] ?? { isSelectable: true, errors: [] };
           const isInvalid = !validationState.isSelectable;
+          const tags = preset.tags ?? (preset.tag ? [preset.tag] : []);
           return (
             <button
               key={preset.id}
@@ -214,9 +215,9 @@ export default function PresetsTab() {
             >
               <div className="preset-card-header">
                 <span className="preset-card-label">{preset.label}</span>
-                {preset.tag && (
-                  <span className={`preset-card-tag ${preset.tag.toLowerCase()}`}>{preset.tag}</span>
-                )}
+                {tags.map(tag => (
+                  <span key={tag} className={`preset-card-tag ${tag.toLowerCase().replace(/[^a-z0-9]/g, "")}`}>{tag}</span>
+                ))}
               </div>
 
               <p className="preset-card-desc">{preset.description}</p>

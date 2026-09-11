@@ -5,7 +5,7 @@ import { getStockModePresetErrors } from "./presetValidation";
 export const THIRTY_CAR_CUPS_PRESET = {
   id: "30-car-cups",
   label: "30-Car Cups",
-  tag: "Chaos",
+  tags: ["Chaos", "New!"],
   description:
     "Play against a full field of cars in each cup. With 29 opponents, can you still come out on top?",
   bullets: [

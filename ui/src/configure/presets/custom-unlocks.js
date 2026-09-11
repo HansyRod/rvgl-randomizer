@@ -5,7 +5,7 @@ import { getStockModePresetErrors } from "./presetValidation";
 export const CUSTOM_UNLOCKS_PRESET = {
   id: "custom-unlocks",
   label: "Custom Unlocks",
-  tag: "Expert",
+  tags: ["Expert", "New!"],
   description:
     "Put a twist on the original game's progression! Can you find all the hidden ways to unlock more cars and tracks?",
   bullets: [
