@@ -5,11 +5,13 @@ import { CHALLENGE_PRESET } from "./challenge";
 import { LONG_CUPS_PRESET } from "./long-cups";
 import { RANDOM_STOCKS_PRESET } from "./random-stocks";
 import { THIRTY_CAR_CUPS_PRESET } from "./30-car-cups";
+import { CUSTOM_UNLOCKS_PRESET } from "./custom-unlocks";
 
 export const PRESETS = [
   BALANCED_PRESET,
   RANDOM_STOCKS_PRESET,
   THIRTY_CAR_CUPS_PRESET,
+  CUSTOM_UNLOCKS_PRESET,
   ALL_ROOKIES_PRESET,
   FULL_RANDOM_PRESET,
   CHALLENGE_PRESET,
