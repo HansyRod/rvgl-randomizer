@@ -31,9 +31,13 @@ constexpr float kMinimumSpawnSeparation = 150.0f;
 
 // Ground and floor validation.
 constexpr float kGroundProbeHeightAbove = 128.0f;
-constexpr float kGroundProbeDepthBelow = 512.0f;
+// Some custom tracks deliberately begin far above their first drivable floor.
+// Keep the probe bounded, but cover the elevation range used by Metro-Volt.
+constexpr float kGroundProbeDepthBelow = 4096.0f;
 constexpr float kMaximumFloorNormalY = -0.5f;
 constexpr float kMaximumFootprintHeightDelta = 80.0f;
+constexpr float kMaximumRowHeightDelta = 80.0f;
+constexpr float kFloatingStartHeightTolerance = 10.0f;
 
 // Vertical and horizontal car-clearance probes.
 constexpr float kSpawnClearanceHeight = 120.0f;
@@ -50,6 +54,7 @@ constexpr float kCarClearanceHalfLength = 90.0f;
 constexpr float kFrontClearanceDistance = 100.0f;
 constexpr float kNativeCorridorFrontClearanceDistance = 60.0f;
 constexpr float kSideClearanceDistance = 25.0f;
+constexpr float kCollisionTraceAdvance = 1.0f;
 
 // Route and comparison tolerances.
 constexpr float kTraceHitEpsilon = 0.0001f;
@@ -60,6 +65,9 @@ constexpr float kPredecessorFacingTurnThreshold = 0.95f;
 // Route distance follows the path, while candidate spacing is measured as a
 // straight-line X/Z distance. A small tolerance accounts for curved paths.
 constexpr float kSpawnDistanceComparisonTolerance = 1.0f;
+constexpr std::array<float, 7> kInitialLaneShiftOffsets = {
+    { 0.0f, -75.0f, 75.0f, -150.0f, 150.0f, -225.0f, 225.0f }
+};
 
 struct NativeGridBasis {
     Vec3 nativeStart = {};
@@ -91,6 +99,7 @@ struct ProjectedStart {
 struct LaneOffsetCandidate {
     std::vector<float> offsets;
     float score = 0.0f;
+    bool usesStrictCollisionChecks = false;
 };
 
 struct GeneratedGridRow {
@@ -98,6 +107,7 @@ struct GeneratedGridRow {
     int positionCount = 0;
     Vec3 forwardDirection = {};
     std::vector<float> laneOffsets;
+    bool usesStrictCollisionChecks = false;
 };
 
 struct RouteTraversalState {
@@ -106,6 +116,7 @@ struct RouteTraversalState {
     Vec3 center = {};
     Vec3 direction = {};
     Vec3 right = {};
+    Vec3 referenceRight = {};
     int currentSectionIndex = 0;
     int previousSectionIndex = -1;
     int nextSectionIndex = -1;
@@ -125,6 +136,25 @@ bool NormalizeXZ(Vec3& vector) {
 
     vector.x /= length;
     vector.z /= length;
+    return true;
+}
+
+// Builds the car's right axis from its actual horizontal heading. The sign is
+// kept consistent with the authored grid so lane offsets do not swap sides at
+// a turn.
+bool BuildRightAxis(
+    const Vec3& forwardDirection,
+    const Vec3& referenceRight,
+    Vec3& rightAxis
+) {
+    rightAxis = { forwardDirection.z, 0.0f, -forwardDirection.x };
+    if (!NormalizeXZ(rightAxis)) {
+        return false;
+    }
+    if (DotXZ(rightAxis, referenceRight) < 0.0f) {
+        rightAxis.x = -rightAxis.x;
+        rightAxis.z = -rightAxis.z;
+    }
     return true;
 }
 
@@ -492,28 +522,78 @@ bool HasVerticalClearance(
 bool IsCollisionSegmentClear(
     const Vec3& traceStart,
     const Vec3& traceEnd,
-    bool ignoreNearHorizontalSurface
+    bool ignoreNearHorizontalSurface,
+    bool checkBothDirections
 ) {
-    Vec3 mutableTraceStart = traceStart;
-    Vec3 mutableTraceEnd = traceEnd;
-    float hitFraction = 1.0f;
-    CollisionPlane* hitPlane = nullptr;
-    RVGL_TraceSegmentAgainstCollisionGrid(
-        &mutableTraceStart,
-        &mutableTraceEnd,
-        &hitFraction,
-        &hitPlane
-    );
+    // RVGL's collision trace only reports a crossing from the polygon's
+    // positive side to its non-positive side. Route-extension probes can
+    // request both travel directions so a one-sided wall cannot be missed;
+    // authored-corridor probes retain the native direction to avoid treating
+    // backfaces in otherwise valid narrow start areas as solid. A native
+    // corridor treats an ignored floor or ramp as clear, matching the prior
+    // behavior; a stricter route extension continues past that hit.
+    const auto traceDirection = [
+        ignoreNearHorizontalSurface,
+        checkBothDirections
+    ](
+        const Vec3& initialStart,
+        const Vec3& traceEnd
+    ) {
+        Vec3 mutableTraceStart = initialStart;
+        for (int hitAttempt = 0; hitAttempt < 8; ++hitAttempt) {
+            Vec3 mutableTraceEnd = traceEnd;
+            float hitFraction = 1.0f;
+            CollisionPlane* hitPlane = nullptr;
+            RVGL_TraceSegmentAgainstCollisionGrid(
+                &mutableTraceStart,
+                &mutableTraceEnd,
+                &hitFraction,
+                &hitPlane
+            );
 
-    if (hitFraction >= 1.0f || hitPlane == nullptr) {
-        return true;
-    }
+            if (hitFraction >= 1.0f || hitPlane == nullptr) {
+                return true;
+            }
+            if (!ignoreNearHorizontalSurface ||
+                std::fabs(hitPlane->normalY) < 0.85f) {
+                return false;
+            }
+            if (!checkBothDirections) {
+                // Match RVGL's original authored-grid behavior: a floor or
+                // ramp at this height is not a horizontal body obstruction.
+                return true;
+            }
 
-    if (ignoreNearHorizontalSurface &&
-        std::fabs(hitPlane->normalY) >= 0.85f) {
-        return true;
+            const float deltaX = traceEnd.x - mutableTraceStart.x;
+            const float deltaY = traceEnd.y - mutableTraceStart.y;
+            const float deltaZ = traceEnd.z - mutableTraceStart.z;
+            const float remainingLength = std::sqrt(
+                deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ
+            );
+            if (remainingLength <= kCollisionTraceAdvance) {
+                return true;
+            }
+
+            const float advanceFraction = (std::min)(
+                1.0f,
+                hitFraction + kCollisionTraceAdvance / remainingLength
+            );
+            mutableTraceStart = {
+                mutableTraceStart.x + deltaX * advanceFraction,
+                mutableTraceStart.y + deltaY * advanceFraction,
+                mutableTraceStart.z + deltaZ * advanceFraction,
+            };
+        }
+
+        // A segment crossing this many ignored planes is not a useful spawn
+        // volume; fail safely instead of accepting an unbounded trace.
+        return false;
+    };
+
+    if (!traceDirection(traceStart, traceEnd)) {
+        return false;
     }
-    return false;
+    return !checkBothDirections || traceDirection(traceEnd, traceStart);
 }
 
 // Checks a candidate's body volume using multiple horizontal lines at several
@@ -524,7 +604,8 @@ bool HasHorizontalSpawnClearance(
     const Vec3& lateralAxis,
     const Vec3& forwardAxis,
     float nativeHeightAboveGround,
-    float frontClearanceDistance
+    float frontClearanceDistance,
+    bool checkBothDirections
 ) {
     const float lateralProbeHalfWidth =
         kCarClearanceHalfWidth + kSideClearanceDistance;
@@ -577,7 +658,11 @@ bool HasHorizontalSpawnClearance(
                     lateralAxis.z * lateralOffset,
             };
 
-            if (!IsCollisionSegmentClear(traceStart, traceEnd, true)) {
+            if (!IsCollisionSegmentClear(
+                    traceStart,
+                    traceEnd,
+                    true,
+                    checkBothDirections)) {
                 return false;
             }
         }
@@ -598,7 +683,11 @@ bool HasHorizontalSpawnClearance(
                     lateralAxis.z * (kCarClearanceHalfWidth + kSideClearanceDistance),
             };
 
-            if (!IsCollisionSegmentClear(traceStart, traceEnd, true)) {
+            if (!IsCollisionSegmentClear(
+                    traceStart,
+                    traceEnd,
+                    true,
+                    checkBothDirections)) {
                 return false;
             }
         }
@@ -625,29 +714,42 @@ bool TryAddGridPoint(
     Vec3 forwardDirection,
     float nativeHeightAboveGround,
     float frontClearanceDistance,
+    bool enforceRouteBounds,
+    bool enforceVerticalClearance,
+    bool checkBothDirections,
+    bool allowFloatingSupport,
     int& chosenCount,
     std::array<Vec3, randomizerMaxCarCount>& outPositions,
     std::array<Vec3, randomizerMaxCarCount>& outForwardDirections,
-    bool& rejectedForSpacing
+    bool& rejectedForSpacing,
+    const char*& rejectionReason
 ) {
     rejectedForSpacing = false;
+    rejectionReason = nullptr;
+    const auto reject = [&rejectionReason](const char* reason) {
+        rejectionReason = reason;
+        return false;
+    };
 
-    float groundY = 0.0f;
-    if (!FindGround(
+    float groundY = desiredPosition.y - nativeHeightAboveGround;
+    if (!allowFloatingSupport &&
+        !FindGround(
             desiredPosition.x,
             desiredPosition.z,
             desiredPosition.y,
             groundY)) {
-        return false;
+        return reject("candidate has no collision floor");
     }
 
     const Vec3 candidate{
         desiredPosition.x,
-        groundY + nativeHeightAboveGround,
+        allowFloatingSupport
+            ? desiredPosition.y
+            : groundY + nativeHeightAboveGround,
         desiredPosition.z,
     };
-    if (!IsInsideTrackRoute(candidate)) {
-        return false;
+    if (enforceRouteBounds && !IsInsideTrackRoute(candidate)) {
+        return reject("candidate is outside route bounds");
     }
 
     const std::array<Vec3, 4> footprintOffsets = {{
@@ -662,17 +764,20 @@ bool TryAddGridPoint(
     }};
 
     for (const Vec3& offset : footprintOffsets) {
+        if (allowFloatingSupport) {
+            continue;
+        }
         float footprintGroundY = 0.0f;
         if (!FindGround(
                 candidate.x + offset.x,
                 candidate.z + offset.z,
                 desiredPosition.y,
                 footprintGroundY)) {
-            return false;
+            return reject("candidate footprint has no collision floor");
         }
         if (std::fabs(footprintGroundY - groundY) >
             kMaximumFootprintHeightDelta) {
-            return false;
+            return reject("candidate footprint height is too uneven");
         }
 
         const Vec3 footprintSpawnPoint{
@@ -680,24 +785,26 @@ bool TryAddGridPoint(
             footprintGroundY + nativeHeightAboveGround,
             candidate.z + offset.z,
         };
-        if (!IsInsideTrackRoute(footprintSpawnPoint)) {
-            return false;
+        if (enforceRouteBounds && !IsInsideTrackRoute(footprintSpawnPoint)) {
+            return reject("candidate footprint is outside route bounds");
         }
     }
 
-    if (!HasVerticalClearance(candidate, nativeHeightAboveGround)) {
-        return false;
+    if (enforceVerticalClearance &&
+        !HasVerticalClearance(candidate, nativeHeightAboveGround)) {
+        return reject("candidate has insufficient vertical clearance");
     }
     if (!NormalizeXZ(forwardDirection)) {
-        return false;
+        return reject("candidate has an invalid heading");
     }
     if (!HasHorizontalSpawnClearance(
             candidate,
             lateralAxis,
             forwardDirection,
             nativeHeightAboveGround,
-            frontClearanceDistance)) {
-        return false;
+            frontClearanceDistance,
+            checkBothDirections)) {
+        return reject("candidate has insufficient horizontal clearance");
     }
 
     const float minimumDistance =
@@ -708,7 +815,7 @@ bool TryAddGridPoint(
         const float deltaZ = candidate.z - outPositions[index].z;
         if (deltaX * deltaX + deltaZ * deltaZ < minimumDistanceSquared) {
             rejectedForSpacing = true;
-            return false;
+            return reject("candidate overlaps an accepted spawn");
         }
     }
 
@@ -876,40 +983,112 @@ bool InitializeRouteTraversal(
         return false;
     }
 
+    // Project onto a connected edge, rather than choosing the nearest node.
+    // At a junction the nearest node can belong to a different branch; making
+    // the first extension travel from the corridor centre to that node creates
+    // an artificial diagonal. Starting at an edge projection preserves the
+    // route's local direction immediately.
     float nearestDistanceSquared = (std::numeric_limits<float>::max)();
-    route.currentSectionIndex = -1;
+    float bestDirectionAlignment = -(std::numeric_limits<float>::max)();
+    int bestCurrentSectionIndex = -1;
+    int bestNextSectionIndex = -1;
+    Vec3 bestCenter = {};
+    Vec3 bestDirection = {};
+
     for (int sectionIndex = 0;
          sectionIndex < route.sectionCount;
          ++sectionIndex) {
-        const float deltaX =
-            route.sections[sectionIndex].position.x - route.center.x;
-        const float deltaZ =
-            route.sections[sectionIndex].position.z - route.center.z;
-        const float distanceSquared = deltaX * deltaX + deltaZ * deltaZ;
-        if (distanceSquared < nearestDistanceSquared) {
-            nearestDistanceSquared = distanceSquared;
-            route.currentSectionIndex = sectionIndex;
+        const RouteSectionRuntime& section = route.sections[sectionIndex];
+        std::array<RouteSectionRuntime*, 8> links = {};
+        for (int linkIndex = 0; linkIndex < 4; ++linkIndex) {
+            links[linkIndex] = section.nextSections[linkIndex];
+            links[linkIndex + 4] = section.previousSections[linkIndex];
+        }
+
+        for (RouteSectionRuntime* link : links) {
+            const int linkIndex = GetRouteSectionIndex(route, link);
+            if (linkIndex < 0 || linkIndex == sectionIndex) {
+                continue;
+            }
+
+            const Vec3& endpoint = route.sections[linkIndex].position;
+            Vec3 segmentDirection{
+                endpoint.x - section.position.x,
+                0.0f,
+                endpoint.z - section.position.z,
+            };
+            const float segmentLengthSquared = DotXZ(
+                segmentDirection,
+                segmentDirection
+            );
+            if (segmentLengthSquared <= kTraceHitEpsilon) {
+                continue;
+            }
+
+            const float projection = (std::clamp)(
+                ((route.center.x - section.position.x) * segmentDirection.x +
+                 (route.center.z - section.position.z) * segmentDirection.z) /
+                    segmentLengthSquared,
+                0.0f,
+                1.0f
+            );
+            const Vec3 projectedCenter{
+                section.position.x + segmentDirection.x * projection,
+                section.position.y +
+                    (endpoint.y - section.position.y) * projection,
+                section.position.z + segmentDirection.z * projection,
+            };
+            const float deltaX = projectedCenter.x - route.center.x;
+            const float deltaZ = projectedCenter.z - route.center.z;
+            const float distanceSquared = deltaX * deltaX + deltaZ * deltaZ;
+            if (!NormalizeXZ(segmentDirection)) {
+                continue;
+            }
+
+            const float directionAlignment = DotXZ(
+                segmentDirection,
+                route.direction
+            );
+            // Restrict to segments continuing in the native trailing
+            // direction, then use the nearest projected edge. Alignment breaks
+            // a tie between adjacent branches at the same junction.
+            if (directionAlignment < 0.0f) {
+                continue;
+            }
+            if (bestCurrentSectionIndex < 0 ||
+                distanceSquared < nearestDistanceSquared -
+                    kTraceHitEpsilon ||
+                (std::fabs(distanceSquared - nearestDistanceSquared) <=
+                     kTraceHitEpsilon &&
+                 directionAlignment > bestDirectionAlignment)) {
+                nearestDistanceSquared = distanceSquared;
+                bestDirectionAlignment = directionAlignment;
+                bestCurrentSectionIndex = sectionIndex;
+                bestNextSectionIndex = linkIndex;
+                bestCenter = projectedCenter;
+                bestDirection = segmentDirection;
+            }
         }
     }
 
-    if (route.currentSectionIndex < 0) {
-        failureReason = "route-section graph has no usable section";
+    if (bestCurrentSectionIndex < 0 || bestNextSectionIndex < 0) {
+        failureReason = "route-section graph has no forward connected edge";
         return false;
     }
 
+    route.center = bestCenter;
+    route.currentSectionIndex = bestCurrentSectionIndex;
+    route.nextSectionIndex = bestNextSectionIndex;
     route.previousSectionIndex = -1;
-    route.nextSectionIndex = FindFollowingRouteSection(
-        route,
-        route.currentSectionIndex,
-        route.previousSectionIndex,
-        route.direction
-    );
-    if (route.nextSectionIndex < 0) {
-        failureReason = "route-section graph has no continuation";
+    route.direction = bestDirection;
+    route.referenceRight = basis.right;
+    if (!BuildRightAxis(
+            { -route.direction.x, 0.0f, -route.direction.z },
+            route.referenceRight,
+            route.right)) {
+        failureReason = "route-section graph has an invalid lateral axis";
         return false;
     }
-
-    route.right = basis.right;
     route.initialized = true;
     return true;
 }
@@ -959,6 +1138,13 @@ bool AdvanceAlongRoute(
             (target.y - route.center.y) * interpolation;
         route.center.z += segmentDirection.z * travelDistance;
         route.direction = segmentDirection;
+        if (!BuildRightAxis(
+                { -route.direction.x, 0.0f, -route.direction.z },
+                route.referenceRight,
+                route.right)) {
+            failureReason = "route traversal produced an invalid lateral axis";
+            return false;
+        }
         remainingDistance -= travelDistance;
 
         if (travelDistance + kTraceHitEpsilon >= segmentLength) {
@@ -987,7 +1173,8 @@ bool AdvanceAlongRoute(
 // move around an obstacle without shifting every later row sideways.
 std::vector<LaneOffsetCandidate> BuildLaneCandidates(
     int lanesToPlace,
-    const std::vector<float>& previousLaneOffsets
+    const std::vector<float>& previousLaneOffsets,
+    bool previousRowUsesStrictCollisionChecks
 ) {
     std::vector<LaneOffsetCandidate> candidates;
     if (lanesToPlace <= 0) {
@@ -995,17 +1182,26 @@ std::vector<LaneOffsetCandidate> BuildLaneCandidates(
     }
 
     if (previousLaneOffsets.empty()) {
-        LaneOffsetCandidate centered;
-        centered.offsets.reserve(lanesToPlace);
         const float centerOffset =
             0.5f * static_cast<float>(lanesToPlace - 1);
-        for (int laneIndex = 0; laneIndex < lanesToPlace; ++laneIndex) {
-            centered.offsets.push_back(
-                (static_cast<float>(laneIndex) - centerOffset) *
-                kMinimumSpawnSeparation
-            );
+        // The authored start can contain a local prop on just one side of the
+        // nominal centre line. Retain the centred lattice as the first choice,
+        // then move the whole row by half-lane increments before reducing its
+        // width. This avoids permanently locking the grid to a two-car row.
+        for (float rowShift : kInitialLaneShiftOffsets) {
+            LaneOffsetCandidate candidate;
+            candidate.offsets.reserve(lanesToPlace);
+            candidate.score = std::fabs(rowShift);
+            candidate.usesStrictCollisionChecks =
+                std::fabs(rowShift) > kTraceHitEpsilon;
+            for (int laneIndex = 0; laneIndex < lanesToPlace; ++laneIndex) {
+                candidate.offsets.push_back(
+                    (static_cast<float>(laneIndex) - centerOffset) *
+                        kMinimumSpawnSeparation + rowShift
+                );
+            }
+            candidates.push_back(candidate);
         }
-        candidates.push_back(centered);
         return candidates;
     }
 
@@ -1017,6 +1213,8 @@ std::vector<LaneOffsetCandidate> BuildLaneCandidates(
         }
 
         LaneOffsetCandidate candidate;
+        candidate.usesStrictCollisionChecks =
+            previousRowUsesStrictCollisionChecks;
         float offsetSum = 0.0f;
         for (size_t laneIndex = 0;
              laneIndex < previousLaneOffsets.size();
@@ -1064,6 +1262,9 @@ bool GenerateGridRows(
     const NativeGridLayout& layout,
     const NativeGridBasis& basis,
     float nativeHeightAboveGround,
+    bool bypassNativeCorridorRouteBounds,
+    bool allowFloatingNativeCorridor,
+    bool enforceVerticalClearance,
     std::array<Vec3, randomizerMaxCarCount>& outPositions,
     std::array<Vec3, randomizerMaxCarCount>& outForwardDirections,
     std::vector<GeneratedGridRow>& generatedRows,
@@ -1088,11 +1289,19 @@ bool GenerateGridRows(
     if (!NormalizeXZ(route.direction)) {
         route.direction = basis.back;
     }
-    route.right = basis.right;
+    route.referenceRight = basis.right;
+    if (!BuildRightAxis(
+            { -route.direction.x, 0.0f, -route.direction.z },
+            route.referenceRight,
+            route.right)) {
+        failureReason = "native grid has an invalid route-extension lateral axis";
+        return false;
+    }
 
     int chosenCount = 0;
     float lastAcceptedRowDistance = -kMinimumSpawnSeparation;
     int rowIndex = 0;
+    const char* lastCandidateRejection = nullptr;
 
     while (chosenCount < targetCarCount) {
         const int maximumLanesThisRow = generatedRows.empty()
@@ -1122,15 +1331,27 @@ bool GenerateGridRows(
                     rowDistance += kGridRowSearchStep;
                     continue;
                 }
-                rowRight = {
-                    -trailingDirection.z,
+                const Vec3 forwardDirection{
+                    -trailingDirection.x,
                     0.0f,
-                    trailingDirection.x,
+                    -trailingDirection.z,
                 };
-                if (DotXZ(rowRight, basis.right) < 0.0f) {
-                    rowRight.x = -rowRight.x;
-                    rowRight.z = -rowRight.z;
+                if (!BuildRightAxis(forwardDirection, basis.right, rowRight)) {
+                    rowDistance += kGridRowSearchStep;
+                    continue;
                 }
+            } else if (allowFloatingNativeCorridor) {
+                const float extensionDistance =
+                    rowDistance - layout.corridorLength;
+                rowCenter = {
+                    layout.rows.back().center.x +
+                        route.direction.x * extensionDistance,
+                    layout.rows.back().center.y,
+                    layout.rows.back().center.z +
+                        route.direction.z * extensionDistance,
+                };
+                trailingDirection = route.direction;
+                rowRight = route.right;
             } else {
                 if (!route.initialized &&
                     !InitializeRouteTraversal(
@@ -1179,13 +1400,22 @@ bool GenerateGridRows(
                     generatedRows.empty()
                     ? std::vector<float>()
                     : generatedRows.back().laneOffsets;
+                const bool previousRowUsesStrictCollisionChecks =
+                    !generatedRows.empty() &&
+                    generatedRows.back().usesStrictCollisionChecks;
                 const std::vector<LaneOffsetCandidate> laneCandidates =
-                    BuildLaneCandidates(laneCount, previousLaneOffsets);
+                    BuildLaneCandidates(
+                        laneCount,
+                        previousLaneOffsets,
+                        previousRowUsesStrictCollisionChecks
+                    );
 
                 for (const LaneOffsetCandidate& laneCandidate : laneCandidates) {
                     chosenCount = chosenBeforeRow;
                     bool candidateAccepted = true;
                     bool candidateSpacingRejected = false;
+                    float lowestCandidateY = (std::numeric_limits<float>::max)();
+                    float highestCandidateY = -(std::numeric_limits<float>::max)();
                     for (float laneOffset : laneCandidate.offsets) {
                         const Vec3 desiredPosition{
                             rowCenter.x + rowRight.x * laneOffset,
@@ -1193,6 +1423,7 @@ bool GenerateGridRows(
                             rowCenter.z + rowRight.z * laneOffset,
                         };
                         bool rejectedForSpacing = false;
+                        const char* candidateRejection = nullptr;
                         if (!TryAddGridPoint(
                                 desiredPosition,
                                 rowRight,
@@ -1202,14 +1433,43 @@ bool GenerateGridRows(
                                 isRouteExtension
                                     ? kFrontClearanceDistance
                                     : kNativeCorridorFrontClearanceDistance,
+                                isRouteExtension ||
+                                    !bypassNativeCorridorRouteBounds,
+                                enforceVerticalClearance,
+                                isRouteExtension ||
+                                    laneCandidate.usesStrictCollisionChecks,
+                                allowFloatingNativeCorridor &&
+                                    !isRouteExtension,
                                 chosenCount,
                                 outPositions,
                                 outForwardDirections,
-                                rejectedForSpacing)) {
+                                rejectedForSpacing,
+                                candidateRejection)) {
                             candidateAccepted = false;
                             candidateSpacingRejected |= rejectedForSpacing;
+                            if (candidateRejection != nullptr) {
+                                lastCandidateRejection = candidateRejection;
+                            }
                             break;
                         }
+                        const float candidateY = outPositions[chosenCount - 1].y;
+                        lowestCandidateY = (std::min)(
+                            lowestCandidateY,
+                            candidateY
+                        );
+                        highestCandidateY = (std::max)(
+                            highestCandidateY,
+                            candidateY
+                        );
+                    }
+
+                    if (candidateAccepted &&
+                        highestCandidateY - lowestCandidateY >
+                            kMaximumRowHeightDelta) {
+                        chosenCount = chosenBeforeRow;
+                        candidateAccepted = false;
+                        lastCandidateRejection =
+                            "candidate row spans incompatible floor heights";
                     }
 
                     if (candidateAccepted) {
@@ -1218,6 +1478,7 @@ bool GenerateGridRows(
                             laneCount,
                             forwardDirection,
                             laneCandidate.offsets,
+                            laneCandidate.usesStrictCollisionChecks,
                         });
                         lastAcceptedRowDistance = rowDistance;
                         rowAccepted = true;
@@ -1247,7 +1508,9 @@ bool GenerateGridRows(
         }
 
         if (!rowAccepted) {
-            failureReason = "no valid position was found for a complete grid row";
+            failureReason = lastCandidateRejection != nullptr
+                ? lastCandidateRejection
+                : "no valid position was found for a complete grid row";
             return false;
         }
 
@@ -1348,6 +1611,24 @@ bool CalculateThirtyCarGridPositions(
         return ReportGridFailure(failureReason);
     }
 
+    // A moving start platform can be intentionally outside every static route
+    // zone while its collision geometry still supports the authored grid. Only
+    // relax route-zone validation when all sixteen authored starts prove that
+    // this is the track's setup; route extensions remain route-bound.
+    bool bypassNativeCorridorRouteBounds = true;
+    for (const Vec3& authoredPosition : authoredPositions) {
+        if (IsInsideTrackRoute(authoredPosition)) {
+            bypassNativeCorridorRouteBounds = false;
+            break;
+        }
+    }
+    if (bypassNativeCorridorRouteBounds) {
+        Logger::TimestampLogf(
+            "[ThirtyCarGrid] all authored starts are outside route zones; "
+            "using collision validation for the native corridor"
+        );
+    }
+
     NativeGridBasis basis;
     if (!EstablishGridBasis(
             authoredPositions,
@@ -1375,13 +1656,51 @@ bool CalculateThirtyCarGridPositions(
     }
 
     float nativeGroundY = 0.0f;
+    bool allowFloatingNativeCorridor = false;
     if (!FindGround(
             authoredPositions[0].x,
             authoredPositions[0].z,
             authoredPositions[0].y,
             nativeGroundY)) {
-        failureReason = "could not find ground below the first native position";
-        return ReportGridFailure(failureReason);
+        // A pre-countdown platform may not yet have been inserted into the
+        // collision grid. Recognize that exceptional case from the authored
+        // grid itself: every slot lacks a floor and the platform is flat.
+        bool anyAuthoredGroundFound = false;
+        float minimumAuthoredHeight = authoredPositions[0].y;
+        float maximumAuthoredHeight = authoredPositions[0].y;
+        for (int startSlot = 1;
+             startSlot < vanillaMaxCarCount;
+             ++startSlot) {
+            minimumAuthoredHeight = (std::min)(
+                minimumAuthoredHeight,
+                authoredPositions[startSlot].y
+            );
+            maximumAuthoredHeight = (std::max)(
+                maximumAuthoredHeight,
+                authoredPositions[startSlot].y
+            );
+            if (FindGround(
+                    authoredPositions[startSlot].x,
+                    authoredPositions[startSlot].z,
+                    authoredPositions[startSlot].y,
+                    nativeGroundY)) {
+                anyAuthoredGroundFound = true;
+                break;
+            }
+        }
+        if (!anyAuthoredGroundFound &&
+            maximumAuthoredHeight - minimumAuthoredHeight <=
+                kFloatingStartHeightTolerance) {
+            allowFloatingNativeCorridor = true;
+            nativeGroundY = authoredPositions[0].y;
+            Logger::TimestampLogf(
+                "[ThirtyCarGrid] native start has no loaded floor; using "
+                "the authored moving-platform corridor"
+            );
+        } else {
+            failureReason = "could not find ground below the first native position";
+            return ReportGridFailure(failureReason);
+        }
     }
 
     const float nativeHeightAboveGround =
@@ -1391,12 +1710,34 @@ bool CalculateThirtyCarGridPositions(
         return ReportGridFailure(failureReason);
     }
 
+    // Do not let an auxiliary clearance probe overrule every one of RVGL's
+    // authored starts. Some covered starts (notably Ghost Town 2) use collision
+    // winding that makes this upward-volume test report a hit for all sixteen
+    // already-valid native slots.
+    int authoredVerticalClearanceCount = 0;
+    for (const Vec3& authoredPosition : authoredPositions) {
+        if (HasVerticalClearance(authoredPosition, nativeHeightAboveGround)) {
+            ++authoredVerticalClearanceCount;
+        }
+    }
+    const bool enforceVerticalClearance =
+        authoredVerticalClearanceCount > 0;
+    if (!enforceVerticalClearance) {
+        Logger::TimestampLogf(
+            "[ThirtyCarGrid] vertical clearance rejected all authored starts; "
+            "using floor, route, footprint, and body checks instead"
+        );
+    }
+
     std::vector<GeneratedGridRow> generatedRows;
     if (!GenerateGridRows(
             targetCarCount,
             nativeLayout,
             basis,
             nativeHeightAboveGround,
+            bypassNativeCorridorRouteBounds,
+            allowFloatingNativeCorridor,
+            enforceVerticalClearance,
             outPositions,
             outForwardDirections,
             generatedRows,
