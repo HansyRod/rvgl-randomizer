@@ -155,6 +155,13 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
+        AbsFromRva(RVA_UPDATE_LEVEL_MUSIC),
+        reinterpret_cast<void*>(Randomizer::Hook_UpdateLevelMusic),
+        reinterpret_cast<void**>(&Randomizer::Orig_UpdateLevelMusic),
+        "UpdateLevelMusic"
+    );
+
+    HookManager::Add(
         AbsFromRva(RVA_LOAD_VANILLA_CUPS),
         reinterpret_cast<void*>(Randomizer::Hook_LoadVanillaCups),
         reinterpret_cast<void**>(&Randomizer::Orig_LoadVanillaCups),

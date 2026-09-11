@@ -55,6 +55,10 @@ constexpr uint32_t RVA_LOAD_VANILLA_TRACKS = 0x00052190;
 // Ghidra signature: void LoadCustomTracks(void)
 constexpr uint32_t RVA_LOAD_CUSTOM_TRACKS = 0x00052280;
 
+// UpdateLevelMusic — selects the current level's custom music or Redbook track.
+// Ghidra signature: void UpdateLevelMusic(void)
+constexpr uint32_t RVA_UPDATE_LEVEL_MUSIC = 0x0005f690;
+
 // LoadDefaultCups — loads the vanilla cups into memory using the default folder paths.
 // Ghidra signature: void LoadDefaultCups(void)
 constexpr uint32_t RVA_LOAD_VANILLA_CUPS = 0x0004bae0;
