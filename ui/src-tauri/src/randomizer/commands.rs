@@ -466,7 +466,7 @@ pub fn generate_result(
     let config = ConfigData {
         metadata: ConfigMetadata {
             seed: rng.seed().to_string(),
-            version: "0.1.1".to_string(),
+            version: "0.2.0".to_string(),
             profile_name: Some(profile_name),
             ui_context,
         },
