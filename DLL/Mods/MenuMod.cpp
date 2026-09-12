@@ -732,12 +732,20 @@ void Hook_BuildOptionsMenu(int slotIndex) {
 // Called on every action on the "Options" menu (navigation with up/down arrows,
 // choose option, cancel).
 bool Hook_HandleOptionsMenuAction(int slotIndex, uint32_t action) {
+    // The copied Mod Settings panel resolves its title through the same
+    // locale slot as the Options-menu row. Keep that custom string loaded
+    // when Confirm opens the panel; it is released when the panel is closed.
+    const bool openingModOptions =
+        action == kFrontendConfirmAction &&
+        GetSelectedMenuItemDescriptor(slotIndex) == &g_modOptionsMenuItem;
+
     const bool result = Orig_HandleOptionsMenuAction(slotIndex, action);
     if (!IsKnockoutModeEnabled()) {
         return result;
     }
 
-    if (action == kFrontendConfirmAction || action == kFrontendCancelAction) {
+    if (action == kFrontendCancelAction ||
+        (action == kFrontendConfirmAction && !openingModOptions)) {
         RestoreOptionsMenuLocaleStrings();
     }
 
