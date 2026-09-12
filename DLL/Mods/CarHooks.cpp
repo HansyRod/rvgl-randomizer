@@ -7,6 +7,7 @@
 #include "GameUtils.h"
 #include "CustomUnlocks.h"
 #include <algorithm>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace {
@@ -91,7 +92,28 @@ void SortCustomCarsByExtraSlot(CarInfo* customPool, int firstCustomCar, int cust
     );
 }
 
+enum class DirScanKind {
+    Other,
+    CarsRoot
+};
+
+std::unordered_map<DirScanState*, DirScanKind> scanKinds;
 bool filterCustomCarFolders = false;
+
+bool IsCarsRootPath(const char* path) {
+    if (path == nullptr) {
+        return false;
+    }
+
+    std::string normalizedPath(path);
+    std::replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
+
+    while (!normalizedPath.empty() && normalizedPath.back() == '/') {
+        normalizedPath.pop_back();
+    }
+
+    return _stricmp(normalizedPath.c_str(), "cars") == 0;
+}
 
 void InitHardcodedCarPath(int index) {
 
@@ -144,6 +166,7 @@ namespace Randomizer {
 FnLoadVanillaCarPool     Orig_LoadVanillaCarPool     = nullptr;
 FnLoadTextureByName      Orig_LoadTextureByName      = nullptr;
 FnLoadCustomCarPool      Orig_LoadCustomCarPool      = nullptr;
+FnDirScanOpen             Orig_DirScanOpen            = nullptr;
 FnDirScanNext             Orig_DirScanNext            = nullptr;
 FnSyncCarInfoFromPhysics Orig_SyncCarInfoFromPhysics = nullptr;
 FnUpdateCarSelectability Orig_UpdateCarSelectability = nullptr;
@@ -342,13 +365,41 @@ unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLeve
 }
 
 
+bool Hook_DirScanOpen(DirScanState* state, const char* path, bool forcePhysical) {
+
+    if (Orig_DirScanOpen == nullptr) {
+        return false;
+    }
+
+    if (!filterCustomCarFolders || state == nullptr || path == nullptr) {
+        return Orig_DirScanOpen(state, path, forcePhysical);
+    }
+
+    scanKinds[state] = IsCarsRootPath(path)
+        ? DirScanKind::CarsRoot
+        : DirScanKind::Other;
+
+    const bool opened = Orig_DirScanOpen(state, path, forcePhysical);
+    if (!opened) {
+        scanKinds.erase(state);
+    }
+
+    return opened;
+}
+
 DirEntry* Hook_DirScanNext(DirScanState* state) {
 
     if (Orig_DirScanNext == nullptr) {
         return nullptr;
     }
 
-    if (!filterCustomCarFolders || state == nullptr || _stricmp(state->path, "cars") != 0) {
+    if (!filterCustomCarFolders || state == nullptr) {
+        return Orig_DirScanNext(state);
+    }
+
+    const auto scanKind = scanKinds.find(state);
+
+    if (scanKind == scanKinds.end() || scanKind->second != DirScanKind::CarsRoot) {
         return Orig_DirScanNext(state);
     }
 
@@ -385,6 +436,7 @@ void Hook_LoadCustomCarPool() {
     filterCustomCarFolders = config != nullptr && !config->global_options.load_extra_cars;
     Orig_LoadCustomCarPool();
     filterCustomCarFolders = false;
+    scanKinds.clear();
 
     CarInfo* customPool = GetCarPool();
     int customCount     = GetRuntimeCarCount();

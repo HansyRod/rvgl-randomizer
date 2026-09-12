@@ -33,6 +33,10 @@ constexpr uint32_t RVA_LOAD_CUSTOM_CAR_POOL = 0x0003fac0;
 // Ghidra signature: DirEntry* DirScan_Next (DirScanState*)
 constexpr uint32_t RVA_DIR_SCAN_NEXT = 0x00137250;
 
+// DirScan_Open — initializes a physical or VFS directory scan.
+// Ghidra signature: bool DirScan_Open (DirScanState*, const char*, bool)
+constexpr uint32_t RVA_DIR_SCAN_OPEN = 0x00137120;
+
 // CreateCarbox — sets up the frontend textures for car selection.
 // Ghidra signature: void __fastcall CreateCarbox(void* param_1)
 constexpr uint32_t RVA_CREATE_CARBOX = 0x001570d0;
