@@ -678,7 +678,10 @@ void FinalizeKnockoutRaceSetup() {
     ctx.knockoutState.knockedOutGhostMode = ctx.knockoutState.knockedOutGhostMode != 0 ? 1 : 0;
     ApplyKnockoutLapCountOption();
     ctx.knockoutState.eliminatedCount = 0;
-    ctx.knockoutState.lastRaceClockMs = static_cast<int>(GetCurrentRaceClockMs());
+    // Setup can run before the game's race clock is reset on a restart. Let the
+    // first progress update establish the new baseline so the defensive
+    // clock-reset detector does not clear the grid we just built.
+    ctx.knockoutState.lastRaceClockMs = 0;
     ctx.knockoutState.playerWon = false;
     g_knockoutPopupLines.clear();
     g_knockoutPopupUntilMs = 0;
