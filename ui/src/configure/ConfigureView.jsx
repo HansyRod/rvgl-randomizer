@@ -14,6 +14,7 @@ import CupConfigPage from "./cupSpec/CupConfigPage";
 import { isEffectiveStockCarsMode } from "../validation/stockMode";
 
 const CONFIGURE_TABS = [
+  { id: "presets",           label: "Presets",                group: "Global", disabledKey: null },
   { id: "global-options",   label: "Global Options",         group: "Global", disabledKey: null },
   { id: "car-options",      label: "Car options",            group: "Cars",   disabledKey: null },
   { id: "stock-cars-spec",  label: "Stock specification",    group: "Cars",   disabledKey: "includeStockCars" },
@@ -54,14 +55,6 @@ export default function ConfigureView() {
       {/* Configure sidebar nav */}
       <nav className="configure-sidenav">
 
-        {/* Presets — top-level entry, not part of any group */}
-        <button
-          className={`configure-nav-item${activeTab === "presets" ? " active" : ""}`}
-          onClick={() => setTab("presets")}
-        >
-          Presets
-        </button>
-
         {groups.map(group => (
           <div key={group} className="configure-nav-group">
             <span className="configure-nav-group-label">{group}</span>
@@ -72,8 +65,8 @@ export default function ConfigureView() {
                                      : tab.disabledKey === "includeTracks"    ? !includeTracks
                                      : false;
 
-              // Global Options remain editable because they control runtime features independently.
-              const isPresetLocked = !isCustom && tab.id !== "global-options";
+              // Global tabs remain editable because they control runtime features independently.
+              const isPresetLocked = !isCustom && tab.group !== "Global";
 
               const isDisabled = isPresetLocked || isDisabledBySpec;
 
