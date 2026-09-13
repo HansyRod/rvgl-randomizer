@@ -76,7 +76,6 @@ void Hook_AssignStartPositions() {
 
 void Hook_SetupAllRaceCars() {
     Logger::TimestampLogf("[RaceInitHooks] Calling SetupAllRaceCars");
-    ResetThirtyCarPlayerPositionState();
     Orig_SetupAllRaceCars();
 
     ApplyThirtyCarGrid();
@@ -103,8 +102,6 @@ bool Hook_AddParticipantAndCount(int carType, int spawnType, int carID, int skin
 
 void Hook_UpdateRacePositions() {
     Orig_UpdateRacePositions();
-    MovePlayersToBackAfterRacePositions();
-    MoveCupPlayerToBackAfterRacePositions();
 }
 
 

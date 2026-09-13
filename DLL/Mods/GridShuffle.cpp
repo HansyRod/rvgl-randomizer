@@ -40,37 +40,62 @@ bool ReadGridSlot(int carId, GridSlot& slot) {
     return true;
 }
 
-void ShuffleGridCars(const std::vector<int>& carIds) {
+bool ShuffleGridCars(
+    const std::vector<int>& carIds,
+    int playerCarId
+) {
     if (carIds.empty()) {
-        return;
+        return false;
     }
 
-    std::vector<GridSlot> shuffledSlots;
-    shuffledSlots.reserve(carIds.size());
+    if (carIds.size() > randomizerMaxCarCount) {
+        return false;
+    }
+
+    if (std::find(carIds.begin(), carIds.end(), playerCarId) == carIds.end()) {
+        return false;
+    }
+
+    std::vector<GridSlot> gridSlots;
+    gridSlots.reserve(carIds.size());
     for (const int carId : carIds) {
         GridSlot slot;
         if (!ReadGridSlot(carId, slot)) {
-            return;
+            return false;
         }
-        shuffledSlots.push_back(slot);
+        gridSlots.push_back(slot);
     }
 
-    std::shuffle(shuffledSlots.begin(), shuffledSlots.end(), GridShuffleRng());
+    // The final slot is reserved for the player. Shuffle only the other
+    // positions so the player's placement cannot be changed by this pass.
+    std::vector<GridSlot> opponentSlots(gridSlots.begin(), gridSlots.end() - 1);
+    std::shuffle(opponentSlots.begin(), opponentSlots.end(), GridShuffleRng());
 
-    for (size_t gridIndex = 0; gridIndex < carIds.size(); ++gridIndex) {
-        SetCarPosAndForwardDirection(
-            carIds[gridIndex],
-            shuffledSlots[gridIndex].position,
-            shuffledSlots[gridIndex].forwardDirection
-        );
+    size_t opponentAssignment = 0;
+    for (const int carId : carIds) {
+        if (carId == playerCarId) {
+            continue;
+        }
+
+        const GridSlot& slot = opponentSlots[opponentAssignment++];
+        SetCarPosAndForwardDirection(carId, slot.position, slot.forwardDirection);
     }
+
+    const GridSlot& playerSlot = gridSlots.back();
+    SetCarPosAndForwardDirection(
+        playerCarId,
+        playerSlot.position,
+        playerSlot.forwardDirection
+    );
+
+    return true;
 }
 
 } // anonymous namespace
 
 void ApplyStartingGridShuffle() {
     std::vector<int> gridCarIds;
-    const ThirtyCarRuntimeState& state = GetRandomizerContext().thirtyCarState;
+    ThirtyCarRuntimeState& state = GetRandomizerContext().thirtyCarState;
     const bool expandedCup = IsThirtyCarCupActive();
     const bool expandedSingleRace = !expandedCup && state.gridApplied;
     const bool fixedOpponentCup = IsCupWithFixedOpponents();
@@ -88,6 +113,15 @@ void ApplyStartingGridShuffle() {
                 gridCarIds.push_back(runtimeCarId);
             }
         }
+
+        const int targetCarCount = std::clamp(
+            GetRandomizerContext().carState.carsPerRace,
+            randomizerMinCarCount,
+            randomizerMaxCarCount
+        );
+        if (gridCarIds.size() != static_cast<size_t>(targetCarCount)) {
+            return;
+        }
     }
     else {
         const int participantCount = GetParticipantCount();
@@ -97,7 +131,15 @@ void ApplyStartingGridShuffle() {
         }
     }
 
-    ShuffleGridCars(gridCarIds);
+    if ((expandedSingleRace || expandedCup) && gridCarIds.size() > 1) {
+        // ApplyThirtyCarGrid/ApplyThirtyCarCupGrid exchanged the physical
+        // first and final slots to put the player at the back. Keep the same
+        // order here because runtime IDs remain in participant order.
+        std::swap(gridCarIds.front(), gridCarIds.back());
+    }
+
+    const int playerCarId = expandedSingleRace ? state.runtimeCarIds[0] : 0;
+    ShuffleGridCars(gridCarIds, playerCarId);
 }
 
 } // namespace Randomizer

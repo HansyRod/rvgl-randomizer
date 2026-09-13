@@ -39,7 +39,6 @@ namespace Randomizer {
         const ExtendedCupResultsState& results
     );
     void ApplyThirtyCarCupGrid();
-    void MoveCupPlayerToBackAfterRacePositions();
     bool HandleThirtyCarCupOnStageFinished();
 
 } // namespace Randomizer

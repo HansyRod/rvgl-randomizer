@@ -31,8 +31,6 @@ struct ThirtyCarCupState {
     bool active = false;
     bool rosterGenerated = false;
     int selectedCupIndex = -1;
-    bool gridApplied = false;
-    bool playerMovedToBack = false;
     CupProfile* activeCup = nullptr;
     const RandomizedCup* cupConfig = nullptr;
     ExtendedCupResultsState results = {};
@@ -42,8 +40,6 @@ struct ThirtyCarCupState {
         active = false;
         rosterGenerated = false;
         selectedCupIndex = -1;
-        gridApplied = false;
-        playerMovedToBack = false;
         activeCup = nullptr;
         cupConfig = nullptr;
         results.Reset();
@@ -159,8 +155,6 @@ void Hook_BuildGrid() {
     CupProfile* cup = g_cupState.activeCup;
     const int stageIndex = std::clamp(GetCurrentCupStageIndex(), 0, 15);
     const CupStage& stage = cup->stages[stageIndex];
-    g_cupState.gridApplied = false;
-    g_cupState.playerMovedToBack = false;
     g_cupState.runtimeCarIds.fill(-1);
 
     RaceSettingsRuntime* settings = GetRaceSettings();
@@ -262,38 +256,23 @@ void ApplyThirtyCarCupGrid() {
         g_cupState.runtimeCarIds[gridIndex] = gridIndex;
     }
 
-    g_cupState.gridApplied = true;
-}
-
-void MoveCupPlayerToBackAfterRacePositions() {
-    const bool expandedCup = IsThirtyCarCupActive();
-    const bool fixedOpponentCup = IsCupWithFixedOpponents();
-    if ((!expandedCup && !fixedOpponentCup) || g_cupState.playerMovedToBack) {
-        return;
+    // Establish the player's final physical grid slot before RVGL starts
+    // calculating race positions. The shuffle pass preserves this slot.
+    const int playerCarId = g_cupState.runtimeCarIds[0];
+    const int lastGridCarId = g_cupState.runtimeCarIds[targetCarCount - 1];
+    if (playerCarId >= 0 && lastGridCarId >= 0 && playerCarId != lastGridCarId) {
+        SetCarPosAndForwardDirection(
+            playerCarId,
+            gridPositions[targetCarCount - 1],
+            gridForwardDirections[targetCarCount - 1]
+        );
+        SetCarPosAndForwardDirection(
+            lastGridCarId,
+            gridPositions[0],
+            gridForwardDirections[0]
+        );
     }
 
-    std::array<int, kMaxCupCars> runtimeCarIds = {};
-    runtimeCarIds.fill(-1);
-    int targetCarCount = 0;
-
-    if (expandedCup) {
-        if (!g_cupState.gridApplied || g_cupState.activeCup == nullptr) {
-            return;
-        }
-
-        targetCarCount = std::clamp(g_cupState.activeCup->numCars, 0, kMaxCupCars);
-        runtimeCarIds = g_cupState.runtimeCarIds;
-    }
-    else {
-        targetCarCount = std::clamp(GetParticipantCount(), 0, kMaxCupCars);
-        for (int carId = 0; carId < targetCarCount; ++carId) {
-            runtimeCarIds[carId] = carId;
-        }
-    }
-
-    if (MoveRuntimeCarsToBackAfterRacePositions(runtimeCarIds, targetCarCount)) {
-        g_cupState.playerMovedToBack = true;
-    }
 }
 
 void Hook_UpdateCupPostRaceProgress() {

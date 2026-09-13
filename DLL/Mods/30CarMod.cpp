@@ -215,15 +215,6 @@ bool IsCarModelCpuSelectable(int modelId) {
     return carInfo != nullptr && carInfo->selectableByCPU && !carInfo->isInvalid;
 }
 
-int GetCarRankingPosition(int carId) {
-    const CarEntityRuntime* car = GetLiveCarById(carId);
-    if (car == nullptr || car->racePositionIndex < 0) {
-        return -1;
-    }
-
-    return car->racePositionIndex + 1;
-}
-
 bool IsSupportedMode() {
     GameMode* gameMode = reinterpret_cast<GameMode*>(AbsFromRva(RVA_GAME_MODE));
     return *gameMode == MODE_SINGLE_RACE;
@@ -441,73 +432,24 @@ void ApplyThirtyCarGrid() {
         }
     }
 
+    // Establish the player's final physical grid slot before RVGL starts
+    // calculating race positions. The shuffle pass preserves this slot.
+    const int playerCarId = state.runtimeCarIds[0];
+    const int lastGridCarId = state.runtimeCarIds[targetCarCount - 1];
+    if (playerCarId >= 0 && lastGridCarId >= 0 && playerCarId != lastGridCarId) {
+        SetCarPosAndForwardDirection(
+            playerCarId,
+            gridPositions[targetCarCount - 1],
+            gridForwardDirections[targetCarCount - 1]
+        );
+        SetCarPosAndForwardDirection(
+            lastGridCarId,
+            gridPositions[0],
+            gridForwardDirections[0]
+        );
+    }
+
     state.gridApplied = true;
-}
-
-bool MoveRuntimeCarsToBackAfterRacePositions(
-    const std::array<int, randomizerMaxCarCount>& runtimeCarIds,
-    int targetCarCount
-) {
-    if (targetCarCount <= 0 || targetCarCount > randomizerMaxCarCount) {
-        return false;
-    }
-
-    std::array<int, randomizerMaxCarCount + 1> rankToCar;
-    rankToCar.fill(-1);
-
-    for (int slot = 0; slot < targetCarCount; ++slot) {
-        const int runtimeCarId = runtimeCarIds[slot];
-        if (runtimeCarId < 0) {
-            continue;
-        }
-
-        const int rank = GetCarRankingPosition(runtimeCarId);
-        if (rank >= 1 && rank <= targetCarCount) {
-            rankToCar[rank] = runtimeCarId;
-        }
-    }
-
-    const int playerCars[1] = {
-        runtimeCarIds[0] >= 0 ? runtimeCarIds[0] : 0
-    };
-    bool swappedAnyCar = false;
-
-    for (int i = 0; i < 1; ++i) {
-        const int playerCarId = playerCars[i];
-        const int lastPlaceCarId = rankToCar[targetCarCount - i];
-
-        if (lastPlaceCarId < 0) {
-            continue;
-        }
-
-        const Vec3 playerPos = GetCarPos(playerCarId);
-        const Vec3 lastPlacePos = GetCarPos(lastPlaceCarId);
-
-        SetCarPos(playerCarId, lastPlacePos);
-        SetCarPos(lastPlaceCarId, playerPos);
-        swappedAnyCar = true;
-    }
-
-    if (swappedAnyCar) {
-        return true;
-    }
-
-    return false;
-}
-
-void MovePlayersToBackAfterRacePositions() {
-    ThirtyCarRuntimeState& state = GetThirtyCarState();
-    if (!IsThirtyCarModeEnabled() || !IsSupportedMode() || !state.gridApplied || state.playersMovedToBack) {
-        return;
-    }
-
-    if (MoveRuntimeCarsToBackAfterRacePositions(state.runtimeCarIds, GetTargetRaceCarCount())) {
-        state.playersMovedToBack = true;
-    }
-}
-
-void ResetThirtyCarPlayerPositionState() {
-    GetThirtyCarState().playersMovedToBack = false;
 }
 
 void ResetThirtyCarModState() {
@@ -515,7 +457,6 @@ void ResetThirtyCarModState() {
     state.cacheValid = false;
     state.participantsExpanded = false;
     state.gridApplied = false;
-    state.playersMovedToBack = false;
     state.originalParticipantCount = 0;
     state.generatedModelIds.fill(-1);
     state.runtimeCarIds.fill(-1);

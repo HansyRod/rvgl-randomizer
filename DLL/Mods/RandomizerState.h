@@ -51,7 +51,6 @@ struct ThirtyCarRuntimeState {
     bool cacheValid = false;
     bool participantsExpanded = false;
     bool gridApplied = false;
-    bool playersMovedToBack = false;
     int originalParticipantCount = 0;
     std::array<int, randomizerMaxCarCount> generatedModelIds = {};
     std::array<int, randomizerMaxCarCount> runtimeCarIds = {};
