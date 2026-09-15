@@ -6,22 +6,6 @@
   box-sizing: border-box;
 }
 
-.presets-row {
-  /* display: flex; temporarily removed */
-  display: none;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  padding: 1rem;
-  background-color: var(--bg-secondary);
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-}
-
-.presets-row label {
-  font-weight: bold;
-}
-
 .cars-spec-section {
   margin-bottom: 2rem;
 }
@@ -69,10 +53,38 @@
   border-color: var(--accent);
 }
 
+.spec-grid-header.has-remove,
+.spec-grid-row.has-remove {
+  grid-template-columns: 120px 4fr 3fr 22px;
+}
+
 .car-id {
   font-weight: bold;
   font-family: monospace;
   font-size: 0.95rem
+}
+
+.car-remove-button {
+  width: 22px;
+  flex-shrink: 0;
+  padding: 0 0.3rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.car-remove-button:hover {
+  color: #e05050;
+  border-color: transparent;
+}
+
+.add-car-slot-button {
+  display: block;
+  margin-left: auto;
+  margin-top: 0.75rem;
 }
 
 .column-group {
@@ -101,6 +113,9 @@
 
 .field-group select {
   width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .specs-horizontal {
@@ -231,4 +246,70 @@
   border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: flex-end;
+}
+
+.custom-unlock-modal {
+  width: 620px;
+}
+
+.custom-unlock-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  overflow: hidden;
+}
+
+.custom-unlock-list-body {
+  padding: 0;
+}
+
+.custom-unlock-mode-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+
+.custom-unlock-mode-row + .search-input {
+  margin-top: 1.25rem;
+}
+
+.custom-unlock-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.custom-unlock-field-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.custom-unlock-field-row label {
+  min-width: 120px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.custom-unlock-track-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.custom-unlock-track-option {
+  align-items: baseline;
+}
+
+.custom-unlock-track-option input[type="checkbox"] {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.custom-unlock-modal-footer {
+  gap: 0.75rem;
 }

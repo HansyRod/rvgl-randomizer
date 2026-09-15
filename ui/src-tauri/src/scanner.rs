@@ -1,7 +1,20 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::{BufReader, Read};
 use std::path::Path;
+use sha2::{Digest, Sha256};
+
+pub const SUPPORTED_RVGL_VERSION: &str = "23.1030a1";
+pub const SUPPORTED_RVGL_SHA256: &str =
+    "2BE6A4D343F3EAD02BB40CE9FD2A707193CFB6160CCF4B59BB5D63F890D74B08";
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecutableVerification {
+    pub version: String,
+    pub sha256: String,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -59,6 +72,8 @@ pub struct Track {
     pub folder_name: String,
     pub name: String,
     pub has_reversed: bool,
+    pub track_length_normal: Option<f32>,
+    pub track_length_reverse: Option<f32>,
     pub track_type: i32,
     pub difficulty: i32,
     pub has_valid_file: bool,
@@ -74,13 +89,14 @@ pub fn scan_pack_folder(
 }
 
 #[tauri::command]
-pub fn scan_install(executable_path: String) -> Option<ScanResult> {
+pub fn scan_install(executable_path: String) -> Result<ScanResult, String> {
     let exe_path = Path::new(&executable_path);
-    if !exe_path.exists() {
-        return None;
-    }
+    verify_rvgl_executable_path(exe_path)?;
+
     // Path could be rvgl.exe or rvgl_win64 etc.
-    let rvgl_root = exe_path.parent()?;
+    let rvgl_root = exe_path
+        .parent()
+        .ok_or_else(|| format!("Could not determine the RVGL install directory for {}", executable_path))?;
 
     // Check for Launcher pattern: rvgl_root grandparent is "packs" ?
     // Wait, if it's "packs/rvgl_win64/rvgl.exe", then parent is "rvgl_win64", grandparent is "packs".
@@ -143,7 +159,7 @@ pub fn scan_install(executable_path: String) -> Option<ScanResult> {
                 }
             }
 
-            return Some(ScanResult {
+            return Ok(ScanResult {
                 install_type: InstallType::Launcher,
                 cars: None,
                 tracks: None,
@@ -166,12 +182,117 @@ pub fn scan_install(executable_path: String) -> Option<ScanResult> {
         tracks = scan_levels_folder_sync(&levels_path);
     }
 
-    Some(ScanResult {
+    Ok(ScanResult {
         install_type: InstallType::Classic,
         cars: Some(cars),
         tracks: Some(tracks),
         content_packs: None,
     })
+}
+
+#[tauri::command]
+pub fn verify_rvgl_executable(executable_path: String) -> Result<ExecutableVerification, String> {
+    verify_rvgl_executable_path(Path::new(&executable_path))
+}
+
+pub fn verify_rvgl_executable_path(executable_path: &Path) -> Result<ExecutableVerification, String> {
+    let file = fs::File::open(executable_path).map_err(|error| {
+        format!(
+            "Could not read selected RVGL executable {}: {}",
+            executable_path.display(),
+            error
+        )
+    })?;
+
+    let mut reader = BufReader::new(file);
+    let actual_sha256 = calculate_sha256(&mut reader).map_err(|error| {
+        format!(
+            "Could not hash selected RVGL executable {}: {}",
+            executable_path.display(),
+            error
+        )
+    })?;
+
+    if actual_sha256 != SUPPORTED_RVGL_SHA256 {
+        return Err(format!(
+            "Unsupported RVGL executable. Expected RVGL {} with SHA-256 {}, but selected executable has SHA-256 {}.",
+            SUPPORTED_RVGL_VERSION, SUPPORTED_RVGL_SHA256, actual_sha256
+        ));
+    }
+
+    Ok(ExecutableVerification {
+        version: SUPPORTED_RVGL_VERSION.to_string(),
+        sha256: actual_sha256,
+    })
+}
+
+fn calculate_sha256<R: Read>(mut reader: R) -> Result<String, std::io::Error> {
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 64 * 1024];
+
+    loop {
+        let bytes_read = reader.read(&mut buffer)?;
+        if bytes_read == 0 {
+            break;
+        }
+
+        hasher.update(&buffer[..bytes_read]);
+    }
+
+    Ok(hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02X}"))
+        .collect::<String>())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn reads_track_length_from_pan_header() {
+        let mut pan_data = vec![0u8; 12];
+        pan_data[0..4].copy_from_slice(&44u32.to_le_bytes());
+        pan_data[8..12].copy_from_slice(&149458.7f32.to_le_bytes());
+
+        let length = read_track_length_from_bytes(&pan_data).expect("length should be present");
+
+        assert!((length - 747.2935).abs() < 0.01);
+    }
+
+    #[test]
+    fn ignores_pan_header_without_length_data() {
+        let pan_data = vec![0u8; 12];
+
+        assert_eq!(read_track_length_from_bytes(&pan_data), None);
+    }
+
+    #[test]
+    fn calculates_sha256_for_file_contents() {
+        let hash = calculate_sha256(Cursor::new(b"abc")).expect("hash should succeed");
+
+        assert_eq!(
+            hash,
+            "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD"
+        );
+    }
+
+    #[test]
+    fn rejects_an_unsupported_executable_hash() {
+        let path = std::env::temp_dir().join(format!(
+            "rvgl-randomizer-invalid-executable-{}.exe",
+            std::process::id()
+        ));
+        fs::write(&path, b"not an RVGL executable").expect("test executable should be written");
+
+        let result = verify_rvgl_executable_path(&path);
+
+        fs::remove_file(&path).expect("test executable should be removed");
+        let error = result.expect_err("unsupported hash should be rejected");
+        assert!(error.contains("Unsupported RVGL executable"));
+    }
 }
 
 #[tauri::command]
@@ -421,7 +542,16 @@ fn scan_levels_folder_sync(folder_path: &Path) -> Vec<Track> {
                     let folder_name = folder_name_str.to_string();
                     let has_reversed = path.join("reversed").is_dir();
                     let inf_path = path.join(format!("{}.inf", folder_name));
+                    let normal_pan_path = path.join(format!("{}.pan", folder_name));
+                    let reverse_pan_path =
+                        path.join("reversed").join(format!("{}.pan", folder_name));
                     let has_valid_file = inf_path.is_file();
+                    let track_length_normal = read_track_length(&normal_pan_path);
+                    let track_length_reverse = if has_reversed {
+                        read_track_length(&reverse_pan_path)
+                    } else {
+                        None
+                    };
 
                     let mut name = folder_name.clone();
                     let mut track_type = None;
@@ -502,6 +632,8 @@ fn scan_levels_folder_sync(folder_path: &Path) -> Vec<Track> {
                         folder_name,
                         name,
                         has_reversed,
+                        track_length_normal,
+                        track_length_reverse,
                         track_type: final_track_type,
                         difficulty,
                         has_valid_file,
@@ -528,6 +660,29 @@ fn scan_levels_folder_sync(folder_path: &Path) -> Vec<Track> {
         }
     });
     tracks
+}
+
+fn read_track_length(path: &Path) -> Option<f32> {
+    let bytes = fs::read(path).ok()?;
+
+    read_track_length_from_bytes(&bytes)
+}
+
+fn read_track_length_from_bytes(bytes: &[u8]) -> Option<f32> {
+    // RVGL stores the track length at byte offset 8 in the .pan header. The
+    // value is in internal units and the game converts it to meters by
+    // dividing by 200. The first header word is used as a presence guard.
+    if bytes.len() < 12 {
+        return None;
+    }
+
+    let header_guard = u32::from_le_bytes(bytes[0..4].try_into().ok()?);
+    if header_guard == 0 {
+        return None;
+    }
+
+    let raw_length = f32::from_le_bytes(bytes[8..12].try_into().ok()?);
+    Some(raw_length / 200.0)
 }
 
 fn parse_param_value<'a>(line: &'a str, key: &str) -> Option<&'a str> {

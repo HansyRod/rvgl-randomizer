@@ -161,7 +161,7 @@ fn candidate_set_pool_only<'a>(
 // ============================================================================
 
 struct SlotWork {
-    category: &'static str, // "stock" | "dc"
+    category: &'static str, // "stock" | "dc" | "extra"
     index: usize,
     spec: CarSpec, // We'll use a modified spec with resolved ratings
 }
@@ -169,10 +169,11 @@ struct SlotWork {
 pub fn resolve_car_list(
     specs_stock: &[CarSpec],
     specs_dc: &[CarSpec],
+    specs_extra: &[CarSpec],
     all_cars: &[Car],
     scan: &ScanResult,
     rng: &mut Rng,
-) -> (Vec<Option<Car>>, Vec<Option<Car>>) {
+) -> (Vec<Option<Car>>, Vec<Option<Car>>, Vec<Option<Car>>) {
     // Build work items with current candidate counts
     let mut work: Vec<(SlotWork, usize)> = Vec::new();
 
@@ -184,14 +185,20 @@ pub fn resolve_car_list(
         let count = candidate_set(spec, all_cars, scan).len();
         work.push((SlotWork { category: "dc", index: i, spec: spec.clone() }, count));
     }
+    for (i, spec) in specs_extra.iter().enumerate() {
+        let count = candidate_set(spec, all_cars, scan).len();
+        work.push((SlotWork { category: "extra", index: i, spec: spec.clone() }, count));
+    }
 
-    // Sort: fewest candidates first, stable (keeps original order within same count)
+    // Sort: fewest candidates first, stable (keeps Stock -> DC -> Extra
+    // order when candidate counts are equal).
     work.sort_by_key(|(_, cnt)| *cnt);
 
     // Resolve slots
     let mut used_folders: HashSet<String> = HashSet::new();
     let mut stock_results: Vec<Option<Car>> = vec![None; specs_stock.len()];
     let mut dc_results: Vec<Option<Car>> = vec![None; specs_dc.len()];
+    let mut extra_results: Vec<Option<Car>> = vec![None; specs_extra.len()];
 
     for (slot, _) in &work {
         let candidates = candidate_set(&slot.spec, all_cars, scan);
@@ -228,11 +235,12 @@ pub fn resolve_car_list(
         match slot.category {
             "stock" => stock_results[slot.index] = chosen,
             "dc" => dc_results[slot.index] = chosen,
+            "extra" => extra_results[slot.index] = chosen,
             _ => {}
         }
     }
 
-    (stock_results, dc_results)
+    (stock_results, dc_results, extra_results)
 }
 
 // ============================================================================
@@ -265,6 +273,13 @@ fn resolve_obtain(attr: &str, scanned: i32, rng: &mut Rng, car_options: &CarOpti
             if car_options.include_single_race    { allowed.push(4); }
             if car_options.include_cheat_only     { allowed.push(-1); }
             if car_options.include_stunt_arena    { allowed.push(5); }
+            if car_options.include_specific_race_win       { allowed.push(6); }
+            if car_options.include_specific_practice_star  { allowed.push(7); }
+            if car_options.include_specific_time_trial     { allowed.push(8); }
+            if car_options.include_race_win_count          { allowed.push(9); }
+            if car_options.include_practice_star_count     { allowed.push(10); }
+            if car_options.include_time_trial_count        { allowed.push(11); }
+            if car_options.include_stunt_arena_star_count  { allowed.push(12); }
             // Fallback: if all methods are disabled, use the full standard set
             if allowed.is_empty() {
                 allowed = vec![0, 1, 2, 3, 4];
@@ -287,12 +302,66 @@ pub fn build_randomized_car(car: &Car, spec: &CarSpec, rng: &mut Rng, car_option
     }
 }
 
+/// Count source ratings that are already fixed before pool-rating allocation.
+/// Numeric source ratings are fixed directly; specific-car pools are fixed to
+/// the scanned rating of the selected car.
+pub fn count_fixed_source_ratings(specs: &[CarSpec], all_cars: &[Car]) -> [usize; 6] {
+    let mut counts = [0usize; 6];
+
+    for spec in specs {
+        let rating = if is_specific_car_pool(&spec.source_pool) {
+            all_cars
+                .iter()
+                .find(|car| car.folder_name.eq_ignore_ascii_case(&spec.source_pool))
+                .map(|car| car.rating)
+        } else {
+            spec.source_rating.parse::<i32>().ok()
+        };
+
+        if let Some(rating) = rating {
+            if (0..=5).contains(&rating) {
+                counts[rating as usize] += 1;
+            }
+        }
+    }
+
+    counts
+}
+
+/// Count attribute ratings that are fixed before target-rating allocation.
+/// `Unchanged` attributes become fixed after the source car is resolved.
+pub fn count_fixed_attribute_ratings(
+    specs: &[CarSpec],
+    resolved: &[Option<Car>],
+) -> [usize; 6] {
+    let mut counts = [0usize; 6];
+
+    for (spec, car) in specs.iter().zip(resolved.iter()) {
+        let rating = if spec.attr_rating == "Random" {
+            None
+        } else if let Ok(rating) = spec.attr_rating.parse::<i32>() {
+            Some(rating)
+        } else {
+            car.as_ref().map(|resolved_car| resolved_car.rating)
+        };
+
+        if let Some(rating) = rating {
+            if (0..=5).contains(&rating) {
+                counts[rating as usize] += 1;
+            }
+        }
+    }
+
+    counts
+}
+
 // ============================================================================
 // Global Distribution Allocator
 // ============================================================================
 
 pub fn allocate_ratings(
     count: usize,
+    fixed_counts: &[usize; 6],
     distributions: &std::collections::HashMap<String, RatingDist>,
     include_super_pro: bool,
     rng: &mut Rng,
@@ -300,11 +369,9 @@ pub fn allocate_ratings(
     let mut result = Vec::with_capacity(count);
     if count == 0 { return result; }
 
-    // Build the set of valid rating indices.
-    // A rating is excluded only if:
-    //   - It is Super Pro (index 5) and include_super_pro is false, OR
-    //   - It has an explicit distribution entry with max == 0.
-    // Ratings absent from the map are unrestricted (no forced zero).
+    // Build the set of ratings that can receive a new random assignment.
+    // Disabled distribution rows are unrestricted; only enabled rows impose
+    // a maximum on the flexible rows. Fixed rows are accounted for below.
     let all_indices: Vec<usize> = (0..=5).collect();
     let allowed_indices: Vec<usize> = all_indices
         .into_iter()
@@ -313,9 +380,10 @@ pub fn allocate_ratings(
             if i == 5 && !include_super_pro {
                 return false;
             }
-            // If there is an explicit entry with max == 0, exclude this rating
+            // An enabled maximum applies to the complete result, so fixed
+            // rows consume part of its available capacity.
             if let Some(dist) = distributions.get(&i.to_string()) {
-                return dist.max > 0;
+                return !dist.enabled || fixed_counts[i] < dist.max;
             }
             // Not in the map → unrestricted, always allowed
             true
@@ -329,26 +397,33 @@ pub fn allocate_ratings(
     let mut remaining = count;
     let mut counts = vec![0usize; 6]; // index == rating value
 
-    // 1. Assign minimums for ratings that have an explicit distribution entry.
-    //    Cap each minimum against that rating's max and the remaining budget.
+    // 1. Assign the portion of each enabled minimum not already covered by
+    //    fixed rows. Min/max values describe the complete result, not only the
+    //    rows whose value is randomized here.
     for &i in &allowed_indices {
         if let Some(dist) = distributions.get(&i.to_string()) {
-            let m = dist.min.min(dist.max).min(remaining);
+            if !dist.enabled {
+                continue;
+            }
+            let target_min = dist.min.min(dist.max);
+            let m = target_min.saturating_sub(fixed_counts[i]).min(remaining);
             counts[i] = m;
             remaining -= m;
         }
     }
 
-    // 2. Distribute the remaining slots randomly, respecting per-rating maximums.
-    //    Ratings without a map entry are considered unbounded (no upper limit).
+    // 2. Distribute the remaining slots randomly, respecting enabled
+    //    maximums after fixed rows have been accounted for.
     while remaining > 0 {
         let candidates: Vec<usize> = allowed_indices
             .iter()
             .cloned()
             .filter(|&i| {
                 if let Some(dist) = distributions.get(&i.to_string()) {
-                    // Respect the explicit maximum
-                    counts[i] < dist.max
+                    if !dist.enabled {
+                        return true;
+                    }
+                    counts[i] < dist.max.saturating_sub(fixed_counts[i])
                 } else {
                     // No restriction on this rating — always a valid candidate
                     true
@@ -379,4 +454,220 @@ pub fn allocate_ratings(
 
     rng.shuffle(&mut result);
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::scanner::{InstallType, ScanResult};
+
+    fn car(folder_name: &str, pool: Pool) -> Car {
+        Car {
+            folder_name: folder_name.to_string(),
+            name: folder_name.to_string(),
+            rating: 2,
+            obtain_method: 1,
+            is_system_car: false,
+            has_valid_file: true,
+            carbox_filename: None,
+            pool,
+        }
+    }
+
+    fn spec(id: &str, source_pool: &str) -> CarSpec {
+        CarSpec {
+            id: id.to_string(),
+            source_pool: source_pool.to_string(),
+            source_rating: "Random".to_string(),
+            source_obtain: "Random".to_string(),
+            attr_rating: "Unchanged".to_string(),
+            attr_obtain: "Unchanged".to_string(),
+            custom_unlock: None,
+        }
+    }
+
+    fn scan() -> ScanResult {
+        ScanResult {
+            install_type: InstallType::Classic,
+            cars: None,
+            tracks: None,
+            content_packs: None,
+        }
+    }
+
+    #[test]
+    fn rating_distribution_minimums_include_fixed_rows() {
+        let mut distributions = std::collections::HashMap::new();
+        distributions.insert(
+            "1".to_string(),
+            RatingDist { enabled: true, min: 4, max: 4 },
+        );
+        let fixed_counts = [0, 2, 0, 0, 0, 0];
+
+        let allocated = allocate_ratings(
+            2,
+            &fixed_counts,
+            &distributions,
+            true,
+            &mut Rng::new(),
+        );
+
+        assert_eq!(allocated.len(), 2);
+        assert_eq!(allocated.iter().filter(|&&rating| rating == 1).count(), 2);
+    }
+
+    #[test]
+    fn rating_distribution_maximums_include_fixed_rows() {
+        let mut distributions = std::collections::HashMap::new();
+        distributions.insert(
+            "1".to_string(),
+            RatingDist { enabled: true, min: 0, max: 3 },
+        );
+        let fixed_counts = [0, 2, 0, 0, 0, 0];
+
+        let allocated = allocate_ratings(
+            3,
+            &fixed_counts,
+            &distributions,
+            true,
+            &mut Rng::new(),
+        );
+
+        assert_eq!(allocated.len(), 3);
+        assert!(allocated.iter().filter(|&&rating| rating == 1).count() <= 1);
+    }
+
+    #[test]
+    fn disabled_rating_distributions_are_unrestricted() {
+        let mut distributions = std::collections::HashMap::new();
+        for rating in 0..=5 {
+            distributions.insert(
+                rating.to_string(),
+                RatingDist { enabled: false, min: 0, max: 0 },
+            );
+        }
+
+        let allocated = allocate_ratings(
+            1,
+            &[0, 0, 0, 0, 0, 0],
+            &distributions,
+            true,
+            &mut Rng::new(),
+        );
+
+        assert_eq!(allocated.len(), 1);
+    }
+
+    #[test]
+    fn fixed_source_ratings_include_numeric_and_specific_car_specs() {
+        let cars = vec![
+            car("custom_a", Pool::Custom),
+            Car { rating: 4, ..car("specific_a", Pool::Custom) },
+        ];
+        let mut numeric = spec("stock-1", "Stock");
+        numeric.source_rating = "3".to_string();
+        let specific = spec("extra-1", "specific_a");
+        let random = spec("dc-1", "Full Random");
+
+        let counts = count_fixed_source_ratings(&[numeric, specific, random], &cars);
+
+        assert_eq!(counts, [0, 0, 0, 1, 1, 0]);
+    }
+
+    #[test]
+    fn fixed_attribute_ratings_include_numeric_and_unchanged_specs() {
+        let mut numeric = spec("stock-1", "Stock");
+        numeric.attr_rating = "2".to_string();
+        let unchanged = spec("extra-1", "Custom");
+        let mut random = spec("dc-1", "Full Random");
+        random.attr_rating = "Random".to_string();
+        let resolved = vec![
+            Some(car("stock_a", Pool::Stock)),
+            Some(Car { rating: 4, ..car("custom_a", Pool::Custom) }),
+            Some(Car { rating: 1, ..car("dc_a", Pool::Dc) }),
+        ];
+
+        let counts = count_fixed_attribute_ratings(&[numeric, unchanged, random], &resolved);
+
+        assert_eq!(counts, [0, 0, 1, 0, 1, 0]);
+    }
+
+    #[test]
+    fn extra_specific_assignment_reserves_a_car_before_a_broader_stock_slot() {
+        let cars = vec![
+            car("stock_a", Pool::Stock),
+            car("stock_b", Pool::Stock),
+            car("custom_a", Pool::Custom),
+        ];
+        let stock_specs = vec![spec("stock-1", "Full Random")];
+        let extra_specs = vec![spec("extra-1", "stock_a")];
+
+        let (stock, dc, extra) = resolve_car_list(
+            &stock_specs,
+            &[],
+            &extra_specs,
+            &cars,
+            &scan(),
+            &mut Rng::new(),
+        );
+
+        assert_eq!(extra[0].as_ref().map(|car| car.folder_name.as_str()), Some("stock_a"));
+        assert_ne!(stock[0].as_ref().map(|car| car.folder_name.as_str()), Some("stock_a"));
+        assert!(dc.is_empty());
+    }
+
+    #[test]
+    fn extra_specs_use_the_same_car_attribute_builder() {
+        let options = CarOptionsInput {
+            unlock_mode: "random".to_string(),
+            num_starting_cars: 0,
+            enable_starting_cars_pool: false,
+            starting_cars_pool: "Full Random".to_string(),
+            enable_starting_cars_rating: false,
+            starting_cars_rating: "Random".to_string(),
+            include_cheat_only: false,
+            include_stunt_arena: false,
+            include_starting_car: true,
+            include_championship: true,
+            include_time_trial: true,
+            include_practice_stars: true,
+            include_single_race: true,
+            include_specific_race_win: false,
+            include_specific_practice_star: false,
+            include_specific_time_trial: false,
+            include_race_win_count: false,
+            include_practice_star_count: false,
+            include_time_trial_count: false,
+            include_stunt_arena_star_count: false,
+            specific_race_win_track_count_min: 1,
+            specific_race_win_track_count_max: 1,
+            specific_practice_star_track_count_min: 1,
+            specific_practice_star_track_count_max: 1,
+            specific_time_trial_track_count_min: 1,
+            specific_time_trial_track_count_max: 1,
+            race_win_count_min: 1,
+            race_win_count_max: 14,
+            practice_star_count_min: 1,
+            practice_star_count_max: 14,
+            time_trial_count_min: 1,
+            time_trial_count_max: 14,
+            stunt_arena_star_count_min: 1,
+            stunt_arena_star_count_max: 20,
+            include_super_pro: true,
+            pool_rating_distributions: std::collections::HashMap::new(),
+            attr_rating_distributions: std::collections::HashMap::new(),
+        };
+        let extra = build_randomized_car(
+            &car("extra_a", Pool::Custom),
+            &spec("extra-1", "Custom"),
+            &mut Rng::new(),
+            &options,
+        );
+
+        assert_eq!(extra.folder, "extra_a");
+        assert_eq!(extra.rating, 2);
+        assert_eq!(extra.obtain, 1);
+        assert!(extra.selectable_player);
+        assert!(extra.selectable_cpu);
+    }
 }

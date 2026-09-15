@@ -38,8 +38,11 @@ struct CarRuntimeState {
     // Number of cars per race
     int carsPerRace = 0;
 
-    // Custom unlock popup transition tracking. The first selectability pass
-    // seeds state silently so loading a profile does not replay old unlocks.
+    // Last evaluated custom unlock state for each car. This must remain
+    // independent from CarInfo::selectableByPlayer because native physics
+    // synchronization can overwrite that field for custom obtain values.
+    // The first selectability pass seeds state silently so loading a profile
+    // does not replay old unlocks.
     bool checkCarUnlocksPopup = false;
     std::vector<bool> carSelectableState = {};
 };
@@ -48,7 +51,6 @@ struct ThirtyCarRuntimeState {
     bool cacheValid = false;
     bool participantsExpanded = false;
     bool gridApplied = false;
-    bool playersMovedToBack = false;
     int originalParticipantCount = 0;
     std::array<int, randomizerMaxCarCount> generatedModelIds = {};
     std::array<int, randomizerMaxCarCount> runtimeCarIds = {};
@@ -75,6 +77,20 @@ struct ProgressTableRuntimeState {
     std::vector<int> customTrackIndices;
 };
 
+struct KnockoutRuntimeState {
+    bool menuSelectionActive = false;
+    bool modeActive = false;
+    bool raceActive = false;
+    int lapCountMode = 0;
+    int eliminationFrequencyLaps = 1;
+    int eliminationsPerEvent = 1;
+    int knockedOutGhostMode = 1;
+    int nextEliminationLap = 1;
+    int eliminatedCount = 0;
+    int lastRaceClockMs = 0;
+    bool playerWon = false;
+};
+
 struct ArchipelagoRuntimeState {
     std::mutex itemMutex;
     std::unordered_set<std::string> receivedItems;
@@ -86,10 +102,13 @@ struct RandomizerContext {
     ThirtyCarRuntimeState thirtyCarState;
     TrackRuntimeState trackState;
     ProgressTableRuntimeState progressTableState;
+    KnockoutRuntimeState knockoutState;
     ArchipelagoRuntimeState archipelagoState;
 };
 
 RandomizerContext& GetRandomizerContext();
 ConfigData* GetActiveConfig();
+bool IsThirtyCarModeEnabled();
+bool IsKnockoutModeEnabled();
 
 } // namespace Randomizer

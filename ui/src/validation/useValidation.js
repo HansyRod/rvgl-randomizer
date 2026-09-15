@@ -30,6 +30,14 @@ export function useValidation() {
       }
     };
 
+    if (setup.installError && !setup.scanResult) {
+      errors.push({
+        id: "scan_install_invalid",
+        scope: "scan",
+        message: setup.installError,
+      });
+    }
+
     if (setup.scanResult) {
       collect(validateScan(setup.scanResult, preset));
       collect(validateSelectedPreset(configure, setup.scanResult, PRESETS));
@@ -40,7 +48,8 @@ export function useValidation() {
         configure.carOptions,
         configure.carsSpecState,
         setup.scanResult,
-        preset
+        preset,
+        configure.trackSpecState
       ));
     }
 
@@ -57,7 +66,10 @@ export function useValidation() {
       collect(validateCupSpec(
         configure.cupSpecState,
         configure.trackSpecState,
-        setup.scanResult
+        setup.scanResult,
+        configure.featureOptions,
+        configure.carsSpecState,
+        preset
       ));
     }
 

@@ -19,6 +19,9 @@ import { useLaunchValidation } from "./validation/useLaunchValidation";
 import ValidationStatus from "./validation/ValidationStatus";
 import { makeDefaultTrackSpec } from "./utils/constants";
 import { isEffectiveStockCarsMode, isEffectiveStockTracksMode } from "./validation/stockMode";
+import { normalizeAppContext } from "./utils/configureContext";
+import { formatInstallError } from "./setup/installValidation";
+import { refreshTracks, scanResultNeedsRefresh } from "./utils/trackScan";
 
 export default function App() {
   const { state, resetContext, updateContext, updateCategoryCtx } = useAppContext();
@@ -94,7 +97,42 @@ export default function App() {
     const initCache = async () => {
       try {
         const cache = await invoke("load_cache");
-        updateContext(cache);
+        const normalizedCache = normalizeAppContext(cache);
+        updateContext(normalizedCache);
+
+        const cachedInstallPath = normalizedCache?.setup?.installPath;
+        if (cachedInstallPath) {
+          try {
+            await invoke("verify_rvgl_executable", {
+              executablePath: cachedInstallPath,
+            });
+
+            const cachedScanResult = normalizedCache?.setup?.scanResult;
+            if (scanResultNeedsRefresh(cachedScanResult)) {
+              try {
+                const refreshedScanResult = await refreshTracks(
+                  cachedScanResult,
+                  cachedInstallPath,
+                );
+                updateCategoryCtx("setup", { scanResult: refreshedScanResult });
+              } catch (error) {
+                // Keep the cached scan if a track refresh fails. The user can
+                // still use the manual Refresh button in the setup panel.
+                console.error("Failed to refresh tracks:", error);
+              }
+            }
+
+            updateCategoryCtx("setup", { installError: "" });
+          } catch (error) {
+            const cachedHistory = normalizedCache?.setup?.installHistory || [];
+            updateCategoryCtx("setup", {
+              scanResult: null,
+              installError: formatInstallError(error, false),
+              installHistory: cachedHistory.filter((entry) => entry.path !== cachedInstallPath),
+            });
+            updateCategoryCtx("app", { activeStep: "setup" });
+          }
+        }
       } catch (error) {
         console.error("Failed to load cache:", error);
       } finally {

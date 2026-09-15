@@ -1,5 +1,5 @@
 import { useAppContext } from "../../AppProvider";
-import { countFixedRatings, getIncludedSlots, normalizeDistributionMap, resetFixedRatingsToRandom, isNumericRating } from "./CarOptionsUtils";
+import { getIncludedSlots, normalizeDistributionMap } from "./CarOptionsUtils";
 import RatingDistTable from "./RatingDistTable";
 
 export default function CarRatingsConfig() {
@@ -10,18 +10,19 @@ export default function CarRatingsConfig() {
   const { configure: { carOptions, carsSpecState } } = state;
   
   const { includeSuperPro, poolRatingDistributions, attrRatingDistributions } = carOptions;
+  const totalSlots = getIncludedSlots(carsSpecState);
 
   const handleSuperProToggle = (val) => {
     const next = { ...carOptions, includeSuperPro: val };
     if (!val) {
-      // Force Super Pro to 0 and enabled for both
+      // Force Super Pro to 0
       next.poolRatingDistributions = {
         ...poolRatingDistributions,
-        "5": { enabled: true, min: 0, max: 0 }
+        "5": { enabled: poolRatingDistributions["5"]?.enabled || false, min: 0, max: 0 }
       };
       next.attrRatingDistributions = {
         ...attrRatingDistributions,
-        "5": { enabled: true, min: 0, max: 0 }
+        "5": { enabled: attrRatingDistributions["5"]?.enabled || false, min: 0, max: 0 }
       };
     }
 
@@ -30,22 +31,10 @@ export default function CarRatingsConfig() {
   
   const updateDist = (type, ratingId, field, value) => {
     const ratingTable = type === "pool" ? "poolRatingDistributions" : "attrRatingDistributions";
-    const ratingSpecColumn = type === "pool" ? "sourceRating" : "attrRating";
     const ratingStr = String(ratingId);
     const normalizedValue = field === "enabled"
       ? !!value
       : Math.max(0, Number(value) || 0);
-
-    const fixedCarCountByRating = countFixedRatings(carsSpecState, ratingSpecColumn);
-    
-    let nextSpec = carsSpecState;
-    // If user lowers "min" below fixed amount from spec tabs, release extras back to Random.
-    if (field === "min" && carsSpecState && isNumericRating(ratingStr)) {
-      const fixedRid = fixedCarCountByRating[ratingStr] || 0;
-      if (normalizedValue < fixedRid) {
-        nextSpec = resetFixedRatingsToRandom(carsSpecState, ratingSpecColumn, ratingStr, normalizedValue);
-      }
-    }
 
     const current = carOptions[ratingTable]?.[ratingStr] ?? { enabled: false, min: 0, max: 42 };
     const nextEntry = { ...current, [field]: normalizedValue };
@@ -61,11 +50,10 @@ export default function CarRatingsConfig() {
       ...carOptions[ratingTable],
       [ratingStr]: nextEntry
     };
-    const totalSlots = getIncludedSlots(carsSpecState);
-    const normalized = normalizeDistributionMap(rawMap, fixedCarCountByRating, totalSlots);
+    const normalized = normalizeDistributionMap(rawMap, totalSlots);
     const nextCarOptions = { ...carOptions, [ratingTable]: normalized };
 
-    updateCategoryCtx("configure", { carOptions: nextCarOptions, carsSpecState: nextSpec });
+    updateCategoryCtx("configure", { carOptions: nextCarOptions });
   };
 
   return (
@@ -85,6 +73,7 @@ export default function CarRatingsConfig() {
           data={poolRatingDistributions}
           onChange={(rid, f, v) => updateDist("pool", rid, f, v)}
           includeSuperPro={includeSuperPro}
+          maxSlots={totalSlots}
         />
         <RatingDistTable 
           title="Target Rating Distribution" 
@@ -92,6 +81,7 @@ export default function CarRatingsConfig() {
           data={attrRatingDistributions}
           onChange={(rid, f, v) => updateDist("attr", rid, f, v)}
           includeSuperPro={includeSuperPro}
+          maxSlots={totalSlots}
         />
       </div>
     </section>

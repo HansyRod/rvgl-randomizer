@@ -51,6 +51,7 @@ add_library(randomizer SHARED
     # Core — hook infrastructure, DLL entry point
     Core/dllmain.cpp
     Core/HookManager.cpp
+    Core/NativePatches.cpp
 
     # Mods — individual mod logic
     Mods/RandomizerState.cpp
@@ -65,9 +66,16 @@ add_library(randomizer SHARED
     Mods/ProgressFlagHooks.cpp
     Mods/CarPhysicsHooks.cpp
     Mods/RaceInitHooks.cpp
+    Mods/CupOpponentGrid.cpp
     Mods/30CarMod.cpp
+    Mods/GridShuffle.cpp
+    Mods/ThirtyCarGrid.cpp
+    Mods/ThirtyCarCupMod.cpp
+    Mods/ExtendedCupResults.cpp
+    Mods/ExtendedCupStandingsTable.cpp
     Mods/Fob.cpp
     Mods/MenuMod.cpp
+    Mods/KnockoutMode.cpp
 
     # Archipelago - network integration wrapper
     Archipelago/ArchipelagoClient.cpp
@@ -82,6 +90,7 @@ add_library(randomizer SHARED
 
     # Game - Game data or other utils
     Game/RVGLFunctions.cpp
+    Game/RVGLMemory.cpp
     Game/GameUtils.cpp
 
     #Config - Handles loading the JSON configuration with the randomization data

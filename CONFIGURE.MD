@@ -2,9 +2,66 @@
 
 This page has a detailed description of how you can fine-tune the randomization criteria for cars, tracks and cups.
 
+## Global Options
+
+General options that affect how the randomized game will be launched.
+
+### Load Extra Content
+
+Controls if the game loads content that isn't used by the randomization process.
+
+* **Load Extra Cars**: If enabled, all cars in the `/cars` folder (for classic installations) or in the selected car packs (for launcher installations) are loaded into the game. Cars that are not used in the randomization process are loaded without changes, including unused stock and DC cars.
+
+* **Load Extra Tracks**: If enabled, all tracks in the `/levels` folder (for classic installations) or in the selected track packs (for launcher installations) are loaded into the game. Tracks that are not used in the randomization process are loaded without changes, including unused stock tracks and Rooftops.
+
+* **Load Extra Cups**: If enabled, all custom cups in the `/cups` folder (for classic installations) or in the selected packs (for launcher installations) are loaded into the game. The original versions of Bronze, Silver, Gold and Platinum cup are not loaded. It is recommended to also enable "Load Extra Tracks" if using this option, so the cups can access the tracks they need to be playable.
+
+### Features
+
+Enables additional game modes.
+
+#### 30-Car Mode
+
+Allows races with up to 30 cars in Single Race and Championship modes.
+
+To play Single Race mode with up to 30 cars:
+
+1. Launch the game using a generated seed with 30-Car Mode active.
+2. Go to Options > Game Settings
+3. Increase the "Number of Cars" setting to up to 30 cars.
+
+The "Number of Cars" setting is persisted for that generated seed after the game is closed.
+
+To play Championship mode with up to 30 cars:
+
+1. Enable the 30-Car Mode option in Global Options.
+2. In Cup Settings, options that are normally capped to 16 cars will now allow configuration of up to 30 cars.
+3. Configure the following cup settings globally or for a specific cup:
+    * Number of Cars
+4. Configure the following cup settings in each cup that will use 30-car mode:
+    * Cars Per Class
+5. Optionally configure the following cup settings:
+    * Points Table
+    * Minimum Position Per Race
+    * Minimum Overall Position
+
+#### Knockout Mode
+
+Adds a new race mode in the "Start Race" menu. In Knockout races, the last-placed cars can be eliminated during a race.
+
+Knockout Mode configuration options are available in-game in the "Options > Mod Settings" menu:
+
+  * Knockout Lap Count: Set to "Single Race" to use the "Number of Laps" setting from Game Options, or to "Automatic" to calculate it based on the number of cars and the other knockout settings.
+  * Knockout Lap Frequency: Determines if cars are eliminated every lap, or every N laps.
+  * Knockout Eliminations Per Lap: Determines how many cars are knocked out at once in an elimination lap.
+  * Knocked-out Car State: Sets if knocked-out cars should remain "Solid" (with collisions enabled) or change to "Ghost" (with no collisions and faded-out appearance)
+
+Knockout Mode can be combined with 30-Car Mode to play Knockout races of up to 30 cars.
+
 ## Car Options
 
 Cars can be modified in three ways:
+
 1. Changing the cars present in the game - RVGL Randomizer can load custom content and randomly replace the stock and DC cars with other cars.
 2. Modify car ratings - shuffles the Rookie/Amateur/etc attribute of each car. For example, Phat Slug can become a Pro car while Toyeca becomes an Amateur.
 3. Modify unlock methods - shuffles the "Obtain" attribute of each car. This makes different cars be available at the start, and being rewarded when winning championships, finding practice stars, etc.
@@ -18,14 +75,25 @@ Choose if Stock Cars and/or DC Cars should be randomized. All other options are 
 ### Car Randomization
 
 Choose which car attributes should be modified during randomization. Also affects which other settings are available.
+
 * **Full Random**, **Random Ratings**, **Random Unlock Criteria** and **Unchanged** lock/unlock modifications on the rating/obtain attributes, depending on the option chosen.
 * **Base Game Distribution** creates a car distribution that follows the original game's rules: 8 Rookies, 5 each of Amateur to Pro, with 2 unlocks in each rating by Championship, 2 by Practice Stars and 1 by Single Race Wins. This restricts only the seed's end result - cars can still have attributes different from the original ones.
 
 ### Allowed Unlock Methods
 
 Configures the list of unlock methods that can be randomly attributed to a car.
+
 * Unlock methods outside of this list can still be attributed directly in the [Specification pages](#stock-specification--dc-specification).
 * "Cheat Only" cars can still be used by the AI.
+
+#### Custom Unlock Methods
+
+Allows enabling additional unlock methods based on the Single Race, Practice, Time Trial and Stunt Arena modes.
+
+* For each unlock type, there are two different unlock methods: "Specific" and "Count".
+* "Specific" requires completing the goal on specific tracks. As this setting controls the list of random unlock methods that can be chosen for a car, the specific tracks are chosen randomly, in a random amount depending on the Min and Max values.
+* For "Count" methods, a random count is chosen depending on the Min and Max values.
+* Catching specific Stunt Arena stars is not supported.
 
 ### Rating Options
 
@@ -40,12 +108,14 @@ Disabled ratings are unrestricted, not removed. To remove a rating from the car 
 ### Starting Car Configuration
 
 Makes the first N randomized slots be available as starting cars.
+
 * You can set a source filter (*Stock Pool*, *DC Pool*, *Custom Pool* and *Pack: ...* if using a Launcher installation) and rating filter to control which cars can be picked as starting cars.
 * If randomization of stock cars is disabled, this setting is applied to the DC cars instead.
 
 ## Stock Specification / DC Specification
 
 Specification pages allows complete control over the randomization process for each car.
+
 * Each row represents one car, with the **Target Slot** showing the original car in that position.
 * **Car Choice** columns manipulate which car is picked. You can set restrictions on the car pool, rating or obtain method of the randomized car.
 * In the *Pool* column, the *Specific car* option bypasses randomization and forces that car to be present in the game in the chosen slot.
@@ -66,17 +136,20 @@ Choose if track randomization is enabled. When disabled, the randomizer assumes 
 ### Track Randomization
 
 Choose which track attributes should be modified during randomization.
+
 1. **Full Random**, **Random Ratings**, **Random Unlock Criteria** and **Unchanged** lock/unlock modifications on the rating/obtain attributes, depending on the option chosen.
 2. **Base Game Distribution** creates a track distribution that follows the original game's rules: 4 Easy tracks, 4 Medium tracks, 3 Hard tracks and 3 Extreme tracks. Each tier's tracks are unlocked after winning the previous tier's championship.
 
 * **Allowed Unlock Methods**
 
 Configures the list of unlock methods that can be randomly attributed to a track.
+
 * Unlock methods outside of this list can still be attributed directly in the [Specification page](#track-specification).
 
 ## Track Specification
 
 Also similar to the car specification pages, this allows complete control over the randomization process for each track.
+
 * Each row represents one track, with the **Target Slot** showing the original track in that position.
 * **Track Choice** columns manipulate which track is picked. You can set restrictions on the source pool and difficulty rating of the randomized track.
 * In the *Pool* column, the *Specific track* option bypasses randomization and forces that track to be present in the game in the chosen slot. This is required if you want to use a specific track in a championship cup.
@@ -91,6 +164,7 @@ This page has settings that can apply to all cups, then Bronze / Silver / Gold /
 ### Stage Mode
 
 Determines how the randomizer creates the stages for each cup. The options are:
+
 * **Default Stages** - The cup stages follow the same pattern as the base game. For example, for Bronze Cup, the randomizer would replace the tracks used in the cup (Toys in the Hood 1 - Botanical Garden, the first four stock tracks) by the first four randomized tracks on the list of tracks, and leave everything else (number of stages, number of laps, reverse/mirror variant) unchanged.
 * **Random Stages** - Creates stages randomly for each cup, respecting the restrictions configured in **Random Stage Constraints**.
 * **User-Defined Stages** - Allows defining your own list of stages.
@@ -101,20 +175,34 @@ Determines how the randomizer creates the stages for each cup. The options are:
 ### Global Cup Settings
 
 Controls the common cup properties - as documented in [Custom Cup](https://re-volt.gitlab.io/rvgl-docs/cups.html) creation.
+
 * **Number of Cars**, **Number of Tries**, **Minimum Per-Race Position**, **Minimum Overall Position**, **Points Table** can be set globally, and overridden on each cup.
 * **Cars Per Class** is specific to each cup, and should be set on the cup page.
 
 ### Random Stage Constraints
 
 If the **Random Stages** option is selected, controls how the randomization process is restricted:
+
 * **Track Variant Flags** - select if Reverse, Mirror, and Reverse Mirror versions of tracks are allowed in random cups.
 * **Guarantee first appearance in Normal mode** - The first time a track is played in a random cup, it will be played in its Normal form. This gives progression a more stock-like feel as this rule is respected in the original game.
 * **Duplicate Track Handling** - Sets whether playing the same track multiple times in the same cup is allowed.
 * **Minimum/Maximum Number of Stages** and **Minimum/Maximum Number of Laps** - controls how many stages are generated and how many laps can each stage have. Can be overridden in each cup.
+* **Limit maximum race length** - if enabled, sets a maximum length in meters that overrides other lap count settings, and lowers the lap count if a random track is chosen that would raise the race length above this limit. If the track was not chosen randomly (for example, through "User-Defined Stages"), this setting is ignored and the lap count is not changed.
 
 ## Bronze / Silver / Gold / Platinum Cup
 
 In the pages for each cup, you can:
+
 * Manually define a list of stages for the cup, by activating the **User-Defined Stages** mode.
 * Set the **Cars Per Class** for the cup.
 * Override any global settings to have a custom value for the cup.
+
+### Specific Opponents
+
+This setting allows playing against a predetermined list of opponents in a cup.
+
+* This list doesn't override the "Cars Per Class" setting. Opponents can be chosen for a specific rating if the "Cars Per Class" setting has configured opponents for that rating.
+* To select a car for the opponent list, its "Rating" attribute must be defined in the car specification.
+* Both specific cars and car specification slots can be chosen as a fixed opponent, as long as the "Rating" attribute is defined on their slot.
+* If an incomplete list is provided for a rating, additional cars are chosen until its "Cars Per Class" quota is filled.
+* For each rating, you can configure the number of cars specified in the "Cars Per Class" setting for that rating, plus one. The last car is a fallback car, that is chosen if the player car is one of the opponents in the list of fixed opponents for that rating.

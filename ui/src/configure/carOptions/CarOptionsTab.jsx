@@ -1,10 +1,16 @@
 import "./CarOptionsTab.css";
-import { STOCK_CARS, DC_CARS } from "../../utils/constants";
-import { useAppContext } from "../../AppProvider";
+import { useAppContext, DEFAULT_STATE } from "../../AppProvider";
 import StartingCarConfig from "./StartingCarConfig";
 import CarRatingsConfig from "./CarRatingsConfig";
-import { applyModeRules, makeDefaultSpec, alignDistributionsWithSpec } from "./CarOptionsUtils";
+import CustomUnlockMethodsTable from "./CustomUnlockMethodsTable";
+import {
+  applyModeRules,
+  getIncludedCarSlotCounts,
+  isObtainLockedByMode,
+  isRatingLockedByMode,
+} from "./CarOptionsUtils";
 import { isEffectiveStockCarsMode } from "../../validation/stockMode";
+import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
 
 export default function CarOptionsTab() {
 
@@ -63,16 +69,16 @@ export default function CarOptionsTab() {
   const handleModeSelect = (modeId) => {
 
     // Auto-initialise FullSpec state if the user hasn't been there yet
-    const base = carsSpecState ?? {
-      stockCars: makeDefaultSpec(STOCK_CARS),
-      dcCars:    makeDefaultSpec(DC_CARS),
-    };
+    const base = carsSpecState ?? DEFAULT_STATE.configure.carsSpecState;
+    const slotCounts = getIncludedCarSlotCounts(base);
+    const dcOffset = slotCounts.stock;
+    const extraOffset = slotCounts.stock + slotCounts.dc;
 
     const newStockCars = base.stockCars.map((car, i) => {
 
       // Unlock mode determines the logic for how we assign the final obtain and rating attributes for each car slot.
       if (modeId !== "baseGame") {
-        return applyModeRules(car, i, modeId, carOptions);
+        return normalizeCustomUnlockRow(applyModeRules(car, i, modeId, carOptions));
       }
 
       const out = { ...car };
@@ -97,13 +103,13 @@ export default function CarOptionsTab() {
         }
       }
 
-      return out;
+      return normalizeCustomUnlockRow(out);
     });
 
     const newDcCars = base.dcCars.map((car, i) => {
 
       if (modeId !== "baseGame") {
-        return applyModeRules(car, i + 28, modeId, carOptions);
+        return normalizeCustomUnlockRow(applyModeRules(car, i + dcOffset, modeId, carOptions));
       }
 
       const out = { ...car };
@@ -124,12 +130,49 @@ export default function CarOptionsTab() {
         out.attrObtain = "2"; // Time Trial
       }
 
-      return out;
+      return normalizeCustomUnlockRow(out);
     });
 
-    const newCarsSpecState = { stockCars: newStockCars, dcCars: newDcCars };
+    const newExtraCars = (base.extraCars || []).map((car, i) => {
+      if (modeId === "baseGame") {
+        const out = { ...car };
+        const globalIndex = i + extraOffset;
+        const wasStartingCar =
+          carOptions.unlockMode !== "baseGame" &&
+          carOptions.enableStartingCars && globalIndex < (carOptions.numStartingCars || 0);
+
+        if (isRatingLockedByMode(carOptions.unlockMode)) {
+          out.attrRating = "Random";
+        }
+        if (isObtainLockedByMode(carOptions.unlockMode) || wasStartingCar) {
+          out.attrObtain = "Random";
+        }
+        if (wasStartingCar && carOptions.enableStartingCarsPool) {
+          out.sourcePool = "Full Random";
+        }
+        if (wasStartingCar && carOptions.enableStartingCarsRating) {
+          out.sourceRating = "Random";
+        }
+
+        return normalizeCustomUnlockRow(out);
+      }
+
+      return normalizeCustomUnlockRow(
+        applyModeRules(car, i + extraOffset, modeId, carOptions)
+      );
+    });
+
+    const newCarsSpecState = {
+      ...base,
+      stockCars: newStockCars,
+      dcCars: newDcCars,
+      extraCars: newExtraCars,
+    };
     const newCarOptions = { ...carOptions, unlockMode: modeId };
-    updateCategoryCtx("configure", { carsSpecState: newCarsSpecState, carOptions: newCarOptions });
+    updateCategoryCtx("configure", {
+      carsSpecState: newCarsSpecState,
+      carOptions: newCarOptions,
+    });
   };
 
   const showAllowedMethods = (unlockMode === "random" || unlockMode === "randomUnlock");
@@ -138,14 +181,14 @@ export default function CarOptionsTab() {
 
   const includeStockCars = carsSpecState?.includeStockCars !== false;
   const includeDcCars    = carsSpecState?.includeDcCars !== false;
-  const noneSelected = !includeStockCars && !includeDcCars;
+  const hasExtraCars = (carsSpecState?.extraCars?.length ?? 0) > 0;
+  const noneSelected = !includeStockCars && !includeDcCars && !hasExtraCars;
 
   const handleInclude = (key, value) => {
     const newCarsSpecState = { ...carsSpecState, [key]: value };
-    const aligned = alignDistributionsWithSpec(carOptions, newCarsSpecState);
     updateCategoryCtx("configure", {
       carsSpecState: newCarsSpecState,
-      carOptions: aligned,
+      carOptions,
     });
   };
 
@@ -285,6 +328,11 @@ export default function CarOptionsTab() {
                 Include <strong>Stunt Arena</strong> — car is unlocked by completing the Stunt Arena.
               </span>
             </label>
+
+            <CustomUnlockMethodsTable
+              options={carOptions}
+              onChange={set}
+            />
           </div>
         </section>
       )}

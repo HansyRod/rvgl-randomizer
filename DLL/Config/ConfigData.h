@@ -14,15 +14,16 @@ namespace Randomizer {
 
     inline void to_json(json& j, const CustomUnlockCondition& p) {
         j = json{
-            {"trackFolder", p.trackFolder},
+            {"trackFolder", p.trackFolders},
             {"requiredCount", p.requiredCount},
             {"archipelagoItem", p.archipelagoItem}
         };
     }
 
     inline void from_json(const json& j, CustomUnlockCondition& p) {
+        p.trackFolders.clear();
         if (j.contains("trackFolder") && !j.at("trackFolder").is_null()) {
-            p.trackFolder = j.at("trackFolder").get<std::string>();
+            p.trackFolders = j.at("trackFolder").get<std::vector<std::string>>();
         }
         if (j.contains("requiredCount") && !j.at("requiredCount").is_null()) {
             p.requiredCount = j.at("requiredCount").get<int>();
@@ -63,6 +64,8 @@ namespace Randomizer {
         bool load_extra_cups = false;
         bool is_stock_cars = false;
         bool is_stock_tracks = false;
+        bool enable_30_car_mode = false;
+        bool enable_knockout_mode = false;
     };
 
     inline bool GetOptionalBool(const json& j, const char* primaryKey, const char* fallbackKey, bool defaultValue) {
@@ -83,7 +86,9 @@ namespace Randomizer {
             {"load_extra_tracks", p.load_extra_tracks},
             {"load_extra_cups", p.load_extra_cups},
             {"is_stock_cars", p.is_stock_cars},
-            {"is_stock_tracks", p.is_stock_tracks}
+            {"is_stock_tracks", p.is_stock_tracks},
+            {"enable_30_car_mode", p.enable_30_car_mode},
+            {"enable_knockout_mode", p.enable_knockout_mode}
         };
     }
 
@@ -93,6 +98,8 @@ namespace Randomizer {
         p.load_extra_cups = GetOptionalBool(j, "load_extra_cups", "loadExtraCups", false);
         p.is_stock_cars = GetOptionalBool(j, "is_stock_cars", "isStockCars", false);
         p.is_stock_tracks = GetOptionalBool(j, "is_stock_tracks", "isStockTracks", false);
+        p.enable_30_car_mode = GetOptionalBool(j, "enable_30_car_mode", "enable30CarMode", false);
+        p.enable_knockout_mode = GetOptionalBool(j, "enable_knockout_mode", "enableKnockoutMode", false);
     }
 
     // Represents an entry in the "cars" array
@@ -179,6 +186,7 @@ namespace Randomizer {
         int perRaceRequiredPlace;
         int overallRequiredPlace;
         std::vector<int> carsPerClass; // Max number of AI allowed from each class (Rookie, Amateur, etc.)
+        std::optional<std::vector<std::string>> opponents; // Optional ordered car folder names to seed the AI roster
         std::vector<int> pointsTable; // Points for each position (1st to 16th)
         std::vector<RandomizedCupStage> stages;
         std::optional<CustomUnlockCondition> customUnlock;
@@ -197,6 +205,9 @@ namespace Randomizer {
             {"pointsTable", p.pointsTable},
             {"stages", p.stages}
         };
+        if (p.opponents.has_value()) {
+            j["opponents"] = p.opponents.value();
+        }
         if (p.customUnlock.has_value()) {
             j["customUnlock"] = p.customUnlock.value();
         }
@@ -211,6 +222,11 @@ namespace Randomizer {
         j.at("perRaceRequiredPlace").get_to(p.perRaceRequiredPlace);
         j.at("overallRequiredPlace").get_to(p.overallRequiredPlace);
         j.at("carsPerClass").get_to(p.carsPerClass);
+        if (j.contains("opponents") && !j.at("opponents").is_null()) {
+            p.opponents = j.at("opponents").get<std::vector<std::string>>();
+        } else {
+            p.opponents = std::nullopt;
+        }
         j.at("pointsTable").get_to(p.pointsTable);
         j.at("stages").get_to(p.stages);
         if (j.contains("customUnlock") && !j.at("customUnlock").is_null()) {
@@ -226,9 +242,31 @@ namespace Randomizer {
         ConfigGlobalOptions global_options;
         std::vector<RandomizedCar> stockCars;
         std::vector<RandomizedCar> dcCars;
+        std::vector<RandomizedCar> extraCars;
         std::vector<RandomizedTrack> tracks;
         std::vector<RandomizedCup> cups;
     };
-    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConfigData, metadata, global_options, stockCars, dcCars, tracks, cups)
+
+    inline void to_json(json& j, const ConfigData& p) {
+        j = json{
+            {"metadata", p.metadata},
+            {"global_options", p.global_options},
+            {"stockCars", p.stockCars},
+            {"dcCars", p.dcCars},
+            {"extraCars", p.extraCars},
+            {"tracks", p.tracks},
+            {"cups", p.cups}
+        };
+    }
+
+    inline void from_json(const json& j, ConfigData& p) {
+        j.at("metadata").get_to(p.metadata);
+        j.at("global_options").get_to(p.global_options);
+        j.at("stockCars").get_to(p.stockCars);
+        j.at("dcCars").get_to(p.dcCars);
+        p.extraCars = j.value("extraCars", std::vector<RandomizedCar>{});
+        j.at("tracks").get_to(p.tracks);
+        j.at("cups").get_to(p.cups);
+    }
 
 } // namespace Randomizer

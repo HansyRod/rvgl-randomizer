@@ -4,6 +4,7 @@
 #include "RandomizerState.h"
 #include "Addresses.h"
 #include "Logger.h"
+#include <algorithm>
 #include <unordered_set>
 
 // ============================================================================
@@ -92,6 +93,30 @@ void LogMissingCustomCupUnlockOnce(int cupID, const CupProfile& cup) {
     );
 }
 
+void RestoreCupExtendedValidationFieldsFromConfig(int cupID, CupProfile& cup) {
+    if (!IsThirtyCarModeEnabled()) {
+        return;
+    }
+
+    const RandomizedCup* cupConfig = GetCupConfigByCupID(cupID);
+    if (cupConfig == nullptr || cupConfig->numCars <= 16) {
+        return;
+    }
+
+    cup.numCars = cupConfig->numCars;
+    cup.perRaceRequiredPlace = cupConfig->perRaceRequiredPlace;
+    cup.overallRequiredPlace = cupConfig->overallRequiredPlace;
+
+    if (cupConfig->carsPerClass.size() >= 6) {
+        cup.maxRookie = cupConfig->carsPerClass[0];
+        cup.maxAmateur = cupConfig->carsPerClass[1];
+        cup.maxAdvanced = cupConfig->carsPerClass[2];
+        cup.maxSemiPro = cupConfig->carsPerClass[3];
+        cup.maxPro = cupConfig->carsPerClass[4];
+        cup.maxSuperPro = cupConfig->carsPerClass[5];
+    }
+}
+
 void Hook_LoadVanillaCups() {
 
     ConfigData* config = GetActiveConfig();
@@ -108,10 +133,14 @@ void Hook_LoadVanillaCups() {
 
             CupProfile* vanillaCup = &vanillaCups[i+1]; // +1 because index 0 is empty in the vanilla array
             CupProfile* dcCup = &dcCups[i]; // DC array is 0-indexed
+            const int maxCarCount = IsThirtyCarModeEnabled()
+                ? randomizerMaxCarCount
+                : vanillaMaxCarCount;
+            const int cupCarCount = (std::min)(cupConfig.numCars, maxCarCount);
 
             vanillaCup->obtainCondition      = dcCup->obtainCondition      = cupConfig.obtainCondition;
             vanillaCup->difficultyRating     = dcCup->difficultyRating     = cupConfig.difficulty;
-            vanillaCup->numCars              = dcCup->numCars              = cupConfig.numCars;
+            vanillaCup->numCars              = dcCup->numCars              = cupCarCount;
             vanillaCup->numTries             = dcCup->numTries             = cupConfig.numTries;
             vanillaCup->perRaceRequiredPlace = dcCup->perRaceRequiredPlace = cupConfig.perRaceRequiredPlace;
             vanillaCup->overallRequiredPlace = dcCup->overallRequiredPlace = cupConfig.overallRequiredPlace;
@@ -175,6 +204,7 @@ void Hook_Cup_ValidateAndCheckUnlock(int cupID) {
     const int32_t originalObtain = static_cast<int32_t>(cup->obtainCondition);
     if (IsDefaultObtain(originalObtain)) {
         Orig_Cup_ValidateAndCheckUnlock(cupID);
+        RestoreCupExtendedValidationFieldsFromConfig(cupID, *cup);
         return;
     }
 
@@ -184,6 +214,7 @@ void Hook_Cup_ValidateAndCheckUnlock(int cupID) {
     cup->obtainCondition = UNLOCKED;
     *unlockChecksEnabled = 0;
     Orig_Cup_ValidateAndCheckUnlock(cupID);
+    RestoreCupExtendedValidationFieldsFromConfig(cupID, *cup);
     *unlockChecksEnabled = savedUnlockChecksEnabled;
     cup->obtainCondition = static_cast<Obtain>(originalObtain);
 

@@ -3,69 +3,16 @@ import "../carOptions/CarOptionsTab.css";
 import "./CupSpecTab.css";
 import { useAppContext } from "../../AppProvider";
 import {
-  DEFAULT_POINTS,
-  DEFAULT_CARS_PER_CLASS,
   STAGE_MODES,
   SAME_TRACK_OPTIONS,
   PointsTableEditor,
+  getCupCarLimit,
+  normalizePointsTable,
+  DEFAULT_MAX_RACE_LENGTH,
 } from "./CupUtils";
+export { makeDefaultCupSpec, makeDefaultCupSpecState } from "./CupSpecDefaults";
 
 // ─── Default state factory ────────────────────────────────────────────────────
-
-export function makeDefaultCupSpec(index) {
-  return {
-    index,
-    // Per-field override flags (each independent)
-    overrideStageMode: false,
-    overrideNumCars: false,
-    overrideCarsPerClass: false,
-    overrideNumTries: false,
-    overridePerRacePlace: false,
-    overrideOverallPlace: false,
-    overridePointsTable: false,
-    overrideNumStagesMin: false,
-    overrideNumStagesMax: false,
-    overrideNumLapsMin: false,
-    overrideNumLapsMax: false,
-    // Per-cup values (used when the corresponding override flag is true)
-    stageMode: "default",
-    numStagesMin: 3,
-    numStagesMax: 6,
-    numLapsMin: 2,
-    numLapsMax: 8,
-    stages: [],
-    numCars: 8,
-    numTries: 3,
-    perRaceRequiredPlace: 3,
-    overallRequiredPlace: 1,
-    pointsTable: [...DEFAULT_POINTS],
-    carsPerClass: [...DEFAULT_CARS_PER_CLASS[index]],
-  };
-}
-
-export function makeDefaultCupSpecState() {
-  return {
-    enabled: true,
-    stageMode: "default",
-    guaranteeFirstNormal: true,
-    sameTrackHandling: "forbid",
-    allowReverse: true,
-    allowMirror: false,
-    allowReverseMirror: false,
-    numCars: 8,
-    numTries: 3,
-    perRaceRequiredPlace: 3,
-    overallRequiredPlace: 1,
-    pointsTable: [...DEFAULT_POINTS],
-    numLapsMin: 2,
-    numLapsMax: 8,
-    numStagesMin: 3,
-    numStagesMax: 6,
-    cups: [0, 1, 2, 3].map(makeDefaultCupSpec),
-  };
-}
-
-
 
 export default function CupSpecTab() {
 
@@ -73,10 +20,19 @@ export default function CupSpecTab() {
 
   const { configure } = state;
   
-  const { cupSpecState } = configure;
+  const { cupSpecState, featureOptions } = configure;
+  const maxCupCars = getCupCarLimit(featureOptions?.enable30CarMode);
 
   const set = useCallback((key, val) => {
-    updateCategoryCtx("configure", { cupSpecState: { ...cupSpecState, [key]: val } });
+    const nextCupSpecState = { ...cupSpecState, [key]: val };
+    if (key === "numCars") {
+      nextCupSpecState.pointsTable = normalizePointsTable(cupSpecState.pointsTable);
+      nextCupSpecState.cups = (cupSpecState.cups || []).map(cup => ({
+        ...cup,
+        pointsTable: normalizePointsTable(cup.pointsTable ?? cupSpecState.pointsTable),
+      }));
+    }
+    updateCategoryCtx("configure", { cupSpecState: nextCupSpecState });
   }, [cupSpecState, updateCategoryCtx]);
 
   const setIntWithDefault = useCallback((key, val, def) => {
@@ -88,13 +44,13 @@ export default function CupSpecTab() {
   }, [set]);
 
   const stageMode = cupSpecState.stageMode;
-  const userDefinedMode = stageMode === "userDefined";
 
   const globalNumCars = cupSpecState.numCars;
   const globalLapsMin = cupSpecState.numLapsMin;
   const globalLapsMax = cupSpecState.numLapsMax;
   const globalNumStagesMin = cupSpecState.numStagesMin;
   const globalNumStagesMax = cupSpecState.numStagesMax;
+  const globalToggleMaxRaceLength = cupSpecState.toggleMaxRaceLength;
 
   return (
     <div className="car-options-tab cup-spec-tab">
@@ -159,7 +115,7 @@ export default function CupSpecTab() {
             <div className="cup-override-grid">
               <div className="cup-field-pair">
                 <label>Number of Cars</label>
-                <input type="number" min={1} max={16} value={globalNumCars}
+                <input type="number" min={1} max={maxCupCars} value={globalNumCars}
                   onChange={e => setIntWithDefault("numCars", e.target.value, 8)}
                   className="co-number-input" />
               </div>
@@ -171,13 +127,13 @@ export default function CupSpecTab() {
               </div>
               <div className="cup-field-pair">
                 <label>Minimum Per-Race Position</label>
-                <input type="number" min={1} max={16} value={cupSpecState.perRaceRequiredPlace}
+                <input type="number" min={1} max={maxCupCars} value={cupSpecState.perRaceRequiredPlace}
                   onChange={e => setIntWithDefault("perRaceRequiredPlace", e.target.value, 3)}
                   className="co-number-input" />
               </div>
               <div className="cup-field-pair">
                 <label>Minimum Overall Position</label>
-                <input type="number" min={1} max={16} value={cupSpecState.overallRequiredPlace}
+                <input type="number" min={1} max={maxCupCars} value={cupSpecState.overallRequiredPlace}
                   onChange={e => setIntWithDefault("overallRequiredPlace", e.target.value, 1)}
                   className="co-number-input" />
               </div>
@@ -187,6 +143,7 @@ export default function CupSpecTab() {
               <PointsTableEditor
                 points={cupSpecState.pointsTable}
                 numCars={globalNumCars}
+                maxPositions={maxCupCars}
                 onChange={v => set("pointsTable", v)}
               />
             </div>
@@ -274,6 +231,31 @@ export default function CupSpecTab() {
                   onChange={e => setIntWithDefault("numLapsMax", e.target.value, 8)}
                   className="co-number-input" />
               </div>
+            </div>
+            <div style={{ marginTop: "1rem" }}>
+              <label className="co-checkbox-row" style={{ marginBottom: "0.5rem" }}>
+                <input
+                  type="checkbox"
+                  checked={globalToggleMaxRaceLength}
+                  onChange={e => set(
+                    "toggleMaxRaceLength",
+                    e.target.checked
+                  )}
+                />
+                <span>Limit maximum race length (meters)</span>
+              </label>
+              <p className="co-desc" style={{ marginBottom: "0.5rem" }}>
+                Caps laps after a track and variant are randomly selected. It does not affect which tracks are assigned to cup stages, and does not apply when you choose a specific track for a cup yourself.
+              </p>
+              <input
+                type="number"
+                min={1}
+                value={cupSpecState.maxRaceLengthValue}
+                onChange={e => setIntWithDefault("maxRaceLengthValue", e.target.value, DEFAULT_MAX_RACE_LENGTH)}
+                disabled={!globalToggleMaxRaceLength}
+                className="co-number-input"
+                aria-label="Maximum race length in meters"
+              />
             </div>
           </section>
 

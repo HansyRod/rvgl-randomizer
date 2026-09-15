@@ -8,12 +8,23 @@
 
 namespace Randomizer {
 
-int GetConditionTrackIndex(const CustomUnlockCondition* condition) {
-    if (condition == nullptr || condition->trackFolder.empty()) {
-        return -1;
+bool HasRequiredTracks(const CustomUnlockCondition* condition, bool (*hasTrackProgress)(int trackIndex)) {
+    if (condition == nullptr || condition->trackFolders.empty()) {
+        return false;
     }
 
-    return FindTrackIdByFolderName(condition->trackFolder);
+    for (const std::string& trackFolder : condition->trackFolders) {
+        if (trackFolder.empty()) {
+            return false;
+        }
+
+        const int trackIndex = FindTrackIdByFolderName(trackFolder);
+        if (trackIndex < 0 || !hasTrackProgress(trackIndex)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool HasRequiredCount(const CustomUnlockCondition* condition, int currentCount) {
@@ -112,11 +123,11 @@ bool EvaluateCustomUnlock(
 
     switch (static_cast<CustomUnlockMethod>(obtain)) {
     case CustomUnlockMethod::SpecificRaceWin:
-        return HasRaceWin(GetConditionTrackIndex(condition));
+        return HasRequiredTracks(condition, HasRaceWin);
     case CustomUnlockMethod::SpecificPracticeStar:
-        return HasPracticeStar(GetConditionTrackIndex(condition));
+        return HasRequiredTracks(condition, HasPracticeStar);
     case CustomUnlockMethod::SpecificTimeTrial:
-        return HasNormalTimeTrialBeaten(GetConditionTrackIndex(condition));
+        return HasRequiredTracks(condition, HasNormalTimeTrialBeaten);
     case CustomUnlockMethod::RaceWinCount:
         return HasRequiredCount(condition, CountRaceWins());
     case CustomUnlockMethod::PracticeStarCount:
@@ -175,6 +186,10 @@ void UpdateCarCustomUnlocks() {
         return;
     }
 
+    if (carState.carSelectableState.size() < static_cast<size_t>(carCount)) {
+        carState.carSelectableState.resize(carCount, false);
+    }
+
     for (int i = 0; i < carCount; ++i) {
         CarInfo& currentCar = rawPool[i];
         const int32_t obtain = static_cast<int32_t>(currentCar.obtainCondition);
@@ -186,6 +201,7 @@ void UpdateCarCustomUnlocks() {
         const CustomUnlockCondition* customUnlock = GetCarCustomUnlockCondition(i);
         if (customUnlock == nullptr) {
             currentCar.selectableByPlayer = false;
+            carState.carSelectableState[i] = false;
             LogMissingCustomCarUnlockOnce(i, currentCar);
             continue;
         }
@@ -200,10 +216,15 @@ void UpdateCarCustomUnlocks() {
 
         if (carState.checkCarUnlocksPopup &&
             isUnlocked &&
-            i < carState.carSelectableState.size() &&
             !carState.carSelectableState[i]) {
             TriggerNativeCarUnlockDialog();
         }
+
+        // Keep the transition cache independent from CarInfo::selectableByPlayer.
+        // Native car/physics synchronization can temporarily overwrite that
+        // field with false for custom obtain values because RVGL does not know
+        // how to evaluate obtain values above 5.
+        carState.carSelectableState[i] = isUnlocked;
     }
 
     carState.checkCarUnlocksPopup = true;

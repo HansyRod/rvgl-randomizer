@@ -21,15 +21,15 @@ export default function SetupView() {
     updateCategoryCtx("setup", { setupTab: tab });
   }
 
-  const { setup: { scanResult } } = state;
-  const hasInstall = !!scanResult;
+  const { installPath, scanResult } = setup;
+  const hasValidInstall = Boolean(installPath && scanResult);
 
   return (
     <div className="setup-view">
       <div className="setup-sub-tabs">
         {SETUP_TABS.map(tab => {
           const { key, name } = tab;
-          const disabled = key !== "install" && !hasInstall;
+          const disabled = key !== "install" && !hasValidInstall;
           return (
             <button
               key={key}

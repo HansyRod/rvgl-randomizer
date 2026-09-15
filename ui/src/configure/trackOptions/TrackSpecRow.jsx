@@ -1,6 +1,9 @@
 import { TRACK_DIFFICULTIES, TRACK_DIFFICULTY_SOURCE_LIST, TRACK_DIFFICULTY_ATTR_LIST, TRACK_OBTAINS_LIST } from "../../utils/constants";
+import { getCustomUnlockSelectionLabel, isCustomUnlockMethod } from "../../utils/customUnlockState";
 
-export default function TrackSpecRow({ index, rowState, updateRow, trackByFolder, sourcePoolOptionsJSX, trackOptions, onOpenSearch}) {
+const CURRENT_CUSTOM_UNLOCK = "Current Custom Unlock";
+
+export default function TrackSpecRow({ index, rowState, updateRow, trackByFolder, sourcePoolOptionsJSX, trackOptions, onOpenSearch, onOpenCustomUnlock}) {
   if (!rowState) return null;
   const isGeneralPool =
     rowState.sourcePool === "Full Random" ||
@@ -18,6 +21,14 @@ export default function TrackSpecRow({ index, rowState, updateRow, trackByFolder
     trackOptions?.unlockMode === "randomDifficulty" ||
     trackOptions?.unlockMode === "unchanged" ||
     trackOptions?.unlockMode === "baseGame";
+  const defaultTrackObtainOptions = TRACK_OBTAINS_LIST.filter(opt => opt.val === "Random");
+  const baseGameTrackObtainOptions = TRACK_OBTAINS_LIST.filter(opt =>
+    opt.val !== "Random" &&
+    !isCustomUnlockMethod(opt.val)
+  );
+  const customUnlockTrackObtainOptions = TRACK_OBTAINS_LIST.filter(opt => isCustomUnlockMethod(opt.val));
+  const hasCustomUnlock = isCustomUnlockMethod(rowState.attrObtain);
+  const customUnlockSelectionLabel = getCustomUnlockSelectionLabel(rowState.customUnlock, trackByFolder);
 
   return (
     <div className="spec-grid-row">
@@ -75,15 +86,36 @@ export default function TrackSpecRow({ index, rowState, updateRow, trackByFolder
         </div>
         <div className="field-group">
           <select
-            value={rowState.attrObtain}
-            onChange={e => updateRow(index, { attrObtain: e.target.value })}
+            value={hasCustomUnlock ? CURRENT_CUSTOM_UNLOCK : rowState.attrObtain}
+            onChange={e => {
+              const val = e.target.value;
+              if (val === CURRENT_CUSTOM_UNLOCK) return;
+
+              updateRow(index, { attrObtain: val });
+              if (isCustomUnlockMethod(val)) {
+                onOpenCustomUnlock(index);
+              }
+            }}
             disabled={lockObtain}
           >
-            {TRACK_OBTAINS_LIST.map(opt => (
-              <option key={opt.val} value={opt.val}>
-                {opt.label}
-              </option>
+            {defaultTrackObtainOptions.map(opt => (
+              <option key={opt.val} value={opt.val}>{opt.label}</option>
             ))}
+            <optgroup label="Base Game">
+              {baseGameTrackObtainOptions.map(opt => (
+                <option key={opt.val} value={opt.val}>{opt.label}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Custom Unlocks">
+              {customUnlockTrackObtainOptions.map(opt => (
+                <option key={opt.val} value={opt.val}>{opt.label}</option>
+              ))}
+            </optgroup>
+            {hasCustomUnlock && (
+              <optgroup label="Current Selection">
+                <option value={CURRENT_CUSTOM_UNLOCK}>{customUnlockSelectionLabel}</option>
+              </optgroup>
+            )}
           </select>
         </div>
       </div>

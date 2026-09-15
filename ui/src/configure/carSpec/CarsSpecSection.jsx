@@ -1,13 +1,23 @@
 import { useState, useMemo, memo, useCallback } from "react";
 import "./CarsFullSpecTab.css";
-import { RATINGS_LIST, OBTAINS_LIST } from "../../utils/constants";
+import { RATINGS_LIST, OBTAINS_LIST, makeDefaultCarSpec } from "../../utils/constants";
+import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
+import { getPlayableCarsFromScan, getPlayableTracksFromScan, indexByFolder } from "../../utils/scanContent";
 import CarSpecRow from "./CarSpecRow";
 import CarSearchModal from "./CarSearchModal";
+import CustomUnlockModal from "../customUnlocks/CustomUnlockModal";
 import { useAppContext } from "../../AppProvider";
+import {
+  applyModeRules,
+  applyStartingCarOverrides,
+  getIncludedCarSlotCounts,
+  normalizeExtraCarRowIds,
+  resetStartingCarOverrides,
+} from "../carOptions/CarOptionsUtils";
 
 const SpecRow = memo(CarSpecRow);
 
-export default function CarsSpecSection({title, categoryKey, includeKey, defaultCarsList}) {
+export default function CarsSpecSection({title, categoryKey, includeKey, isDynamic = false}) {
 
   const { state, updateCategoryCtx } = useAppContext();
 
@@ -18,25 +28,13 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
   const { scanResult } = setup;
   const { carOptions, carsSpecState } = configure;
   
-  const [presetSelection, setPresetSelection] = useState("Full Random");
   const [searchModalRow, setSearchModalRow] = useState(null);
+  const [customUnlockModalRow, setCustomUnlockModalRow] = useState(null);
 
-  const availableCars = useMemo(() => {
-    if (!scanResult) return [];
-    let cars;
-    if (scanResult.installType === "classic") {
-      cars = scanResult.cars || [];
-    } else {
-      cars = (scanResult.contentPacks || []).filter(p => p.useCars).flatMap(p => p.cars);
-    }
-    return cars.filter(c => !c.isSystemCar && c.hasValidFile);
-  }, [scanResult]);
-
-  const carByFolder = useMemo(() => {
-    const map = {};
-    for (const c of availableCars) map[c.folderName] = c;
-    return map;
-  }, [availableCars]);
+  const availableCars = useMemo(() => getPlayableCarsFromScan(scanResult), [scanResult]);
+  const carByFolder = useMemo(() => indexByFolder(availableCars), [availableCars]);
+  const availableTracks = useMemo(() => getPlayableTracksFromScan(scanResult), [scanResult]);
+  const trackByFolder = useMemo(() => indexByFolder(availableTracks), [availableTracks]);
 
   const availablePools = useMemo(() => new Set(availableCars.map(c => c.pool)), [availableCars]);
 
@@ -99,60 +97,98 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
     return map;
   }, [availableCars, activePacks, scanResult]);
 
-  const isEnabled = carsSpecState[includeKey] !== false;
+  const isEnabled = includeKey ? carsSpecState[includeKey] !== false : true;
+  const categoryRows = carsSpecState?.[categoryKey] || [];
+  const slotCounts = getIncludedCarSlotCounts(carsSpecState);
+  const categoryOffsets = {
+    stockCars: 0,
+    dcCars: slotCounts.stock,
+    extraCars: slotCounts.stock + slotCounts.dc,
+  };
+  const categoryOffset = categoryOffsets[categoryKey] || 0;
   const startingCarsActive =
-    categoryKey === "stockCars" &&
     carOptions?.enableStartingCars &&
     carOptions?.unlockMode !== "baseGame" &&
     (carOptions?.numStartingCars || 0) > 0;
   const startingCount = startingCarsActive ? (carOptions?.numStartingCars || 0) : 0;
+  const startingRowsInCategory = Math.max(
+    0,
+    Math.min(startingCount - categoryOffset, categoryRows.length)
+  );
 
-  const applyPreset = (preset) => {
+  const isStartingGlobalIndex = (globalIndex) =>
+    startingCarsActive && globalIndex < startingCount;
 
-    const currentList = carsSpecState[categoryKey] || [];
-    const newList = defaultCarsList.map((id, index) => {
-      const currentCar = currentList[index] || {};
-      const isBaseGame = carOptions?.unlockMode === "baseGame";
-      const isUnchanged = carOptions?.unlockMode === "unchanged";
-      const isStartingSlot =
-        categoryKey === "stockCars" &&
-        carOptions?.enableStartingCars &&
-        (carOptions?.numStartingCars || 0) > 0 &&
-        index < (carOptions?.numStartingCars || 0);
-      const preserveStartingPool = isStartingSlot && !!carOptions?.enableStartingCarsPool;
-      const preserveStartingRating = isStartingSlot && !!carOptions?.enableStartingCarsRating;
-
-      return {
-        id,
-        sourcePool: preserveStartingPool
-          ? (currentCar.sourcePool ?? carOptions?.startingCarsPool ?? "Full Random")
-          : (preset === "Original Content" ? (carByFolder[id] ? id : "Full Random") : "Full Random"),
-        sourceRating: preserveStartingRating
-          ? (currentCar.sourceRating ?? carOptions?.startingCarsRating ?? "Random")
-          : "Random",
-        sourceObtain: "Random",
-        attrRating: isBaseGame 
-          ? (currentCar.attrRating ?? "Random")
-          : (preset === "Original Content" ? "Unchanged" : "Random"),
-        attrObtain: (isBaseGame || isUnchanged)
-          ? (currentCar.attrObtain ?? "Random")
-          : (preset === "Original Content" ? "Unchanged" : "Random")
-      };
-    });
-
-    updateCategoryCtx("configure", { carsSpecState: { ...carsSpecState, [categoryKey]: newList } });
+  const normalizeExtraRowForCurrentMode = (row, globalIndex) => {
+    let out = row;
+    if (carOptions?.unlockMode !== "baseGame") {
+      out = applyModeRules(row, globalIndex, carOptions.unlockMode, carOptions);
+      if (isStartingGlobalIndex(globalIndex)) {
+        out = applyStartingCarOverrides(out, carOptions);
+      }
+    }
+    return normalizeCustomUnlockRow(out);
   };
+
+  const addExtraCar = () => {
+    const nextRow = normalizeExtraRowForCurrentMode(
+      makeDefaultCarSpec(`extra-${categoryRows.length + 1}`),
+      categoryOffset + categoryRows.length
+    );
+    const nextRows = normalizeExtraCarRowIds([...categoryRows, nextRow]);
+    updateCategoryCtx("configure", {
+      carsSpecState: {
+        ...carsSpecState,
+        [categoryKey]: nextRows,
+      },
+    });
+  };
+
+  const removeExtraCar = useCallback((index) => {
+    const nextRows = categoryRows.filter((_, rowIndex) => rowIndex !== index);
+    const oldIndexByRow = new Map(categoryRows.map((row, rowIndex) => [row, rowIndex]));
+    const normalizedRows = nextRows.map((row, newIndex) => {
+      const oldIndex = oldIndexByRow.get(row);
+      if (oldIndex === undefined) return row;
+
+      const wasStarting = isStartingGlobalIndex(categoryOffset + oldIndex);
+      const isStarting = isStartingGlobalIndex(categoryOffset + newIndex);
+      if (wasStarting === isStarting) return row;
+
+      const normalizedRow = isStarting
+        ? applyStartingCarOverrides(row, carOptions)
+        : resetStartingCarOverrides(row, carOptions);
+      return normalizeCustomUnlockRow(normalizedRow);
+    });
+    const renumberedRows = normalizeExtraCarRowIds(normalizedRows);
+
+    updateCategoryCtx("configure", {
+      carsSpecState: {
+        ...carsSpecState,
+        [categoryKey]: renumberedRows,
+      },
+    });
+  }, [carOptions, carsSpecState, categoryKey, categoryOffset, categoryRows, isStartingGlobalIndex, updateCategoryCtx]);
 
   const updateRow = useCallback((index, updates) => {
     const newCategory = [...carsSpecState[categoryKey]];
-    newCategory[index] = { ...newCategory[index], ...updates };
+    const nextRow = { ...newCategory[index], ...updates };
+    newCategory[index] = updates.attrObtain !== undefined
+      ? normalizeCustomUnlockRow(nextRow)
+      : nextRow;
 
     const nextState = {
       ...carsSpecState,
       [categoryKey]: newCategory,
     };
-    updateCategoryCtx("configure", { carsSpecState: nextState });
+    updateCategoryCtx("configure", {
+      carsSpecState: nextState,
+    });
   }, [carsSpecState, categoryKey, updateCategoryCtx]);
+
+  const customUnlockModalRowState = customUnlockModalRow === null
+    ? null
+    : carsSpecState?.[categoryKey]?.[customUnlockModalRow];
 
   return (
     <div>
@@ -161,6 +197,17 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
         onClose={() => setSearchModalRow(null)}
         onSelect={(folderName) => updateRow(searchModalRow, { sourcePool: folderName })}
         availableCars={availableCars}
+      />
+      <CustomUnlockModal
+        isOpen={customUnlockModalRowState !== null}
+        method={customUnlockModalRowState?.attrObtain}
+        value={customUnlockModalRowState?.customUnlock}
+        availableTracks={availableTracks}
+        onClose={() => setCustomUnlockModalRow(null)}
+        onSave={(customUnlock) => {
+          updateRow(customUnlockModalRow, { customUnlock });
+          setCustomUnlockModalRow(null);
+        }}
       />
       
       {(carOptions?.unlockMode === "unchanged" || carOptions?.unlockMode === "randomUnlock") && (
@@ -175,32 +222,23 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
         </div>
       )}
 
-      {carOptions?.unlockMode === "baseGame" && (
+      {carOptions?.unlockMode === "baseGame" && categoryKey !== "extraCars" && (
         <div className="section-lock-info">
           🔒 <strong>Attributes are locked</strong> — Car Options is set to <em>Base Game Distribution</em>.
         </div>
       )}
-      {categoryKey === "stockCars" && carOptions?.enableStartingCars && (carOptions?.numStartingCars || 0) > 0 && (
+      {startingRowsInCategory > 0 && (
         <div className="section-lock-info">
-          🔒 <strong>Starting Car Configuration is active</strong> — first <em>{carOptions.numStartingCars}</em> stock slots have locked obtain (Starting Car){carOptions?.enableStartingCarsPool ? ", pool locked by Car Options" : ""}{carOptions?.enableStartingCarsRating ? ", rating locked by Car Options" : ""}.
+          🔒 <strong>Starting Car Configuration is active</strong> — <em>{startingRowsInCategory}</em> row{startingRowsInCategory === 1 ? "" : "s"} in this section are locked as Starting Cars{carOptions?.enableStartingCarsPool ? ", pool locked by Car Options" : ""}{carOptions?.enableStartingCarsRating ? ", rating locked by Car Options" : ""}.
         </div>
       )}
 
 
       <div className="cars-full-spec" style={{ opacity: isEnabled ? 1 : 0.5, pointerEvents: isEnabled ? "auto" : "none" }}>
-        <div className="presets-row">
-          <label>Presets:</label>
-          <select value={presetSelection} onChange={e => setPresetSelection(e.target.value)}>
-            <option value="Full Random">Full Random</option>
-            <option value="Original Content">Original Content</option>
-          </select>
-          <button className="primary" onClick={() => applyPreset(presetSelection)}>Apply</button>
-        </div>
-
         <div className="cars-spec-section">
           <h2>{title}</h2>
           <div className="spec-grid">
-            <div className="spec-grid-header">
+            <div className={`spec-grid-header${isDynamic ? " has-remove" : ""}`}>
               <div style={{ display: "flex", alignItems: "center" }}>Target Slot</div>
               <div className="column-group">
                 <div className="column-group-title">Car Choice</div>
@@ -217,11 +255,11 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
                   <div style={{ flex: 1 }}>Obtain</div>
                 </div>
               </div>
+              {isDynamic && <div />}
             </div>
-            {carsSpecState[categoryKey].map((row, index) => (
-              // Starting car locks only apply to stock slots in the configured range.
+            {categoryRows.map((row, index) => (
               (() => {
-                const isStartingSlot = startingCount > 0 && index < startingCount;
+                const isStartingSlot = startingCount > 0 && categoryOffset + index < startingCount;
                 return (
               <SpecRow
                 key={row.id}
@@ -233,14 +271,23 @@ export default function CarsSpecSection({title, categoryKey, includeKey, default
                 poolValidOptions={poolValidOptions}
                 carOptions={carOptions}
                 onOpenSearch={setSearchModalRow}
+                onOpenCustomUnlock={setCustomUnlockModalRow}
+                trackByFolder={trackByFolder}
                 lockStartingPool={isStartingSlot && !!carOptions?.enableStartingCarsPool}
                 lockStartingRating={isStartingSlot && !!carOptions?.enableStartingCarsRating}
                 lockStartingObtain={isStartingSlot}
+                allowBaseGameAttributeEdits={categoryKey === "extraCars"}
+                onRemove={isDynamic ? removeExtraCar : undefined}
               />
                 );
               })()
             ))}
           </div>
+          {isDynamic && (
+            <button type="button" className="primary add-car-slot-button" onClick={addExtraCar}>
+              Add Car Slot
+            </button>
+          )}
         </div>
       </div>
     </div>

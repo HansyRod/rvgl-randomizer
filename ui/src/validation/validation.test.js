@@ -7,12 +7,15 @@ import {
   evaluatePresetSelection,
   getStockModePresetErrors,
 } from "../configure/presets/presetValidation.js";
+import { validateCarOptions } from "./carValidators.js";
 import { validateCupSpec } from "./cupValidators.js";
 import { validateSelectedPreset } from "./presetValidators.js";
 import { validateScan } from "./scanValidators.js";
+import { validateTrackSpec } from "./trackValidators.js";
 import { isEffectiveStockCarsMode, isEffectiveStockTracksMode } from "./stockMode.js";
 import { formatValidationList } from "./validationUtils.js";
-import { STOCK_CARS, STOCK_TRACKS } from "../utils/constants.js";
+import { normalizeConfigureContext } from "../utils/configureContext.js";
+import { DEFAULT_CAR_OPTIONS, STOCK_CARS, STOCK_TRACKS } from "../utils/constants.js";
 
 function runTest(name, fn) {
   try {
@@ -24,12 +27,13 @@ function runTest(name, fn) {
   }
 }
 
-function makeCar(folderName, rating) {
+function makeCar(folderName, rating, overrides = {}) {
   return {
     folderName,
     rating,
     isSystemCar: false,
     hasValidFile: true,
+    ...overrides,
   };
 }
 
@@ -60,6 +64,44 @@ function makeCarsByRating(counts) {
   });
 
   return cars;
+}
+
+function makeDistributionMap(overrides = {}) {
+  return Object.fromEntries(
+    ["0", "1", "2", "3", "4", "5"].map((rating) => [
+      rating,
+      {
+        ...DEFAULT_CAR_OPTIONS.poolRatingDistributions[rating],
+        ...overrides[rating],
+      },
+    ])
+  );
+}
+
+function makeCarOptions(overrides = {}) {
+  return {
+    unlockMode: "random",
+    includeStartingCar: true,
+    includeChampionship: false,
+    includeTimeTrial: false,
+    includePracticeStars: false,
+    includeSingleRace: false,
+    includeCheatOnly: false,
+    includeStuntArena: false,
+    poolRatingDistributions: makeDistributionMap(),
+    attrRatingDistributions: makeDistributionMap(),
+    ...overrides,
+  };
+}
+
+function makeExtraSpecState(rows) {
+  return {
+    includeStockCars: false,
+    includeDcCars: false,
+    stockCars: [],
+    dcCars: [],
+    extraCars: rows,
+  };
 }
 
 function makeStockCarsScan() {
@@ -176,6 +218,57 @@ runTest("formatValidationList shortens long lists for UI display", () => {
   assert.equal(result, "slot 1 (rc), slot 2 (mite), slot 3 (phat), +1 more");
 });
 
+runTest("normalizeConfigureContext adds custom unlock defaults to old contexts", () => {
+  const result = normalizeConfigureContext({
+    carOptions: { unlockMode: "random" },
+    trackOptions: { unlockMode: "random" },
+    carsSpecState: {
+      stockCars: [{ id: "rc", attrObtain: "0" }],
+      dcCars: [],
+    },
+    trackSpecState: {
+      tracks: [{ id: "nhood1", attrObtain: "0" }],
+    },
+  });
+
+  assert.equal(result.carOptions.includeSpecificRaceWin, false);
+  assert.equal(result.carOptions.raceWinCountMin, 1);
+  assert.equal(result.trackOptions.includeStuntArenaStarCount, false);
+  assert.equal(result.trackOptions.stuntArenaStarCountMax, 20);
+  assert.deepEqual(result.featureOptions, {
+    loadExtraCars: false,
+    loadExtraTracks: false,
+    loadExtraCups: false,
+    enable30CarMode: false,
+    enableKnockoutMode: false,
+  });
+  assert.equal(result.carsSpecState.stockCars[0].customUnlock, null);
+  assert.equal(result.trackSpecState.tracks[0].customUnlock, null);
+});
+
+runTest("normalizeConfigureContext preserves saved row custom unlock data", () => {
+  const customUnlock = {
+    method: "6",
+    mode: "specificTracks",
+    trackFolders: ["nhood1", "market1"],
+  };
+
+  const result = normalizeConfigureContext({
+    carOptions: { unlockMode: "random", includeSpecificRaceWin: true },
+    trackOptions: { unlockMode: "random", includeRaceWinCount: true },
+    carsSpecState: {
+      stockCars: [{ id: "rc", attrObtain: "6", customUnlock }],
+      dcCars: [],
+    },
+    trackSpecState: {
+      tracks: [{ id: "nhood1", attrObtain: "9", customUnlock: { method: "9", requiredCount: 2 } }],
+    },
+  });
+
+  assert.deepEqual(result.carsSpecState.stockCars[0].customUnlock, customUnlock);
+  assert.deepEqual(result.trackSpecState.tracks[0].customUnlock, { method: "9", requiredCount: 2 });
+});
+
 runTest("validateScan reports low car and track counts as errors", () => {
   const results = validateScan(
     {
@@ -211,7 +304,7 @@ runTest("stock cars mode invalidates each current named non-stock preset", () =>
     const result = evaluatePresetSelection(preset, scanResult);
     assert.equal(result.isSelectable, false, `${preset.id} should be invalid`);
     assert.ok(
-      result.errors.includes("This preset cannot be used when Stock Content Mode is active."),
+      result.errors.some((error) => error.includes("Stock Mode is active.")),
       `${preset.id} should report stock cars mode`
     );
   });
@@ -224,7 +317,7 @@ runTest("stock tracks mode invalidates each current named non-stock preset", () 
     const result = evaluatePresetSelection(preset, scanResult);
     assert.equal(result.isSelectable, false, `${preset.id} should be invalid`);
     assert.ok(
-      result.errors.includes("This preset cannot be used when Stock Content Mode is active."),
+      result.errors.some((error) => error.includes("Stock Mode is active.")),
       `${preset.id} should report stock tracks mode`
     );
   });
@@ -434,6 +527,334 @@ runTest("selected Random Stocks stays valid on mixed content when all stock cont
   assert.deepEqual(results.errors, []);
 });
 
+runTest("custom car unlock methods count as allowed unlock methods", () => {
+  const results = validateCarOptions(
+    {
+      unlockMode: "random",
+      includeStartingCar: false,
+      includeChampionship: false,
+      includeTimeTrial: false,
+      includePracticeStars: false,
+      includeSingleRace: false,
+      includeCheatOnly: false,
+      includeStuntArena: false,
+      includeSpecificRaceWin: true,
+    },
+    {
+      includeStockCars: true,
+      includeDcCars: false,
+      stockCars: [],
+      dcCars: [],
+    },
+    makeClassicScan({ cars: [makeCar("custom_car_1", 0)] }),
+    "custom"
+  );
+
+  assert.equal(results.errors.some((error) => error.id === "cars_no_unlock_methods"), false);
+});
+
+runTest("car rating distributions reject values outside the available slot range", () => {
+  const results = validateCarOptions(
+    makeCarOptions({
+      poolRatingDistributions: makeDistributionMap({
+        "0": { enabled: true, min: 2, max: 2 },
+      }),
+    }),
+    makeExtraSpecState([{ sourcePool: "Full Random", sourceRating: "Random", attrRating: "Random" }]),
+    makeClassicScan({ cars: [makeCar("rookie_car", 0)] }),
+    "custom"
+  );
+
+  assert.ok(results.errors.some((error) => error.id === "cars_dist_min_range_Car Pool Rating Distribution_0"));
+  assert.ok(results.errors.some((error) => error.id === "cars_dist_max_range_Car Pool Rating Distribution_0"));
+});
+
+runTest("car rating distributions reject minimums that exceed the slot count", () => {
+  const results = validateCarOptions(
+    makeCarOptions({
+      poolRatingDistributions: makeDistributionMap({
+        "0": { enabled: true, min: 1, max: 2 },
+        "1": { enabled: true, min: 1, max: 2 },
+      }),
+    }),
+    makeExtraSpecState([
+      { sourcePool: "Full Random", sourceRating: "Random", attrRating: "Random" },
+    ]),
+    makeClassicScan({ cars: [makeCar("rookie_car", 0), makeCar("amateur_car", 1)] }),
+    "custom"
+  );
+
+  assert.ok(results.errors.some((error) => error.id === "cars_dist_min_sum_too_high_Car Pool Rating Distribution"));
+});
+
+runTest("car rating distributions reject maximums that cannot cover all slots", () => {
+  const poolRatingDistributions = makeDistributionMap();
+  Object.values(poolRatingDistributions).forEach((distribution) => {
+    distribution.enabled = true;
+    distribution.max = 0;
+  });
+
+  const results = validateCarOptions(
+    makeCarOptions({ poolRatingDistributions }),
+    makeExtraSpecState([{ sourcePool: "Full Random", sourceRating: "Random", attrRating: "Random" }]),
+    makeClassicScan({ cars: [makeCar("rookie_car", 0)] }),
+    "custom"
+  );
+
+  assert.ok(results.errors.some((error) => error.id === "cars_dist_max_too_low_Car Pool Rating Distribution"));
+});
+
+runTest("car rating distributions reject fixed specific cars above the configured maximum", () => {
+  const results = validateCarOptions(
+    makeCarOptions({
+      poolRatingDistributions: makeDistributionMap({
+        "0": { enabled: true, min: 0, max: 0 },
+      }),
+    }),
+    makeExtraSpecState([{ sourcePool: "rookie_car", sourceRating: "Random", attrRating: "Random" }]),
+    makeClassicScan({ cars: [makeCar("rookie_car", 0)] }),
+    "custom"
+  );
+
+  assert.ok(results.errors.some((error) => error.id === "cars_dist_fixed_max_Car Pool Rating Distribution_0"));
+});
+
+runTest("starting-car validation rejects a specific non-starting car in a source-locked mode", () => {
+  const results = validateCarOptions(
+    makeCarOptions({
+      unlockMode: "unchanged",
+      enableStartingCars: true,
+      numStartingCars: 1,
+    }),
+    makeExtraSpecState([{
+      id: "extra-1",
+      sourcePool: "custom_car",
+      sourceRating: "Random",
+      sourceObtain: "0",
+      attrRating: "Random",
+      attrObtain: "Unchanged",
+    }]),
+    makeClassicScan({
+      cars: [makeCar("custom_car", 0, { obtainMethod: 1 })],
+    }),
+    "custom"
+  );
+
+  assert.ok(results.errors.some((error) => error.id === "cars_starting_insufficient"));
+  assert.ok(results.errors.some((error) => error.id === "cars_starting_slot_unavailable"));
+});
+
+runTest("starting-car validation checks source constraints on each extra row", () => {
+  const results = validateCarOptions(
+    makeCarOptions({
+      enableStartingCars: true,
+      numStartingCars: 1,
+    }),
+    makeExtraSpecState([{
+      id: "extra-1",
+      sourcePool: "Full Random",
+      sourceRating: "5",
+      sourceObtain: "Random",
+      attrRating: "Random",
+      attrObtain: "0",
+    }]),
+    makeClassicScan({
+      cars: [makeCar("custom_car", 0, { obtainMethod: 1 })],
+    }),
+    "custom"
+  );
+
+  assert.equal(results.errors.some((error) => error.id === "cars_starting_insufficient"), false);
+  assert.ok(results.errors.some((error) => error.id === "cars_starting_slot_unavailable"));
+});
+
+runTest("starting-car validation allows non-starting source cars when target obtain is forced", () => {
+  const results = validateCarOptions(
+    makeCarOptions({
+      enableStartingCars: true,
+      numStartingCars: 1,
+    }),
+    makeExtraSpecState([{
+      id: "extra-1",
+      sourcePool: "custom_car",
+      sourceRating: "Random",
+      sourceObtain: "Random",
+      attrRating: "Random",
+      attrObtain: "0",
+    }]),
+    makeClassicScan({
+      cars: [makeCar("custom_car", 0, { obtainMethod: 1 })],
+    }),
+    "custom"
+  );
+
+  assert.equal(results.errors.some((error) => error.id === "cars_starting_slot_unavailable"), false);
+});
+
+runTest("custom track unlock methods count as allowed unlock methods", () => {
+  const results = validateTrackSpec(
+    {
+      includeTracks: true,
+      tracks: [],
+    },
+    {
+      unlockMode: "random",
+      includeDefault: false,
+      includeTimeTrial: false,
+      includePractice: false,
+      includeSingleRace: false,
+      includeStuntArena: false,
+      includeRaceWinCount: true,
+    },
+    makeClassicScan({ tracks: [makeTrack("custom_track_1")] }),
+    "custom"
+  );
+
+  assert.equal(results.errors.some((error) => error.id === "tracks_no_unlock_methods"), false);
+});
+
+runTest("custom car unlock range validation rejects invalid min max pairs", () => {
+  const results = validateCarOptions(
+    {
+      unlockMode: "random",
+      includeStartingCar: true,
+      includeSpecificRaceWin: true,
+      includeRaceWinCount: true,
+      includeStuntArenaStarCount: true,
+      specificRaceWinTrackCountMin: 0,
+      raceWinCountMin: 3,
+      raceWinCountMax: 2,
+      stuntArenaStarCountMax: 21,
+    },
+    {
+      includeStockCars: true,
+      includeDcCars: false,
+      stockCars: [],
+      dcCars: [],
+    },
+    makeClassicScan({ cars: [makeCar("custom_car_1", 0)] }),
+    "custom"
+  );
+
+  const ids = results.errors.map((error) => error.id);
+  assert.ok(ids.includes("carOptions_specificRaceWinTrackCountMin_invalid"));
+  assert.ok(ids.includes("carOptions_raceWinCountMax_below_min"));
+  assert.ok(ids.includes("carOptions_stuntArenaStarCountMax_too_high"));
+});
+
+runTest("custom track unlock range validation rejects invalid min max pairs", () => {
+  const results = validateTrackSpec(
+    {
+      includeTracks: true,
+      tracks: [],
+    },
+    {
+      unlockMode: "random",
+      includeDefault: true,
+      includeSpecificPracticeStar: true,
+      includeStuntArenaStarCount: true,
+      specificPracticeStarTrackCountMin: 4,
+      specificPracticeStarTrackCountMax: 3,
+      stuntArenaStarCountMin: 0,
+      stuntArenaStarCountMax: 21,
+    },
+    makeClassicScan({ tracks: [makeTrack("custom_track_1")] }),
+    "custom"
+  );
+
+  const ids = results.errors.map((error) => error.id);
+  assert.ok(ids.includes("trackOptions_specificPracticeStarTrackCountMax_below_min"));
+  assert.ok(ids.includes("trackOptions_stuntArenaStarCountMin_invalid"));
+  assert.ok(ids.includes("trackOptions_stuntArenaStarCountMax_too_high"));
+});
+
+runTest("inactive custom unlock methods do not validate their ranges", () => {
+  const carResults = validateCarOptions(
+    {
+      unlockMode: "random",
+      includeStartingCar: true,
+      includeRaceWinCount: false,
+      raceWinCountMin: 3,
+      raceWinCountMax: 2,
+    },
+    {
+      includeStockCars: true,
+      includeDcCars: false,
+      stockCars: [],
+      dcCars: [],
+    },
+    makeClassicScan({ cars: [makeCar("custom_car_1", 0)] }),
+    "custom"
+  );
+
+  const trackResults = validateTrackSpec(
+    {
+      includeTracks: true,
+      tracks: [],
+    },
+    {
+      unlockMode: "random",
+      includeDefault: true,
+      includeSpecificTimeTrial: false,
+      specificTimeTrialTrackCountMin: 0,
+    },
+    makeClassicScan({ tracks: [makeTrack("custom_track_1")] }),
+    "custom"
+  );
+
+  assert.equal(carResults.errors.some((error) => error.id === "carOptions_raceWinCountMax_below_min"), false);
+  assert.equal(trackResults.errors.some((error) => error.id === "trackOptions_specificTimeTrialTrackCountMin_invalid"), false);
+});
+
+runTest("custom car unlock track counts cannot exceed generated track slots", () => {
+  const results = validateCarOptions(
+    {
+      unlockMode: "random",
+      includeStartingCar: true,
+      includeTimeTrialCount: true,
+      timeTrialCountMax: 4,
+    },
+    {
+      includeStockCars: true,
+      includeDcCars: false,
+      stockCars: [],
+      dcCars: [],
+    },
+    makeClassicScan({
+      cars: [makeCar("custom_car_1", 0)],
+      tracks: [makeTrack("track_a"), makeTrack("track_b"), makeTrack("track_c")],
+    }),
+    "custom",
+    {
+      includeTracks: true,
+      tracks: [{ id: "track_a" }, { id: "track_b" }, { id: "track_c" }],
+    }
+  );
+
+  assert.ok(results.errors.some((error) => error.id === "carOptions_timeTrialCountMax_too_high"));
+});
+
+runTest("custom track unlock track counts exclude roof in stock mode", () => {
+  const results = validateTrackSpec(
+    {
+      includeTracks: true,
+      tracks: STOCK_TRACKS.map((id) => ({ id })),
+    },
+    {
+      unlockMode: "random",
+      includeDefault: true,
+      includeRaceWinCount: true,
+      raceWinCountMax: 14,
+    },
+    makeStockTracksScan(),
+    "random-stocks"
+  );
+
+  const issue = results.errors.find((error) => error.id === "trackOptions_raceWinCountMax_too_high");
+  assert.ok(issue);
+  assert.match(issue.message, /current track count \(13\)/);
+});
+
 runTest("validateScan uses stock thresholds for mixed content when Random Stocks is selected", () => {
   const results = validateScan(
     makeMixedStockEligibleScan(),
@@ -502,4 +923,221 @@ runTest("validateCupSpec reports missing user-defined stage tracks without throw
     issue.message,
     /Bronze Cup, Stage 1: "missing_track" is not available in the current track setup\./
   );
+});
+
+runTest("validateCupSpec allows a valid 30-car cup when 30-Car Mode is enabled", () => {
+  const results = validateCupSpec(
+    {
+      enabled: true,
+      stageMode: "default",
+      numCars: 30,
+      perRaceRequiredPlace: 30,
+      overallRequiredPlace: 30,
+      pointsTable: Array(30).fill(0),
+      cups: [{
+        overrideCarsPerClass: true,
+        carsPerClass: [29, 0, 0, 0, 0, 0],
+      }],
+    },
+    { tracks: [] },
+    { installType: "classic", tracks: [] },
+    { enable30CarMode: true }
+  );
+
+  assert.deepEqual(results.errors, []);
+});
+
+runTest("validateCupSpec rejects extended car counts when 30-Car Mode is disabled", () => {
+  const results = validateCupSpec(
+    {
+      enabled: true,
+      stageMode: "default",
+      numCars: 17,
+      perRaceRequiredPlace: 3,
+      overallRequiredPlace: 1,
+      pointsTable: Array(17).fill(0),
+      cups: [{
+        overrideCarsPerClass: true,
+        carsPerClass: [16, 0, 0, 0, 0, 0],
+      }],
+    },
+    { tracks: [] },
+    { installType: "classic", tracks: [] },
+    { enable30CarMode: false }
+  );
+
+  assert.ok(results.errors.some(error => error.id === "cup_num_cars_invalid_global"));
+});
+
+runTest("validateCupSpec requires points for every active cup position", () => {
+  const results = validateCupSpec(
+    {
+      enabled: true,
+      stageMode: "default",
+      numCars: 17,
+      perRaceRequiredPlace: 3,
+      overallRequiredPlace: 1,
+      pointsTable: Array(16).fill(0),
+      cups: [{
+        overrideCarsPerClass: true,
+        carsPerClass: [16, 0, 0, 0, 0, 0],
+      }],
+    },
+    { tracks: [] },
+    { installType: "classic", tracks: [] },
+    { enable30CarMode: true }
+  );
+
+  assert.ok(results.errors.some(error => error.id === "cup_points_invalid_global_too_short"));
+});
+
+runTest("validateCupSpec allows per-rating fallback entries without a global opponent cap", () => {
+  const cars = STOCK_CARS.slice(0, 16).map((folderName) => makeCar(folderName, 0));
+  const carsSpecState = {
+    includeStockCars: true,
+    includeDcCars: false,
+    stockCars: cars.map((car, index) => ({
+      sourcePool: "Full Random",
+      attrRating: index < 8 ? "0" : "1",
+    })),
+    dcCars: [],
+  };
+  const opponents = [
+    Array.from({ length: 8 }, (_, index) => ({ type: "slot", category: "stock", index })),
+    Array.from({ length: 8 }, (_, index) => ({ type: "slot", category: "stock", index: index + 8 })),
+    [], [], [], [],
+  ];
+
+  const results = validateCupSpec(
+    {
+      enabled: true,
+      numCars: 15,
+      perRaceRequiredPlace: 3,
+      overallRequiredPlace: 1,
+      pointsTable: Array(15).fill(0),
+      cups: [{
+        overrideCarsPerClass: true,
+        carsPerClass: [7, 7, 0, 0, 0, 0],
+        overrideOpponents: true,
+        opponents,
+      }],
+    },
+    { tracks: [] },
+    makeClassicScan({ cars }),
+    { enable30CarMode: false },
+    carsSpecState,
+    "custom"
+  );
+
+  assert.equal(
+    results.errors.some(error => error.id.startsWith("cup_opponent_")),
+    false
+  );
+});
+
+runTest("validateCupSpec rejects duplicate and over-capacity opponent references", () => {
+  const cars = STOCK_CARS.slice(0, 3).map((folderName) => makeCar(folderName, 0));
+  const carsSpecState = {
+    includeStockCars: true,
+    includeDcCars: false,
+    stockCars: cars.map(() => ({ sourcePool: "Full Random", attrRating: "0" })),
+    dcCars: [],
+  };
+  const opponents = [[
+    { type: "slot", category: "stock", index: 0 },
+    { type: "slot", category: "stock", index: 0 },
+    { type: "slot", category: "stock", index: 1 },
+    { type: "slot", category: "stock", index: 2 },
+  ], [], [], [], [], []];
+
+  const results = validateCupSpec(
+    {
+      enabled: true,
+      numCars: 2,
+      perRaceRequiredPlace: 1,
+      overallRequiredPlace: 1,
+      pointsTable: [0, 0],
+      cups: [{
+        overrideCarsPerClass: true,
+        carsPerClass: [1, 0, 0, 0, 0, 0],
+        overrideOpponents: true,
+        opponents,
+      }],
+    },
+    { tracks: [] },
+    makeClassicScan({ cars }),
+    { enable30CarMode: false },
+    carsSpecState,
+    "custom"
+  );
+
+  assert.ok(results.errors.some(error => error.id === "cup_opponent_duplicate_0_0_1"));
+  assert.ok(results.errors.some(error => error.id === "cup_opponent_count_invalid_0_0"));
+});
+
+runTest("validateCupSpec rejects opponent references whose final rating is no longer known", () => {
+  const cars = [makeCar("rc", 0)];
+  const results = validateCupSpec(
+    {
+      enabled: true,
+      numCars: 2,
+      perRaceRequiredPlace: 1,
+      overallRequiredPlace: 1,
+      pointsTable: [0, 0],
+      cups: [{
+        overrideCarsPerClass: true,
+        carsPerClass: [1, 0, 0, 0, 0, 0],
+        overrideOpponents: true,
+        opponents: [[{ type: "car", folder: "rc" }], [], [], [], [], []],
+      }],
+    },
+    { tracks: [] },
+    makeClassicScan({ cars }),
+    { enable30CarMode: false },
+    {
+      includeStockCars: true,
+      includeDcCars: false,
+      stockCars: [{ sourcePool: "rc", attrRating: "Random" }],
+      dcCars: [],
+    },
+    "custom"
+  );
+
+  assert.ok(results.errors.some(error => error.id === "cup_opponent_invalid_0_0_0"));
+});
+
+runTest("validateCupSpec preserves the original rating for unavailable opponent selections", () => {
+  const cars = [makeCar("rc", 1)];
+  const results = validateCupSpec(
+    {
+      enabled: true,
+      numCars: 2,
+      perRaceRequiredPlace: 1,
+      overallRequiredPlace: 1,
+      pointsTable: [0, 0],
+      cups: [{
+        overrideCarsPerClass: true,
+        carsPerClass: [1, 0, 0, 0, 0, 0],
+        overrideOpponents: true,
+        opponents: [
+          [{ type: "car", folder: "rc", name: "Genghis Kar" }],
+          [], [], [], [], [],
+        ],
+      }],
+    },
+    { tracks: [] },
+    makeClassicScan({ cars }),
+    { enable30CarMode: false },
+    {
+      includeStockCars: true,
+      includeDcCars: false,
+      stockCars: [{ sourcePool: "rc", attrRating: "Random" }],
+      dcCars: [],
+    },
+    "custom"
+  );
+
+  const error = results.errors.find(error => error.id === "cup_opponent_invalid_0_0_0");
+  assert.ok(error);
+  assert.match(error.message, /Choose a different Rookie car or slot\./);
 });

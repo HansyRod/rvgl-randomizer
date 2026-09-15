@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { appLocalDataDir, join } from '@tauri-apps/api/path';
 import { open, confirm } from '@tauri-apps/plugin-dialog';
 import { useAppContext } from '../AppProvider';
 import HistoryPanel from "../components/HistoryPanel";
@@ -9,6 +10,8 @@ import "../setup/SetupView.css";
 import "./GenerationTab.css";
 import { PRESETS } from "../configure/presets";
 import { DEFAULT_CAR_OPTIONS } from '../utils/constants';
+import { normalizeConfigureContext } from "../utils/configureContext";
+import { refreshTracks } from "../utils/trackScan";
 
 const { poolRatingDistributions, attrRatingDistributions } = DEFAULT_CAR_OPTIONS;
 
@@ -46,7 +49,7 @@ export default function GenerationTab({errors}) {
   
   // Destructure individual variables
   const { installPath, scanResult } = setup;
-  const { carOptions, trackOptions, carsSpecState, trackSpecState, cupSpecState } = configure;
+  const { carOptions, trackOptions, featureOptions, carsSpecState, trackSpecState, cupSpecState } = configure;
   const { generatedFilePath, instanceName, profileName, generatedHistory } = generate;
   const generatedHistoryList = Array.isArray(generatedHistory) ? generatedHistory : [];
 
@@ -102,7 +105,8 @@ export default function GenerationTab({errors}) {
       const filteredSpecState = {
         ...carsSpecState,
         stockCars: carsSpecState.includeStockCars === false ? [] : carsSpecState.stockCars,
-        dcCars: carsSpecState.includeDcCars === false ? [] : carsSpecState.dcCars
+        dcCars: carsSpecState.includeDcCars === false ? [] : carsSpecState.dcCars,
+        extraCars: carsSpecState.extraCars || []
       };
 
       const showRatingOptions = carOptions?.unlockMode === "random" || carOptions?.unlockMode === "randomRatings";
@@ -122,7 +126,7 @@ export default function GenerationTab({errors}) {
         enableStartingCars: showStartingCars && carOptions.enableStartingCars,
       } : null;
       const sanitizedTrackOptions = trackOptions ? {
-        unlockMode: trackOptions.unlockMode,
+        ...trackOptions,
         includeStuntArena: showTrackObtainOptions && trackOptions.includeStuntArena,
       } : null;
 
@@ -133,6 +137,7 @@ export default function GenerationTab({errors}) {
         carOptions: sanitizedCarOptions,
         trackSpecState,
         trackOptions: sanitizedTrackOptions,
+        featureOptions: featureOptions ?? null,
         cupSpecState: cupSpecState ?? null,
         presetId: configure?.preset ?? "basic",
         presetStockMode: {
@@ -203,7 +208,7 @@ export default function GenerationTab({errors}) {
 
     if (metadata?.uiContext) {
       if (overrides.overrideConfigure && metadata.uiContext.configure) {
-        updateCategoryCtx("configure", metadata.uiContext.configure);
+        updateCategoryCtx("configure", normalizeConfigureContext(metadata.uiContext.configure));
       }
 
       let currentScanResult = scanResult;
@@ -247,13 +252,14 @@ export default function GenerationTab({errors}) {
             if (newPack.useCars && (!newPack.cars || newPack.cars.length === 0)) {
               newPack.cars = await invoke("scan_cars_folder", { folderPath: `${newPack.absolutePath}\\cars` });
             }
-            if (newPack.useTracks && (!newPack.tracks || newPack.tracks.length === 0)) {
-              newPack.tracks = await invoke("scan_levels_folder", { folderPath: `${newPack.absolutePath}\\levels` });
-            }
             updatedPacks.push(newPack);
           }
           
-          const updatedScanResult = { ...currentScanResult, contentPacks: updatedPacks };
+          const updatedScanResult = await refreshTracks(
+            { ...currentScanResult, contentPacks: updatedPacks },
+            metadata.uiContext.setup?.installPath || installPath,
+          );
+          currentScanResult = updatedScanResult;
           updateCategoryCtx("setup", { scanResult: updatedScanResult });
         } catch (err) {
           console.error("Failed to fetch packs while loading seed:", err);
@@ -265,8 +271,16 @@ export default function GenerationTab({errors}) {
   };
 
   const handleLoadFile = async () => {
+    let defaultPath;
+    try {
+      defaultPath = await join(await appLocalDataDir(), "generated");
+    } catch (err) {
+      console.error("Failed to determine generated seed directory:", err);
+    }
+
     const file = getSelectedPath(await open({
       multiple: false,
+      defaultPath,
       filters: [{ name: "JSON Config", extensions: ["json"] }],
     }));
     if (!file) return;

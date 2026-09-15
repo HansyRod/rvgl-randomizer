@@ -13,6 +13,8 @@ pub struct CarSpec {
     pub source_obtain: String, // "Random" or "-1".."4"
     pub attr_rating: String,   // "Random", "Unchanged", or "0".."5"
     pub attr_obtain: String,   // "Random", "Unchanged", or "-1".."4"
+    #[serde(default)]
+    pub custom_unlock: Option<CustomUnlockSpec>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -26,6 +28,8 @@ pub struct CarsSpecState {
     pub stock_cars: Vec<CarSpec>,
     #[serde(default)]
     pub dc_cars: Vec<CarSpec>,
+    #[serde(default)]
+    pub extra_cars: Vec<CarSpec>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -36,6 +40,8 @@ pub struct TrackSpec {
     pub source_difficulty: String, // "Random" or "1".."4"
     pub attr_difficulty: String,   // "Random", "Unchanged", or "1".."4"
     pub attr_obtain: String,       // "Random" or "-1".."5"
+    #[serde(default)]
+    pub custom_unlock: Option<CustomUnlockSpec>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -53,6 +59,27 @@ pub struct RatingDist {
     pub enabled: bool,
     pub min: usize,
     pub max: usize,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum CustomUnlockTrackMode {
+    SpecificTracks,
+    RandomTracks,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomUnlockSpec {
+    pub method: String,
+    #[serde(default)]
+    pub mode: Option<CustomUnlockTrackMode>,
+    #[serde(default)]
+    pub track_folders: Vec<String>,
+    #[serde(default)]
+    pub random_track_count: Option<i32>,
+    #[serde(default)]
+    pub required_count: Option<i32>,
 }
 
 /// High-level options from the Car Options tab.
@@ -86,6 +113,48 @@ pub struct CarOptionsInput {
     pub include_practice_stars: bool,
     #[serde(default = "default_true")]
     pub include_single_race: bool,
+    #[serde(default = "default_false")]
+    pub include_specific_race_win: bool,
+    #[serde(default = "default_false")]
+    pub include_specific_practice_star: bool,
+    #[serde(default = "default_false")]
+    pub include_specific_time_trial: bool,
+    #[serde(default = "default_false")]
+    pub include_race_win_count: bool,
+    #[serde(default = "default_false")]
+    pub include_practice_star_count: bool,
+    #[serde(default = "default_false")]
+    pub include_time_trial_count: bool,
+    #[serde(default = "default_false")]
+    pub include_stunt_arena_star_count: bool,
+    #[serde(default = "default_one")]
+    pub specific_race_win_track_count_min: i32,
+    #[serde(default = "default_one")]
+    pub specific_race_win_track_count_max: i32,
+    #[serde(default = "default_one")]
+    pub specific_practice_star_track_count_min: i32,
+    #[serde(default = "default_one")]
+    pub specific_practice_star_track_count_max: i32,
+    #[serde(default = "default_one")]
+    pub specific_time_trial_track_count_min: i32,
+    #[serde(default = "default_one")]
+    pub specific_time_trial_track_count_max: i32,
+    #[serde(default = "default_one")]
+    pub race_win_count_min: i32,
+    #[serde(default = "default_track_count_max")]
+    pub race_win_count_max: i32,
+    #[serde(default = "default_one")]
+    pub practice_star_count_min: i32,
+    #[serde(default = "default_track_count_max")]
+    pub practice_star_count_max: i32,
+    #[serde(default = "default_one")]
+    pub time_trial_count_min: i32,
+    #[serde(default = "default_track_count_max")]
+    pub time_trial_count_max: i32,
+    #[serde(default = "default_one")]
+    pub stunt_arena_star_count_min: i32,
+    #[serde(default = "default_stunt_arena_star_count_max")]
+    pub stunt_arena_star_count_max: i32,
     #[serde(default = "default_true")]
     pub include_super_pro: bool,
     #[serde(default)]
@@ -109,6 +178,65 @@ pub struct TrackOptionsInput {
     pub include_practice: bool,
     #[serde(default = "default_true")]
     pub include_single_race: bool,
+    #[serde(default = "default_false")]
+    pub include_specific_race_win: bool,
+    #[serde(default = "default_false")]
+    pub include_specific_practice_star: bool,
+    #[serde(default = "default_false")]
+    pub include_specific_time_trial: bool,
+    #[serde(default = "default_false")]
+    pub include_race_win_count: bool,
+    #[serde(default = "default_false")]
+    pub include_practice_star_count: bool,
+    #[serde(default = "default_false")]
+    pub include_time_trial_count: bool,
+    #[serde(default = "default_false")]
+    pub include_stunt_arena_star_count: bool,
+    #[serde(default = "default_one")]
+    pub specific_race_win_track_count_min: i32,
+    #[serde(default = "default_one")]
+    pub specific_race_win_track_count_max: i32,
+    #[serde(default = "default_one")]
+    pub specific_practice_star_track_count_min: i32,
+    #[serde(default = "default_one")]
+    pub specific_practice_star_track_count_max: i32,
+    #[serde(default = "default_one")]
+    pub specific_time_trial_track_count_min: i32,
+    #[serde(default = "default_one")]
+    pub specific_time_trial_track_count_max: i32,
+    #[serde(default = "default_one")]
+    pub race_win_count_min: i32,
+    #[serde(default = "default_track_count_max")]
+    pub race_win_count_max: i32,
+    #[serde(default = "default_one")]
+    pub practice_star_count_min: i32,
+    #[serde(default = "default_track_count_max")]
+    pub practice_star_count_max: i32,
+    #[serde(default = "default_one")]
+    pub time_trial_count_min: i32,
+    #[serde(default = "default_track_count_max")]
+    pub time_trial_count_max: i32,
+    #[serde(default = "default_one")]
+    pub stunt_arena_star_count_min: i32,
+    #[serde(default = "default_stunt_arena_star_count_max")]
+    pub stunt_arena_star_count_max: i32,
+}
+
+/// Runtime feature flags from the Global Options tab.
+/// Optional at the command boundary so older UI callers remain compatible.
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct FeatureOptionsInput {
+    #[serde(default)]
+    pub load_extra_cars: bool,
+    #[serde(default)]
+    pub load_extra_tracks: bool,
+    #[serde(default)]
+    pub load_extra_cups: bool,
+    #[serde(default)]
+    pub enable_30_car_mode: bool,
+    #[serde(default)]
+    pub enable_knockout_mode: bool,
 }
 
 pub fn default_unlock_mode() -> String { "random".to_string() }
@@ -117,6 +245,9 @@ pub fn default_pool()        -> String { "Full Random".to_string() }
 pub fn default_random()      -> String { "Random".to_string() }
 pub fn default_false()       -> bool   { false }
 pub fn default_true()        -> bool   { true }
+pub fn default_one()         -> i32    { 1 }
+pub fn default_track_count_max() -> i32 { 14 }
+pub fn default_stunt_arena_star_count_max() -> i32 { 20 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
@@ -134,7 +265,8 @@ pub struct PresetStockModeInput {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomUnlockCondition {
-    pub track_folder: String,
+    #[serde(rename = "trackFolder", default)]
+    pub track_folders: Vec<String>,
     pub required_count: i32,
     pub archipelago_item: String,
 }
@@ -195,6 +327,8 @@ pub struct ConfigGlobalOptions {
     pub load_extra_cups: bool,
     pub is_stock_cars: bool,
     pub is_stock_tracks: bool,
+    pub enable_30_car_mode: bool,
+    pub enable_knockout_mode: bool,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -205,6 +339,8 @@ pub struct ConfigData {
     pub stock_cars: Vec<RandomizedCar>,
     #[serde(rename = "dcCars")]
     pub dc_cars: Vec<RandomizedCar>,
+    #[serde(rename = "extraCars")]
+    pub extra_cars: Vec<RandomizedCar>,
     pub tracks: Vec<RandomizedTrack>,
     pub cups: Vec<RandomizedCup>,
 }
@@ -212,6 +348,17 @@ pub struct ConfigData {
 // ============================================================================
 // CUP SPEC — input types from the UI
 // ============================================================================
+
+/// Native RVGL championship cups support up to 16 cars.
+pub const NATIVE_MAX_CUP_CARS: u32 = 16;
+/// The randomizer's extended championship-cup runtime supports up to 30 cars.
+pub const EXTENDED_MAX_CUP_CARS: u32 = 30;
+/// Extended cup points cover every possible finishing position.
+pub const CUP_POINTS_TABLE_LENGTH: usize = EXTENDED_MAX_CUP_CARS as usize;
+
+pub fn cup_car_limit(enable_30_car_mode: bool) -> u32 {
+    if enable_30_car_mode { EXTENDED_MAX_CUP_CARS } else { NATIVE_MAX_CUP_CARS }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -255,6 +402,17 @@ pub struct UserStageSpec {
     pub is_mirror: Option<bool>,
 }
 
+/// A user-selected opponent source for a cup.
+///
+/// Slot references are resolved against the randomized car list later in the
+/// generation pipeline. Car references already contain the final car folder.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum CupOpponentReference {
+    Slot { category: String, index: usize },
+    Car { folder: String },
+}
+
 /// Per-cup configuration.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -270,10 +428,12 @@ pub struct CupSpec {
     #[serde(default)] pub override_per_race_place: bool,
     #[serde(default)] pub override_overall_place: bool,
     #[serde(default)] pub override_points_table: bool,
+    #[serde(default)] pub override_opponents: bool,
     #[serde(default)] pub override_num_stages_min: bool,
     #[serde(default)] pub override_num_stages_max: bool,
     #[serde(default)] pub override_num_laps_min: bool,
     #[serde(default)] pub override_num_laps_max: bool,
+    #[serde(default)] pub override_max_race_length: bool,
 
 
     // ── per-cup stage mode (only meaningful when override_stage_mode = true) ──
@@ -288,9 +448,19 @@ pub struct CupSpec {
     pub points_table: Option<Vec<i32>>,
     /// cars_per_class[0..5] = Rookie..SuperPro; sum must == num_cars - 1
     pub cars_per_class: Option<Vec<u32>>,
+    /// Specific opponent references grouped by final rating, resolved to final
+    /// car folders during generation.
+    #[serde(default)]
+    pub opponents: Vec<Vec<CupOpponentReference>>,
     /// Per-cup laps range (used when override_stage_mode=true and effective mode is Random)
     pub num_laps_min: Option<u32>,
     pub num_laps_max: Option<u32>,
+    /// Whether the maximum race length limit is enabled for this cup.
+    #[serde(default)]
+    pub toggle_max_race_length: bool,
+    /// Maximum total race length in meters for this cup.
+    #[serde(default = "default_max_race_length_value")]
+    pub max_race_length_value: u32,
 
     // ── stage configuration ───────────────────────────────────────────
     /// Stage count range for Random mode (always per-cup)
@@ -346,6 +516,12 @@ pub struct CupSpecState {
     pub num_laps_min: u32,
     #[serde(default = "default_laps_max")]
     pub num_laps_max: u32,
+    /// Whether the maximum race length limit is enabled for all cups.
+    #[serde(default)]
+    pub toggle_max_race_length: bool,
+    /// Maximum total race length in meters for all cups.
+    #[serde(default = "default_max_race_length_value")]
+    pub max_race_length_value: u32,
 
     // ── global stage count range ───────────────────────────────────────
     #[serde(default = "default_num_stages_min")]
@@ -363,10 +539,16 @@ fn default_per_race_place()  -> u32       { 3 }
 fn default_overall_place()   -> u32       { 1 }
 fn default_laps_min()        -> u32       { 2 }
 fn default_laps_max()        -> u32       { 8 }
+pub(crate) fn default_max_race_length_value() -> u32 { 3000 }
 fn default_num_stages_min()  -> u32       { 3 }
 fn default_num_stages_max()  -> u32       { 6 }
 pub fn default_points_table()    -> Vec<i32>  {
-    vec![10, 6, 4, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    vec![
+        10, 6, 4, 3, 2, 1, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0,
+    ]
 }
 
 // ============================================================================
@@ -403,6 +585,8 @@ pub struct RandomizedCup {
     pub cars_per_class: Vec<u32>,
     #[serde(rename = "pointsTable")]
     pub points_table: Vec<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub opponents: Option<Vec<String>>,
     pub stages: Vec<RandomizedCupStage>,
     #[serde(rename = "customUnlock", skip_serializing_if = "Option::is_none")]
     pub custom_unlock: Option<CustomUnlockCondition>,

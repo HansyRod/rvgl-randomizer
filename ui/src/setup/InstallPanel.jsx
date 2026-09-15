@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useAppContext } from "../AppProvider";
 import HistoryPanel from "../components/HistoryPanel";
 import { handleTogglePack } from "./packHelpers";
+import { formatInstallError } from "./installValidation";
 import "./SetupView.css";
 
 // ── Install sub-tab ──────────────────────────────────────────────────────────
@@ -12,8 +13,9 @@ export default function InstallPanel() {
   const { state, updateCategoryCtx } = useAppContext();
   const { app, setup } = state;
   const { isScanning, isFetchingPack } = app;
-  const { installPath, scanResult } = setup;
+  const { installPath, scanResult, installError } = setup;
   const installHistory = setup.installHistory || [];
+  const [failedPath, setFailedPath] = useState("");
 
   function updateHistory(path, installType) {
     const history = Array.isArray(setup.installHistory) ? setup.installHistory : [];
@@ -34,14 +36,24 @@ export default function InstallPanel() {
     });
     if (!selected) return;
     const path = selected.path || selected;
-    updateCategoryCtx("setup", { installPath: path, scanResult: null });
+    updateCategoryCtx("setup", { installError: "" });
     updateCategoryCtx("app", { isScanning: true });
     try {
       const result = await invoke("scan_install", { executablePath: path });
       const history = updateHistory(path, result.installType);
-      updateCategoryCtx("setup", { scanResult: result, installHistory: history });
+      setFailedPath("");
+      updateCategoryCtx("setup", {
+        installPath: path,
+        scanResult: result,
+        installError: "",
+        installHistory: history,
+      });
     } catch (err) {
       console.error("Error scanning:", err);
+      setFailedPath(path);
+      updateCategoryCtx("setup", {
+        installError: formatInstallError(err, !!scanResult),
+      });
     } finally {
       updateCategoryCtx("app", { isScanning: false });
     }
@@ -54,14 +66,25 @@ export default function InstallPanel() {
 
   async function handleSwitch(historyPath) {
     if (isScanning || historyPath === installPath) return;
-    updateCategoryCtx("setup", { installPath: historyPath, scanResult: null });
+    updateCategoryCtx("setup", { installError: "" });
     updateCategoryCtx("app", { isScanning: true });
     try {
       const result = await invoke("scan_install", { executablePath: historyPath });
       const history = updateHistory(historyPath, result.installType);
-      updateCategoryCtx("setup", { scanResult: result, installHistory: history });
+      setFailedPath("");
+      updateCategoryCtx("setup", {
+        installPath: historyPath,
+        scanResult: result,
+        installError: "",
+        installHistory: history,
+      });
     } catch (err) {
       console.error("Error switching:", err);
+      setFailedPath(historyPath);
+      updateCategoryCtx("setup", {
+        installError: formatInstallError(err, !!scanResult),
+        installHistory: installHistory.filter((entry) => entry.path !== historyPath),
+      });
     } finally {
       updateCategoryCtx("app", { isScanning: false });
     }
@@ -69,12 +92,18 @@ export default function InstallPanel() {
 
   async function handleRefresh() {
     if (!installPath) return;
+    updateCategoryCtx("setup", { installError: "" });
     updateCategoryCtx("app", { isScanning: true });
     try {
       const result = await invoke("scan_install", { executablePath: installPath });
-      updateCategoryCtx("setup", { scanResult: result });
+      updateCategoryCtx("setup", { scanResult: result, installError: "" });
     } catch (err) {
       console.error("Error refreshing:", err);
+      updateCategoryCtx("setup", {
+        scanResult: null,
+        installError: formatInstallError(err, false),
+        installHistory: installHistory.filter((entry) => entry.path !== installPath),
+      });
     } finally {
       updateCategoryCtx("app", { isScanning: false });
     }
@@ -101,7 +130,7 @@ export default function InstallPanel() {
       <div className="setup-section">
         <h3 className="setup-section-title">RVGL executable</h3>
         <div className="install-path-row">
-          <span className="install-path-text">{installPath || "No installation selected"}</span>
+          <span className="install-path-text">{installPath || failedPath || "No installation selected"}</span>
           <button onClick={handleBrowse} className="btn-primary btn-action-wide" disabled={isScanning}>
             {isScanning ? "Scanning…" : installPath ? "Change" : "Browse"}
           </button>
@@ -113,6 +142,9 @@ export default function InstallPanel() {
             </button>
           )}
         </div>
+        {installError && (
+          <p className="install-error" role="alert">{installError}</p>
+        )}
       </div>
 
       {scanResult && (

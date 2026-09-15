@@ -12,7 +12,8 @@ import {
   makeDefaultCarsSpec,
   makeDefaultTrackSpec,
 } from "../../utils/constants";
-import { makeDefaultCupSpecState } from "../cupSpec/CupSpecTab";
+import { makeDefaultCupSpecState } from "../cupSpec/CupSpecDefaults";
+import { normalizeConfigureContext } from "../../utils/configureContext";
 
 // ─── Preset definitions ───────────────────────────────────────────────────────
 // Each preset contains the exact configure sub-state that will be applied when
@@ -34,6 +35,7 @@ function makeDefaultCustomConfigure() {
       includeDcCars: true,
       stockCars: makeDefaultCarsSpec(STOCK_CARS),
       dcCars: makeDefaultCarsSpec(DC_CARS),
+      extraCars: [],
     },
     trackSpecState: {
       includeTracks: true,
@@ -146,9 +148,10 @@ export default function PresetsTab() {
   // Apply a named preset: overwrite all configure option slices and record the
   // selected preset id so the sidebar knows to lock the other tabs.
   function handleSelectPreset(preset) {
+    const nextConfigure = normalizeConfigureContext(preset.configure);
     updateCategoryCtx("configure", {
       preset: preset.id,
-      ...preset.configure,
+      ...nextConfigure,
     });
   }
 
@@ -169,7 +172,7 @@ export default function PresetsTab() {
 
     updateCategoryCtx("configure", {
       preset: "custom",
-      ...nextConfigure,
+      ...normalizeConfigureContext(nextConfigure),
     });
     setIsCustomDialogOpen(false);
   }
@@ -202,6 +205,7 @@ export default function PresetsTab() {
           const isSelected = selectedPreset === preset.id;
           const validationState = presetValidity[preset.id] ?? { isSelectable: true, errors: [] };
           const isInvalid = !validationState.isSelectable;
+          const tags = preset.tags ?? (preset.tag ? [preset.tag] : []);
           return (
             <button
               key={preset.id}
@@ -211,9 +215,9 @@ export default function PresetsTab() {
             >
               <div className="preset-card-header">
                 <span className="preset-card-label">{preset.label}</span>
-                {preset.tag && (
-                  <span className={`preset-card-tag ${preset.tag.toLowerCase()}`}>{preset.tag}</span>
-                )}
+                {tags.map(tag => (
+                  <span key={tag} className={`preset-card-tag ${tag.toLowerCase().replace(/[^a-z0-9]/g, "")}`}>{tag}</span>
+                ))}
               </div>
 
               <p className="preset-card-desc">{preset.description}</p>

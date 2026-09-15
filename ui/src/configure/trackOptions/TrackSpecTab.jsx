@@ -1,7 +1,10 @@
 import { useMemo, useState, useCallback, memo } from "react";
 import "../carSpec/CarsFullSpecTab.css";
 import { STOCK_TRACKS } from "../../utils/constants";
+import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
+import { getPlayableTracksFromScan, indexByFolder } from "../../utils/scanContent";
 import { useAppContext } from "../../AppProvider";
+import CustomUnlockModal from "../customUnlocks/CustomUnlockModal";
 import TrackSearchModal from "./TrackSearchModal";
 import TrackSpecRow from "./TrackSpecRow";
 
@@ -18,26 +21,12 @@ export default function TrackSpecTab() {
   const { scanResult } = setup;
   const { trackOptions, trackSpecState : specState } = configure;
 
-  const [presetSelection, setPresetSelection] = useState("Full Random");
   const [searchModalRow, setSearchModalRow] = useState(null);
+  const [customUnlockModalRow, setCustomUnlockModalRow] = useState(null);
   const isEnabled = specState?.includeTracks !== false;
 
-  const availableTracks = useMemo(() => {
-    if (!scanResult) return [];
-    let tracks;
-    if (scanResult.installType === "classic") {
-      tracks = scanResult.tracks || [];
-    } else {
-      tracks = (scanResult.contentPacks || []).filter(p => p.useTracks).flatMap(p => p.tracks);
-    }
-    return tracks.filter(t => t.hasValidFile && t.trackType === 0);
-  }, [scanResult]);
-
-  const trackByFolder = useMemo(() => {
-    const map = {};
-    for (const t of availableTracks) map[t.folderName] = t;
-    return map;
-  }, [availableTracks]);
+  const availableTracks = useMemo(() => getPlayableTracksFromScan(scanResult), [scanResult]);
+  const trackByFolder = useMemo(() => indexByFolder(availableTracks), [availableTracks]);
 
   const activePacks = useMemo(() => {
     if (!scanResult || scanResult.installType === "classic") return [];
@@ -72,7 +61,10 @@ export default function TrackSpecTab() {
   const updateRow = useCallback((index, updates) => {
 
     const tracks = [...(specState?.tracks || [])];
-    tracks[index] = { ...tracks[index], ...updates };
+    const nextRow = { ...tracks[index], ...updates };
+    tracks[index] = updates.attrObtain !== undefined
+      ? normalizeCustomUnlockRow(nextRow)
+      : nextRow;
 
     updateCategoryCtx("configure", {
       trackSpecState: {
@@ -82,35 +74,13 @@ export default function TrackSpecTab() {
     });
   }, [specState, updateCategoryCtx]);
 
-  const applyPreset = () => {
-
-    const rows = (specState?.tracks || []).map((row, i) => {
-      if (presetSelection === "Original Content") {
-        return {
-          ...row,
-          sourcePool: row.id || STOCK_TRACKS[i] || "Full Random",
-          sourceDifficulty: "Random",
-        };
-      }
-      return {
-        ...row,
-        sourcePool: "Full Random",
-        sourceDifficulty: "Random",
-      };
-    });
-
-    updateCategoryCtx("configure", {
-      trackSpecState: {
-        ...specState, 
-        tracks: rows
-      }
-    });
-
-  };
-
   const mode = trackOptions?.unlockMode;
   const lockDifficulty = mode === "randomUnlock" || mode === "unchanged" || mode === "baseGame";
   const lockObtain = mode === "randomDifficulty" || mode === "unchanged" || mode === "baseGame";
+  const customUnlockModalRowState = customUnlockModalRow === null
+    ? null
+    : specState?.tracks?.[customUnlockModalRow];
+  const excludedCustomUnlockTracks = getKnownTargetTrackFolder(customUnlockModalRowState, trackByFolder);
 
   return (
     <div>
@@ -119,6 +89,18 @@ export default function TrackSpecTab() {
         onClose={() => setSearchModalRow(null)}
         onSelect={(folderName) => updateRow(searchModalRow, { sourcePool: folderName })}
         availableTracks={availableTracks}
+      />
+      <CustomUnlockModal
+        isOpen={customUnlockModalRowState !== null}
+        method={customUnlockModalRowState?.attrObtain}
+        value={customUnlockModalRowState?.customUnlock}
+        availableTracks={availableTracks}
+        excludedTrackFolders={excludedCustomUnlockTracks ? [excludedCustomUnlockTracks] : []}
+        onClose={() => setCustomUnlockModalRow(null)}
+        onSave={(customUnlock) => {
+          updateRow(customUnlockModalRow, { customUnlock });
+          setCustomUnlockModalRow(null);
+        }}
       />
 
       <div className="section-lock-info">
@@ -137,15 +119,6 @@ export default function TrackSpecTab() {
       )}
 
       <div className="cars-full-spec" style={{ opacity: isEnabled ? 1 : 0.5, pointerEvents: isEnabled ? "auto" : "none" }}>
-        <div className="presets-row">
-          <label>Presets:</label>
-          <select value={presetSelection} onChange={e => setPresetSelection(e.target.value)}>
-            <option value="Full Random">Full Random</option>
-            <option value="Original Content">Original Content</option>
-          </select>
-          <button className="primary" onClick={applyPreset}>Apply</button>
-        </div>
-
         <div className="cars-spec-section">
           <h2>Track Spec</h2>
           <div className="spec-grid">
@@ -176,6 +149,7 @@ export default function TrackSpecTab() {
                 sourcePoolOptionsJSX={sourcePoolOptionsJSX}
                 trackOptions={trackOptions}
                 onOpenSearch={setSearchModalRow}
+                onOpenCustomUnlock={setCustomUnlockModalRow}
               />
             ))}
           </div>
@@ -183,4 +157,18 @@ export default function TrackSpecTab() {
       </div>
     </div>
   );
+}
+
+function getKnownTargetTrackFolder(row, trackByFolder) {
+  if (!row) return null;
+
+  const sourcePool = row.sourcePool;
+  const isGeneralPool =
+    sourcePool === "Full Random" ||
+    sourcePool === "Stock" ||
+    sourcePool === "Custom" ||
+    sourcePool?.startsWith("Pack:");
+
+  if (!sourcePool || isGeneralPool || !trackByFolder[sourcePool]) return null;
+  return sourcePool;
 }

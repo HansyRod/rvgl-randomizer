@@ -2,9 +2,11 @@ import { useAppContext } from "../AppProvider";
 
 // Configure sub-views
 import PresetsTab from "./presets/PresetsTab";
+import GlobalOptionsTab from "./globalOptions/GlobalOptionsTab";
 import CarOptionsTab from "./carOptions/CarOptionsTab";
 import StockCarsFullSpecTab from "./carSpec/StockCarsFullSpecTab";
 import DcCarsFullSpecTab from "./carSpec/DcCarsFullSpecTab";
+import ExtraCarsFullSpecTab from "./carSpec/ExtraCarsFullSpecTab";
 import TrackOptionsTab from "./trackOptions/TrackOptionsTab";
 import TrackSpecTab from "./trackOptions/TrackSpecTab";
 import CupSpecTab from "./cupSpec/CupSpecTab";
@@ -12,9 +14,12 @@ import CupConfigPage from "./cupSpec/CupConfigPage";
 import { isEffectiveStockCarsMode } from "../validation/stockMode";
 
 const CONFIGURE_TABS = [
+  { id: "presets",           label: "Presets",                group: "Global", disabledKey: null },
+  { id: "global-options",   label: "Global Options",         group: "Global", disabledKey: null },
   { id: "car-options",      label: "Car options",            group: "Cars",   disabledKey: null },
   { id: "stock-cars-spec",  label: "Stock specification",    group: "Cars",   disabledKey: "includeStockCars" },
   { id: "dc-cars-spec",     label: "DC specification",       group: "Cars",   disabledKey: "includeDcCars" },
+  { id: "extra-cars-spec",  label: "Extras specification",   group: "Cars",   disabledKey: null },
   { id: "track-options",    label: "Track options",          group: "Tracks", disabledKey: null },
   { id: "track-spec",       label: "Track specification",    group: "Tracks", disabledKey: "includeTracks" },
   { id: "cup-spec",         label: "Cup Settings",        group: "Cups",   disabledKey: null },
@@ -30,7 +35,7 @@ export default function ConfigureView() {
   const { carsSpecState, trackSpecState, configureTab, preset } = configure || {};
   const activeTab = configureTab ?? "presets";
 
-  // When a named preset is active, all tabs except "presets" are locked.
+  // When a named preset is active, randomization tabs are locked.
   const isCustom = configure?.preset === "custom";
 
   const isStockMode = isEffectiveStockCarsMode(setup.scanResult, preset);
@@ -50,14 +55,6 @@ export default function ConfigureView() {
       {/* Configure sidebar nav */}
       <nav className="configure-sidenav">
 
-        {/* Presets — top-level entry, not part of any group */}
-        <button
-          className={`configure-nav-item${activeTab === "presets" ? " active" : ""}`}
-          onClick={() => setTab("presets")}
-        >
-          Presets
-        </button>
-
         {groups.map(group => (
           <div key={group} className="configure-nav-group">
             <span className="configure-nav-group-label">{group}</span>
@@ -68,8 +65,8 @@ export default function ConfigureView() {
                                      : tab.disabledKey === "includeTracks"    ? !includeTracks
                                      : false;
 
-              // Disabled because a preset is active (overrides manual config)
-              const isPresetLocked = !isCustom;
+              // Global tabs remain editable because they control runtime features independently.
+              const isPresetLocked = !isCustom && tab.group !== "Global";
 
               const isDisabled = isPresetLocked || isDisabledBySpec;
 
@@ -99,9 +96,11 @@ export default function ConfigureView() {
       {/* Configure pane */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         {activeTab === "presets"        && <PresetsTab />}
+        {activeTab === "global-options" && <GlobalOptionsTab />}
         {activeTab === "car-options"     && <CarOptionsTab />}
         {activeTab === "stock-cars-spec" && <div style={{ padding: "1rem" }}><StockCarsFullSpecTab /></div>}
         {activeTab === "dc-cars-spec"    && <div style={{ padding: "1rem" }}><DcCarsFullSpecTab /></div>}
+        {activeTab === "extra-cars-spec" && <div style={{ padding: "1rem" }}><ExtraCarsFullSpecTab /></div>}
         {activeTab === "track-options"   && <TrackOptionsTab />}
         {activeTab === "track-spec"      && <div style={{ padding: "1rem" }}><TrackSpecTab /></div>}
         {activeTab === "cup-spec"        && <div style={{ padding: "1rem" }}><CupSpecTab /></div>}

@@ -120,6 +120,10 @@
   background: #8b5e34; /* Warm vanilla brown with strong contrast for white text */
 }
 
+.preset-card-tag.new {
+  background: #dc2626; /* Red */
+}
+
 /* ── Short description blurb ── */
 .preset-card-desc {
   font-size: 0.82rem;

@@ -23,6 +23,7 @@ namespace Randomizer {
     // ------------------------------------------------------------------------
     using FnLoadVanillaTracks       = void(*)();
     using FnLoadCustomTracks        = void(*)();
+    using FnUpdateLevelMusic        = void(*)();
     using FnTrack_ApplyCustomUnlock = void(*)(int trackIndex);
     using FnCheckIfTierChampionshipWon = bool(*)(int difficulty);
     using FnCheckIfTierTimeTrialsBeaten = bool(*)(int difficulty);
@@ -37,6 +38,7 @@ namespace Randomizer {
     // ------------------------------------------------------------------------
     extern FnLoadVanillaTracks      Orig_LoadVanillaTracks;
     extern FnLoadCustomTracks       Orig_LoadCustomTracks;
+    extern FnUpdateLevelMusic       Orig_UpdateLevelMusic;
     extern FnTrack_ApplyCustomUnlock Orig_Track_ApplyCustomUnlock;
     extern FnCheckIfTierChampionshipWon Orig_CheckIfTierChampionshipWon;
     extern FnCheckIfTierTimeTrialsBeaten Orig_CheckIfTierTimeTrialsBeaten;
@@ -48,6 +50,7 @@ namespace Randomizer {
     // ------------------------------------------------------------------------
     void Hook_LoadVanillaTracks();
     void Hook_LoadCustomTracks();
+    void Hook_UpdateLevelMusic();
     void Hook_Track_ApplyCustomUnlock(int trackIndex);
     bool Hook_CheckIfTierChampionshipWon(int difficulty);
     bool Hook_CheckIfTierTimeTrialsBeaten(int difficulty);

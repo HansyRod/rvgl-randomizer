@@ -1,5 +1,6 @@
 #pragma once
 #include "RVGLStructs.h"
+#include "ConfigData.h"
 #include <cstdio>
 
 namespace Randomizer {
@@ -28,5 +29,7 @@ namespace Randomizer {
     void Hook_LoadVanillaCups();
     void Hook_LoadCustomCups();
     void Hook_Cup_ValidateAndCheckUnlock(int cupID);
+    CupProfile* GetCupProfileByCupID(int cupID);
+    RandomizedCup* GetCupConfigByCupID(int cupID);
 
 } // namespace Randomizer

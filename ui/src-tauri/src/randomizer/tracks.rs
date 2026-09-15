@@ -202,6 +202,13 @@ pub fn resolve_track_obtain(attr: &str, mode: &str, opts: &TrackOptionsInput, rn
         if opts.include_practice   { allowed.push(3); }
         if opts.include_single_race { allowed.push(4); }
         if opts.include_stunt_arena { allowed.push(5); }
+        if opts.include_specific_race_win       { allowed.push(6); }
+        if opts.include_specific_practice_star  { allowed.push(7); }
+        if opts.include_specific_time_trial     { allowed.push(8); }
+        if opts.include_race_win_count          { allowed.push(9); }
+        if opts.include_practice_star_count     { allowed.push(10); }
+        if opts.include_time_trial_count        { allowed.push(11); }
+        if opts.include_stunt_arena_star_count  { allowed.push(12); }
         // Fallback: if all flags are disabled, use Default
         if allowed.is_empty() { allowed.push(0); }
         let i = rng.next_usize(allowed.len());

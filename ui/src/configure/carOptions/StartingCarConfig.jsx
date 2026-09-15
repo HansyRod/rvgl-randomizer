@@ -1,7 +1,13 @@
 import { useMemo } from "react";
 import { useAppContext } from "../../AppProvider";
-import { RATINGS_LIST, STOCK_CARS, DC_CARS } from "../../utils/constants";
-import { getObtainByMode, getRatingByMode } from "./CarOptionsUtils";
+import { RATINGS_LIST } from "../../utils/constants";
+import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
+import { getPlayableCarsFromScan } from "../../utils/scanContent";
+import {
+  applyStartingCarOverrides,
+  getIncludedCarSlotCounts,
+  resetStartingCarOverrides,
+} from "./CarOptionsUtils";
 
 export default function StartingCarConfig() {
 
@@ -14,84 +20,70 @@ export default function StartingCarConfig() {
     enableStartingCarsRating, startingCarsRating,
   } = carOptions;
 
-  const includeStockCars = carsSpecState?.includeStockCars !== false;
-  const includeDcCars = carsSpecState?.includeDcCars !== false;
+  const slotCounts = getIncludedCarSlotCounts(carsSpecState);
+  const maxStartingCars = slotCounts.total;
 
-  const maxStartingCars = (includeStockCars ? STOCK_CARS.length : 0) +
-                          (includeDcCars ? DC_CARS.length : 0);
+  const categoryOffsets = {
+    stockCars: 0,
+    dcCars: slotCounts.stock,
+    extraCars: slotCounts.stock + slotCounts.dc,
+  };
+
+  const mapCarCategories = (specState, mapper) => ({
+    ...specState,
+    stockCars: mapper(specState.stockCars || [], categoryOffsets.stockCars),
+    dcCars: mapper(specState.dcCars || [], categoryOffsets.dcCars),
+    extraCars: mapper(specState.extraCars || [], categoryOffsets.extraCars),
+  });
 
   // Reapply starting-car overrides to the spec rows that are in the starting range
   function applyStartingOverrides(specState, opts, count) {
-    const applyToRows = (rows, catKey, offset) =>
+    const applyToRows = (rows, offset) =>
       rows.map((row, i) => {
         const globalIdx = offset + i;
         const isStarting = globalIdx < count;
-        let out = { ...row };
-        if (isStarting) {
-          if (getObtainByMode(opts.unlockMode) === "Random") {
-            out.attrObtain = "0";
-          } else {
-            out.sourceObtain = "0";
-          }
-          if (opts.enableStartingCarsPool) out.sourcePool = opts.startingCarsPool;
-          if (opts.enableStartingCarsRating) out.sourceRating = opts.startingCarsRating;
-        }
-        return out;
+        const out = isStarting ? applyStartingCarOverrides(row, opts) : row;
+        return normalizeCustomUnlockRow(out);
       });
 
-    const stockOffset = 0;
-    const dcOffset = includeStockCars ? STOCK_CARS.length : 0;
-
-    return {
-      ...specState,
-      stockCars: applyToRows(specState.stockCars || [], "stockCars", stockOffset),
-      dcCars: applyToRows(specState.dcCars || [], "dcCars", dcOffset),
-    };
+    return mapCarCategories(specState, applyToRows);
   }
 
   function resetStartingOverrides(specState, opts, fromIdx, toIdx) {
     const resetRow = (row, globalIdx) => {
       if (globalIdx < fromIdx || globalIdx >= toIdx) return row;
-      const out = { ...row };
-      // reset forced obtain and rating
-      out.attrObtain = getObtainByMode(opts.unlockMode) || "Random";
-      out.attrRating = getRatingByMode(opts.unlockMode) || "Random";
-      out.sourceObtain = "Random";
-      if (opts.enableStartingCarsPool) out.sourcePool = "Full Random";
-      if (opts.enableStartingCarsRating) out.sourceRating = "Random";
-      return out;
+      const out = resetStartingCarOverrides(row, opts);
+      return normalizeCustomUnlockRow(out);
     };
 
-    const stockOffset = 0;
-    const dcOffset = includeStockCars ? STOCK_CARS.length : 0;
-
-    return {
-      ...specState,
-      stockCars: (specState.stockCars || []).map((r, i) => resetRow(r, stockOffset + i)),
-      dcCars: (specState.dcCars || []).map((r, i) => resetRow(r, dcOffset + i)),
-    };
+    return mapCarCategories(specState, (rows, offset) =>
+      rows.map((row, i) => resetRow(row, offset + i))
+    );
   }
 
   const commit = (newOpts, newSpec) => {
-    updateCategoryCtx("configure", { carOptions: newOpts, carsSpecState: newSpec });
+    updateCategoryCtx("configure", {
+      carOptions: newOpts,
+      carsSpecState: newSpec,
+    });
   };
 
   const handleEnableStartingCars = (checked) => {
     const newOpts = { ...carOptions, enableStartingCars: checked };
     if (checked) {
-      const n = Math.max(1, numStartingCars);
+      const n = Math.max(1, Math.min(maxStartingCars, numStartingCars || 1));
       newOpts.numStartingCars = n;
       const newSpec = applyStartingOverrides(carsSpecState, { ...newOpts, numStartingCars: n }, n);
       commit(newOpts, newSpec);
     } else {
-      const newSpec = resetStartingOverrides(carsSpecState, newOpts, 0, numStartingCars);
+      const newSpec = resetStartingOverrides(carsSpecState, newOpts, 0, numStartingCars || 0);
       commit(newOpts, newSpec);
     }
   };
 
   const handleNumStartingCars = (raw) => {
     const n = Math.max(1, Math.min(maxStartingCars, parseInt(raw) || 1));
-    const oldN = numStartingCars;
+    const oldN = numStartingCars || 0;
     const newOpts = { ...carOptions, numStartingCars: n };
 
     let newSpec = carsSpecState;
@@ -113,12 +105,7 @@ export default function StartingCarConfig() {
         if (offset + i >= numStartingCars) return r;
         return { ...r, sourcePool: checked ? startingCarsPool : "Full Random" };
       });
-    const dcOffset = includeStockCars ? STOCK_CARS.length : 0;
-    newSpec = {
-      ...newSpec,
-      stockCars: applyToRows(newSpec.stockCars || [], 0),
-      dcCars: applyToRows(newSpec.dcCars || [], dcOffset),
-    };
+    newSpec = mapCarCategories(newSpec, applyToRows);
     commit(newOpts, newSpec);
   };
 
@@ -130,12 +117,7 @@ export default function StartingCarConfig() {
         if (offset + i >= numStartingCars) return r;
         return { ...r, sourcePool: poolValue };
       });
-    const dcOffset = includeStockCars ? STOCK_CARS.length : 0;
-    const newSpec = {
-      ...carsSpecState,
-      stockCars: applyToRows(carsSpecState.stockCars || [], 0),
-      dcCars: applyToRows(carsSpecState.dcCars || [], dcOffset),
-    };
+    const newSpec = mapCarCategories(carsSpecState, applyToRows);
     commit(newOpts, newSpec);
   };
 
@@ -146,12 +128,7 @@ export default function StartingCarConfig() {
         if (offset + i >= numStartingCars) return r;
         return { ...r, sourceRating: checked ? startingCarsRating : "Random" };
       });
-    const dcOffset = includeStockCars ? STOCK_CARS.length : 0;
-    const newSpec = {
-      ...carsSpecState,
-      stockCars: applyToRows(carsSpecState.stockCars || [], 0),
-      dcCars: applyToRows(carsSpecState.dcCars || [], dcOffset),
-    };
+    const newSpec = mapCarCategories(carsSpecState, applyToRows);
     commit(newOpts, newSpec);
   };
 
@@ -163,25 +140,11 @@ export default function StartingCarConfig() {
         if (offset + i >= numStartingCars) return r;
         return { ...r, sourceRating: ratingValue };
       });
-    const dcOffset = includeStockCars ? STOCK_CARS.length : 0;
-    const newSpec = {
-      ...carsSpecState,
-      stockCars: applyToRows(carsSpecState.stockCars || [], 0),
-      dcCars: applyToRows(carsSpecState.dcCars || [], dcOffset),
-    };
+    const newSpec = mapCarCategories(carsSpecState, applyToRows);
     commit(newOpts, newSpec);
   };
 
-  const availableCars = useMemo(() => {
-    if (!scanResult) return [];
-    let cars;
-    if (scanResult.installType === "classic") {
-      cars = scanResult.cars || [];
-    } else {
-      cars = (scanResult.contentPacks || []).filter(p => p.useCars).flatMap(p => p.cars);
-    }
-    return cars.filter(c => !c.isSystemCar && c.hasValidFile);
-  }, [scanResult]);
+  const availableCars = useMemo(() => getPlayableCarsFromScan(scanResult), [scanResult]);
 
   const availablePools = useMemo(() => new Set(availableCars.map(c => c.pool)), [availableCars]);
   const activePacks = useMemo(() => {
@@ -200,13 +163,25 @@ export default function StartingCarConfig() {
     return options;
   }, [availablePools, activePacks]);
 
+  const dcStartingCount = Math.max(
+    0,
+    Math.min(numStartingCars || 0, slotCounts.stock + slotCounts.dc) - slotCounts.stock
+  );
+  const extraStartingCount = Math.max(
+    0,
+    Math.min(numStartingCars || 0, slotCounts.total) - slotCounts.stock - slotCounts.dc
+  );
+
   return (
     <section className="co-section">
       <h2 className="co-section-title">Starting Car Configuration</h2>
       <p className="co-desc">
         Optionally force the first <em>N</em> car slots to be <strong>Starting Cars</strong>.
-        {includeStockCars && includeDcCars && numStartingCars > STOCK_CARS.length && (
-          <span> Slots {STOCK_CARS.length + 1}–{numStartingCars} will be DC starting cars.</span>
+        {dcStartingCount > 0 && (
+          <span> This includes {dcStartingCount} DC slot{dcStartingCount === 1 ? "" : "s"}.</span>
+        )}
+        {extraStartingCount > 0 && (
+          <span> This includes {extraStartingCount} Extra slot{extraStartingCount === 1 ? "" : "s"}.</span>
         )}
       </p>
 

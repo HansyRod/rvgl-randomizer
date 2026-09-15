@@ -1,7 +1,9 @@
 import "../carOptions/CarOptionsTab.css";
 import { STOCK_TRACKS } from "../../utils/constants";
 import { useAppContext } from "../../AppProvider";
+import CustomUnlockMethodsTable from "../carOptions/CustomUnlockMethodsTable";
 import { isEffectiveStockTracksMode } from "../../validation/stockMode";
+import { normalizeCustomUnlockRow } from "../../utils/customUnlockState";
 
 function makeDefaultTrackSpec(ids) {
   return ids.map(id => ({
@@ -10,6 +12,7 @@ function makeDefaultTrackSpec(ids) {
     sourceDifficulty: "Random",
     attrDifficulty: "Random",
     attrObtain: "Random",
+    customUnlock: null,
   }));
 }
 
@@ -93,7 +96,7 @@ export default function TrackOptionsTab() {
           break;
       }
 
-      return out;
+      return normalizeCustomUnlockRow(out);
     });
 
     updateCategoryCtx("configure", {
@@ -216,6 +219,11 @@ export default function TrackOptionsTab() {
                 <strong>Stunt Arena</strong> — track is unlocked by completing the Stunt Arena.
               </span>
             </label>
+
+            <CustomUnlockMethodsTable
+              options={trackOptions}
+              onChange={set}
+            />
           </div>
         </section>
       )}

@@ -88,6 +88,7 @@ enum TrackProgressFlags : uint32_t {
     TRACKPROGRESS_PRACTICE_STAR             = 0x08,  // Practice star earned
     TRACKPROGRESS_RACE_WON                  = 0x10,  // Race won
     TRACKPROGRESS_COMPLETED                 = 0x20,  // Track completed (bronze)
+    TRACKPROGRESS_KNOCKOUT_WON              = 0x40,  // Knockout race won (randomizer)
     TRACKPROGRESS_PROGRESS_LOADED           = 0x80000000, // Progress file already loaded this session
 };
 
@@ -166,6 +167,36 @@ struct CupProfile {
     char pad195[2];        // 0x196
 };
 static_assert(sizeof(CupProfile) == 0x198, "CupProfile size mismatch");
+
+struct CupParticipantEntry {
+    int32_t participantIndex;             // +0x00
+    int32_t totalPoints;                  // +0x04
+    int32_t pendingPoints;                // +0x08
+    int32_t modelId;                      // +0x0C
+    int32_t skinId;                       // +0x10
+    int32_t finishPositionByStage[16];    // +0x14
+    int32_t finishTimeByStage[16];        // +0x54
+};
+static_assert(sizeof(CupParticipantEntry) == 0x94, "CupParticipantEntry size mismatch");
+
+struct CupResultRuntime {
+    uint8_t completedFlag;                // +0x00
+    uint8_t _pad_01[3];
+    int32_t playerOverallRank;            // +0x04, one-based
+    int32_t standingsSnapshot[3];         // +0x08, model ids for podium snapshots
+    int32_t playerFinalRank;              // +0x14, native code stores player model id here
+    int32_t unknown;                      // +0x18, reused by post-race timing
+};
+static_assert(sizeof(CupResultRuntime) == 0x1C, "CupResultRuntime size mismatch");
+
+enum class CupPostRaceState : int32_t {
+    Initial = 0,
+    AwaitingPopup = 1,
+    AwaitingReady = 2,
+    RetryPrompt = 3,
+    Standings = 4,
+    StageFinished = 5
+};
 
 
 // Reconstructed UV structure starting at offset 0x38 in the carbox object.
@@ -318,6 +349,31 @@ struct CarPhysicsData {         // ~0xAAC bytes
     float     weightStat;       // +0xaa4
     int32_t     transmission;     // +0xaa8
 };  // Total: ~0xAAC bytes
+
+// ----------------------------------------------------------------------------
+// Directory scanning structures
+//
+// These layouts are used by RVGL's VFS directory scanner. DirScan_Next returns
+// a pointer to a DirEntry and receives a DirScanState allocated by its caller.
+// OSDirHandle is intentionally opaque here; the DLL only stores its pointer in
+// DirScanState and never accesses the handle fields directly.
+// ----------------------------------------------------------------------------
+struct OSDirHandle;
+
+struct DirScanState {
+    char         path[256];       // +0x000
+    int32_t      vfsMountIndex;   // +0x100
+    uint8_t      _pad_104[4];     // +0x104
+    OSDirHandle* pDirHandle;      // +0x108
+};
+static_assert(sizeof(DirScanState) == 0x110, "DirScanState size mismatch");
+
+struct DirEntry {
+    uint8_t _unused[6];           // +0x000
+    uint16_t nameLen;             // +0x006
+    char name[256];               // +0x008
+};
+static_assert(sizeof(DirEntry) == 0x108, "DirEntry size mismatch");
 
 #pragma pack(pop)
 

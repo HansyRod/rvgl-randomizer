@@ -9,6 +9,9 @@
 #include "ProgressFlagHooks.h"
 #include "CarPhysicsHooks.h"
 #include "RaceInitHooks.h"
+#include "CupOpponentGrid.h"
+#include "ThirtyCarCupMod.h"
+#include "MenuMod.h"
 #include "Fob.h"
 #include "CallLogger.h"
 #include "Logger.h"
@@ -117,6 +120,20 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
+        AbsFromRva(RVA_DIR_SCAN_NEXT),
+        reinterpret_cast<void*>(Randomizer::Hook_DirScanNext),
+        reinterpret_cast<void**>(&Randomizer::Orig_DirScanNext),
+        "DirScan_Next"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_DIR_SCAN_OPEN),
+        reinterpret_cast<void*>(Randomizer::Hook_DirScanOpen),
+        reinterpret_cast<void**>(&Randomizer::Orig_DirScanOpen),
+        "DirScan_Open"
+    );
+
+    HookManager::Add(
         AbsFromRva(RVA_SYNC_CAR_INFO_FROM_PHYSICS),
         reinterpret_cast<void*>(Randomizer::Hook_SyncCarInfoFromPhysics),
         reinterpret_cast<void**>(&Randomizer::Orig_SyncCarInfoFromPhysics),
@@ -142,6 +159,13 @@ static void RegisterHooks() {
         reinterpret_cast<void*>(Randomizer::Hook_LoadCustomTracks),
         reinterpret_cast<void**>(&Randomizer::Orig_LoadCustomTracks),
         "LoadCustomTracks"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_UPDATE_LEVEL_MUSIC),
+        reinterpret_cast<void*>(Randomizer::Hook_UpdateLevelMusic),
+        reinterpret_cast<void**>(&Randomizer::Orig_UpdateLevelMusic),
+        "UpdateLevelMusic"
     );
 
     HookManager::Add(
@@ -198,6 +222,13 @@ static void RegisterHooks() {
         reinterpret_cast<void*>(Randomizer::Hook_LoadSettingsFromIni),
         reinterpret_cast<void**>(&Randomizer::Orig_LoadSettingsFromIni),
         "LoadSettingsFromIni"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_INI_SAVE_PROFILE),
+        reinterpret_cast<void*>(Randomizer::Hook_Ini_SaveProfile),
+        reinterpret_cast<void**>(&Randomizer::Orig_Ini_SaveProfile),
+        "Ini_SaveProfile"
     );
 
     HookManager::Add(
@@ -306,10 +337,73 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
+        AbsFromRva(RVA_CUP_GENERATE_OPPONENT_GRID),
+        reinterpret_cast<void*>(Randomizer::Hook_Cup_GenerateOpponentGrid),
+        reinterpret_cast<void**>(&Randomizer::Orig_Cup_GenerateOpponentGrid),
+        "Cup_GenerateOpponentGrid"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_BUILD_GRID),
+        reinterpret_cast<void*>(Randomizer::Hook_BuildGrid),
+        reinterpret_cast<void**>(&Randomizer::Orig_BuildGrid),
+        "BuildGrid"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_UPDATE_CUP_POST_RACE_PROGRESS),
+        reinterpret_cast<void*>(Randomizer::Hook_UpdateCupPostRaceProgress),
+        reinterpret_cast<void**>(&Randomizer::Orig_UpdateCupPostRaceProgress),
+        "UpdateCupPostRaceProgress"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_DRAW_CUP_STANDINGS_TABLE),
+        reinterpret_cast<void*>(Randomizer::Hook_DrawCupStandingsTable),
+        reinterpret_cast<void**>(&Randomizer::Orig_DrawCupStandingsTable),
+        "DrawCupStandingsTable"
+    );
+
+    HookManager::Add(
         AbsFromRva(RVA_DRAW_PROGRESS_TABLE),
         reinterpret_cast<void*>(Randomizer::Hook_DrawProgressTable),
         reinterpret_cast<void**>(&Randomizer::Orig_DrawProgressTable),
         "DrawProgressTable"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_BUILD_START_RACE_MENU),
+        reinterpret_cast<void*>(Randomizer::Hook_BuildStartRaceMenu),
+        reinterpret_cast<void**>(&Randomizer::Orig_BuildStartRaceMenu),
+        "BuildStartRaceMenu"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_BUILD_OPTIONS_MENU),
+        reinterpret_cast<void*>(Randomizer::Hook_BuildOptionsMenu),
+        reinterpret_cast<void**>(&Randomizer::Orig_BuildOptionsMenu),
+        "BuildOptionsMenu"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_DRAW_PRE_RACE_SUMMARY),
+        reinterpret_cast<void*>(Randomizer::Hook_DrawPreRaceSummary),
+        reinterpret_cast<void**>(&Randomizer::Orig_DrawPreRaceSummary),
+        "DrawPreRaceSummary"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_HANDLE_OPTIONS_MENU_ACTION),
+        reinterpret_cast<void*>(Randomizer::Hook_HandleOptionsMenuAction),
+        reinterpret_cast<void**>(&Randomizer::Orig_HandleOptionsMenuAction),
+        "HandleOptionsMenuAction"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_HANDLE_START_RACE_MENU_ACTION),
+        reinterpret_cast<void*>(Randomizer::Hook_HandleStartRaceMenuAction),
+        reinterpret_cast<void**>(&Randomizer::Orig_HandleStartRaceMenuAction),
+        "HandleStartRaceMenuAction"
     );
 
     HookManager::Add(

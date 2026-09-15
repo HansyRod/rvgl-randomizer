@@ -12,6 +12,8 @@ use std::ffi::CString;
 use std::path::Path;
 use tauri::{Manager};
 
+use crate::scanner::verify_rvgl_executable_path;
+
 use windows::Win32::{
     Foundation::{CloseHandle, STILL_ACTIVE},
     System::{
@@ -132,6 +134,10 @@ pub fn launch_game(
     profile_name: String,
 ) -> Result<LaunchResult, String> {
 
+    // Revalidate immediately before injection in case the executable changed
+    // after the installation was selected or while the app was closed.
+    verify_rvgl_executable_path(Path::new(&rvgl_exe_path))?;
+
     // --- Resolve randomizer.dll from the Tauri resource directory ---
     let mut dll_path = app_handle
         .path()
@@ -205,7 +211,7 @@ pub fn launch_game(
 
         launcher_args.push(format!("-basepath \"{}\"", basepath.display()));
         launcher_args.push(format!("-prefpath \"{}\"", prefpath.display()));
-        launcher_args.push(format!("-packlist rvgl-randomizer-{}", profile_name));
+        launcher_args.push(format!("-packlist \"rvgl-randomizer-{}\"", profile_name));
     }
 
     // Append any user-supplied extra args after the launcher-specific ones.
@@ -214,7 +220,7 @@ pub fn launch_game(
     }
 
     // Always append -profile last.
-    launcher_args.push(format!("-profile {}", profile_name));
+    launcher_args.push(format!("-profile \"{}\"", profile_name));
 
     let final_args = launcher_args.join(" ");
 

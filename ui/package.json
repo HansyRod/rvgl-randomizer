@@ -1,11 +1,14 @@
 {
   "name": "rvgl-randomizer-ui",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "npm run test:ui && npm run test:rust",
+    "test:ui": "node --experimental-loader ./scripts/extensionless-loader.mjs src/validation/validation.test.js",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "preview": "vite preview",
     "tauri": "tauri",
     "release": "tauri build",
@@ -17,7 +20,7 @@
     "build:dll": "npm run cmake:configure && npm run cmake:build:dbg && npm run copy:dll:dbg",
     "build:dll:release": "npm run cmake:configure && npm run cmake:build     && npm run copy:dll",
     "build:all": "npm run build:dll:release && npm run build",
-    "md-to-doc": "cd .. && pandoc README.MD -f markdown -t docx -s -o README.docx && pandoc CONFIGURE.MD -f markdown -t docx -s -o CONFIGURE.docx"
+    "md-to-doc": "cd .. && pandoc README.MD -f markdown -t docx -s -o README.docx && pandoc CONFIGURE.MD -f markdown -t docx -s -o CONFIGURE.docx && pandoc CHANGELOG.MD -f markdown -t docx -s -o CHANGELOG.docx"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

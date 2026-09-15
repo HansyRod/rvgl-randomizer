@@ -13,7 +13,9 @@ export default function StepNavigator({ activeStep, onStepClick, errors = [], wa
   const { state } = useAppContext();
   const activeIdx = STEPS.findIndex(s => s.id === activeStep);
 
-  const hasInstallPath = !!state.setup?.installPath;
+  const hasValidInstall = Boolean(
+    state.setup?.installPath && state.setup?.scanResult
+  );
   const hasGeneratedPath = !!state.generate?.generatedFilePath;
 
   // Compute per-step issue counts
@@ -33,7 +35,7 @@ export default function StepNavigator({ activeStep, onStepClick, errors = [], wa
         const { errorCount, warningCount } = stepIssues[step.id];
 
         let isDisabled = false;
-        if (!hasInstallPath && step.id !== "setup") {
+        if (!hasValidInstall && step.id !== "setup") {
           isDisabled = true;
         }
         if (!hasGeneratedPath && step.id === "play") {

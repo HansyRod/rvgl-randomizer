@@ -1,5 +1,6 @@
-import { formatValidationList, getAllTracksFromScan } from "./validationUtils";
+import { formatValidationList, getAllTracksFromScan, getTrackSpecAvailableFolders } from "./validationUtils";
 import { isEffectiveStockTracksMode } from "./stockMode";
+import { getCustomUnlockTrackCountMax, hasEnabledCustomUnlockMethod, validateCustomUnlockRanges, validateCustomUnlockRows } from "./customUnlockValidators";
 
 export function validateTrackSpec(trackSpecState, trackOptions, scanResult, preset) {
   const errors = [];
@@ -27,6 +28,7 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult, pres
   }
 
   const allTrackFolders = new Set(allTracks.map(t => t.folderName.toLowerCase()));
+  const availableTrackFolders = getTrackSpecAvailableFolders(trackSpecState, allTracks);
 
   if (trackSpecState?.includeTracks === false) {
 
@@ -62,7 +64,8 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult, pres
       (trackOptions.includeTimeTrial  ?? true) ||
       (trackOptions.includePractice   ?? true) ||
       (trackOptions.includeSingleRace ?? true) ||
-      trackOptions.includeStuntArena;
+      trackOptions.includeStuntArena ||
+      hasEnabledCustomUnlockMethod(trackOptions);
 
     if (!anyMethodAllowed) {
       errors.push({
@@ -71,6 +74,10 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult, pres
         message: "At least one unlock method must be enabled. Enable at least one method in \"Allowed Unlock Methods\".",
       });
     }
+
+    validateCustomUnlockRanges(trackOptions, errors, "trackOptions", {
+      trackCountMax: getCustomUnlockTrackCountMax(trackSpecState, allTracks, isStockMode),
+    });
   }
 
   // Stale specific-track references
@@ -97,5 +104,27 @@ export function validateTrackSpec(trackSpecState, trackOptions, scanResult, pres
     });
   }
 
+  validateCustomUnlockRows(trackSpecState?.tracks, errors, {
+    scope: "trackSpec",
+    rowLabelPrefix: "Track",
+    availableTrackFolders,
+    getKnownTargetTrackFolder: (row) => getKnownTargetTrackFolder(row, allTrackFolders),
+  });
+
   return { errors, warnings, infos };
+}
+
+function getKnownTargetTrackFolder(row, allTrackFolders) {
+  const sourcePool = row?.sourcePool;
+  const isGeneralPool =
+    sourcePool === "Full Random" ||
+    sourcePool === "Stock" ||
+    sourcePool === "Custom" ||
+    sourcePool?.startsWith("Pack:");
+
+  if (!sourcePool || isGeneralPool || !allTrackFolders.has(sourcePool.toLowerCase())) {
+    return null;
+  }
+
+  return sourcePool;
 }

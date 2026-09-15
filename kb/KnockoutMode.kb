@@ -1,0 +1,375 @@
+# Knockout Mode
+
+> Scope: frontend flow, runtime mode translation, race options, and lap-based
+> elimination behavior for the custom Knockout mode.
+
+## Frontend Flow
+
+Ghidra MCP confirmed that the Start Race frontend menu is built by
+`BuildStartRaceMenu` at `0x0055e730` and handled by
+`HandleStartRaceMenuAction` at `0x0055e880`.
+
+The native menu registers these entries:
+
+- Single Race
+- Championship
+- Multiplayer
+- Time Trial
+- Practice
+- Stunt Arena
+- Clockwork Carnage, when unlocked
+- developer-only modes, when dev/unlock settings allow them
+
+`HandleStartRaceMenuAction` switches on the selected menu item label id. The
+Single Race row uses label id `0x15`; choosing it sets `GameModeRuntime::mode`
+to `MODE_SINGLE_RACE` (`2`) and copies the random race flags from the frontend
+settings block at `RaceSettings + 0xA4` into `GameMode + 0x2E`.
+
+After that, native frontend flow continues through the same screens requested
+for Knockout:
+
+1. `BuildDifficultySelectionMenu` (`0x005552d0`) for Simulation / Arcade /
+   Console / Junior RC.
+2. `BuildPlayerNameInputMenu` (`0x0055ec50`) for the name wheel.
+3. `BuildCarSelectionMenu` (`0x00557740`) for car selection.
+4. `BuildTrackSelectionMenu` (`0x0055c390`) for track selection.
+5. `BuildPreRaceSummaryMenu` (`0x00555670`) when the native flow requests it,
+   otherwise direct launch from the track selector.
+
+Knockout reuses this path instead of adding a new native `GameMode` value. The
+DLL adds a custom Knockout descriptor to the Start Race menu by cloning the
+runtime Single Race descriptor after the native builder runs, then the handler
+sets the native mode to `MODE_SINGLE_RACE` while keeping separate
+randomizer-side Knockout selection flags. `modeActive` persists across in-race
+restarts, while `menuSelectionActive` records the frontend selection path.
+
+This avoids patching the `RaceSessionSetup` native mode jump table at
+`0x00450700`, whose known cases only cover existing RVGL modes.
+
+### Scoped Locale Label Overrides
+
+The frontend resolves a menu row's label dynamically through the shared locale
+string table. Custom descriptors therefore retain their numeric label IDs and
+temporarily override the corresponding native locale entry while their menu is
+active. `LocaleStringOverride` in `DLL/Mods/MenuMod.cpp` captures the original
+string pointer once per locale table, applies the replacement, and restores the
+original pointer without writing an old-language pointer into a newly loaded
+locale table.
+
+The overrides are scoped to the menus that use them:
+
+| Menu | Label IDs overridden | Patch point | Restore point |
+| --- | --- | --- | --- |
+| Start Race | `0x17` (`Knockout`) | `Hook_BuildStartRaceMenu` | `Hook_HandleStartRaceMenuAction` on Confirm/Cancel, or menu rebuild |
+| Options | `0x21` (`Mod Settings`) | `Hook_BuildOptionsMenu` | `Hook_HandleOptionsMenuAction` on Confirm/Cancel |
+| Mod Options | `0x22` (lap count), `0x1E` (frequency), `0x1F` (eliminations per lap), `0x20` (knocked-out car state) | `BuildModOptionsMenu` | `HandleModOptionsMenuAction` when its exit path restores the panel |
+
+The native action values are Confirm `5` (`0x5`) and Cancel `4` (`0x4`).
+Ghidra MCP confirmed Cancel through the explicit `param_2 == 4` branches in
+`FUN_005404F0` at `0x005404F0` and `FUN_00542360` at `0x00542360`.
+
+The Options menu builder is `BuildOptionsMenu` at `0x00554700`; its native
+action handler is `HandleOptionsMenuAction` at `0x00554680` (RVA
+`0x00154680`). The DLL hooks both the builder and action handler. The Mod
+Options panel continues to delegate navigation to `HandleGenericMenuAction` at
+`0x00546CF0`, with its custom action handler retaining the special Confirm
+behavior used by the panel.
+
+Label ID `0x17` is not unused: Ghidra identifies it as the Battle Tag row in
+`g_pMultiplayerModeBattleTagItemDescriptor` at `0x00665C40`, registered by
+`BuildMultiplayerModeSelectionMenu` at `0x0055E850` / `0x0055E865`. This is why
+the Knockout override must not remain active after the Start Race menu exits.
+
+## Mod Options
+
+`BuildOptionsMenu` at `0x00554700` is hooked so the DLL can append a custom
+`Mod options` row to the base Options menu. The row clones the native Game
+Settings menu descriptor shape and points to a randomizer-owned menu panel. The
+panel uses a custom action handler that blocks confirm on numeric rows and
+delegates up/down/left/right/back to native `HandleGenericMenuAction` at
+`0x00546cf0`; this avoids running the native Game Settings apply handler when
+leaving the menu. Its builder registers only the randomizer settings:
+
+- `Knockout Lap Frequency`: `1..10`, measured in laps.
+- `Knockout Eliminations Per Lap`: `1..29`, number of cars eliminated per event.
+- `Knocked-out car state`: `Solid` keeps eliminated cars in the older solid
+  visible state, while `Ghost` switches them to the collisionless passive ghost
+  state.
+
+The values live in `RandomizerContext::knockoutState`. They are runtime menu
+settings and are not currently persisted to RVGL's INI.
+
+## Race Runtime
+
+`RaceSessionSetup` starts a Knockout race only when the persistent mode flag
+is active and the native mode is Single Race. This means existing Single Race
+participant generation, 30-car expansion, grid handling, and leaderboard
+fallbacks still apply.
+
+`Engine_UpdateRaceProgress` at `0x005257e0` increments each car's completed lap
+counter at `CarEntity + 0x0F40` after `UpdateCarRoutePosition` reports a lap
+crossing. The Knockout pass runs after the native function and reads those
+completed lap counts.
+
+Base elimination logic:
+
+- For one car per event, when `activeCars - 1` cars have completed the target
+  lap, the remaining car is eliminated.
+- For multiple cars per event, when `activeCars - eliminationsPerEvent` cars
+  have completed the target lap, the remaining lowest-position cars are
+  eliminated.
+- The next target lap advances by `eliminationFrequencyLaps`.
+- The event never eliminates the final remaining car.
+
+Eliminated cars are added to the native 30-entry race result table through
+`RegisterFinishTime` at `0x004f0890` with the DNF flag set, using the live race
+clock from `PTR_g_CurrentRaceClockMS`. Knockout then rewrites the native result
+table so eliminated cars occupy the back positions in elimination order while
+still displaying the real knockout time. The first eliminated car is therefore
+shown as the last-place result, the second eliminated car as second-to-last, and
+so on.
+
+`RegisterFinishTime` does not display the normal finish popup for DNF entries,
+so Knockout calls `UI_SetPostRacePopup` at `0x00468200` directly with the same
+position/name/time format used by native finish messages. When one event
+eliminates multiple cars, Knockout uses its own multi-line popup renderer so
+each row is centered independently and the block grows upward instead of
+downward from the native one-line anchor. Multi-line knockout popups show only
+position/name rows, colored with each eliminated car's native popup color. Rows
+are sorted by displayed finish position, with ranks right-aligned so names share
+the same starting column.
+
+When the `Knocked-out car state` option is `Ghost`, eliminated cars are moved
+through native `SetCarBehaviourState` at `0x004efd50` instead of directly
+assigning `CarEntity::nCar_type`. Ghidra MCP showed that state `5` is not
+collisionless: it still sets `PhysicsEntity::nCollision_mode` to `2` and uses
+the normal car collision callback at `0x004f0cf0`. State `4` uses
+`nCollision_mode = 0` with a passive collision callback, so Knockout uses state
+`4` for ghosted eliminated cars and restores state `1` / `3` for player / CPU
+cars during knockout race cleanup. State `4` can move the car to native ghost
+metadata positions through its primary update callback. The callback pointer is
+loaded from `PTR_FUN_006a4800`, resolves to `0x00523fb0`, and calls
+`0x0044d560`, which reads ghost/replay frame data and writes the physics body
+position. Knockout captures the live physics position/orientation before the
+state switch, reapplies it once through `setCarTransform`, then clears
+`PhysicsEntity::pPrimary_update` at `+0x340` and the saved primary update at
+`+0x458` so native code cannot keep replaying the ghost pose.
+
+When the option is `Solid`, eliminated cars use the older state `5` behavior,
+which keeps them visible but collidable. In both cases, the car already has a
+finish time, so it no longer counts as actively racing. The last remaining car
+is registered as the winner with a non-DNF finish time so native race-complete
+handling can take over.
+
+When a Knockout race is reset or restarted, Knockout clears its cached results,
+the native race result table, each live car's finish time, and each live car's
+completed-lap counter. Cars left in the Knockout ghost state are restored to
+the normal player/CPU race states before the next race starts. Cleanup runs both
+around `RaceSessionSetup` and after car setup/grid placement, and the update
+hook also detects the race clock moving backwards as a defensive mid-race
+restart signal.
+
+Native leaderboard drawing compacts non-empty result entries toward the top, so
+Knockout replaces `DrawPostRaceLeaderboard` while Knockout results exist. The
+custom renderer reserves one visual row per participant and draws each
+eliminated car at its real result index, so the first eliminated car appears on
+the bottom row. It only draws while the native post-race result table would be
+visible and suppresses itself when a frontend menu panel is active, such as the
+pause menu.
+
+Because the native flow still stores `MODE_SINGLE_RACE`, Knockout temporarily
+patches the native Single Race locale label (`0x15`) to `Knockout` after the
+custom mode is selected. This lets the pre-race summary and loading screen show
+the custom mode name. The original Single Race label is restored when the Start
+Race menu is rebuilt or when another Start Race mode is confirmed.
+
+## Knockout Lap Count Option
+
+The Mod Settings menu includes a `Knockout Lap Count` option with two values:
+
+- `Single Race`: leaves the native single-race lap count unchanged.
+- `Automatic`: calculates the lap count from the configured car count,
+  elimination frequency, and eliminations per event.
+
+The automatic calculation is:
+
+```text
+ceil((carCount - 1) / eliminationsPerEvent) * eliminationFrequencyLaps
+```
+
+The final remaining car is not eliminated, so the number of required events is
+the number of cars other than the winner divided by the number eliminated per
+event. The calculated value is applied to both `GameModeRuntime::laps` and
+`PlayerRaceInfoRuntime::laps` during Knockout race setup.
+
+Implementation locations:
+
+- `DLL/Mods/RandomizerState.h`: `KnockoutRuntimeState::lapCountMode`, where
+  `0` means `Single Race` and `1` means `Automatic`.
+- `DLL/Mods/MenuMod.cpp`: custom label/value binding and text rendering for
+  the Mod Settings row.
+- `DLL/Mods/KnockoutMode.cpp`: automatic lap calculation and race setup
+  application.
+
+The option is runtime-only and is not persisted to RVGL's INI.
+
+## Menu Rendering Investigation
+
+Ghidra MCP was used to trace the native frontend menu rendering path. The main
+flow is:
+
+```text
+Menu_UpdateLoop
+  -> UpdateMenuPanel
+     -> HandleMenuPanelState
+     -> HandleMenuRowInput
+     -> RenderMenuPanel
+        -> value callback at MenuItemDescriptor +0x18
+        -> DrawMenuRow for labels
+```
+
+Important native functions for the current RVGL build:
+
+| Function | Absolute address | Repo RVA | Purpose |
+| --- | ---: | ---: | --- |
+| `Menu_UpdateLoop` | `0x00544000` | not currently hooked | Per-frame frontend update and menu dispatch |
+| `CalculateMenuPanelContentExtents` | `0x00544a80` | not currently listed | Computes content width/height from registered rows |
+| `HandleMenuPanelState` | `0x00546800` | not currently listed | Updates panel animation and active position |
+| `RenderMenuPanel` | `0x0054ad70` | not currently listed | Draws panel background, values, labels, and arrows |
+| `RegisterMenuItemInActiveMenu` | `0x005453b0` | `0x001453b0` | Registers a row and updates active width limits |
+| `HandleMenuRowInput` | `0x00546b00` | not currently listed | Routes current menu actions to the panel handler |
+| `HandleGenericMenuAction` | `0x00546cf0` | `0x00146cf0` | Native row navigation and increment/decrement dispatch |
+| `DrawNumericMenuValue` | `0x0054c2e0` | `0x0014c2e0` | Native numeric value renderer |
+| `UI_DrawRoundedRect` | `0x00548640` | `0x00148640` | Draws rounded UI rectangles |
+
+`RenderMenuPanel` invokes the row callback stored at descriptor offset `+0x18`:
+
+```cpp
+drawValue = *(descriptor + 0x18);
+if (drawValue != nullptr) {
+    drawValue(panelIndex, itemIndex);
+}
+```
+
+For the custom Knockout text renderer, this callback is
+`DrawKnockoutLapCountMenuValue`, which eventually calls `RVGL_DrawUIText`.
+
+The native numeric renderer computes the value position as:
+
+```text
+x = activeSlot + 0x114       // panel/content X
+  + activeSlot + 0x134       // maximum label column width
+  + native value-column gap
+y = activeSlot + 0x118       // panel/content Y
+  + itemIndex * 16
+maxWidth = activeSlot + 0x138 // value text clipping width
+```
+
+The active menu slot uses a `0x140` byte stride. Relevant fields are:
+
+| Active slot offset | Meaning |
+| ---: | --- |
+| `0x100` | Number of registered rows |
+| `0x102` | Visible row count for scrolling menus |
+| `0x110` | Panel texture/style id |
+| `0x114` | Content X coordinate |
+| `0x118` | Content Y coordinate |
+| `0x11c` | Computed panel/content width used by the rounded rectangle |
+| `0x120` | Computed panel/content height |
+| `0x134` | Maximum label width |
+| `0x138` | Maximum value width / text max width |
+|
+
+`RegisterMenuItemInActiveMenu` reads the descriptor's `+0x08` field and uses it
+to update active slot `+0x138`. It also measures the registered label and
+updates active slot `+0x134`. `CalculateMenuPanelContentExtents` then derives
+the panel width from those active-slot values. Therefore, changing only the
+custom draw function's `maxWidth` changes clipping but does not necessarily
+change the box. Changing `MenuItemDescriptor::valueWidth` should affect the
+box only if the assignment happens before registration and the descriptor is
+not subsequently overwritten.
+
+The current descriptor layout is:
+
+```text
+MenuItemDescriptor, size 0x40
+  +0x00  labelId
+  +0x04  flags
+  +0x08  valueWidth
+  +0x0c  reserved
+  +0x10  NumericMenuValue* valueBinding
+  +0x18  drawValue(panelIndex, itemIndex)
+  +0x20  decrementValue(panelIndex)
+  +0x28  incrementValue(panelIndex)
+  +0x30  reserved
+  +0x38  reserved
+```
+
+### Resolved Knockout Lap Count Width Issue
+
+The Knockout Lap Count row was initially cloned from the native car-count
+descriptor. In the current RVGL build, that descriptor is stored at
+`0x00664280` and its `+0x08` value is `0x42800000`, which is `64.0f`. The
+native registration function treats this field as a float, not an integer.
+
+`Single Race` is 11 visible characters and the menu font uses an 8-pixel
+character width, so the row requires `88.0f` of value-column width. The custom
+`DrawTextMenuValue` callback receives the resulting active-slot `+0x138` value
+as its `RVGL_DrawUIText` clipping width.
+
+The fix is implemented in the following locations:
+
+- `DLL/Game/RVGLMenuStructs.h`: `MenuItemDescriptor::valueWidth` is typed as
+  `float` at offset `+0x08`.
+- `DLL/Mods/MenuMod.cpp`: `g_knockoutLapCountMenuItem.valueWidth` is set to
+  `88.0f` after cloning the native descriptor and before
+  `RVGL_RegisterMenuItemInActiveMenu` is called.
+
+The Release `randomizer.dll` builds successfully with this change. A runtime
+launch is still required for visual confirmation in RVGL.
+
+The copied Mod Settings panel descriptor is `0x80` bytes. The fields used by
+the DLL are title label at `+0x04`, builder callback at `+0x20`, action callback
+at `+0x28`, and the native panel's remaining layout/state fields copied from
+the Game Settings panel.
+
+## Menu Debugging Checklist
+
+When a custom value appears compressed or the panel does not widen, inspect
+these values in order:
+
+1. At `RegisterMenuItemInActiveMenu` (`0x005453b0`), verify the registered
+   Knockout descriptor pointer and `descriptor + 0x08` (`valueWidth`).
+2. After registration, inspect `activeSlot + 0x138` and confirm it reflects the
+   descriptor width.
+3. At `CalculateMenuPanelContentExtents` (`0x00544a80`), inspect the width
+   inputs from active slot `+0x134` and `+0x138`.
+4. At `RenderMenuPanel` (`0x0054ad70`), inspect active slot `+0x11c` before
+   the `UI_DrawRoundedRect` call.
+5. In the custom value callback, inspect the `maxWidth` passed to
+   `RVGL_DrawUIText` and the text width/height arguments.
+
+If `descriptor + 0x08` is correct but `activeSlot + 0x138` is not, the issue
+is in registration or menu rebuilding. If both are correct but the text still
+looks compressed, the issue is in the custom renderer's text width, max width,
+or coordinate calculation rather than the panel geometry.
+
+Ghidra cleanup performed during this investigation:
+
+- Added `MenuItemDescriptor` with the layout above.
+- Confirmed the existing `NumericMenuValue` structure and its field names.
+- Added a partial `FrontendMenuPanelDescriptor` structure of size `0x80` for
+  the copied Mod Settings panel.
+
+## Current Risks
+
+- Custom frontend labels still borrow native locale table slots at runtime.
+  Their safety depends on keeping the menu-specific patch and restore points in
+  sync with any future frontend hooks. In particular, `0x17` must not remain
+  patched outside the Start Race menu because it is used by Battle Tag.
+- The Mod Options action handler has a special early return for Confirm; if that
+  path is changed to leave the panel, its locale restore must occur before the
+  early return.
+- Knockout is implemented as a Single Race subtype, so native profile progress
+  and result screens still see `MODE_SINGLE_RACE`.
+- The options are not persisted outside the current process.

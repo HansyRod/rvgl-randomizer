@@ -36,6 +36,44 @@ export const TRACK_OBTAIN_METHODS = {
   5: "Stunt Arena"
 };
 
+export const CUSTOM_UNLOCK_METHODS = {
+  6: "Specific Race Win",
+  7: "Specific Practice Star",
+  8: "Specific Time Trial",
+  9: "Race Win Count",
+  10: "Practice Star Count",
+  11: "Time Trial Count",
+  12: "Stunt Arena Star Count"
+};
+
+export const CUSTOM_UNLOCK_DESCRIPTIONS = {
+  6: "Unlock after winning every listed prerequisite race.",
+  7: "Unlock after collecting the practice star on every listed prerequisite track.",
+  8: "Unlock after beating the normal time trial on every listed prerequisite track.",
+  9: "Unlock after winning the configured number of races.",
+  10: "Unlock after collecting the configured number of practice stars.",
+  11: "Unlock after beating the configured number of normal time trials.",
+  12: "Unlock after collecting the configured number of Stunt Arena stars."
+};
+
+export const CUSTOM_UNLOCK_SPECIFIC_METHODS = [
+  { val: "6", label: CUSTOM_UNLOCK_METHODS[6], description: CUSTOM_UNLOCK_DESCRIPTIONS[6] },
+  { val: "7", label: CUSTOM_UNLOCK_METHODS[7], description: CUSTOM_UNLOCK_DESCRIPTIONS[7] },
+  { val: "8", label: CUSTOM_UNLOCK_METHODS[8], description: CUSTOM_UNLOCK_DESCRIPTIONS[8] }
+];
+
+export const CUSTOM_UNLOCK_COUNT_METHODS = [
+  { val: "9", label: CUSTOM_UNLOCK_METHODS[9], description: CUSTOM_UNLOCK_DESCRIPTIONS[9] },
+  { val: "10", label: CUSTOM_UNLOCK_METHODS[10], description: CUSTOM_UNLOCK_DESCRIPTIONS[10] },
+  { val: "11", label: CUSTOM_UNLOCK_METHODS[11], description: CUSTOM_UNLOCK_DESCRIPTIONS[11] },
+  { val: "12", label: CUSTOM_UNLOCK_METHODS[12], description: CUSTOM_UNLOCK_DESCRIPTIONS[12] }
+];
+
+export const CUSTOM_UNLOCK_TARGET_OBTAINS_LIST = [
+  ...CUSTOM_UNLOCK_SPECIFIC_METHODS,
+  ...CUSTOM_UNLOCK_COUNT_METHODS
+];
+
 export const OVERRIDE_CARBOXES = [
   "adeon", "amw", "beatall", "bigvolt", "bossvolt", "candy", "cougar", "dino",
   "flag", "fone", "gencar", "jg1jg7", "jg2fulonx", "jg3loco", "jg4snw35",
@@ -101,7 +139,8 @@ export const ATTR_OBTAINS_LIST = [
   { val: "3", label: "Practice" },
   { val: "4", label: "Single Race" },
   { val: "5", label: "Stunt Arena" },
-  { val: "-1", label: "Cheat Only" }
+  { val: "-1", label: "Cheat Only" },
+  ...CUSTOM_UNLOCK_TARGET_OBTAINS_LIST
 ];
 
 export const TRACK_DIFFICULTY_SOURCE_LIST = [
@@ -129,7 +168,8 @@ export const TRACK_OBTAINS_LIST = [
   { val: "2", label: "Time Trial" },
   { val: "3", label: "Practice" },
   { val: "4", label: "Single Race" },
-  { val: "5", label: "Stunt Arena" }
+  { val: "5", label: "Stunt Arena" },
+  ...CUSTOM_UNLOCK_TARGET_OBTAINS_LIST
 ];
 
 export const DEFAULT_CAR_OPTIONS = {
@@ -147,6 +187,27 @@ export const DEFAULT_CAR_OPTIONS = {
   includeTimeTrial: true,
   includePracticeStars: true,
   includeSingleRace: true,
+  includeSpecificRaceWin: false,
+  includeSpecificPracticeStar: false,
+  includeSpecificTimeTrial: false,
+  includeRaceWinCount: false,
+  includePracticeStarCount: false,
+  includeTimeTrialCount: false,
+  includeStuntArenaStarCount: false,
+  specificRaceWinTrackCountMin: 1,
+  specificRaceWinTrackCountMax: 1,
+  specificPracticeStarTrackCountMin: 1,
+  specificPracticeStarTrackCountMax: 1,
+  specificTimeTrialTrackCountMin: 1,
+  specificTimeTrialTrackCountMax: 1,
+  raceWinCountMin: 1,
+  raceWinCountMax: 14,
+  practiceStarCountMin: 1,
+  practiceStarCountMax: 14,
+  timeTrialCountMin: 1,
+  timeTrialCountMax: 14,
+  stuntArenaStarCountMin: 1,
+  stuntArenaStarCountMax: 20,
   includeSuperPro: true,
   poolRatingDistributions: {
     "0": { enabled: false, min: 0, max: 42 },
@@ -173,7 +234,40 @@ export const DEFAULT_TRACK_OPTIONS = {
   includeTimeTrial: true,
   includePractice: true,
   includeSingleRace: true,
+  includeSpecificRaceWin: false,
+  includeSpecificPracticeStar: false,
+  includeSpecificTimeTrial: false,
+  includeRaceWinCount: false,
+  includePracticeStarCount: false,
+  includeTimeTrialCount: false,
+  includeStuntArenaStarCount: false,
+  specificRaceWinTrackCountMin: 1,
+  specificRaceWinTrackCountMax: 1,
+  specificPracticeStarTrackCountMin: 1,
+  specificPracticeStarTrackCountMax: 1,
+  specificTimeTrialTrackCountMin: 1,
+  specificTimeTrialTrackCountMax: 1,
+  raceWinCountMin: 1,
+  raceWinCountMax: 14,
+  practiceStarCountMin: 1,
+  practiceStarCountMax: 14,
+  timeTrialCountMin: 1,
+  timeTrialCountMax: 14,
+  stuntArenaStarCountMin: 1,
+  stuntArenaStarCountMax: 20,
 };
+
+export const DEFAULT_FEATURE_OPTIONS = {
+  loadExtraCars: false,
+  loadExtraTracks: false,
+  loadExtraCups: false,
+  enable30CarMode: false,
+  enableKnockoutMode: false,
+};
+
+export const NATIVE_MAX_CUP_CARS = 16;
+export const EXTENDED_MAX_CUP_CARS = 30;
+export const CUP_POINTS_TABLE_LENGTH = EXTENDED_MAX_CUP_CARS;
 
 export function makeDefaultTrackSpec(ids) {
   return ids.map(id => ({
@@ -182,16 +276,22 @@ export function makeDefaultTrackSpec(ids) {
     sourceDifficulty: "Random",
     attrDifficulty: "Random",
     attrObtain: "Random",
+    customUnlock: null,
   }));
 }
 
 export function makeDefaultCarsSpec(ids) {
-  return ids.map(id => ({
+  return ids.map(makeDefaultCarSpec);
+}
+
+export function makeDefaultCarSpec(id) {
+  return {
     id,
     sourcePool: "Full Random",
     sourceRating: "Random",
     sourceObtain: "Random",
     attrRating: "Random",
     attrObtain: "Random",
-  }));
+    customUnlock: null,
+  };
 }

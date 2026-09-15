@@ -21,6 +21,8 @@ namespace Randomizer {
     // ------------------------------------------------------------------------
     using FnLoadVanillaCarPool      = bool(*)();
     using FnLoadCustomCarPool       = void(*)();
+    using FnDirScanOpen             = bool(*)(DirScanState* state, const char* path, bool forcePhysical);
+    using FnDirScanNext              = DirEntry*(*)(DirScanState* state);
     using FnLoadTextureByName       = unsigned long long(*)(char* path, int slotID, int maxMipLevel, bool enableMips, int param_5, unsigned int flags);
     using FnSyncCarInfoFromPhysics  = void(*)(int carIndex, CarPhysicsData *physData);
     using FnUpdateCarSelectability  = void(*)();
@@ -33,6 +35,8 @@ namespace Randomizer {
     // ------------------------------------------------------------------------
     extern FnLoadVanillaCarPool     Orig_LoadVanillaCarPool;
     extern FnLoadCustomCarPool      Orig_LoadCustomCarPool;
+    extern FnDirScanOpen             Orig_DirScanOpen;
+    extern FnDirScanNext             Orig_DirScanNext;
     extern FnLoadTextureByName      Orig_LoadTextureByName;
     extern FnSyncCarInfoFromPhysics Orig_SyncCarInfoFromPhysics;
     extern FnUpdateCarSelectability Orig_UpdateCarSelectability;
@@ -42,6 +46,8 @@ namespace Randomizer {
     // ------------------------------------------------------------------------
     bool Hook_LoadVanillaCarPool();
     void Hook_LoadCustomCarPool();
+    bool Hook_DirScanOpen(DirScanState* state, const char* path, bool forcePhysical);
+    DirEntry* Hook_DirScanNext(DirScanState* state);
     unsigned long long Hook_LoadTextureByName(char* path, int slotID, int maxMipLevel, bool enableMips, int param_5, unsigned int flags);
     void Hook_SyncCarInfoFromPhysics(int carIndex, CarPhysicsData *physData);
     void Hook_UpdateCarSelectability();

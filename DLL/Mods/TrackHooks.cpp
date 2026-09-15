@@ -33,6 +33,7 @@ namespace Randomizer {
 // ----------------------------------------------------------------------------
 FnLoadVanillaTracks      Orig_LoadVanillaTracks      = nullptr;
 FnLoadCustomTracks       Orig_LoadCustomTracks       = nullptr;
+FnUpdateLevelMusic       Orig_UpdateLevelMusic       = nullptr;
 FnTrack_ApplyCustomUnlock Orig_Track_ApplyCustomUnlock = nullptr;
 FnCheckIfTierChampionshipWon Orig_CheckIfTierChampionshipWon = nullptr;
 FnCheckIfTierTimeTrialsBeaten Orig_CheckIfTierTimeTrialsBeaten = nullptr;
@@ -295,6 +296,21 @@ void Hook_LoadCustomTracks() {
         Logger::TimestampLog("[LoadCustomTracks] Reloading default cups after custom tracks");
         Hook_LoadVanillaCups();
     }
+}
+
+void Hook_UpdateLevelMusic() {
+    auto* gameMode = reinterpret_cast<uint8_t*>(AbsFromRva(RVA_GAME_MODE));
+    int* currentTrackIndex = reinterpret_cast<int*>(gameMode + 8);
+    const int savedTrackIndex = *currentTrackIndex;
+
+    // RVGL prefers a level's REDBOOK entry over its MUSIC/MP3 path whenever
+    // the selected track index is below 21. Override that index while the
+    // native selector runs so every level's explicit music path gets the same
+    // opportunity, including tracks randomized into built-in slots. Levels
+    // without MUSIC/MP3 entries still follow the native Redbook fallback.
+    *currentTrackIndex = 21;
+    Orig_UpdateLevelMusic();
+    *currentTrackIndex = savedTrackIndex;
 }
 
 void ApplyStockTrackData(TrackInfo* track) {

@@ -5,6 +5,7 @@ use tauri::Manager;
 use super::models::*;
 use super::cars::*;
 use super::tracks::*;
+use super::custom_unlocks::*;
 use super::cups::*;
 use super::rng::Rng;
 
@@ -25,6 +26,7 @@ pub fn generate_result(
     car_options: Option<CarOptionsInput>,
     track_spec_state: TrackSpecState,
     track_options: Option<TrackOptionsInput>,
+    feature_options: Option<FeatureOptionsInput>,
     cup_spec_state: Option<CupSpecState>,
     preset_id: String,
     preset_stock_mode: Option<PresetStockModeInput>,
@@ -48,6 +50,27 @@ pub fn generate_result(
         include_time_trial:      default_true(),
         include_practice_stars:  default_true(),
         include_single_race:     default_true(),
+        include_specific_race_win: default_false(),
+        include_specific_practice_star: default_false(),
+        include_specific_time_trial: default_false(),
+        include_race_win_count: default_false(),
+        include_practice_star_count: default_false(),
+        include_time_trial_count: default_false(),
+        include_stunt_arena_star_count: default_false(),
+        specific_race_win_track_count_min: default_one(),
+        specific_race_win_track_count_max: default_one(),
+        specific_practice_star_track_count_min: default_one(),
+        specific_practice_star_track_count_max: default_one(),
+        specific_time_trial_track_count_min: default_one(),
+        specific_time_trial_track_count_max: default_one(),
+        race_win_count_min: default_one(),
+        race_win_count_max: default_track_count_max(),
+        practice_star_count_min: default_one(),
+        practice_star_count_max: default_track_count_max(),
+        time_trial_count_min: default_one(),
+        time_trial_count_max: default_track_count_max(),
+        stunt_arena_star_count_min: default_one(),
+        stunt_arena_star_count_max: default_stunt_arena_star_count_max(),
         include_super_pro:       default_true(),
         pool_rating_distributions: std::collections::HashMap::new(),
         attr_rating_distributions: std::collections::HashMap::new(),
@@ -59,7 +82,29 @@ pub fn generate_result(
         include_time_trial: default_true(),
         include_practice: default_true(),
         include_single_race: default_true(),
+        include_specific_race_win: default_false(),
+        include_specific_practice_star: default_false(),
+        include_specific_time_trial: default_false(),
+        include_race_win_count: default_false(),
+        include_practice_star_count: default_false(),
+        include_time_trial_count: default_false(),
+        include_stunt_arena_star_count: default_false(),
+        specific_race_win_track_count_min: default_one(),
+        specific_race_win_track_count_max: default_one(),
+        specific_practice_star_track_count_min: default_one(),
+        specific_practice_star_track_count_max: default_one(),
+        specific_time_trial_track_count_min: default_one(),
+        specific_time_trial_track_count_max: default_one(),
+        race_win_count_min: default_one(),
+        race_win_count_max: default_track_count_max(),
+        practice_star_count_min: default_one(),
+        practice_star_count_max: default_track_count_max(),
+        time_trial_count_min: default_one(),
+        time_trial_count_max: default_track_count_max(),
+        stunt_arena_star_count_min: default_one(),
+        stunt_arena_star_count_max: default_stunt_arena_star_count_max(),
     });
+    let feature_opts = feature_options.unwrap_or_default();
 
     let all_cars = collect_available_cars(&scan_result);
     let all_tracks = collect_available_tracks(&scan_result);
@@ -127,20 +172,34 @@ pub fn generate_result(
     } else {
         Vec::new()
     };
+    let mut final_specs_extra = cars_spec_state.extra_cars.clone();
 
     // Identify slots that need a random pool rating.
-    // Distribution constraints are global across stock + DC.
+    // Distribution constraints are global across stock + DC + Extra.
     let flexible_stock_indices: Vec<usize> = final_specs_stock.iter().enumerate()
         .filter(|(_, s)| s.source_rating == "Random" && !is_specific_car_pool(&s.source_pool))
         .map(|(i, _)| i).collect();
     let flexible_dc_indices: Vec<usize> = final_specs_dc.iter().enumerate()
         .filter(|(_, s)| s.source_rating == "Random" && !is_specific_car_pool(&s.source_pool))
         .map(|(i, _)| i).collect();
+    let flexible_extra_indices: Vec<usize> = final_specs_extra.iter().enumerate()
+        .filter(|(_, s)| s.source_rating == "Random" && !is_specific_car_pool(&s.source_pool))
+        .map(|(i, _)| i).collect();
 
     // Allocate source ratings (Pool Distribution) globally.
-    let total_flexible = flexible_stock_indices.len() + flexible_dc_indices.len();
+    let total_flexible = flexible_stock_indices.len()
+        + flexible_dc_indices.len()
+        + flexible_extra_indices.len();
+    let mut pool_fixed_counts = [0usize; 6];
+    for specs in [&final_specs_stock, &final_specs_dc, &final_specs_extra] {
+        let fixed_counts = count_fixed_source_ratings(specs, &all_cars);
+        for (total, fixed) in pool_fixed_counts.iter_mut().zip(fixed_counts) {
+            *total += fixed;
+        }
+    }
     let pool_ratings_all = allocate_ratings(
         total_flexible,
+        &pool_fixed_counts,
         &opts.pool_rating_distributions,
         opts.include_super_pro,
         &mut rng,
@@ -157,11 +216,17 @@ pub fn generate_result(
             final_specs_dc[*i].source_rating = r.to_string();
         }
     }
+    for i in &flexible_extra_indices {
+        if let Some(r) = pr_iter.next() {
+            final_specs_extra[*i].source_rating = r.to_string();
+        }
+    }
 
     // 2. Resolve car list (constrained slots first)
-    let (stock_resolved, dc_resolved) = resolve_car_list(
+    let (stock_resolved, dc_resolved, extra_resolved) = resolve_car_list(
         &final_specs_stock,
         &final_specs_dc,
+        &final_specs_extra,
         &all_cars,
         &scan_result,
         &mut rng,
@@ -174,11 +239,27 @@ pub fn generate_result(
         .filter(|(_, s)| s.attr_rating == "Random").map(|(i, _)| i).collect();
     let random_attr_dc_indices: Vec<usize> = final_specs_dc.iter().enumerate()
         .filter(|(_, s)| s.attr_rating == "Random").map(|(i, _)| i).collect();
+    let random_attr_extra_indices: Vec<usize> = final_specs_extra.iter().enumerate()
+        .filter(|(_, s)| s.attr_rating == "Random").map(|(i, _)| i).collect();
 
-    // Attribute rating distributions are also global across stock + DC.
-    let total_random_attr = random_attr_stock_indices.len() + random_attr_dc_indices.len();
+    // Attribute rating distributions are also global across stock + DC + Extra.
+    let total_random_attr = random_attr_stock_indices.len()
+        + random_attr_dc_indices.len()
+        + random_attr_extra_indices.len();
+    let mut attr_fixed_counts = [0usize; 6];
+    for (specs, resolved) in [
+        (&final_specs_stock[..], &stock_resolved[..]),
+        (&final_specs_dc[..], &dc_resolved[..]),
+        (&final_specs_extra[..], &extra_resolved[..]),
+    ] {
+        let fixed_counts = count_fixed_attribute_ratings(specs, resolved);
+        for (total, fixed) in attr_fixed_counts.iter_mut().zip(fixed_counts) {
+            *total += fixed;
+        }
+    }
     let allocated_attr_all = allocate_ratings(
         total_random_attr,
+        &attr_fixed_counts,
         &opts.attr_rating_distributions,
         opts.include_super_pro,
         &mut rng,
@@ -197,9 +278,16 @@ pub fn generate_result(
             attr_dc_map.insert(*i, r);
         }
     }
+    let mut attr_extra_map: std::collections::HashMap<usize, i32> = std::collections::HashMap::new();
+    for i in &random_attr_extra_indices {
+        if let Some(r) = ar_iter.next() {
+            attr_extra_map.insert(*i, r);
+        }
+    }
 
     // Build the final RandomizedCar list
     let mut stock_cars = Vec::new();
+    let mut stock_car_specs = Vec::new();
     for i in 0..final_specs_stock.len() {
         if let Some(car) = &stock_resolved[i] {
             let mut spec = final_specs_stock[i].clone();
@@ -207,10 +295,12 @@ pub fn generate_result(
                 spec.attr_rating = r.to_string();
             }
             stock_cars.push(build_randomized_car(car, &spec, &mut rng, &opts));
+            stock_car_specs.push(spec);
         }
     }
 
     let mut dc_cars = Vec::new();
+    let mut dc_car_specs = Vec::new();
     for i in 0..final_specs_dc.len() {
         if let Some(car) = &dc_resolved[i] {
             let mut spec = final_specs_dc[i].clone();
@@ -218,10 +308,25 @@ pub fn generate_result(
                 spec.attr_rating = r.to_string();
             }
             dc_cars.push(build_randomized_car(car, &spec, &mut rng, &opts));
+            dc_car_specs.push(spec);
+        }
+    }
+
+    let mut extra_cars = Vec::new();
+    let mut extra_car_specs = Vec::new();
+    for i in 0..final_specs_extra.len() {
+        if let Some(car) = &extra_resolved[i] {
+            let mut spec = final_specs_extra[i].clone();
+            if let Some(&r) = attr_extra_map.get(&i) {
+                spec.attr_rating = r.to_string();
+            }
+            extra_cars.push(build_randomized_car(car, &spec, &mut rng, &opts));
+            extra_car_specs.push(spec);
         }
     }
 
     let mut tracks = Vec::new();
+    let mut track_specs = Vec::new();
     if track_spec_state.include_tracks && !track_spec_state.tracks.is_empty() {
         let resolved_tracks = resolve_track_list(&track_spec_state.tracks, &all_tracks, &scan_result, &mut rng);
         for i in 0..track_spec_state.tracks.len() {
@@ -245,6 +350,7 @@ pub fn generate_result(
                     ),
                     custom_unlock: None,
                 });
+                track_specs.push(spec.clone());
             }
         }
         ensure_track_difficulty_coverage(
@@ -255,6 +361,7 @@ pub fn generate_result(
             &track_opts.unlock_mode,
             &mut rng,
         );
+        apply_track_custom_unlocks(&mut tracks, &track_specs, &track_opts, &mut rng)?;
         tracks.sort_by_key(|track| track.difficulty);
     }
 
@@ -272,6 +379,10 @@ pub fn generate_result(
             .collect()
     };
 
+    apply_car_custom_unlocks(&mut stock_cars, &stock_car_specs, &cup_tracks, &opts, "Stock car", &mut rng)?;
+    apply_car_custom_unlocks(&mut dc_cars, &dc_car_specs, &cup_tracks, &opts, "DC car", &mut rng)?;
+    apply_car_custom_unlocks(&mut extra_cars, &extra_car_specs, &cup_tracks, &opts, "Extra car", &mut rng)?;
+
     // Phase 3: Cup generation (depends on resolved track list)
     let cup_state = cup_spec_state.unwrap_or_else(|| CupSpecState {
         enabled: true,
@@ -288,6 +399,8 @@ pub fn generate_result(
         points_table: default_points_table(),
         num_laps_min: 2,
         num_laps_max: 8,
+        toggle_max_race_length: false,
+        max_race_length_value: default_max_race_length_value(),
         num_stages_min: 3,
         num_stages_max: 6,
         cups: vec![
@@ -297,7 +410,17 @@ pub fn generate_result(
             make_default_cup_spec_rust(3),
         ],
     });
-    let cups = generate_cups(&cup_state, &cup_tracks, &scan_result, &mut rng);
+    let cups = generate_cups(
+        &cup_state,
+        track_spec_state.include_tracks,
+        &cup_tracks,
+        &stock_resolved,
+        &dc_resolved,
+        &extra_resolved,
+        &scan_result,
+        &mut rng,
+        feature_opts.enable_30_car_mode,
+    );
 
     // 4. Assemble UiContext
     let required_packs: Vec<String> = match &scan_result.install_type {
@@ -314,6 +437,7 @@ pub fn generate_result(
     let configure = serde_json::json!({
         "carOptions": opts,
         "trackOptions": track_opts,
+        "featureOptions": feature_opts,
         "carsSpecState": cars_spec_state,
         "trackSpecState": track_spec_state,
         "cupSpecState": cup_state,
@@ -322,6 +446,7 @@ pub fn generate_result(
 
     let mut generated_car_folders: Vec<String> = stock_cars.iter().map(|c| c.folder.clone()).collect();
     generated_car_folders.extend(dc_cars.iter().map(|c| c.folder.clone()));
+    generated_car_folders.extend(extra_cars.iter().map(|c| c.folder.clone()));
 
     let generated_track_folders: Vec<String> = tracks.iter().map(|t| t.folder.clone()).collect();
 
@@ -341,19 +466,22 @@ pub fn generate_result(
     let config = ConfigData {
         metadata: ConfigMetadata {
             seed: rng.seed().to_string(),
-            version: "0.1.0".to_string(),
+            version: "0.2.0".to_string(),
             profile_name: Some(profile_name),
             ui_context,
         },
         global_options: ConfigGlobalOptions {
-            load_extra_cars: false,
-            load_extra_tracks: false,
-            load_extra_cups: false,
+            load_extra_cars: feature_opts.load_extra_cars,
+            load_extra_tracks: feature_opts.load_extra_tracks,
+            load_extra_cups: feature_opts.load_extra_cups,
             is_stock_cars,
             is_stock_tracks,
+            enable_30_car_mode: feature_opts.enable_30_car_mode,
+            enable_knockout_mode: feature_opts.enable_knockout_mode,
         },
         stock_cars,
         dc_cars,
+        extra_cars,
         tracks,
         cups,
     };
@@ -424,6 +552,8 @@ mod tests {
             folder_name: folder_name.to_string(),
             name: folder_name.to_string(),
             has_reversed: false,
+            track_length_normal: None,
+            track_length_reverse: None,
             track_type: 0,
             difficulty: 1,
             has_valid_file: true,
