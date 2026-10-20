@@ -26,6 +26,15 @@ FetchContent_MakeAvailable(nlohmann_json)
 set(APCLIENTPP_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 add_subdirectory(Archipelago/third_party/apclientpp)
 
+# Link OpenSSL statically so the injected DLL has no extra runtime DLLs to deploy.
+set(OPENSSL_USE_STATIC_LIBS TRUE)
+find_package(OpenSSL REQUIRED COMPONENTS SSL Crypto)
+
+if(MSVC)
+    # The TLS backend's templates exceed MSVC's default object section limit.
+    set_source_files_properties(Archipelago/ArchipelagoClient.cpp PROPERTIES COMPILE_OPTIONS /bigobj)
+endif()
+
 # ============================================================================
 # MinHook — compiled as a static library and linked into the mod DLL.
 # ============================================================================
@@ -126,7 +135,10 @@ target_link_libraries(randomizer PRIVATE
     MinHook
     kernel32
     ws2_32
+    crypt32
     apclientpp
+    OpenSSL::SSL
+    OpenSSL::Crypto
     nlohmann_json::nlohmann_json
 )
 

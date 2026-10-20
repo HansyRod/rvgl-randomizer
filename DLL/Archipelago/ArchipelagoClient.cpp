@@ -16,10 +16,6 @@
 #define AP_NO_SCHEMA
 #endif
 
-#ifndef WSWRAP_NO_SSL
-#define WSWRAP_NO_SSL
-#endif
-
 #ifndef WSWRAP_NO_COMPRESSION
 #define WSWRAP_NO_COMPRESSION
 #endif
