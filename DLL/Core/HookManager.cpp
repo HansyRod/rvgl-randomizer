@@ -107,6 +107,24 @@ static void RegisterHooks() {
 
     // --- Archipelago connection lifecycle ---
     HookManager::Add(
+        AbsFromRva(RVA_MENU_UPDATE_LOOP),
+        reinterpret_cast<void*>(Randomizer::Hook_MenuUpdateLoop),
+        reinterpret_cast<void**>(&Randomizer::Orig_MenuUpdateLoop),
+        "Menu_UpdateLoop"
+    );
+    HookManager::Add(
+        AbsFromRva(RVA_IN_RACE_GAME_LOOP),
+        reinterpret_cast<void*>(Randomizer::Hook_InRaceGameLoop),
+        reinterpret_cast<void**>(&Randomizer::Orig_InRaceGameLoop),
+        "InRaceGameLoop"
+    );
+    HookManager::Add(
+        AbsFromRva(RVA_PROCESS_SDL_EVENTS),
+        reinterpret_cast<void*>(Randomizer::Hook_ProcessSDLEvents),
+        reinterpret_cast<void**>(&Randomizer::Orig_ProcessSDLEvents),
+        "ProcessSDLEvents"
+    );
+    HookManager::Add(
         AbsFromRva(RVA_MAIN_GAME_LOOP),
         reinterpret_cast<void*>(Randomizer::Hook_MainGameLoop),
         reinterpret_cast<void**>(&Randomizer::Orig_MainGameLoop),
