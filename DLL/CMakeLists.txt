@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
+include(Archipelago/Dependencies.cmake)
+
 # ============================================================================
 # nlohmann_json — content fetched from the public repository
 #                 and linked into the mod DLL.
