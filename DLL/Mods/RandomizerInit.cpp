@@ -1,6 +1,7 @@
 #include "Logger.h"
 #include "ConfigManager.h"
 #include "RandomizerState.h"
+#include "ArchipelagoClient.h"
 
 // Move startup/config work into RandomizerInit.h/.cpp:
 // Keep Initialize() here.
@@ -59,6 +60,12 @@ void Initialize() {
         // Apply cupDC flag
         if (config->global_options.is_stock_tracks == true) {
             ctx.config.useCupDC = false;
+        }
+
+        // Initialize Archipelago client if enabled
+        if (config->archipelago.has_value()) {
+            const ArchipelagoConfig& apConfig = config->archipelago.value();
+            InitializeArchipelagoMappings(&apConfig);
         }
     } else {
         Logger::TimestampLogf("[Randomizer] Failed to load or parse configuration. Mod will remain inactive.");

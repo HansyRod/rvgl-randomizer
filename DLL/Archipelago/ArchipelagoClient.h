@@ -1,9 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace Randomizer {
+
+struct ArchipelagoConfig;
 
 struct ArchipelagoConnectionConfig {
     bool enabled = false;
@@ -15,6 +18,10 @@ struct ArchipelagoConnectionConfig {
 };
 
 void ConfigureArchipelagoClient(const ArchipelagoConnectionConfig& config);
+// Passing nullptr clears the mappings and pending checks for non-AP configurations.
+void InitializeArchipelagoMappings(const ArchipelagoConfig* config);
+// Unknown IDs return nullopt; filler resolves to an empty string.
+std::optional<std::string> GetArchipelagoItemName(int itemId);
 void StartArchipelagoClient();
 void StopArchipelagoClient();
 void PumpArchipelagoClient();

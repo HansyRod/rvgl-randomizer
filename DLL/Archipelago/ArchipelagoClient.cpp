@@ -33,10 +33,12 @@
 #endif
 
 #include "apclient.hpp"
+#include "ConfigData.h"
 #include "Logger.h"
 
 #include <exception>
 #include <list>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -48,6 +50,8 @@ namespace {
 struct ArchipelagoClientState {
     std::mutex mutex;
     ArchipelagoConnectionConfig config;
+    std::optional<ArchipelagoConfig> archipelagoConfig;
+    std::map<int, std::string> itemNames;
     std::shared_ptr<APClient> client;
     bool started = false;
     std::unordered_set<std::string> queuedEventKeys;
@@ -97,6 +101,40 @@ void ConfigureArchipelagoClient(const ArchipelagoConnectionConfig& config) {
     std::lock_guard<std::mutex> lock(state.mutex);
 
     state.config = config;
+}
+
+void InitializeArchipelagoMappings(const ArchipelagoConfig* config) {
+    ArchipelagoClientState& state = GetArchipelagoClientState();
+    std::lock_guard<std::mutex> lock(state.mutex);
+
+    state.archipelagoConfig.reset();
+    state.itemNames.clear();
+    state.queuedEventKeys.clear();
+    state.queuedLocationChecks.clear();
+
+    if (config == nullptr) {
+        return;
+    }
+
+    state.archipelagoConfig = *config;
+    for (const auto& item : config->items) {
+        state.itemNames.emplace(item.second, item.first);
+    }
+
+    Logger::TimestampLogf("[Archipelago] Loaded %zu location and %zu item mappings.",
+        config->locations.size(), state.itemNames.size());
+}
+
+std::optional<std::string> GetArchipelagoItemName(int itemId) {
+    ArchipelagoClientState& state = GetArchipelagoClientState();
+    std::lock_guard<std::mutex> lock(state.mutex);
+
+    const auto item = state.itemNames.find(itemId);
+    if (item == state.itemNames.end()) {
+        return std::nullopt;
+    }
+
+    return item->second;
 }
 
 void StartArchipelagoClient() {
@@ -174,6 +212,8 @@ void StopArchipelagoClient() {
 
     state.client.reset();
     state.started = false;
+    state.archipelagoConfig.reset();
+    state.itemNames.clear();
     state.queuedEventKeys.clear();
     state.queuedLocationChecks.clear();
 }
@@ -223,11 +263,19 @@ void QueueArchipelagoEventKey(const std::string& eventKey) {
     ArchipelagoClientState& state = GetArchipelagoClientState();
     std::lock_guard<std::mutex> lock(state.mutex);
 
-    if (!state.queuedEventKeys.insert(eventKey).second) {
+    if (!state.archipelagoConfig.has_value() || !state.queuedEventKeys.insert(eventKey).second) {
         return;
     }
 
-    Logger::TimestampLogf("[Archipelago] Event key queued: %s", eventKey.c_str());
+    const auto location = state.archipelagoConfig->locations.find(eventKey);
+    if (location == state.archipelagoConfig->locations.end()) {
+        Logger::TimestampLogf("[Archipelago] Ignoring unmapped event key: %s", eventKey.c_str());
+        return;
+    }
+
+    // The client mutex is already held, so insert directly rather than locking again.
+    state.queuedLocationChecks.insert(location->second);
+    Logger::TimestampLogf("[Archipelago] Event key queued: %s -> location %d", eventKey.c_str(), location->second);
 }
 
 bool IsArchipelagoClientEnabled() {
