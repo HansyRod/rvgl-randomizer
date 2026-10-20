@@ -6,6 +6,8 @@
 #include "CarHooks.h"
 #include "RVGLFunctions.h"
 #include "Logger.h"
+#include "ArchipelagoClient.h"
+#include <rpc.h>
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -78,6 +80,54 @@ std::string ResolveRandomizerProfilePath(const std::string& virtualPath, bool is
     }
 
     return virtualPath;
+}
+
+void LoadArchipelagoProfileUUID(const char* profileName) {
+    const std::string internalName = GetProfileInternalName(profileName);
+    if (internalName.empty()) {
+        return;
+    }
+
+    const std::string virtualPath = "profiles/" + internalName + "/archipelago.uuid";
+    const std::string resolvedPath = ResolveRandomizerProfilePath(virtualPath, true);
+
+    // UUIDs are stored as 32 hexadecimal characters. Reading only this prefix also
+    // preserves identifiers saved in the old helper's binary file format.
+    std::ifstream savedUUIDFile(resolvedPath, std::ios::binary);
+    std::string uuidString(32, '\0');
+    if (savedUUIDFile.read(uuidString.data(), 32)) {
+        SetArchipelagoClientUUID(uuidString);
+        return;
+    }
+    savedUUIDFile.close();
+
+    UUID uuid;
+    if (UuidCreate(&uuid) != RPC_S_OK) {
+        Logger::TimestampLog("[Archipelago] Could not generate a profile UUID.");
+        SetArchipelagoClientUUID("");
+        return;
+    }
+
+    RPC_CSTR generatedUUID = nullptr;
+    if (UuidToStringA(&uuid, &generatedUUID) != RPC_S_OK) {
+        Logger::TimestampLog("[Archipelago] Could not convert the profile UUID to text.");
+        SetArchipelagoClientUUID("");
+        return;
+    }
+    uuidString = reinterpret_cast<const char*>(generatedUUID);
+    RpcStringFreeA(&generatedUUID);
+    uuidString.erase(std::remove(uuidString.begin(), uuidString.end(), '-'), uuidString.end());
+
+    // Persist the UUID before connecting so the identity survives restarts.
+    std::ofstream uuidFile(resolvedPath, std::ios::trunc | std::ios::binary);
+    uuidFile << uuidString << '\n';
+    uuidFile.close();
+    if (!uuidFile) {
+        Logger::TimestampLogf("[Archipelago] Could not save profile UUID file: %s", virtualPath.c_str());
+        SetArchipelagoClientUUID("");
+        return;
+    }
+    SetArchipelagoClientUUID(uuidString);
 }
 
 int ClampCarsPerRace(int value) {
@@ -283,6 +333,11 @@ void Hook_LoadSettingsFromIni(char* profileName) {
     // Sync our cars per race count with the stored cars per race
     int nCars = *reinterpret_cast<int*>(AbsFromRva(RVA_SETTINGS_NCARS));
     LoadRandomizerProfileSettings(profileName, nCars);
+
+    const ConfigData* config = GetActiveConfig();
+    if (config != nullptr && config->archipelago.has_value()) {
+        LoadArchipelagoProfileUUID(profileName);
+    }
 
     // Change the NCars settings row so it uses our functions
     PatchCarCountMenuDescriptor();

@@ -135,6 +135,7 @@ target_link_libraries(randomizer PRIVATE
     MinHook
     kernel32
     ws2_32
+    rpcrt4
     crypt32
     apclientpp
     OpenSSL::SSL

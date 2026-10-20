@@ -141,6 +141,20 @@ void ConfigureArchipelagoClient(const ArchipelagoConnectionConfig& config) {
     std::lock_guard<std::mutex> lock(state.mutex);
 
     state.config = config;
+void SetArchipelagoClientUUID(const std::string& uuid) {
+    ArchipelagoClientState& state = GetArchipelagoClientState();
+    std::lock_guard<std::mutex> lock(state.mutex);
+
+    if (state.config.uuid == uuid) {
+        return;
+    }
+
+    // A profile change uses that profile's client identity on the next connection.
+    state.client.reset();
+    state.started = false;
+    state.slotConnected = false;
+    state.config.uuid = uuid;
+    state.startPending = state.config.enabled && !uuid.empty();
 }
 
 void InitializeArchipelagoMappings(const ArchipelagoConfig* config) {
