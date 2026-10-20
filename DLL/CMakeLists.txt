@@ -67,6 +67,7 @@ add_library(randomizer SHARED
     # Mods — individual mod logic
     Mods/RandomizerState.cpp
     Mods/RandomizerInit.cpp
+    Mods/ArchipelagoHooks.cpp
     Mods/CustomUnlocks.cpp
     Mods/CarHooks.cpp
     Mods/Carbox.cpp

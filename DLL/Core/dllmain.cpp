@@ -3,7 +3,6 @@
 #include "Logger.h"
 #include "NativePatches.h"
 #include "RandomizerInit.h"
-#include "ArchipelagoClient.h"
 
 // ============================================================================
 // DllMain
@@ -37,7 +36,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
         break;
 
     case DLL_PROCESS_DETACH:
-        Randomizer::StopArchipelagoClient();
         HookManager::RemoveAll();
         NativePatches::RemoveAll();
         Logger::Shutdown();

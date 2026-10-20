@@ -19,6 +19,9 @@
 // Functions
 // ----------------------------------------------------------------------------
 
+// MainGameLoop(int argc, char** argv) and its per-frame SDL event pump.
+constexpr uint32_t RVA_MAIN_GAME_LOOP = 0x00002ec0;
+constexpr uint32_t RVA_PROCESS_SDL_EVENTS = 0x00002980;
 // LoadVanillaCarPool — loads the built-in car pool into memory.
 // Ghidra signature: bool __fastcall LoadVanillaCarPool(void)
 constexpr uint32_t RVA_LOAD_VANILLA_CAR_POOL   = 0x0003F140;

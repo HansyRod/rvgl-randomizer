@@ -12,6 +12,7 @@
 #include "CupOpponentGrid.h"
 #include "ThirtyCarCupMod.h"
 #include "MenuMod.h"
+#include "ArchipelagoHooks.h"
 #include "Fob.h"
 #include "CallLogger.h"
 #include "Logger.h"
@@ -103,6 +104,14 @@ static void RegisterHooks() {
     // ------------------------------------------------------------------
     // 1. Typed hooks — mod logic lives in the corresponding Mods/ file
     // ------------------------------------------------------------------
+
+    // --- Archipelago connection lifecycle ---
+    HookManager::Add(
+        AbsFromRva(RVA_MAIN_GAME_LOOP),
+        reinterpret_cast<void*>(Randomizer::Hook_MainGameLoop),
+        reinterpret_cast<void**>(&Randomizer::Orig_MainGameLoop),
+        "MainGameLoop"
+    );
 
     // --- Car system ---
     HookManager::Add(
