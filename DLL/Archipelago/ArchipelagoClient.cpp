@@ -34,6 +34,7 @@
 
 #include "apclient.hpp"
 #include "ConfigData.h"
+#include "CustomUnlocks.h"
 #include "Logger.h"
 
 #include <exception>
@@ -51,7 +52,8 @@ struct ArchipelagoClientState {
     std::mutex mutex;
     ArchipelagoConnectionConfig config;
     std::optional<ArchipelagoConfig> archipelagoConfig;
-    std::map<int, std::string> itemNames;
+    std::map<int, std::string, std::less<>> itemNames;
+    std::unordered_set<int> receivedItemIndices;
     std::shared_ptr<APClient> client;
     bool started = false;
     std::unordered_set<std::string> queuedEventKeys;
@@ -61,6 +63,48 @@ struct ArchipelagoClientState {
 ArchipelagoClientState& GetArchipelagoClientState() {
     static ArchipelagoClientState state;
     return state;
+}
+
+void ReceiveArchipelagoItems(const std::list<APClient::NetworkItem>& items) {
+    ArchipelagoClientState& state = GetArchipelagoClientState();
+    std::lock_guard<std::mutex> lock(state.mutex);
+
+    if (!state.archipelagoConfig.has_value() || items.empty()) {
+        return;
+    }
+
+    // An index-zero packet supplies the complete inventory, including starting items.
+    if (items.front().index == 0) {
+        state.receivedItemIndices.clear();
+        ClearArchipelagoItems();
+    }
+
+    for (const APClient::NetworkItem& item : items) {
+        // insert() returns {iterator, inserted}; second indicates whether this index is new.
+        const auto insertionResult = state.receivedItemIndices.insert(item.index);
+        const bool isNewDelivery = insertionResult.second;
+        // Skip deliveries whose indices were already processed.
+        if (!isNewDelivery) {
+            continue;
+        }
+
+        const auto itemName = state.itemNames.find(item.item);
+        if (itemName == state.itemNames.end()) {
+            Logger::TimestampLogf("[Archipelago] Ignoring unmapped item ID %lld at index %d.",
+                item.item, item.index);
+            continue;
+        }
+
+        Logger::TimestampLogf("[Archipelago] Received item '%s' at index %d.",
+            itemName->second.empty() ? "Filler" : itemName->second.c_str(), item.index);
+
+        // The empty item string represents filler, which has no unlock effect.
+        if (itemName->second.empty()) {
+            continue;
+        }
+
+        MarkArchipelagoItemReceived(itemName->second);
+    }
 }
 
 bool HasConnectionDetails(const ArchipelagoConnectionConfig& config) {
@@ -109,8 +153,10 @@ void InitializeArchipelagoMappings(const ArchipelagoConfig* config) {
 
     state.archipelagoConfig.reset();
     state.itemNames.clear();
+    state.receivedItemIndices.clear();
     state.queuedEventKeys.clear();
     state.queuedLocationChecks.clear();
+    ClearArchipelagoItems();
 
     if (config == nullptr) {
         return;
@@ -195,6 +241,7 @@ void StartArchipelagoClient() {
 
         state.client->set_items_received_handler([](const std::list<APClient::NetworkItem>& items) {
             Logger::TimestampLogf("[Archipelago] Received %zu item(s).", items.size());
+            ReceiveArchipelagoItems(items);
         });
 
         state.started = true;
@@ -214,8 +261,10 @@ void StopArchipelagoClient() {
     state.started = false;
     state.archipelagoConfig.reset();
     state.itemNames.clear();
+    state.receivedItemIndices.clear();
     state.queuedEventKeys.clear();
     state.queuedLocationChecks.clear();
+    ClearArchipelagoItems();
 }
 
 void PumpArchipelagoClient() {

@@ -94,6 +94,8 @@ struct KnockoutRuntimeState {
 struct ArchipelagoRuntimeState {
     std::mutex itemMutex;
     std::unordered_set<std::string> receivedItems;
+    // Inventory changed; refresh RVGL availability on the game thread.
+    bool unlockRefreshPending = false;
 };
 
 struct RandomizerContext {

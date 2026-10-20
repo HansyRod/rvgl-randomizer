@@ -49,6 +49,8 @@ int GetStuntArenaStarsFound();
 void MarkArchipelagoItemReceived(const std::string& itemName);
 bool HasArchipelagoItem(const std::string& itemName);
 void ClearArchipelagoItems();
+// Call from the game thread after processing received items.
+void RefreshArchipelagoUnlocks();
 
 bool EvaluateCustomUnlock(
     UnlockTargetKind targetKind,
