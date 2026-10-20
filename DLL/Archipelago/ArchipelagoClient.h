@@ -15,6 +15,7 @@ struct ArchipelagoConnectionConfig {
     std::string password;
     std::string gameName = "RVGL";
     std::string uuid;
+    std::string seed;
 };
 
 void ConfigureArchipelagoClient(const ArchipelagoConnectionConfig& config);

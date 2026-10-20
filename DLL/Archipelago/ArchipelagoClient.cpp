@@ -52,6 +52,7 @@ struct ArchipelagoClientState {
     std::unordered_set<int> receivedItemIndices;
     std::shared_ptr<APClient> client;
     bool started = false;
+    bool startPending = false;
     std::unordered_set<std::string> queuedEventKeys;
     std::unordered_set<int64_t> queuedLocationChecks;
 };
@@ -141,6 +142,9 @@ void ConfigureArchipelagoClient(const ArchipelagoConnectionConfig& config) {
     std::lock_guard<std::mutex> lock(state.mutex);
 
     state.config = config;
+    state.startPending = config.enabled && !config.uuid.empty();
+}
+
 void SetArchipelagoClientUUID(const std::string& uuid) {
     ArchipelagoClientState& state = GetArchipelagoClientState();
     std::lock_guard<std::mutex> lock(state.mutex);
