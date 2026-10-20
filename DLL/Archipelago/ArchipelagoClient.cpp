@@ -53,6 +53,7 @@ struct ArchipelagoClientState {
     std::shared_ptr<APClient> client;
     bool started = false;
     bool startPending = false;
+    bool slotConnected = false;
     std::unordered_set<std::string> queuedEventKeys;
     std::unordered_set<int64_t> queuedLocationChecks;
 };
@@ -66,7 +67,7 @@ void ReceiveArchipelagoItems(const std::list<APClient::NetworkItem>& items) {
     ArchipelagoClientState& state = GetArchipelagoClientState();
     std::lock_guard<std::mutex> lock(state.mutex);
 
-    if (!state.archipelagoConfig.has_value() || items.empty()) {
+    if (!state.archipelagoConfig.has_value() || !state.config.enabled || !state.slotConnected || items.empty()) {
         return;
     }
 
@@ -208,6 +209,8 @@ void StartArchipelagoClient() {
 
     if (!HasConnectionDetails(state.config)) {
         Logger::TimestampLog("[Archipelago] Client enabled but connection details are incomplete.");
+        Logger::TimestampLog("[Archipelago] Set RVGL_AP_SERVER and load a player profile before connecting.");
+        state.config.enabled = false;
         return;
     }
 
@@ -230,6 +233,13 @@ void StartArchipelagoClient() {
             if (currentState.client == nullptr) {
                 return;
             }
+            currentState.slotConnected = false;
+
+            if (currentState.client->get_seed() != currentState.config.seed) {
+                Logger::TimestampLog("[Archipelago] Room seed does not match the loaded configuration. Connection stopped.");
+                currentState.config.enabled = false;
+                return;
+            }
 
             constexpr int kReceiveAllItems = 7;
             currentState.client->ConnectSlot(
@@ -240,6 +250,15 @@ void StartArchipelagoClient() {
         });
 
         state.client->set_slot_connected_handler([](const nlohmann::json&) {
+            ArchipelagoClientState& currentState = GetArchipelagoClientState();
+            std::lock_guard<std::mutex> lock(currentState.mutex);
+            if (!currentState.archipelagoConfig.has_value() ||
+                currentState.client->get_player_number() != currentState.archipelagoConfig->slotNumber) {
+                Logger::TimestampLog("[Archipelago] Connected slot does not match the loaded configuration. Connection stopped.");
+                currentState.config.enabled = false;
+                return;
+            }
+            currentState.slotConnected = true;
             Logger::TimestampLog("[Archipelago] Slot connected.");
         });
 
@@ -247,6 +266,16 @@ void StartArchipelagoClient() {
             for (const std::string& error : errors) {
                 Logger::TimestampLogf("[Archipelago] Slot refused: %s", error.c_str());
             }
+            ArchipelagoClientState& currentState = GetArchipelagoClientState();
+            std::lock_guard<std::mutex> lock(currentState.mutex);
+            currentState.config.enabled = false;
+        });
+
+        state.client->set_socket_disconnected_handler([]() {
+            ArchipelagoClientState& currentState = GetArchipelagoClientState();
+            std::lock_guard<std::mutex> lock(currentState.mutex);
+            currentState.slotConnected = false;
+            Logger::TimestampLog("[Archipelago] Disconnected; the client will retry.");
         });
 
         state.client->set_socket_error_handler([](const std::string& error) {
@@ -263,6 +292,7 @@ void StartArchipelagoClient() {
     } catch (const std::exception& ex) {
         state.client.reset();
         state.started = false;
+        state.config.enabled = false;
         Logger::TimestampLogf("[Archipelago] Failed to create client: %s", ex.what());
     }
 }
@@ -273,6 +303,9 @@ void StopArchipelagoClient() {
 
     state.client.reset();
     state.started = false;
+    state.startPending = false;
+    state.slotConnected = false;
+    state.config.enabled = false;
     state.archipelagoConfig.reset();
     state.itemNames.clear();
     state.receivedItemIndices.clear();
@@ -282,6 +315,18 @@ void StopArchipelagoClient() {
 }
 
 void PumpArchipelagoClient() {
+    bool startPending;
+    {
+        ArchipelagoClientState& state = GetArchipelagoClientState();
+        std::lock_guard<std::mutex> lock(state.mutex);
+        startPending = state.startPending;
+        state.startPending = false;
+    }
+    // Construction is deferred until the game thread runs, outside DllMain.
+    if (startPending) {
+        StartArchipelagoClient();
+    }
+
     std::shared_ptr<APClient> client;
 
     {
@@ -295,12 +340,28 @@ void PumpArchipelagoClient() {
         client = state.client;
     }
 
-    client->poll();
+    try {
+        client->poll();
+    } catch (const std::exception& ex) {
+        Logger::TimestampLogf("[Archipelago] Polling failed: %s", ex.what());
+        StopArchipelagoClient();
+        return;
+    }
 
     std::list<int64_t> queuedLocations;
     {
         ArchipelagoClientState& state = GetArchipelagoClientState();
         std::lock_guard<std::mutex> lock(state.mutex);
+        if (!state.config.enabled) {
+            // Callbacks can reject a room or slot. Destroy the socket after poll returns.
+            state.client.reset();
+            state.started = false;
+            state.slotConnected = false;
+            return;
+        }
+        if (!state.slotConnected || client->get_state() != APClient::State::SLOT_CONNECTED) {
+            return;
+        }
         queuedLocations = TakeQueuedLocationChecks(state);
     }
 
