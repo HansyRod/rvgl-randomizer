@@ -16,10 +16,6 @@
 #define AP_NO_SCHEMA
 #endif
 
-#ifndef WSWRAP_NO_COMPRESSION
-#define WSWRAP_NO_COMPRESSION
-#endif
-
 #ifndef _WEBSOCKETPP_CPP11_THREAD_
 #define _WEBSOCKETPP_CPP11_THREAD_
 #endif

@@ -11,6 +11,7 @@ test launcher; the Tauri UI has separate npm and Cargo manifests and lockfiles.
 | WebSocket++ | `4dfe1be74e684acca19ac1cf96cce0df9eac2a2d` | [Git submodule](https://github.com/zaphoyd/websocketpp/tree/4dfe1be74e684acca19ac1cf96cce0df9eac2a2d); current upstream master, containing 0.8.2 plus a CMake 4 compatibility fix. |
 | nlohmann/json | [3.12.0](https://github.com/nlohmann/json/releases/tag/v3.12.0) | CMake FetchContent release archive, verified with upstream's SHA-256 checksum. Shared by configuration loading and apclientpp. |
 | OpenSSL | 3.6.5 in the local build | External development libraries found by CMake. Use static libraries with the dynamic MSVC runtime (`x64-windows-static-md` for vcpkg). The version is supplied by the developer's installation, not pinned by this repository. |
+| zlib | 1.3.2 in the local build | External development library found by CMake for WebSocket permessage-deflate compression. Use `x64-windows-static-md` with vcpkg to link it statically. The version is supplied by the developer's installation. |
 | MinHook | [1.3.4](https://github.com/TsudaKageyu/minhook/releases/tag/v1.3.4), with local changes | Vendored sources in `MinHook/`. Retain the local signed relative instruction operands and internal static variables when updating; do not replace the directory blindly. |
 | stb_image / stb_image_write | 2.30 / 1.16 | Vendored headers in `Image/stb/`; match current [upstream](https://github.com/nothings/stb/tree/a7d4c2175630e1ea5b6f8dd00ab96fed0b97b96d). |
 | stb_image_resize2 | 2.18 | Vendored header in `Image/stb/`. Upstream moved to [nothings/stb_image_resize](https://github.com/nothings/stb_image_resize) for 2.50. Retained because 2.50 explicitly changes output determinism relative to prior versions; updating needs a separate review of generated carbox images. |
@@ -38,11 +39,12 @@ including `io_service`, `io_context::work`, and timer/resolver interfaces used b
 the pinned WebSocket++ headers. Advancing to current Asio 1.38.2 requires a
 WebSocket++ compatibility update first.
 
-The Archipelago translation unit defines `ASIO_STANDALONE`, `AP_NO_SCHEMA`, and
-`WSWRAP_NO_COMPRESSION`. Thus Boost, valijson, and zlib are not required by the
-current build. TLS remains enabled and uses the Windows trusted root store.
-Upstream warns that Archipelago may require compression in the future; enabling
-it would require linking zlib and removing `WSWRAP_NO_COMPRESSION`.
+The Archipelago translation unit defines `ASIO_STANDALONE` and `AP_NO_SCHEMA`,
+so Boost and valijson are not required. WebSocket permessage-deflate compression
+is enabled through wswrap's default configuration for both `ws://` and `wss://`;
+zlib is required and linked statically. Servers can still negotiate an
+uncompressed connection when they do not support compression. TLS remains
+enabled and uses the Windows trusted root store.
 
 Validate native updates in both configurations:
 
@@ -52,8 +54,14 @@ cmake --build build --config Debug --target randomizer TestLauncher
 cmake --build build --config Release --target randomizer TestLauncher
 ```
 
-An OpenSSL toolchain or `OPENSSL_ROOT_DIR` must already be configured. See
-`DLL/Archipelago/README.md` for the local TLS setup and connection-testing procedure.
+OpenSSL and zlib must already be configured through a toolchain or their CMake
+root variables (`OPENSSL_ROOT_DIR` and `ZLIB_ROOT`). With vcpkg, install both:
+
+```powershell
+vcpkg install openssl:x64-windows-static-md zlib:x64-windows-static-md
+```
+
+See `DLL/Archipelago/README.md` for the local TLS setup and connection-testing procedure.
 Also run apclientpp's upstream `test/test_basic.cpp` with the same dependency
 checkouts to exercise a local WebSocket connection and RoomInfo/RoomUpdate
 callbacks. A successful build alone does not verify a live Archipelago room or

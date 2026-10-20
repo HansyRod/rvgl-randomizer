@@ -31,6 +31,10 @@ add_subdirectory(Archipelago/third_party/apclientpp)
 set(OPENSSL_USE_STATIC_LIBS TRUE)
 find_package(OpenSSL REQUIRED COMPONENTS SSL Crypto)
 
+# WebSocket permessage-deflate support uses zlib, also linked statically.
+set(ZLIB_USE_STATIC_LIBS TRUE)
+find_package(ZLIB REQUIRED)
+
 if(MSVC)
     # The TLS backend's templates exceed MSVC's default object section limit.
     set_source_files_properties(Archipelago/ArchipelagoClient.cpp PROPERTIES COMPILE_OPTIONS /bigobj)
@@ -142,6 +146,7 @@ target_link_libraries(randomizer PRIVATE
     apclientpp
     OpenSSL::SSL
     OpenSSL::Crypto
+    ZLIB::ZLIB
     nlohmann_json::nlohmann_json
 )
 
