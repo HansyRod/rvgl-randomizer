@@ -107,6 +107,18 @@ static void RegisterHooks() {
 
     // --- Archipelago connection lifecycle ---
     HookManager::Add(
+        AbsFromRva(RVA_SCREENSHOT_AND_FRAME_END),
+        reinterpret_cast<void*>(Randomizer::Hook_ScreenshotAndFrameEnd),
+        reinterpret_cast<void**>(&Randomizer::Orig_ScreenshotAndFrameEnd),
+        "ScreenshotAndFrameEnd"
+    );
+    HookManager::Add(
+        AbsFromRva(RVA_UPDATE_RACE_STATE),
+        reinterpret_cast<void*>(Randomizer::Hook_UpdateRaceState),
+        reinterpret_cast<void**>(&Randomizer::Orig_UpdateRaceState),
+        "UpdateRaceState"
+    );
+    HookManager::Add(
         AbsFromRva(RVA_MENU_UPDATE_LOOP),
         reinterpret_cast<void*>(Randomizer::Hook_MenuUpdateLoop),
         reinterpret_cast<void**>(&Randomizer::Orig_MenuUpdateLoop),

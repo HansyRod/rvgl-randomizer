@@ -97,6 +97,7 @@ add_library(randomizer SHARED
     # Archipelago - network integration wrapper
     Archipelago/ArchipelagoClient.cpp
     Archipelago/ArchipelagoEventKeys.cpp
+    Archipelago/ArchipelagoLog.cpp
 
     # DebugUtils — debug tools
     DebugUtils/Logger.cpp        # OutputDebugStringA + file logging

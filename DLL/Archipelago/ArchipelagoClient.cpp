@@ -283,6 +283,22 @@ void StartArchipelagoClient() {
             ReceiveArchipelagoItems(items);
         });
 
+        state.client->set_print_handler([](const std::string& message) {
+            LogArchipelagoMessage(("[Archipelago] " + message).c_str());
+        });
+
+        state.client->set_print_json_handler([](const std::list<APClient::TextNode>& nodes) {
+            ArchipelagoClientState& currentState = GetArchipelagoClientState();
+            std::lock_guard<std::mutex> lock(currentState.mutex);
+            if (currentState.client == nullptr) {
+                return;
+            }
+            // Resolve player, item, and location IDs using the server's data
+            // packages, including items belonging to games other than RVGL.
+            const std::string message = currentState.client->render_json(nodes);
+            LogArchipelagoMessage(("[Archipelago] " + message).c_str());
+        });
+
         state.started = true;
         Logger::TimestampLog("[Archipelago] Client created.");
     } catch (const std::exception& ex) {

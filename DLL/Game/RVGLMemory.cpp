@@ -4,6 +4,10 @@
 
 namespace Randomizer {
 
+bool IsLoadingScreenActive() {
+    return *reinterpret_cast<void**>(AbsFromRva(RVA_LOADING_FRAME_CALLBACK)) != nullptr;
+}
+
 RaceSettingsRuntime* GetRaceSettings() {
     return *reinterpret_cast<RaceSettingsRuntime**>(AbsFromRva(RVA_RACE_SETTINGS_PTR));
 }

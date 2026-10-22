@@ -251,6 +251,12 @@ constexpr uint32_t RVA_UI_DRAW_ROUNDED_RECT = 0x00148640;
 constexpr uint32_t RVA_SETUP_GL_RENDER_STATE = 0x00091f60;
 constexpr uint32_t RVA_FLUSH_DEFERRED_UI_BATCHES = 0x00082e40;
 
+// Shared menu/race fade and UI rendering step, after graphics initialization.
+constexpr uint32_t RVA_UPDATE_RACE_STATE = 0x0008a5d0;
+
+// Loading screens present directly, without calling UpdateRaceState.
+constexpr uint32_t RVA_SCREENSHOT_AND_FRAME_END = 0x00139bc0;
+
 // Checks whether a track should be selectable/visible in the current frontend mode.
 constexpr uint32_t RVA_TRACK_IS_AVAILABLE_FOR_FRONTEND = 0x000548d0;
 
@@ -261,6 +267,10 @@ constexpr uint32_t RVA_UTF8_VISIBLE_CHAR_COUNT = 0x00133aa0;
 // ----------------------------------------------------------------------------
 // Globals
 // ----------------------------------------------------------------------------
+
+// Native loading-thread service callback. LevelLoad sets this while drawing
+// loading frames and clears it before returning to normal menu/race rendering.
+constexpr uint32_t RVA_LOADING_FRAME_CALLBACK = 0x002e3098;
 
 // Pointer to the CarInfo array (DAT_006fab50).
 // Dereference to get the base address of the car pool.

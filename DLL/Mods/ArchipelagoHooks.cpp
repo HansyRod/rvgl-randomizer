@@ -1,7 +1,9 @@
 #include "ArchipelagoHooks.h"
 #include "ArchipelagoClient.h"
+#include "ArchipelagoLog.h"
 #include "CustomUnlocks.h"
 #include "RandomizerState.h"
+#include "RVGLMemory.h"
 
 namespace Randomizer {
 
@@ -9,6 +11,31 @@ FnProcessSDLEvents Orig_ProcessSDLEvents = nullptr;
 FnMenuUpdateLoop Orig_MenuUpdateLoop = nullptr;
 FnInRaceGameLoop Orig_InRaceGameLoop = nullptr;
 FnMainGameLoop Orig_MainGameLoop = nullptr;
+FnUpdateRaceState Orig_UpdateRaceState = nullptr;
+FnScreenshotAndFrameEnd Orig_ScreenshotAndFrameEnd = nullptr;
+
+void Hook_ScreenshotAndFrameEnd() {
+    const ConfigData* config = GetActiveConfig();
+    if (config != nullptr && config->archipelago.has_value() && IsLoadingScreenActive()) {
+        // LevelLoad draws its UI inline and never calls UpdateRaceState.
+        // Its loading callback is active only during the loading-screen loop,
+        // after the native font textures and batch buffers are available.
+        DrawArchipelagoLog();
+    }
+    Orig_ScreenshotAndFrameEnd();
+}
+
+void Hook_UpdateRaceState() {
+    Orig_UpdateRaceState();
+
+    const ConfigData* config = GetActiveConfig();
+    if (config != nullptr && config->archipelago.has_value()) {
+        // This fade/UI step runs during menu and race rendering, after native
+        // font textures and batch buffers have been initialized.
+        // Errors remain visible even when the connection has been disabled.
+        DrawArchipelagoLog();
+    }
+}
 
 void Hook_ProcessSDLEvents() {
     Orig_ProcessSDLEvents();
