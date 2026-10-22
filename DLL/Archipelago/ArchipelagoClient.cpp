@@ -27,7 +27,7 @@
 #include "apclient.hpp"
 #include "ConfigData.h"
 #include "CustomUnlocks.h"
-#include "Logger.h"
+#include "ArchipelagoLog.h"
 
 #include <exception>
 #include <list>
@@ -84,12 +84,12 @@ void ReceiveArchipelagoItems(const std::list<APClient::NetworkItem>& items) {
 
         const auto itemName = state.itemNames.find(item.item);
         if (itemName == state.itemNames.end()) {
-            Logger::TimestampLogf("[Archipelago] Ignoring unmapped item ID %lld at index %d.",
+            LogArchipelagoMessagef("[Archipelago] Ignoring unmapped item ID %lld at index %d.",
                 item.item, item.index);
             continue;
         }
 
-        Logger::TimestampLogf("[Archipelago] Received item '%s' at index %d.",
+        LogArchipelagoMessagef("[Archipelago] Received item '%s' at index %d.",
             itemName->second.empty() ? "Filler" : itemName->second.c_str(), item.index);
 
         // The empty item string represents filler, which has no unlock effect.
@@ -178,7 +178,7 @@ void InitializeArchipelagoMappings(const ArchipelagoConfig* config) {
         state.itemNames.emplace(item.second, item.first);
     }
 
-    Logger::TimestampLogf("[Archipelago] Loaded %zu location and %zu item mappings.",
+    LogArchipelagoMessagef("[Archipelago] Loaded %zu location and %zu item mappings.",
         config->locations.size(), state.itemNames.size());
 }
 
@@ -199,13 +199,13 @@ void StartArchipelagoClient() {
     std::lock_guard<std::mutex> lock(state.mutex);
 
     if (!state.config.enabled) {
-        Logger::TimestampLog("[Archipelago] Client disabled.");
+        LogArchipelagoMessage("[Archipelago] Client disabled.");
         return;
     }
 
     if (!HasConnectionDetails(state.config)) {
-        Logger::TimestampLog("[Archipelago] Client enabled but connection details are incomplete.");
-        Logger::TimestampLog("[Archipelago] Set RVGL_AP_SERVER and load a player profile before connecting.");
+        LogArchipelagoMessage("[Archipelago] Client enabled but connection details are incomplete.");
+        LogArchipelagoMessage("[Archipelago] Set RVGL_AP_SERVER and load a player profile before connecting.");
         state.config.enabled = false;
         return;
     }
@@ -232,7 +232,7 @@ void StartArchipelagoClient() {
             currentState.slotConnected = false;
 
             if (currentState.client->get_seed() != currentState.config.seed) {
-                Logger::TimestampLog("[Archipelago] Room seed does not match the loaded configuration. Connection stopped.");
+                LogArchipelagoMessage("[Archipelago] Room seed does not match the loaded configuration. Connection stopped.");
                 currentState.config.enabled = false;
                 return;
             }
@@ -250,17 +250,17 @@ void StartArchipelagoClient() {
             std::lock_guard<std::mutex> lock(currentState.mutex);
             if (!currentState.archipelagoConfig.has_value() ||
                 currentState.client->get_player_number() != currentState.archipelagoConfig->slotNumber) {
-                Logger::TimestampLog("[Archipelago] Connected slot does not match the loaded configuration. Connection stopped.");
+                LogArchipelagoMessage("[Archipelago] Connected slot does not match the loaded configuration. Connection stopped.");
                 currentState.config.enabled = false;
                 return;
             }
             currentState.slotConnected = true;
-            Logger::TimestampLog("[Archipelago] Slot connected.");
+            LogArchipelagoMessage("[Archipelago] Slot connected.");
         });
 
         state.client->set_slot_refused_handler([](const std::list<std::string>& errors) {
             for (const std::string& error : errors) {
-                Logger::TimestampLogf("[Archipelago] Slot refused: %s", error.c_str());
+                LogArchipelagoMessagef("[Archipelago] Slot refused: %s", error.c_str());
             }
             ArchipelagoClientState& currentState = GetArchipelagoClientState();
             std::lock_guard<std::mutex> lock(currentState.mutex);
@@ -271,15 +271,15 @@ void StartArchipelagoClient() {
             ArchipelagoClientState& currentState = GetArchipelagoClientState();
             std::lock_guard<std::mutex> lock(currentState.mutex);
             currentState.slotConnected = false;
-            Logger::TimestampLog("[Archipelago] Disconnected; the client will retry.");
+            LogArchipelagoMessage("[Archipelago] Disconnected; the client will retry.");
         });
 
         state.client->set_socket_error_handler([](const std::string& error) {
-            Logger::TimestampLogf("[Archipelago] Socket error: %s", error.c_str());
+            LogArchipelagoMessagef("[Archipelago] Socket error: %s", error.c_str());
         });
 
         state.client->set_items_received_handler([](const std::list<APClient::NetworkItem>& items) {
-            Logger::TimestampLogf("[Archipelago] Received %zu item(s).", items.size());
+            LogArchipelagoMessagef("[Archipelago] Received %zu item(s).", items.size());
             ReceiveArchipelagoItems(items);
         });
 
@@ -300,12 +300,12 @@ void StartArchipelagoClient() {
         });
 
         state.started = true;
-        Logger::TimestampLog("[Archipelago] Client created.");
+        LogArchipelagoMessage("[Archipelago] Client created.");
     } catch (const std::exception& ex) {
         state.client.reset();
         state.started = false;
         state.config.enabled = false;
-        Logger::TimestampLogf("[Archipelago] Failed to create client: %s", ex.what());
+        LogArchipelagoMessagef("[Archipelago] Failed to create client: %s", ex.what());
     }
 }
 
@@ -355,7 +355,7 @@ void PumpArchipelagoClient() {
     try {
         client->poll();
     } catch (const std::exception& ex) {
-        Logger::TimestampLogf("[Archipelago] Polling failed: %s", ex.what());
+        LogArchipelagoMessagef("[Archipelago] Polling failed: %s", ex.what());
         StopArchipelagoClient();
         return;
     }
@@ -405,13 +405,13 @@ void QueueArchipelagoEventKey(const std::string& eventKey) {
 
     const auto location = state.archipelagoConfig->locations.find(eventKey);
     if (location == state.archipelagoConfig->locations.end()) {
-        Logger::TimestampLogf("[Archipelago] Ignoring unmapped event key: %s", eventKey.c_str());
+        LogArchipelagoMessagef("[Archipelago] Ignoring unmapped event key: %s", eventKey.c_str());
         return;
     }
 
     // The client mutex is already held, so insert directly rather than locking again.
     state.queuedLocationChecks.insert(location->second);
-    Logger::TimestampLogf("[Archipelago] Event key queued: %s -> location %d", eventKey.c_str(), location->second);
+    LogArchipelagoMessagef("[Archipelago] Event key queued: %s -> location %d", eventKey.c_str(), location->second);
 }
 
 bool IsArchipelagoClientEnabled() {

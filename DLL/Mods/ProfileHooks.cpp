@@ -7,6 +7,7 @@
 #include "RVGLFunctions.h"
 #include "Logger.h"
 #include "ArchipelagoClient.h"
+#include "ArchipelagoLog.h"
 #include <rpc.h>
 #include <algorithm>
 #include <cstdio>
@@ -103,14 +104,14 @@ void LoadArchipelagoProfileUUID(const char* profileName) {
 
     UUID uuid;
     if (UuidCreate(&uuid) != RPC_S_OK) {
-        Logger::TimestampLog("[Archipelago] Could not generate a profile UUID.");
+        LogArchipelagoMessage("[Archipelago] Could not generate a profile UUID.");
         SetArchipelagoClientUUID("");
         return;
     }
 
     RPC_CSTR generatedUUID = nullptr;
     if (UuidToStringA(&uuid, &generatedUUID) != RPC_S_OK) {
-        Logger::TimestampLog("[Archipelago] Could not convert the profile UUID to text.");
+        LogArchipelagoMessage("[Archipelago] Could not convert the profile UUID to text.");
         SetArchipelagoClientUUID("");
         return;
     }
@@ -123,7 +124,7 @@ void LoadArchipelagoProfileUUID(const char* profileName) {
     uuidFile << uuidString << '\n';
     uuidFile.close();
     if (!uuidFile) {
-        Logger::TimestampLogf("[Archipelago] Could not save profile UUID file: %s", virtualPath.c_str());
+        LogArchipelagoMessagef("[Archipelago] Could not save profile UUID file: %s", virtualPath.c_str());
         SetArchipelagoClientUUID("");
         return;
     }
