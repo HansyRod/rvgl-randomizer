@@ -363,6 +363,9 @@ Ghidra cleanup performed during this investigation:
 
 ## Current Risks
 
+- To-do: locale strings are restored at the start of navigation, so native labels
+  can appear during outgoing animations. See [Menu Locale Overrides](MenuLocaleOverrides.kb)
+  for the affected menus, Ghidra findings, and required restoration lifecycle.
 - Custom frontend labels still borrow native locale table slots at runtime.
   Their safety depends on keeping the menu-specific patch and restore points in
   sync with any future frontend hooks. In particular, `0x17` must not remain

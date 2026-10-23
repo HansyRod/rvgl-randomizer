@@ -92,6 +92,7 @@ add_library(randomizer SHARED
     Mods/ExtendedCupStandingsTable.cpp
     Mods/Fob.cpp
     Mods/MenuMod.cpp
+    Mods/ArchipelagoMenu.cpp
     Mods/KnockoutMode.cpp
 
     # Archipelago - network integration wrapper
@@ -110,6 +111,7 @@ add_library(randomizer SHARED
     Game/RVGLFunctions.cpp
     Game/RVGLMemory.cpp
     Game/GameUtils.cpp
+    Game/LocaleUtils.cpp
 
     #Config - Handles loading the JSON configuration with the randomization data
     Config/ConfigManager.cpp

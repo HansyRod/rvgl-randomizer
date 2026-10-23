@@ -195,6 +195,30 @@ constexpr uint32_t RVA_DRAW_PRE_RACE_SUMMARY = 0x00155700;
 constexpr uint32_t RVA_BUILD_START_RACE_MENU = 0x0015E730;
 constexpr uint32_t RVA_HANDLE_START_RACE_MENU_ACTION = 0x0015E880;
 
+// BuildMainMenu - registers the native main-menu rows before the mod adds its entry.
+constexpr uint32_t RVA_BUILD_MAIN_MENU = 0x00144900;
+
+// HandleMainMenuAction - handles main-menu navigation before borrowed labels are restored.
+constexpr uint32_t RVA_HANDLE_MAIN_MENU_ACTION = 0x00144810;
+
+// ActivateMenuDisplaySlot - starts a frontend display slot's transition to another panel.
+constexpr uint32_t RVA_ACTIVATE_MENU_DISPLAY_SLOT = 0x00144e30;
+
+// Input_GetTextInput - returns pending UTF-8 text or editing commands from the native input system.
+constexpr uint32_t RVA_INPUT_GET_TEXT_INPUT = 0x0012a670;
+
+// SDL_GetKeyboardState - import thunk returning the current scancode states and their count.
+constexpr uint32_t RVA_SDL_GET_KEYBOARD_STATE = 0x0019d7d8;
+
+// SDL_GetModState - import thunk returning the active keyboard modifier flags.
+constexpr uint32_t RVA_SDL_GET_MOD_STATE = 0x0019d7d0;
+
+// SDL_GetClipboardText - import thunk returning allocated UTF-8 text; release it with SDL_free.
+constexpr uint32_t RVA_SDL_GET_CLIPBOARD_TEXT = 0x0019d800;
+
+// SDL_free - import thunk releasing memory allocated by SDL, including clipboard text.
+constexpr uint32_t RVA_SDL_FREE = 0x0019d5b0;
+
 // Options frontend menu builder.
 constexpr uint32_t RVA_BUILD_OPTIONS_MENU = 0x00154700;
 constexpr uint32_t RVA_HANDLE_OPTIONS_MENU_ACTION = 0x00154680;
@@ -262,6 +286,14 @@ constexpr uint32_t RVA_TRACK_IS_AVAILABLE_FOR_FRONTEND = 0x000548d0;
 
 // Counts visible UTF-8 characters while ignoring combining marks.
 constexpr uint32_t RVA_UTF8_VISIBLE_CHAR_COUNT = 0x00133aa0;
+
+// String_LastCharPos - returns a byte offset at a native display-character boundary.
+// Negative character indices count backwards from the end, as used by Join Game editing.
+constexpr uint32_t RVA_STRING_LAST_CHAR_POS = 0x00133900;
+
+// u8_check - import thunk for libunistring's UTF-8 validator.
+// Returns null for valid UTF-8, otherwise a pointer to the first invalid byte.
+constexpr uint32_t RVA_UTF8_CHECK = 0x0019d968;
 
 
 // ----------------------------------------------------------------------------
@@ -348,6 +380,12 @@ constexpr uint32_t RVA_PLAYER_COLORS_PTR = 0x002a6d90;
 constexpr uint32_t RVA_SETTINGS_NCARS = 0x0aa8e930;
 constexpr uint32_t RVA_NCARS = 0x00b43488;
 constexpr uint32_t RVA_SETTINGS_NCARS_MENU_ITEM = 0x00264280;
+
+// Native Quit row descriptor, copied as the template for the Archipelago main-menu entry.
+constexpr uint32_t RVA_MAIN_MENU_QUIT_ITEM = 0x00263600;
+
+// Native Join Game IP input panel descriptor, copied as the Archipelago connection form template.
+constexpr uint32_t RVA_JOIN_IP_MENU_PANEL = 0x00263a00;
 
 // Current frontend menu action code. Values 2/3 are left/right.
 constexpr uint32_t RVA_MENU_ACTION = 0x002637f4;

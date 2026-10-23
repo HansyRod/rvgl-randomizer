@@ -2,18 +2,6 @@
 #include "ConfigManager.h"
 #include "RandomizerState.h"
 #include "ArchipelagoClient.h"
-#include <cstdlib>
-
-namespace {
-
-std::string ReadArchipelagoEnvironmentVariable(const char* name) {
-    const char* value = std::getenv(name);
-    const std::string result = value != nullptr ? value : "";
-    SetEnvironmentVariableA(name, nullptr);
-    return result;
-}
-
-}
 
 // Move startup/config work into RandomizerInit.h/.cpp:
 // Keep Initialize() here.
@@ -80,9 +68,6 @@ void Initialize() {
             InitializeArchipelagoMappings(&apConfig);
 
             ArchipelagoConnectionConfig connection;
-            connection.enabled = true;
-            connection.serverUri = ReadArchipelagoEnvironmentVariable("RVGL_AP_SERVER");
-            connection.password = ReadArchipelagoEnvironmentVariable("RVGL_AP_PASSWORD");
             connection.slotName = apConfig.slotName;
             connection.seed = config->metadata.seed;
             ConfigureArchipelagoClient(connection);

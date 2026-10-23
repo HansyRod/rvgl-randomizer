@@ -21,6 +21,11 @@ struct ArchipelagoConnectionConfig {
 void ConfigureArchipelagoClient(const ArchipelagoConnectionConfig& config);
 // Supplied by profile loading; connecting waits until the profile UUID is available.
 void SetArchipelagoClientUUID(const std::string& uuid);
+bool RequestArchipelagoConnection(const std::string& server, const std::string& password);
+// Cancels only the socket/session; mappings, inventory and offline checks survive.
+void CancelArchipelagoConnection();
+bool IsArchipelagoSlotConnected();
+bool IsArchipelagoConnectionPending();
 // Passing nullptr clears the mappings and pending checks for non-AP configurations.
 void InitializeArchipelagoMappings(const ArchipelagoConfig* config);
 // Unknown IDs return nullopt; filler resolves to an empty string.

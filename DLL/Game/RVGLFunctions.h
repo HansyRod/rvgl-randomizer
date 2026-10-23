@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <cstdio>
 
+// Menu layouts include this header; only the panel pointer type is needed here.
+struct MenuPanelDescriptor;
+
 namespace Randomizer {
 
 using FnCreateCarEntity = CarEntityRuntime*(*)(int initialState, int controllerType, int carModelId, uint64_t skinIdAndFlags, float* spawnPosition, float* spawnOrientation);
@@ -29,11 +32,23 @@ using FnUIDrawRoundedRect = void(*)(float x, float y, float width, float height,
 using FnSetupGLRenderState = void(*)();
 using FnFlushDeferredUIBatches = void(*)();
 using FnUTF8GetVisibleCharCount = int64_t(*)(char* text);
+// RVGL's Join Game input uses these same Unicode routines for editing text.
+// Character index -> byte offset; negative indices count from the end.
+using FnStringLastCharPos = int64_t(*)(const char* text, int characterIndex);
+// Returns nullptr for valid UTF-8, or a pointer to its first invalid byte.
+using FnUTF8Check = const char*(*)(const char* text, size_t length);
 using FnResetCurrentTrackSelectionState = void(*)();
 using FnRaceTeardownAndSave = void(*)();
 using FnLevelDestroyAndFree = void(*)();
 using FnLoadNextRaceFromPlayerRaceInfo = void(*)();
 using FnRegisterMenuItemInActiveMenu = void(*)(int slotIndex, int* descriptor);
+using FnActivateMenuDisplaySlot = void(*)(int slotIndex, MenuPanelDescriptor* panel);
+using FnHandleGenericMenuAction = bool(*)(int slotIndex, uint32_t action);
+using FnInputGetTextInput = const char*(*)(bool allowRepeat);
+using FnSDLGetKeyboardState = const uint8_t*(*)(int* keyCount);
+using FnSDLGetModState = int(*)();
+using FnSDLGetClipboardText = char*(*)();
+using FnSDLFree = void(*)(void* memory);
 using FnRegisterFinishTime = void(*)(int* car, uint32_t finishTimeMs, uint8_t dnfFlag);
 using FnSetCarBehaviourState = void(*)(CarEntityRuntime* car, int state);
 using FnSetPostRacePopup = void(*)(char* prefixText, char* timeText, uint32_t prefixColor, uint32_t timeColor, int priority, float duration);
@@ -59,11 +74,20 @@ extern FnUIDrawRoundedRect RVGL_UIDrawRoundedRect;
 extern FnSetupGLRenderState RVGL_SetupGLRenderState;
 extern FnFlushDeferredUIBatches RVGL_FlushDeferredUIBatches;
 extern FnUTF8GetVisibleCharCount RVGL_UTF8GetVisibleCharCount;
+extern FnStringLastCharPos RVGL_StringLastCharPos;
+extern FnUTF8Check RVGL_UTF8Check;
 extern FnResetCurrentTrackSelectionState RVGL_ResetCurrentTrackSelectionState;
 extern FnRaceTeardownAndSave RVGL_RaceTeardownAndSave;
 extern FnLevelDestroyAndFree RVGL_LevelDestroyAndFree;
 extern FnLoadNextRaceFromPlayerRaceInfo RVGL_LoadNextRaceFromPlayerRaceInfo;
 extern FnRegisterMenuItemInActiveMenu RVGL_RegisterMenuItemInActiveMenu;
+extern FnActivateMenuDisplaySlot RVGL_ActivateMenuDisplaySlot;
+extern FnHandleGenericMenuAction RVGL_HandleGenericMenuAction;
+extern FnInputGetTextInput RVGL_InputGetTextInput;
+extern FnSDLGetKeyboardState RVGL_SDLGetKeyboardState;
+extern FnSDLGetModState RVGL_SDLGetModState;
+extern FnSDLGetClipboardText RVGL_SDLGetClipboardText;
+extern FnSDLFree RVGL_SDLFree;
 extern FnRegisterFinishTime RVGL_RegisterFinishTime;
 extern FnSetCarBehaviourState RVGL_SetCarBehaviourState;
 extern FnSetPostRacePopup RVGL_SetPostRacePopup;

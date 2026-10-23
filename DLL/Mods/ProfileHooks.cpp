@@ -8,13 +8,17 @@
 #include "Logger.h"
 #include "ArchipelagoClient.h"
 #include "ArchipelagoLog.h"
+#include "ArchipelagoMenu.h"
 #include <rpc.h>
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <filesystem>
 #include <limits>
 #include <string>
+#include <stdexcept>
 
 namespace Randomizer {
 
@@ -35,6 +39,17 @@ namespace {
 constexpr char kRandomizerProfileFileName[] = "rvgl-randomizer.ini";
 constexpr char kRandomizerSection[] = "Randomizer";
 constexpr char kKnockoutSection[] = "Knockout";
+
+// These settings belong to the active RVGL profile, just like the other options
+// in this file. Passwords remain in the connection menu/client and never enter JSON.
+struct ArchipelagoProfileData {
+    std::string uuid;
+    std::string server;
+    bool requiresPassword = true;
+};
+
+ArchipelagoProfileData g_archipelagoProfileData;
+std::string g_archipelagoProfilePath;
 
 std::string Trim(const std::string& value) {
     const size_t first = value.find_first_not_of(" \t\r\n");
@@ -83,52 +98,92 @@ std::string ResolveRandomizerProfilePath(const std::string& virtualPath, bool is
     return virtualPath;
 }
 
-void LoadArchipelagoProfileUUID(const char* profileName) {
+bool IsValidUUID(const std::string& uuid) {
+    return uuid.size() == 32 && std::all_of(uuid.begin(), uuid.end(),
+        [](unsigned char c) { return std::isxdigit(c) != 0; });
+}
+
+bool SaveArchipelagoProfileData() {
+    if (g_archipelagoProfilePath.empty() || !IsValidUUID(g_archipelagoProfileData.uuid)) {
+        return false;
+    }
+    // A failed server-settings save must not truncate the UUID we need to reconnect.
+    // Write alongside the old file, close it, then replace it only after a full write.
+    const std::string temporaryPath = g_archipelagoProfilePath + ".tmp";
+    const nlohmann::json data = {
+        {"uuid", g_archipelagoProfileData.uuid}, {"server", g_archipelagoProfileData.server},
+        {"requiresPassword", g_archipelagoProfileData.requiresPassword}
+    };
+    std::ofstream file(temporaryPath, std::ios::binary | std::ios::trunc);
+    file << data.dump(2) << '\n';
+    file.close();
+    if (!file || !MoveFileExA(temporaryPath.c_str(), g_archipelagoProfilePath.c_str(),
+        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+        DeleteFileA(temporaryPath.c_str());
+        LogArchipelagoMessage("[Archipelago] Could not save Archipelago profile data.");
+        return false;
+    }
+    return true;
+}
+
+void LoadArchipelagoProfileData(const char* profileName) {
     const std::string internalName = GetProfileInternalName(profileName);
     if (internalName.empty()) {
+        // RVGL loads global/default settings before selecting the startup profile.
         return;
     }
-
-    const std::string virtualPath = "profiles/" + internalName + "/archipelago.uuid";
+    const std::string virtualPath = "profiles/" + internalName + "/archipelago.json";
     const std::string resolvedPath = ResolveRandomizerProfilePath(virtualPath, true);
-
-    // UUIDs are stored as 32 hexadecimal characters. Reading only this prefix also
-    // preserves identifiers saved in the old helper's binary file format.
-    std::ifstream savedUUIDFile(resolvedPath, std::ios::binary);
-    std::string uuidString(32, '\0');
-    if (savedUUIDFile.read(uuidString.data(), 32)) {
-        SetArchipelagoClientUUID(uuidString);
+    if (g_archipelagoProfilePath == resolvedPath) {
         return;
     }
-    savedUUIDFile.close();
-
-    UUID uuid;
-    if (UuidCreate(&uuid) != RPC_S_OK) {
-        LogArchipelagoMessage("[Archipelago] Could not generate a profile UUID.");
-        SetArchipelagoClientUUID("");
+    // Settings are reloaded by other frontend flows too. Only the first actual
+    // profile in this process may auto-connect; switching profiles must remain manual.
+    const bool firstProfile = g_archipelagoProfilePath.empty();
+    CancelArchipelagoConnection();
+    // If reading the new profile fails, Connect must not reuse the old profile's UUID.
+    SetArchipelagoClientUUID("");
+    ResetArchipelagoMenuProfile("");
+    g_archipelagoProfilePath = resolvedPath;
+    g_archipelagoProfileData = {};
+    try {
+        if (std::filesystem::exists(resolvedPath)) {
+            // Existing profile data: load its saved identity and connection preferences.
+            std::ifstream file(resolvedPath);
+            const nlohmann::json data = nlohmann::json::parse(file);
+            g_archipelagoProfileData.uuid = data.at("uuid").get<std::string>();
+            g_archipelagoProfileData.server = data.value("server", std::string{});
+            g_archipelagoProfileData.requiresPassword = data.value("requiresPassword", true);
+            if (!IsValidUUID(g_archipelagoProfileData.uuid)) {
+                throw std::runtime_error("Invalid profile UUID.");
+            }
+        } else {
+            // First use: create a new identity because this profile has no JSON file.
+            UUID uuid;
+            RPC_CSTR generatedUUID = nullptr;
+            if (UuidCreate(&uuid) != RPC_S_OK || UuidToStringA(&uuid, &generatedUUID) != RPC_S_OK) {
+                throw std::runtime_error("Could not generate a profile UUID.");
+            }
+            std::string& uuidString = g_archipelagoProfileData.uuid;
+            uuidString = reinterpret_cast<const char*>(generatedUUID);
+            RpcStringFreeA(&generatedUUID);
+            uuidString.erase(std::remove(uuidString.begin(), uuidString.end(), '-'), uuidString.end());
+            // Persist the UUID before connecting so the identity survives restarts.
+            if (!SaveArchipelagoProfileData()) {
+                return;
+            }
+        }
+    } catch (const std::exception& error) {
+        // Never regenerate an identity merely because its settings file is malformed.
+        LogArchipelagoMessagef("[Archipelago] Could not load profile data: %s File left unchanged.", error.what());
+        g_archipelagoProfileData = {};
         return;
     }
-
-    RPC_CSTR generatedUUID = nullptr;
-    if (UuidToStringA(&uuid, &generatedUUID) != RPC_S_OK) {
-        LogArchipelagoMessage("[Archipelago] Could not convert the profile UUID to text.");
-        SetArchipelagoClientUUID("");
-        return;
+    SetArchipelagoClientUUID(g_archipelagoProfileData.uuid);
+    ResetArchipelagoMenuProfile(g_archipelagoProfileData.server);
+    if (firstProfile && !g_archipelagoProfileData.server.empty() && !g_archipelagoProfileData.requiresPassword) {
+        RequestArchipelagoConnection(g_archipelagoProfileData.server, "");
     }
-    uuidString = reinterpret_cast<const char*>(generatedUUID);
-    RpcStringFreeA(&generatedUUID);
-    uuidString.erase(std::remove(uuidString.begin(), uuidString.end(), '-'), uuidString.end());
-
-    // Persist the UUID before connecting so the identity survives restarts.
-    std::ofstream uuidFile(resolvedPath, std::ios::trunc | std::ios::binary);
-    uuidFile << uuidString << '\n';
-    uuidFile.close();
-    if (!uuidFile) {
-        LogArchipelagoMessagef("[Archipelago] Could not save profile UUID file: %s", virtualPath.c_str());
-        SetArchipelagoClientUUID("");
-        return;
-    }
-    SetArchipelagoClientUUID(uuidString);
 }
 
 int ClampCarsPerRace(int value) {
@@ -283,6 +338,18 @@ void LoadRandomizerProfileSettings(char* profileName, int baseCarCount) {
 
 } // anonymous namespace
 
+void SaveArchipelagoProfileConnection(const std::string& server, bool requiresPassword) {
+    g_archipelagoProfileData.server = server;
+    g_archipelagoProfileData.requiresPassword = requiresPassword;
+    SaveArchipelagoProfileData();
+}
+
+void MarkArchipelagoProfilePasswordRequired() {
+    if (!g_archipelagoProfileData.requiresPassword) {
+        SaveArchipelagoProfileConnection(g_archipelagoProfileData.server, true);
+    }
+}
+
 int Hook_GetProfileIndex(char* profileName) {
     int index = Orig_GetProfileIndex(profileName);
     if (index == -1) {
@@ -337,7 +404,7 @@ void Hook_LoadSettingsFromIni(char* profileName) {
 
     const ConfigData* config = GetActiveConfig();
     if (config != nullptr && config->archipelago.has_value()) {
-        LoadArchipelagoProfileUUID(profileName);
+        LoadArchipelagoProfileData(profileName);
     }
 
     // Change the NCars settings row so it uses our functions

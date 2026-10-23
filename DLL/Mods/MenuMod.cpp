@@ -1,4 +1,5 @@
 #include "MenuMod.h"
+#include "LocaleUtils.h"
 #include "Addresses.h"
 #include "RVGLMenuStructs.h"
 #include "RandomizerState.h"
@@ -71,8 +72,6 @@ constexpr uint32_t kMenuValueDisabledColor = 0xff464646;
 constexpr uint32_t RVA_OPTIONS_GAME_SETTINGS_MENU_ITEM = 0x00265460;
 constexpr uint32_t RVA_OPTIONS_GAME_SETTINGS_MENU_PANEL = 0x002643a0;
 
-using FnHandleGenericMenuAction = bool(*)(int slotIndex, uint32_t action);
-
 NumericMenuValue g_carCountMenuValue = {};
 NumericMenuValue g_knockoutLapCountMenuValue = {};
 NumericMenuValue g_eliminationFrequencyMenuValue = {};
@@ -87,15 +86,6 @@ MenuItemDescriptor g_modOptionsMenuItem = {};
 alignas(8) uint8_t g_modOptionsMenuPanel[kMenuPanelDescriptorSize] = {};
 bool g_knockoutMenuItemInitialized = false;
 bool g_modOptionsMenuItemInitialized = false;
-
-struct LocaleStringOverride {
-    int labelId;
-    const char* replacement;
-    char* original = nullptr;
-    char** capturedLocaleStrings = nullptr;
-    char** overriddenLocaleStrings = nullptr;
-    bool originalCaptured = false;
-};
 
 LocaleStringOverride g_knockoutLabelOverride{
     kKnockoutLabelId,
@@ -180,47 +170,6 @@ MenuItemDescriptor* GetSelectedMenuItemDescriptor(int slotIndex) {
     const int selectedItemIndex =
         *reinterpret_cast<int*>(activeMenu + kSelectedItemIndexOffset);
     return GetMenuItemDescriptor(slotIndex, selectedItemIndex);
-}
-
-bool SaveOriginalLocaleString(LocaleStringOverride& stringOverride) {
-    char** localeStrings = GetLocaleStrings();
-    if (localeStrings == nullptr) {
-        return false;
-    }
-
-    if (!stringOverride.originalCaptured ||
-        stringOverride.capturedLocaleStrings != localeStrings) {
-        stringOverride.original = localeStrings[stringOverride.labelId];
-        stringOverride.capturedLocaleStrings = localeStrings;
-        stringOverride.originalCaptured = true;
-    }
-
-    return true;
-}
-
-bool OverrideLocaleString(LocaleStringOverride& stringOverride) {
-    if (!SaveOriginalLocaleString(stringOverride)) {
-        return false;
-    }
-
-    char** localeStrings = GetLocaleStrings();
-    localeStrings[stringOverride.labelId] = MutableText(stringOverride.replacement);
-    stringOverride.overriddenLocaleStrings = localeStrings;
-    return true;
-}
-
-void RestoreLocaleString(LocaleStringOverride& stringOverride) {
-    if (!stringOverride.originalCaptured ||
-        stringOverride.overriddenLocaleStrings == nullptr) {
-        return;
-    }
-
-    if (GetLocaleStrings() == stringOverride.overriddenLocaleStrings) {
-        stringOverride.overriddenLocaleStrings[stringOverride.labelId] =
-            stringOverride.original;
-    }
-
-    stringOverride.overriddenLocaleStrings = nullptr;
 }
 
 void PatchModOptionsMenuLocaleStrings() {
@@ -395,7 +344,7 @@ void DrawTextMenuValue(int panelIndex, int itemIndex, const char* text) {
         *reinterpret_cast<float*>(panel + kMenuValueYOffset);
     const float maxWidth = *reinterpret_cast<float*>(panel + kMenuValueMaxWidthOffset);
     const uint32_t color =
-        (descriptor->flags & 2) == 0 ? kMenuValueDisabledColor : kMenuValueEnabledColor;
+        descriptor->flags.enabled ? kMenuValueEnabledColor : kMenuValueDisabledColor;
 
     RVGL_DrawUIText(
         x,
@@ -485,10 +434,7 @@ bool HandleModOptionsMenuAction(int slotIndex, uint32_t action) {
         return false;
     }
 
-    const auto handleGenericMenuAction =
-        reinterpret_cast<FnHandleGenericMenuAction>(AbsFromRva(RVA_HANDLE_GENERIC_MENU_ACTION));
-
-    const bool result = handleGenericMenuAction(slotIndex, action);
+    const bool result = RVGL_HandleGenericMenuAction(slotIndex, action);
 
     if (action == kFrontendCancelAction) {
         RestoreModOptionsMenuLocaleStrings();

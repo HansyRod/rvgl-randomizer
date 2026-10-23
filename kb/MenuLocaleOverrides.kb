@@ -1,0 +1,65 @@
+# Menu Locale Overrides: Exit Animation To-Do
+
+Investigation date: 2026-10-23. Status: open; no runtime fix implemented.
+
+- [ ] Restore borrowed locale strings after the outgoing panel stops rendering,
+  before the destination menu builds, across all affected modded menus.
+
+## Symptom and Cause
+
+The user observed original native labels briefly appearing in the Archipelago
+menu's exit animation. Source review and Ghidra analysis show the same timing
+problem in the other overridden menus: their action handlers restore strings
+when navigation is requested, rather than when the outgoing panel disappears.
+
+`RestoreLocaleString` in `DLL/Game/LocaleUtils.cpp` immediately replaces a pointer
+in RVGL's shared locale table. It does not defer restoration or track animations.
+Native rendering resolves menu labels from that table each frame; it does not
+keep a copy of the text that was displayed before navigation.
+
+## Affected Paths
+
+| Menu | Current restoration point |
+| --- | --- |
+| Archipelago connection form | `HandleConnectionMenuAction` restores four field/action labels immediately after Back; `UpdateArchipelagoMenu` restores them immediately after starting the return transition on successful authentication. |
+| Main menu's Archipelago entry | `Hook_HandleMainMenuAction` restores its label when the destination changes to another native menu; it retains the shared label when opening Archipelago. |
+| Mod Settings | `HandleModOptionsMenuAction` restores its four setting labels immediately after Back. The shared title remains available for the parent Options menu. |
+| Options | `Hook_HandleOptionsMenuAction` restores the Mod Settings label immediately after Back or Confirm into another native submenu. Opening Mod Settings retains its shared title label. |
+| Start Race | `Hook_HandleStartRaceMenuAction` restores the borrowed Knockout row label immediately after Confirm or Back. Rebuild/selection-reset paths also restore it. |
+
+The user's visual observation concerns Archipelago. The other affected paths
+were identified from their restoration timing and the native rendering flow.
+
+## Native Flow Confirmed in Ghidra
+
+Addresses below are absolute addresses in the analysed executable, image base
+`0x00400000`.
+
+| Function | Address | Relevant behavior |
+| --- | --- | --- |
+| `UpdateMenuPanel` | `0x00546C80` | Calls panel-state update, input handling, then rendering for each display slot. |
+| `HandleMenuRowInput` | `0x00546AB0` | Invokes the panel's action handler, then starts a transition if its destination changed. |
+| `HandleGenericMenuAction` | `0x00546CF0` | Back/Confirm set the destination panel without immediately replacing the displayed panel. |
+| `Menu_ActivateDisplaySlot` | `0x00544E30` | Configures the outgoing animation and marks the current panel as leaving. |
+| `HandleMenuPanelState` | `0x00545AB0` | Advances the animation; once the outgoing phase finishes, replaces the current panel and invokes the destination builder. |
+| `RenderMenuPanel` | `0x0054ACF0` | Continues drawing the current panel during its outgoing animation; resolves the title through the locale table. |
+| `DrawMenuRow` | `0x00547050` | Resolves each row's numeric label ID through the current locale table on every draw. |
+
+Restoration in an action handler therefore affects the outgoing panel's next
+draw, potentially on the same frame as the navigation request.
+
+## Required Lifecycle and Verification
+
+Keep outgoing overrides active throughout the exit animation. Restore them when
+RVGL retires the outgoing panel, before the destination builder reads or
+overrides those locale entries. Preserve labels shared by a parent menu entry
+and its submenu title where appropriate.
+
+The exact hook/callback for this change remains to be selected. Waiting until
+after `HandleMenuPanelState` returns can be too late: the destination builder
+runs inside that function. Static labels do not need to be reapplied every frame.
+
+Verify in RVGL that labels remain unchanged throughout outgoing animations for
+Archipelago Back/success, main-menu navigation, Mod Settings Back, Options
+navigation, and Start Race Confirm/Back. Also verify that destination menus see
+their correct native labels, including repeated visits and language changes.

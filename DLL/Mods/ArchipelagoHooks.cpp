@@ -1,6 +1,7 @@
 #include "ArchipelagoHooks.h"
 #include "ArchipelagoClient.h"
 #include "ArchipelagoLog.h"
+#include "ArchipelagoMenu.h"
 #include "CustomUnlocks.h"
 #include "RandomizerState.h"
 #include "RVGLMemory.h"
@@ -55,6 +56,7 @@ void Hook_MenuUpdateLoop() {
     const ConfigData* config = GetActiveConfig();
     if (config != nullptr && config->archipelago.has_value()) {
         RefreshArchipelagoUnlocks();
+        UpdateArchipelagoMenu();
     }
     Orig_MenuUpdateLoop();
 }

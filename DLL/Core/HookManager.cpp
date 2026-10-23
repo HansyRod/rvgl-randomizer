@@ -13,6 +13,7 @@
 #include "ThirtyCarCupMod.h"
 #include "MenuMod.h"
 #include "ArchipelagoHooks.h"
+#include "ArchipelagoMenu.h"
 #include "Fob.h"
 #include "CallLogger.h"
 #include "Logger.h"
@@ -415,6 +416,20 @@ static void RegisterHooks() {
         reinterpret_cast<void*>(Randomizer::Hook_BuildStartRaceMenu),
         reinterpret_cast<void**>(&Randomizer::Orig_BuildStartRaceMenu),
         "BuildStartRaceMenu"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_BUILD_MAIN_MENU),
+        reinterpret_cast<void*>(Randomizer::Hook_BuildMainMenu),
+        reinterpret_cast<void**>(&Randomizer::Orig_BuildMainMenu),
+        "BuildMainMenu"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_HANDLE_MAIN_MENU_ACTION),
+        reinterpret_cast<void*>(Randomizer::Hook_HandleMainMenuAction),
+        reinterpret_cast<void**>(&Randomizer::Orig_HandleMainMenuAction),
+        "HandleMainMenuAction"
     );
 
     HookManager::Add(

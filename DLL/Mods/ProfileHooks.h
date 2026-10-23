@@ -1,8 +1,12 @@
 #pragma once
 #include "RVGLStructs.h"
 #include <cstdio>
+#include <string>
 
 namespace Randomizer {
+
+    void SaveArchipelagoProfileConnection(const std::string& server, bool requiresPassword);
+    void MarkArchipelagoProfilePasswordRequired();
 
     // ------------------------------------------------------------------------
     // Function pointer types — must exactly match the RVGL originals.
