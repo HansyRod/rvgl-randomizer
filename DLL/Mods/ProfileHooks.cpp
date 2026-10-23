@@ -9,6 +9,7 @@
 #include "ArchipelagoClient.h"
 #include "ArchipelagoLog.h"
 #include "ArchipelagoMenu.h"
+#include "CustomUnlocks.h"
 #include <rpc.h>
 #include <algorithm>
 #include <cctype>
@@ -20,6 +21,7 @@
 #include <map>
 #include <string>
 #include <stdexcept>
+#include <utility>
 
 namespace Randomizer {
 
@@ -50,6 +52,9 @@ struct ArchipelagoProfileData {
     // Seed -> slot number -> completed IDs awaiting server confirmation. Sending
     // a packet does not prove receipt; retain it until a server list confirms it.
     std::map<std::string, std::map<std::string, std::set<int64_t>>> completedLocations;
+    // Seed -> slot number -> owned item IDs. RVGL unlocks are boolean;
+    // filler and repeated copies of an item have no additional unlock effect.
+    std::map<std::string, std::map<std::string, std::set<int64_t>>> receivedItems;
     // Runtime-only flag: retry failed saves on a later save or normal game exit.
     bool dirty = false;
 };
@@ -114,13 +119,14 @@ bool SaveArchipelagoProfileData() {
     if (g_archipelagoProfilePath.empty() || !IsValidUUID(g_archipelagoProfileData.uuid)) {
         return false;
     }
-    // A failed profile save must not truncate the UUID or previously saved checks.
+    // A failed profile save must not truncate the UUID or previously saved progress.
     // Write alongside the old file, close it, then replace it only after a full write.
     const std::string temporaryPath = g_archipelagoProfilePath + ".tmp";
     const nlohmann::json data = {
         {"uuid", g_archipelagoProfileData.uuid}, {"server", g_archipelagoProfileData.server},
         {"requiresPassword", g_archipelagoProfileData.requiresPassword},
-        {"completedLocations", g_archipelagoProfileData.completedLocations}
+        {"completedLocations", g_archipelagoProfileData.completedLocations},
+        {"receivedItems", g_archipelagoProfileData.receivedItems}
     };
     std::ofstream file(temporaryPath, std::ios::binary | std::ios::trunc);
     file << data.dump(2) << '\n';
@@ -135,7 +141,30 @@ bool SaveArchipelagoProfileData() {
     return true;
 }
 
-void LoadArchipelagoProfileData(const char* profileName) {
+void RestoreArchipelagoProfileReceivedItems(const ConfigData& config) {
+    const auto seedItems = g_archipelagoProfileData.receivedItems.find(config.metadata.seed);
+    if (seedItems == g_archipelagoProfileData.receivedItems.end()) {
+        return;
+    }
+    const auto slotItems = seedItems->second.find(std::to_string(config.archipelago->slotNumber));
+    if (slotItems == seedItems->second.end()) {
+        return;
+    }
+    // Restore logical ownership before connecting. The usual game-thread unlock
+    // refresh applies it to RVGL's car, track and cup data once that data is ready.
+    size_t restoredItems = 0;
+    for (const auto& item : config.archipelago->items) {
+        if (!item.first.empty() && slotItems->second.count(item.second) != 0) {
+            MarkArchipelagoItemReceived(item.first);
+            ++restoredItems;
+        }
+    }
+    if (restoredItems != 0) {
+        LogArchipelagoMessagef("Restored %zu cached item unlock(s).", restoredItems);
+    }
+}
+
+void LoadArchipelagoProfileData(const char* profileName, const ConfigData& config) {
     // Load the startup profile once. RVGL can reload settings during menu flows;
     // retain our in-memory checks and connection instead of loading them again.
     if (!g_archipelagoProfilePath.empty()) {
@@ -161,6 +190,8 @@ void LoadArchipelagoProfileData(const char* profileName) {
             // Files created before completion caching simply have no history yet.
             g_archipelagoProfileData.completedLocations = data.value("completedLocations",
                 decltype(g_archipelagoProfileData.completedLocations){});
+            g_archipelagoProfileData.receivedItems = data.value("receivedItems",
+                decltype(g_archipelagoProfileData.receivedItems){});
             if (!IsValidUUID(g_archipelagoProfileData.uuid)) {
                 throw std::runtime_error("Invalid profile UUID.");
             }
@@ -187,6 +218,7 @@ void LoadArchipelagoProfileData(const char* profileName) {
         return;
     }
     SetArchipelagoClientUUID(g_archipelagoProfileData.uuid);
+    RestoreArchipelagoProfileReceivedItems(config);
     ResetArchipelagoMenuProfile(g_archipelagoProfileData.server);
     if (!g_archipelagoProfileData.server.empty() && !g_archipelagoProfileData.requiresPassword) {
         RequestArchipelagoConnection(g_archipelagoProfileData.server, "");
@@ -402,6 +434,37 @@ void RemoveConfirmedArchipelagoProfileLocationChecks(
     }
 }
 
+void SaveArchipelagoProfileReceivedItems(const std::string& seed, int slot) {
+    if (g_archipelagoProfilePath.empty() || !IsValidUUID(g_archipelagoProfileData.uuid)) {
+        return;
+    }
+    const ConfigData* config = GetActiveConfig();
+    if (config == nullptr || !config->archipelago.has_value()) {
+        return;
+    }
+    std::set<int64_t> receivedItems;
+    {
+        ArchipelagoRuntimeState& state = GetRandomizerContext().archipelagoState;
+        std::lock_guard<std::mutex> lock(state.itemMutex);
+        // Runtime unlock checks use names; persist their numerical IDs from the
+        // same metadata mapping used to decode incoming Archipelago items.
+        for (const auto& item : config->archipelago->items) {
+            if (state.receivedItems.count(item.first) != 0) {
+                receivedItems.insert(item.second);
+            }
+        }
+    }
+    auto& cachedItems = g_archipelagoProfileData.receivedItems[seed][std::to_string(slot)];
+    if (cachedItems != receivedItems || g_archipelagoProfileData.dirty) {
+        // Snapshot the whole applied inventory once per packet, after a full
+        // server inventory has replaced it or incremental deliveries were added.
+        // Release the inventory mutex before writing; failed saves use the same
+        // dirty flag and shutdown retry as completed location checks.
+        cachedItems = std::move(receivedItems);
+        SaveArchipelagoProfileData();
+    }
+}
+
 void FlushArchipelagoProfileData() {
     // Normal game-loop exit retries any failed save; clean data needs no write.
     if (g_archipelagoProfileData.dirty) {
@@ -463,7 +526,7 @@ void Hook_LoadSettingsFromIni(char* profileName) {
 
     const ConfigData* config = GetActiveConfig();
     if (config != nullptr && config->archipelago.has_value()) {
-        LoadArchipelagoProfileData(profileName);
+        LoadArchipelagoProfileData(profileName, *config);
     }
 
     // Change the NCars settings row so it uses our functions

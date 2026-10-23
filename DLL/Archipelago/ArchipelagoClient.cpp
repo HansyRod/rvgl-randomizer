@@ -56,6 +56,9 @@ struct ArchipelagoClientState {
     std::map<int, std::string, std::less<>> itemNames;
     // Processed delivery indices, preventing duplicate item application across reconnects.
     std::unordered_set<int> receivedItemIndices;
+    // The first ReceivedItems packet after authentication is the full inventory.
+    // apclientpp omits its index when the item list is empty, so track it here too.
+    bool awaitingInitialItems = false;
     // Owns the apclientpp instance; the pump holds a shared copy while polling outside the lock.
     std::shared_ptr<APClient> client;
     // Records successful slot authentication and stays true through automatic reconnects.
@@ -91,6 +94,7 @@ void ResetConnection(ArchipelagoClientState& state) {
     state.client.reset();
     state.previouslyConnected = false;
     state.transportFailed = false;
+    state.awaitingInitialItems = false;
     state.fallbackUri.clear();
     state.config.enabled = false;
     state.config.password.clear();
@@ -191,12 +195,16 @@ void ReceiveArchipelagoItems(const std::list<APClient::NetworkItem>& items) {
     ArchipelagoClientState& state = GetArchipelagoClientState();
     std::lock_guard<std::mutex> lock(state.mutex);
 
-    if (!state.archipelagoConfig.has_value() || !IsSlotConnected(state) || items.empty()) {
+    if (!state.archipelagoConfig.has_value() || !IsSlotConnected(state) ||
+        (items.empty() && !state.awaitingInitialItems)) {
         return;
     }
 
     // An index-zero packet supplies the complete inventory, including starting items.
-    if (items.front().index == 0) {
+    // Replace cached ownership only once the server actually supplies that inventory.
+    const bool fullInventory = state.awaitingInitialItems || (!items.empty() && items.front().index == 0);
+    state.awaitingInitialItems = false;
+    if (fullInventory) {
         state.receivedItemIndices.clear();
         ClearArchipelagoItems();
     }
@@ -227,6 +235,7 @@ void ReceiveArchipelagoItems(const std::list<APClient::NetworkItem>& items) {
 
         MarkArchipelagoItemReceived(itemName->second);
     }
+    SaveArchipelagoProfileReceivedItems(state.config.seed, state.archipelagoConfig->slotNumber);
 }
 
 bool HasConnectionDetails(const ArchipelagoConnectionConfig& config) {
@@ -450,6 +459,7 @@ void StartArchipelagoClient() {
                 return;
             }
             currentState.previouslyConnected = true;
+            currentState.awaitingInitialItems = true;
             const auto completedLocations = GetArchipelagoProfileLocationChecks(
                 currentState.config.seed, currentState.archipelagoConfig->slotNumber);
             for (const auto& location : currentState.archipelagoConfig->locations) {

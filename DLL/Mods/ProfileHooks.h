@@ -14,6 +14,7 @@ namespace Randomizer {
     std::set<int64_t> GetArchipelagoProfileLocationChecks(const std::string& seed, int slot);
     void RemoveConfirmedArchipelagoProfileLocationChecks(
         const std::string& seed, int slot, const std::set<int64_t>& confirmedLocations);
+    void SaveArchipelagoProfileReceivedItems(const std::string& seed, int slot);
     void FlushArchipelagoProfileData();
 
     // ------------------------------------------------------------------------

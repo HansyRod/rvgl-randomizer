@@ -143,6 +143,11 @@ void RefreshArchipelagoUnlocks() {
     for (int trackIndex = 0; trackIndex < GetRuntimeTrackCount(); ++trackIndex) {
         TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
         if (track != nullptr && track->obtainCondition == archipelagoObtain) {
+            // A full server inventory may remove a cached unlock. Rebuild mode
+            // availability while preserving the flag that says the track exists.
+            constexpr uint32_t selectableModes =
+                TRACKAVAIL_NORMAL | TRACKAVAIL_REVERSE | TRACKAVAIL_TT | TRACKAVAIL_MIRROR;
+            track->trackAvailFlags = static_cast<TrackAvailFlags>(track->trackAvailFlags & ~selectableModes);
             Hook_Track_ApplyCustomUnlock(trackIndex);
         }
     }
