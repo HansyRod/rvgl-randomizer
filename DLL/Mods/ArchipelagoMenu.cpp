@@ -96,7 +96,7 @@ void ReadInput(int slotIndex, int itemIndex) {
             if (IsValidInput(text, limit)) {
                 value = text;
             } else {
-                LogArchipelagoMessage("[Archipelago] Paste rejected: use one line within the input length limit.");
+                LogArchipelagoMessage("Paste rejected: use one line within the input length limit.");
             }
             // SDL owns the clipboard allocation, so use its matching free function.
             RVGL_SDLFree(text);

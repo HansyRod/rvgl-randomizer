@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <mutex>
+#include <string>
 
 namespace Randomizer {
 namespace {
@@ -30,7 +31,9 @@ void LogArchipelagoMessage(const char* message) {
         return;
     }
 
-    Logger::TimestampLog(message);
+    // Tag the base log entry while keeping the in-game message as supplied.
+    const std::string fileMessage = std::string("[Archipelago] ") + message;
+    Logger::TimestampLog(fileMessage.c_str());
 
     ArchipelagoLogState& state = GetArchipelagoLogState();
     std::lock_guard<std::mutex> lock(state.mutex);

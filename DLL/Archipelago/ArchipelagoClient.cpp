@@ -101,12 +101,12 @@ void ResetConnection(ArchipelagoClientState& state) {
 bool SetServerAddress(ArchipelagoClientState& state, std::string& server) {
     const size_t first = server.find_first_not_of(" \t\r\n");
     if (first == std::string::npos) {
-        LogArchipelagoMessage("[Archipelago] Enter a server address.");
+        LogArchipelagoMessage("Enter a server address.");
         return false;
     }
     server = server.substr(first, server.find_last_not_of(" \t\r\n") - first + 1);
     if (server.size() > 1023 || server.find_first_of(" \t\r\n\\#") != std::string::npos) {
-        LogArchipelagoMessage("[Archipelago] Invalid server address.");
+        LogArchipelagoMessage("Invalid server address.");
         return false;
     }
 
@@ -118,7 +118,7 @@ bool SetServerAddress(ArchipelagoClientState& state, std::string& server) {
         std::transform(scheme.begin(), scheme.end(), scheme.begin(),
             [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         if (scheme != "ws" && scheme != "wss") {
-            LogArchipelagoMessage("[Archipelago] Use ws:// or wss:// for the server protocol.");
+            LogArchipelagoMessage("Use ws:// or wss:// for the server protocol.");
             return false;
         }
         address.erase(0, schemeEnd + 3);
@@ -130,7 +130,7 @@ bool SetServerAddress(ArchipelagoClientState& state, std::string& server) {
     }
     const std::string authority = address.substr(0, address.find('/'));
     if (authority.empty() || authority.find('@') != std::string::npos) {
-        LogArchipelagoMessage("[Archipelago] Enter a host without embedded credentials.");
+        LogArchipelagoMessage("Enter a host without embedded credentials.");
         return false;
     }
     // WebSocket++ already parses hosts, bracketed IPv6, paths and default ports.
@@ -141,7 +141,7 @@ bool SetServerAddress(ArchipelagoClientState& state, std::string& server) {
     if (colon != std::string::npos) {
         const std::string port = authority.substr(colon + 1);
         if (port.empty() || port.size() > 5 || port.find_first_not_of("0123456789") != std::string::npos) {
-            LogArchipelagoMessage("[Archipelago] The server port must be a number from 1 to 65535.");
+            LogArchipelagoMessage("The server port must be a number from 1 to 65535.");
             return false;
         }
     }
@@ -154,7 +154,7 @@ bool SetServerAddress(ArchipelagoClientState& state, std::string& server) {
         }
         const websocketpp::uri uri(std::string(protocol) + "://" + address);
         if (!uri.get_valid() || uri.get_host().empty()) {
-            LogArchipelagoMessage("[Archipelago] Invalid server host or port.");
+            LogArchipelagoMessage("Invalid server host or port.");
             return false;
         }
         const std::string host = uri.get_host().find(':') == std::string::npos ?
@@ -178,11 +178,11 @@ void AdvanceInitialEndpoint(ArchipelagoClientState& state) {
     if (!state.fallbackUri.empty()) {
         state.config.serverUri = state.fallbackUri;
         state.fallbackUri.clear();
-        LogArchipelagoMessagef("[Archipelago] Trying %s as %s...",
+        LogArchipelagoMessagef("Trying %s as %s...",
             state.config.serverUri.c_str(), state.config.slotName.c_str());
     } else {
         ResetConnection(state);
-        LogArchipelagoMessage("[Archipelago] Connection failed or timed out. Open Archipelago to retry.");
+        LogArchipelagoMessage("Connection failed or timed out. Open Archipelago to retry.");
     }
 }
 
@@ -211,12 +211,12 @@ void ReceiveArchipelagoItems(const std::list<APClient::NetworkItem>& items) {
 
         const auto itemName = state.itemNames.find(item.item);
         if (itemName == state.itemNames.end()) {
-            LogArchipelagoMessagef("[Archipelago] Ignoring unmapped item ID %lld at index %d.",
+            LogArchipelagoMessagef("Ignoring unmapped item ID %lld at index %d.",
                 item.item, item.index);
             continue;
         }
 
-        LogArchipelagoMessagef("[Archipelago] Received item '%s' at index %d.",
+        LogArchipelagoMessagef("Received item '%s' at index %d.",
             itemName->second.empty() ? "Filler" : itemName->second.c_str(), item.index);
 
         // The empty item string represents filler, which has no unlock effect.
@@ -292,11 +292,11 @@ bool RequestArchipelagoConnection(const std::string& server, const std::string& 
     }
     // Require the loaded slot metadata and profile identity before connecting.
     if (!state.archipelagoConfig.has_value() || state.config.uuid.empty() || state.config.slotName.empty()) {
-        LogArchipelagoMessage("[Archipelago] Load a valid player profile and Archipelago metadata before connecting.");
+        LogArchipelagoMessage("Load a valid player profile and Archipelago metadata before connecting.");
         return false;
     }
     if (password.size() > 255) {
-        LogArchipelagoMessage("[Archipelago] Password is too long.");
+        LogArchipelagoMessage("Password is too long.");
         return false;
     }
     // Clear the previous session, then validate the address and prepare its endpoints.
@@ -311,7 +311,7 @@ bool RequestArchipelagoConnection(const std::string& server, const std::string& 
     // Accept the request. PumpArchipelagoClient creates the client later on the
     // game thread; authentication has not completed when this function returns.
     state.config.enabled = true;
-    LogArchipelagoMessagef("[Archipelago] Connecting to %s as %s...",
+    LogArchipelagoMessagef("Connecting to %s as %s...",
         normalizedServer.c_str(), state.config.slotName.c_str());
     return true;
 }
@@ -322,7 +322,7 @@ void CancelArchipelagoConnection() {
     const bool wasEnabled = state.config.enabled;
     ResetConnection(state);
     if (wasEnabled) {
-        LogArchipelagoMessage("[Archipelago] Connection cancelled.");
+        LogArchipelagoMessage("Connection cancelled.");
     }
 }
 
@@ -360,7 +360,7 @@ void InitializeArchipelagoMappings(const ArchipelagoConfig* config) {
         state.itemNames.emplace(item.second, item.first);
     }
 
-    LogArchipelagoMessagef("[Archipelago] Loaded %zu location and %zu item mappings.",
+    LogArchipelagoMessagef("Loaded %zu location and %zu item mappings.",
         config->locations.size(), state.itemNames.size());
 }
 
@@ -381,13 +381,13 @@ void StartArchipelagoClient() {
     std::lock_guard<std::mutex> lock(state.mutex);
 
     if (!state.config.enabled) {
-        LogArchipelagoMessage("[Archipelago] Client disabled.");
+        LogArchipelagoMessage("Client disabled.");
         return;
     }
 
     if (!HasConnectionDetails(state.config)) {
-        LogArchipelagoMessage("[Archipelago] Client enabled but connection details are incomplete.");
-        LogArchipelagoMessage("[Archipelago] Open Archipelago after loading a player profile.");
+        LogArchipelagoMessage("Client enabled but connection details are incomplete.");
+        LogArchipelagoMessage("Open Archipelago after loading a player profile.");
         ResetConnection(state);
         return;
     }
@@ -415,7 +415,7 @@ void StartArchipelagoClient() {
             }
 
             if (currentState.client->get_seed() != currentState.config.seed) {
-                LogArchipelagoMessage("[Archipelago] Room seed does not match the loaded configuration. Connection stopped.");
+                LogArchipelagoMessage("Room seed does not match the loaded configuration. Connection stopped.");
                 currentState.config.enabled = false;
                 return;
             }
@@ -433,17 +433,17 @@ void StartArchipelagoClient() {
             std::lock_guard<std::mutex> lock(currentState.mutex);
             if (!currentState.archipelagoConfig.has_value() ||
                 currentState.client->get_player_number() != currentState.archipelagoConfig->slotNumber) {
-                LogArchipelagoMessage("[Archipelago] Connected slot does not match the loaded configuration. Connection stopped.");
+                LogArchipelagoMessage("Connected slot does not match the loaded configuration. Connection stopped.");
                 currentState.config.enabled = false;
                 return;
             }
             currentState.previouslyConnected = true;
-            LogArchipelagoMessage("[Archipelago] Slot connected.");
+            LogArchipelagoMessage("Slot connected.");
         });
 
         state.client->set_slot_refused_handler([](const std::list<std::string>& errors) {
             for (const std::string& error : errors) {
-                LogArchipelagoMessagef("[Archipelago] Slot refused: %s", error.c_str());
+                LogArchipelagoMessagef("Slot refused: %s", error.c_str());
             }
             ArchipelagoClientState& currentState = GetArchipelagoClientState();
             std::lock_guard<std::mutex> lock(currentState.mutex);
@@ -451,23 +451,23 @@ void StartArchipelagoClient() {
         });
 
         state.client->set_socket_disconnected_handler([]() {
-            LogArchipelagoMessage("[Archipelago] Disconnected; the client will retry.");
+            LogArchipelagoMessage("Disconnected; the client will retry.");
         });
 
         state.client->set_socket_error_handler([](const std::string& error) {
-            LogArchipelagoMessagef("[Archipelago] Socket error: %s", error.c_str());
+            LogArchipelagoMessagef("Socket error: %s", error.c_str());
             ArchipelagoClientState& currentState = GetArchipelagoClientState();
             std::lock_guard<std::mutex> lock(currentState.mutex);
             currentState.transportFailed = true;
         });
 
         state.client->set_items_received_handler([](const std::list<APClient::NetworkItem>& items) {
-            LogArchipelagoMessagef("[Archipelago] Received %zu item(s).", items.size());
+            LogArchipelagoMessagef("Received %zu item(s).", items.size());
             ReceiveArchipelagoItems(items);
         });
 
         state.client->set_print_handler([](const std::string& message) {
-            LogArchipelagoMessage(("[Archipelago] " + message).c_str());
+            LogArchipelagoMessage(message.c_str());
         });
 
         state.client->set_print_json_handler([](const std::list<APClient::TextNode>& nodes) {
@@ -479,13 +479,13 @@ void StartArchipelagoClient() {
             // Resolve player, item, and location IDs using the server's data
             // packages, including items belonging to games other than RVGL.
             const std::string message = currentState.client->render_json(nodes);
-            LogArchipelagoMessage(("[Archipelago] " + message).c_str());
+            LogArchipelagoMessage(message.c_str());
         });
 
         state.attemptStarted = std::chrono::steady_clock::now();
-        LogArchipelagoMessage("[Archipelago] Client created.");
+        LogArchipelagoMessage("Client created.");
     } catch (const std::exception& ex) {
-        LogArchipelagoMessagef("[Archipelago] Failed to create client: %s", ex.what());
+        LogArchipelagoMessagef("Failed to create client: %s", ex.what());
         AdvanceInitialEndpoint(state);
     }
 }
@@ -540,7 +540,7 @@ void PumpArchipelagoClient() {
         // client mutex. The shared pointer keeps the client alive without holding the mutex.
         client->poll();
     } catch (const std::exception& ex) {
-        LogArchipelagoMessagef("[Archipelago] Polling failed: %s", ex.what());
+        LogArchipelagoMessagef("Polling failed: %s", ex.what());
         CancelArchipelagoConnection();
         return;
     }
@@ -573,7 +573,7 @@ void PumpArchipelagoClient() {
         // Report those completed location IDs to the server through apclientpp's LocationChecks.
         SendQueuedLocationChecks(client, queuedLocations);
     } catch (const std::exception& ex) {
-        LogArchipelagoMessagef("[Archipelago] Could not send location checks: %s", ex.what());
+        LogArchipelagoMessagef("Could not send location checks: %s", ex.what());
         ArchipelagoClientState& state = GetArchipelagoClientState();
         std::lock_guard<std::mutex> lock(state.mutex);
         // Restore the batch so a later update can retry a failed submission.
@@ -606,13 +606,13 @@ void QueueArchipelagoEventKey(const std::string& eventKey) {
 
     const auto location = state.archipelagoConfig->locations.find(eventKey);
     if (location == state.archipelagoConfig->locations.end()) {
-        LogArchipelagoMessagef("[Archipelago] Ignoring unmapped event key: %s", eventKey.c_str());
+        LogArchipelagoMessagef("Ignoring unmapped event key: %s", eventKey.c_str());
         return;
     }
 
     // The client mutex is already held, so insert directly rather than locking again.
     state.queuedLocationChecks.insert(location->second);
-    LogArchipelagoMessagef("[Archipelago] Event key queued: %s -> location %d", eventKey.c_str(), location->second);
+    LogArchipelagoMessagef("Event key queued: %s -> location %d", eventKey.c_str(), location->second);
 }
 
 bool IsArchipelagoClientEnabled() {

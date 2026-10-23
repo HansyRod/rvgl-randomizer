@@ -120,7 +120,7 @@ bool SaveArchipelagoProfileData() {
     if (!file || !MoveFileExA(temporaryPath.c_str(), g_archipelagoProfilePath.c_str(),
         MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
         DeleteFileA(temporaryPath.c_str());
-        LogArchipelagoMessage("[Archipelago] Could not save Archipelago profile data.");
+        LogArchipelagoMessage("Could not save Archipelago profile data.");
         return false;
     }
     return true;
@@ -175,7 +175,7 @@ void LoadArchipelagoProfileData(const char* profileName) {
         }
     } catch (const std::exception& error) {
         // Never regenerate an identity merely because its settings file is malformed.
-        LogArchipelagoMessagef("[Archipelago] Could not load profile data: %s File left unchanged.", error.what());
+        LogArchipelagoMessagef("Could not load profile data: %s File left unchanged.", error.what());
         g_archipelagoProfileData = {};
         return;
     }
