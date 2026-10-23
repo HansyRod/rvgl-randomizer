@@ -16,6 +16,7 @@ FnHandleMenuAction Orig_HandleMainMenuAction = nullptr;
 namespace {
 
 constexpr int kTitleLabel = 0x23;
+constexpr int kSelectProfileLabel = 0x211;
 constexpr int kConfirm = 5;
 constexpr int kCancel = 4;
 constexpr int kCtrlModifiers = 0xc0; // SDL KMOD_LCTRL | KMOD_RCTRL.
@@ -251,10 +252,18 @@ void InitializeMenu() {
 void Hook_BuildMainMenu(int slotIndex) {
     Orig_BuildMainMenu(slotIndex);
     if (HasArchipelagoMetadata()) {
+        auto* slot = MenuSlot(slotIndex);
+        // Archipelago fixes the profile for this launch. Remove Select Profile
+        // from the native rows before adding the Archipelago entry.
+        const auto menuItemsEnd = std::remove_if(slot->items, slot->items + slot->itemCount,
+            [](const MenuItemDescriptor* item) { return item->labelId == kSelectProfileLabel; });
+        // The native menu has at most one Select Profile row.
+        if (menuItemsEnd != slot->items + slot->itemCount) {
+            --slot->itemCount;
+        }
         InitializeMenu();
         OverrideLocaleString(g_menuLocaleOverrides[0]);
         RVGL_RegisterMenuItemInActiveMenu(slotIndex, reinterpret_cast<int*>(&g_archipelagoMainMenuItem));
-        auto* slot = MenuSlot(slotIndex);
         // BuildMainMenu always registers Quit last. Put our new row just before it.
         // Its index stays the same on each rebuild, so native selection handling suffices.
         std::swap(slot->items[slot->itemCount - 1], slot->items[slot->itemCount - 2]);
