@@ -1,12 +1,20 @@
 #pragma once
 #include "RVGLStructs.h"
 #include <cstdio>
+#include <cstdint>
+#include <set>
 #include <string>
 
 namespace Randomizer {
 
     void SaveArchipelagoProfileConnection(const std::string& server, bool requiresPassword);
     void MarkArchipelagoProfilePasswordRequired();
+    // Completed checks awaiting server confirmation, scoped to a seed and slot within the active RVGL profile.
+    void RecordArchipelagoProfileLocationCheck(const std::string& seed, int slot, int64_t locationId);
+    std::set<int64_t> GetArchipelagoProfileLocationChecks(const std::string& seed, int slot);
+    void RemoveConfirmedArchipelagoProfileLocationChecks(
+        const std::string& seed, int slot, const std::set<int64_t>& confirmedLocations);
+    void FlushArchipelagoProfileData();
 
     // ------------------------------------------------------------------------
     // Function pointer types — must exactly match the RVGL originals.

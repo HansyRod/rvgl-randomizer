@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cstdint>
 #include <exception>
 #include <list>
 #include <map>
@@ -235,6 +236,21 @@ bool HasConnectionDetails(const ArchipelagoConnectionConfig& config) {
            !config.uuid.empty();
 }
 
+void RecordLocationCheck(ArchipelagoClientState& state, int64_t locationId) {
+    // The caller holds the client mutex. Save the completed ID before queueing
+    // it for submission so an interrupted send can be retried after restart.
+    if (!state.archipelagoConfig.has_value() || locationId <= 0) {
+        return;
+    }
+    const auto& locations = state.archipelagoConfig->locations;
+    if (std::none_of(locations.begin(), locations.end(),
+        [locationId](const auto& location) { return location.second == locationId; })) {
+        return;
+    }
+    RecordArchipelagoProfileLocationCheck(state.config.seed, state.archipelagoConfig->slotNumber, locationId);
+    state.queuedLocationChecks.insert(locationId);
+}
+
 std::list<int64_t> TakeQueuedLocationChecks(ArchipelagoClientState& state) {
     std::list<int64_t> locations;
 
@@ -246,6 +262,8 @@ std::list<int64_t> TakeQueuedLocationChecks(ArchipelagoClientState& state) {
         state.queuedLocationChecks.begin(),
         state.queuedLocationChecks.end()
     );
+    // Clear only the outgoing batch. Unconfirmed completions remain saved
+    // if this send is interrupted or the process exits before the server receives it.
     state.queuedLocationChecks.clear();
 
     return locations;
@@ -272,12 +290,6 @@ void SetArchipelagoClientUUID(const std::string& uuid) {
     ArchipelagoClientState& state = GetArchipelagoClientState();
     std::lock_guard<std::mutex> lock(state.mutex);
 
-    if (state.config.uuid == uuid) {
-        return;
-    }
-
-    // A profile change uses that profile's client identity on the next connection.
-    ResetConnection(state);
     state.config.uuid = uuid;
 }
 
@@ -438,6 +450,22 @@ void StartArchipelagoClient() {
                 return;
             }
             currentState.previouslyConnected = true;
+            const auto completedLocations = GetArchipelagoProfileLocationChecks(
+                currentState.config.seed, currentState.archipelagoConfig->slotNumber);
+            for (const auto& location : currentState.archipelagoConfig->locations) {
+                if (completedLocations.count(location.second) != 0) {
+                    currentState.queuedLocationChecks.insert(location.second);
+                }
+            }
+            // Connected replaces apclientpp's checked set with the server's list.
+            // LocationChecks later adds IDs to that set before server acknowledgement,
+            // so only this fresh snapshot is safe for removing checks from disk.
+            const auto confirmedLocations = currentState.client->get_checked_locations();
+            for (int64_t locationId : confirmedLocations) {
+                currentState.queuedLocationChecks.erase(locationId);
+            }
+            RemoveConfirmedArchipelagoProfileLocationChecks(currentState.config.seed,
+                currentState.archipelagoConfig->slotNumber, confirmedLocations);
             LogArchipelagoMessage("Slot connected.");
         });
 
@@ -494,6 +522,9 @@ void StopArchipelagoClient() {
     ArchipelagoClientState& state = GetArchipelagoClientState();
     std::lock_guard<std::mutex> lock(state.mutex);
 
+    // The main game loop calls this before DLL detach; retry failed disk writes
+    // while filesystem access is still safe, before clearing the in-memory queue.
+    FlushArchipelagoProfileData();
     ResetConnection(state);
     state.archipelagoConfig.reset();
     state.itemNames.clear();
@@ -581,17 +612,6 @@ void PumpArchipelagoClient() {
     }
 }
 
-void QueueArchipelagoLocationCheck(int64_t locationId) {
-    if (locationId <= 0) {
-        return;
-    }
-
-    ArchipelagoClientState& state = GetArchipelagoClientState();
-    std::lock_guard<std::mutex> lock(state.mutex);
-
-    state.queuedLocationChecks.insert(locationId);
-}
-
 void QueueArchipelagoEventKey(const std::string& eventKey) {
     if (eventKey.empty()) {
         return;
@@ -610,8 +630,8 @@ void QueueArchipelagoEventKey(const std::string& eventKey) {
         return;
     }
 
-    // The client mutex is already held, so insert directly rather than locking again.
-    state.queuedLocationChecks.insert(location->second);
+    // The client mutex is already held; the shared recording helper must not lock it again.
+    RecordLocationCheck(state, location->second);
     LogArchipelagoMessagef("Event key queued: %s -> location %d", eventKey.c_str(), location->second);
 }
 

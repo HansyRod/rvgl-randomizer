@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdint>
 #include <optional>
 #include <string>
 
@@ -34,7 +33,6 @@ void StartArchipelagoClient();
 void StopArchipelagoClient();
 void PumpArchipelagoClient();
 void QueueArchipelagoEventKey(const std::string& eventKey);
-void QueueArchipelagoLocationCheck(int64_t locationId);
 bool IsArchipelagoClientEnabled();
 
 } // namespace Randomizer

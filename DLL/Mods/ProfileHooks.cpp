@@ -17,6 +17,7 @@
 #include <fstream>
 #include <filesystem>
 #include <limits>
+#include <map>
 #include <string>
 #include <stdexcept>
 
@@ -46,6 +47,11 @@ struct ArchipelagoProfileData {
     std::string uuid;
     std::string server;
     bool requiresPassword = true;
+    // Seed -> slot number -> completed IDs awaiting server confirmation. Sending
+    // a packet does not prove receipt; retain it until a server list confirms it.
+    std::map<std::string, std::map<std::string, std::set<int64_t>>> completedLocations;
+    // Runtime-only flag: retry failed saves on a later save or normal game exit.
+    bool dirty = false;
 };
 
 ArchipelagoProfileData g_archipelagoProfileData;
@@ -104,15 +110,17 @@ bool IsValidUUID(const std::string& uuid) {
 }
 
 bool SaveArchipelagoProfileData() {
+    g_archipelagoProfileData.dirty = true;
     if (g_archipelagoProfilePath.empty() || !IsValidUUID(g_archipelagoProfileData.uuid)) {
         return false;
     }
-    // A failed server-settings save must not truncate the UUID we need to reconnect.
+    // A failed profile save must not truncate the UUID or previously saved checks.
     // Write alongside the old file, close it, then replace it only after a full write.
     const std::string temporaryPath = g_archipelagoProfilePath + ".tmp";
     const nlohmann::json data = {
         {"uuid", g_archipelagoProfileData.uuid}, {"server", g_archipelagoProfileData.server},
-        {"requiresPassword", g_archipelagoProfileData.requiresPassword}
+        {"requiresPassword", g_archipelagoProfileData.requiresPassword},
+        {"completedLocations", g_archipelagoProfileData.completedLocations}
     };
     std::ofstream file(temporaryPath, std::ios::binary | std::ios::trunc);
     file << data.dump(2) << '\n';
@@ -120,13 +128,19 @@ bool SaveArchipelagoProfileData() {
     if (!file || !MoveFileExA(temporaryPath.c_str(), g_archipelagoProfilePath.c_str(),
         MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
         DeleteFileA(temporaryPath.c_str());
-        LogArchipelagoMessage("Could not save Archipelago profile data.");
+        LogArchipelagoMessagef("Could not save Archipelago profile data: %s. Pending changes remain in memory.", g_archipelagoProfilePath.c_str());
         return false;
     }
+    g_archipelagoProfileData.dirty = false;
     return true;
 }
 
 void LoadArchipelagoProfileData(const char* profileName) {
+    // Load the startup profile once. RVGL can reload settings during menu flows;
+    // retain our in-memory checks and connection instead of loading them again.
+    if (!g_archipelagoProfilePath.empty()) {
+        return;
+    }
     const std::string internalName = GetProfileInternalName(profileName);
     if (internalName.empty()) {
         // RVGL loads global/default settings before selecting the startup profile.
@@ -134,18 +148,7 @@ void LoadArchipelagoProfileData(const char* profileName) {
     }
     const std::string virtualPath = "profiles/" + internalName + "/archipelago.json";
     const std::string resolvedPath = ResolveRandomizerProfilePath(virtualPath, true);
-    if (g_archipelagoProfilePath == resolvedPath) {
-        return;
-    }
-    // Settings are reloaded by other frontend flows too. Only the first actual
-    // profile in this process may auto-connect; switching profiles must remain manual.
-    const bool firstProfile = g_archipelagoProfilePath.empty();
-    CancelArchipelagoConnection();
-    // If reading the new profile fails, Connect must not reuse the old profile's UUID.
-    SetArchipelagoClientUUID("");
-    ResetArchipelagoMenuProfile("");
     g_archipelagoProfilePath = resolvedPath;
-    g_archipelagoProfileData = {};
     try {
         if (std::filesystem::exists(resolvedPath)) {
             // Existing profile data: load its saved identity and connection preferences.
@@ -154,6 +157,10 @@ void LoadArchipelagoProfileData(const char* profileName) {
             g_archipelagoProfileData.uuid = data.at("uuid").get<std::string>();
             g_archipelagoProfileData.server = data.value("server", std::string{});
             g_archipelagoProfileData.requiresPassword = data.value("requiresPassword", true);
+            // Read once with the profile, never from the per-frame network pump.
+            // Files created before completion caching simply have no history yet.
+            g_archipelagoProfileData.completedLocations = data.value("completedLocations",
+                decltype(g_archipelagoProfileData.completedLocations){});
             if (!IsValidUUID(g_archipelagoProfileData.uuid)) {
                 throw std::runtime_error("Invalid profile UUID.");
             }
@@ -181,7 +188,7 @@ void LoadArchipelagoProfileData(const char* profileName) {
     }
     SetArchipelagoClientUUID(g_archipelagoProfileData.uuid);
     ResetArchipelagoMenuProfile(g_archipelagoProfileData.server);
-    if (firstProfile && !g_archipelagoProfileData.server.empty() && !g_archipelagoProfileData.requiresPassword) {
+    if (!g_archipelagoProfileData.server.empty() && !g_archipelagoProfileData.requiresPassword) {
         RequestArchipelagoConnection(g_archipelagoProfileData.server, "");
     }
 }
@@ -347,6 +354,58 @@ void SaveArchipelagoProfileConnection(const std::string& server, bool requiresPa
 void MarkArchipelagoProfilePasswordRequired() {
     if (!g_archipelagoProfileData.requiresPassword) {
         SaveArchipelagoProfileConnection(g_archipelagoProfileData.server, true);
+    }
+}
+
+void RecordArchipelagoProfileLocationCheck(const std::string& seed, int slot, int64_t locationId) {
+    if (g_archipelagoProfilePath.empty() || !IsValidUUID(g_archipelagoProfileData.uuid)) {
+        return;
+    }
+    auto& completedLocations = g_archipelagoProfileData.completedLocations[seed][std::to_string(slot)];
+    const bool newCompletion = completedLocations.insert(locationId).second;
+    if (newCompletion || g_archipelagoProfileData.dirty) {
+        // Save before submitting, even while connected. Normal exit is a retry
+        // opportunity, not the only protection against losing an unsent check.
+        SaveArchipelagoProfileData();
+    }
+}
+
+std::set<int64_t> GetArchipelagoProfileLocationChecks(const std::string& seed, int slot) {
+    const auto seedChecks = g_archipelagoProfileData.completedLocations.find(seed);
+    if (seedChecks == g_archipelagoProfileData.completedLocations.end()) {
+        return {};
+    }
+    const auto slotChecks = seedChecks->second.find(std::to_string(slot));
+    return slotChecks == seedChecks->second.end() ? std::set<int64_t>{} : slotChecks->second;
+}
+
+void RemoveConfirmedArchipelagoProfileLocationChecks(
+    const std::string& seed, int slot, const std::set<int64_t>& confirmedLocations) {
+    const auto seedChecks = g_archipelagoProfileData.completedLocations.find(seed);
+    if (seedChecks == g_archipelagoProfileData.completedLocations.end()) {
+        return;
+    }
+    const auto slotChecks = seedChecks->second.find(std::to_string(slot));
+    if (slotChecks == seedChecks->second.end()) {
+        return;
+    }
+    bool changed = false;
+    for (int64_t locationId : confirmedLocations) {
+        if (slotChecks->second.erase(locationId) != 0) {
+            changed = true;
+        }
+    }
+    if (changed || g_archipelagoProfileData.dirty) {
+        // Only server-confirmed checks may leave the recovery file. Save once
+        // for the whole list; a failed write remains dirty for the usual retries.
+        SaveArchipelagoProfileData();
+    }
+}
+
+void FlushArchipelagoProfileData() {
+    // Normal game-loop exit retries any failed save; clean data needs no write.
+    if (g_archipelagoProfileData.dirty) {
+        SaveArchipelagoProfileData();
     }
 }
 
