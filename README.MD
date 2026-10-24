@@ -106,6 +106,10 @@ WebView2 is already provided in the process of installing RVGL Randomizer. If th
 
 Confirm you have Microsoft Visual C++ Redistributable in your system. You can download the latest x64 version from [Microsoft's website](https://learn.microsoft.com/en-gb/cpp/windows/latest-supported-vc-redist?view=msvc-170#latest-supported-redistributable-version).
 
+* **RVGL doesn't start with this error: "Launch failed: CreateProcess failed: The requested operation requires elevation."**
+
+If you have this error, Windows is not giving RVGL Randomizer permissions to launch RVGL. Right-click the RVGL Randomizer shortcut and choose "Run as Administrator" to work around it.
+
 * **Can I use other mods with RVGL Randomizer?**
 
 RVGL Randomizer is compatible with any custom content mods for cars and tracks. It was not tested and is not guaranteed to be compatible with other mods such as scripting mods.

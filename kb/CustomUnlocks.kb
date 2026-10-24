@@ -106,6 +106,12 @@ instead:
 - The evaluated result is written back to both `CarInfo::selectableByPlayer`
   and `carSelectableState`.
 
+`Hook_SyncCarInfoFromPhysics` also calls `UpdateCarCustomUnlocks` immediately
+after the native synchronization returns. This restores custom selectability
+when a car model is loaded by the selector or race setup, rather than leaving
+the car locked until a later global availability update. The transition cache
+prevents these repeated evaluations from replaying unlock dialogs.
+
 This keeps native physics synchronization from creating false unlock
 transitions while preserving genuine custom unlock dialogs. The fix is in
 `DLL/Mods/CarHooks.cpp`, `DLL/Mods/CustomUnlocks.cpp`, and
