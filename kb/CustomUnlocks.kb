@@ -136,8 +136,8 @@ rules.
 - Switches on `TrackInfo::obtainCondition`.
 - Built-in values `0..5` call the same common tier-check helpers as cars.
 - Unknown values return locked.
-- After an unlock passes, RVGL applies `trackAvailFlags` for normal, time trial,
-  reverse, and mirror availability.
+- After an unlock passes, RVGL applies `trackAvailFlags` for normal, mirror,
+  reverse, and reverse mirror availability.
 
 Randomizer behavior:
 
@@ -148,6 +148,29 @@ Randomizer behavior:
   track availability flags in DLL code.
 - Missing `customUnlock` config for a custom obtain value logs once and leaves
   the track locked.
+
+Archipelago track items grant every supported version immediately, without
+single-player challenge requirements. Normal and Mirror are always enabled;
+Reverse and Reverse Mirror additionally require the native
+`RVGL_TrackReversedDirExists` check to succeed. Starting tracks currently keep
+obtain `0` in both the config and runtime data, so they still use native
+tier-based mode gates. Moving them to Archipelago item unlocks is deferred to
+a later APWorld generation change. Other custom unlock methods retain their
+challenge-progress requirements.
+
+Availability bits, confirmed against `Track_IsAvailableForCurrentSettings` at
+`0x004549b0` and the original `LevelInfo.h` definitions:
+
+| Flag | Meaning |
+| ---: | --- |
+| `0x01` | Track exists |
+| `0x02` | Normal |
+| `0x04` | Mirror |
+| `0x08` | Reverse |
+| `0x10` | Reverse Mirror |
+
+These bits describe track versions, not separate race types or Time Trial
+availability. The former DLL names for `0x04`, `0x08`, and `0x10` were incorrect.
 
 Important track progress flags:
 

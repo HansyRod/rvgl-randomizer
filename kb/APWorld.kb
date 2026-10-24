@@ -159,6 +159,11 @@ stunt_star:1
 stunt_star:20
 ```
 
+Track location generation checks `TrackData.has_reverse` before adding
+`time_trial_reverse:<trackFolder>`. Normal and Mirror time-trial locations do
+not require reverse data. Existing location IDs are preserved; Mirror appears
+before the optional Reverse location. There is no separate Reverse Mirror check.
+
 Initial goal:
 
 ```text
