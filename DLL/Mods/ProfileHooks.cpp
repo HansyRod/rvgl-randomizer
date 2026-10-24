@@ -160,7 +160,7 @@ void RestoreArchipelagoProfileReceivedItems(const ConfigData& config) {
         }
     }
     if (restoredItems != 0) {
-        LogArchipelagoMessagef("Restored %zu cached item unlock(s).", restoredItems);
+        Logger::TimestampLogf("[Archipelago] Restored %zu cached item unlock(s).", restoredItems);
     }
 }
 
