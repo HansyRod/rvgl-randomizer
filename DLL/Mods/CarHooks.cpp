@@ -474,6 +474,10 @@ void Hook_SyncCarInfoFromPhysics(int carIndex, CarPhysicsData *physData) {
 
     Orig_SyncCarInfoFromPhysics(carIndex, physData);
 
+    // Native synchronization treats custom obtain values as locked. Reapply
+    // their actual conditions before the selector or race setup uses the car.
+    UpdateCarCustomUnlocks();
+
 }
 
 void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
