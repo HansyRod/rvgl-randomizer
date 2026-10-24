@@ -158,11 +158,11 @@ Randomizer behavior:
 Archipelago track items grant every supported version immediately, without
 single-player challenge requirements. Normal and Mirror are always enabled;
 Reverse and Reverse Mirror additionally require the native
-`RVGL_TrackReversedDirExists` check to succeed. Starting tracks currently keep
-obtain `0` in both the config and runtime data, so they still use native
-tier-based mode gates. Moving them to Archipelago item unlocks is deferred to
-a later APWorld generation change. Other custom unlock methods retain their
-challenge-progress requirements.
+`RVGL_TrackReversedDirExists` check to succeed. APWorld-generated starting
+content also uses Archipelago item conditions (obtain `13`), with ownership
+supplied by the server's precollected inventory or the local received-item cache.
+The DLL keeps the config and runtime obtain values identical. Other custom
+unlock methods retain their challenge-progress requirements.
 
 Availability bits, confirmed against `Track_IsAvailableForCurrentSettings` at
 `0x004549b0` and the original `LevelInfo.h` definitions:
