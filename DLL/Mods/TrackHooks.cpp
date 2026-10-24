@@ -156,15 +156,15 @@ void ApplyUnlockedTrackAvailability(int trackIndex, TrackInfo* track) {
         (track->trackProgressFlags & TRACKPROGRESS_MIRROR_CHALLENGE_BEATEN) != 0;
 
     if (normalChallengeSatisfied) {
-        track->trackAvailFlags = static_cast<TrackAvailFlags>(track->trackAvailFlags | TRACKAVAIL_TT);
-    }
-
-    if (reverseChallengeSatisfied) {
         track->trackAvailFlags = static_cast<TrackAvailFlags>(track->trackAvailFlags | TRACKAVAIL_REVERSE);
     }
 
-    if (normalChallengeSatisfied && reverseChallengeSatisfied && mirrorChallengeSatisfied) {
+    if (reverseChallengeSatisfied) {
         track->trackAvailFlags = static_cast<TrackAvailFlags>(track->trackAvailFlags | TRACKAVAIL_MIRROR);
+    }
+
+    if (normalChallengeSatisfied && reverseChallengeSatisfied && mirrorChallengeSatisfied) {
+        track->trackAvailFlags = static_cast<TrackAvailFlags>(track->trackAvailFlags | TRACKAVAIL_REVERSE_MIRROR);
     }
 }
 

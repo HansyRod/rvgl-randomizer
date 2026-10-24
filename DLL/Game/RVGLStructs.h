@@ -73,9 +73,9 @@ static_assert(sizeof(CarInfo) == 0x110, "CarInfo size mismatch");
 enum TrackAvailFlags : uint32_t {
     TRACKAVAIL_EXISTS   = 0x01,  // Track world file exists on disk
     TRACKAVAIL_NORMAL   = 0x02,  // Normal racing available
-    TRACKAVAIL_REVERSE  = 0x04,  // Reverse mode available
-    TRACKAVAIL_TT       = 0x08,  // Time Trial available
-    TRACKAVAIL_MIRROR   = 0x10,  // Mirror mode available
+    TRACKAVAIL_MIRROR   = 0x04,  // Mirror mode available
+    TRACKAVAIL_REVERSE  = 0x08,  // Reverse mode available
+    TRACKAVAIL_REVERSE_MIRROR = 0x10,  // Reverse Mirror mode available
 };
 
 // Progress flags for TrackInfo::trackProgressFlags

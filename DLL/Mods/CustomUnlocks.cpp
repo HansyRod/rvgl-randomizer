@@ -146,7 +146,7 @@ void RefreshArchipelagoUnlocks() {
             // A full server inventory may remove a cached unlock. Rebuild mode
             // availability while preserving the flag that says the track exists.
             constexpr uint32_t selectableModes =
-                TRACKAVAIL_NORMAL | TRACKAVAIL_REVERSE | TRACKAVAIL_TT | TRACKAVAIL_MIRROR;
+                TRACKAVAIL_NORMAL | TRACKAVAIL_MIRROR | TRACKAVAIL_REVERSE | TRACKAVAIL_REVERSE_MIRROR;
             track->trackAvailFlags = static_cast<TrackAvailFlags>(track->trackAvailFlags & ~selectableModes);
             Hook_Track_ApplyCustomUnlock(trackIndex);
         }
