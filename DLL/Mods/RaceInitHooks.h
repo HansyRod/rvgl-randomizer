@@ -10,7 +10,7 @@ namespace Randomizer {
     //   LoadVanillaCarPool:  bool ()
     // ------------------------------------------------------------------------
     using FnDrawPostRaceLeaderboard = void(*)();
-    using FnRaceSessionSetup = void(*)(bool isRestart);
+    using FnRaceSessionSetup = void(*)(bool isMultiplayerRestart);
     using FnAssignStartPositions = void(*)();
     using FnSetupAllRaceCars = void(*)();
     using FnRandomizeCarPicks = void(*)();
@@ -35,7 +35,7 @@ namespace Randomizer {
     // Detour functions — registered in HookManager.cpp → RegisterHooks().
     // ------------------------------------------------------------------------
     void Hook_DrawPostRaceLeaderboard();
-    void Hook_RaceSessionSetup(bool isRestart);
+    void Hook_RaceSessionSetup(bool isMultiplayerRestart);
     void Hook_AssignStartPositions();
     void Hook_SetupAllRaceCars();
     void Hook_RandomizeCarPicks();
