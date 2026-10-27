@@ -241,6 +241,9 @@ namespace Randomizer {
         int schemaVersion = 1;
         int slotNumber = 0;
         std::string slotName;
+        // Enables per-car Single Race win tracking and its car-selection status.
+        // The location map identifies which car_race_win:<folder> checks are active.
+        bool carsanity = false;
         std::map<std::string, int> locations;
         // An empty item string identifies filler and has no unlock effect.
         std::map<std::string, int> items;
@@ -252,6 +255,7 @@ namespace Randomizer {
             {"schemaVersion", p.schemaVersion},
             {"slotNumber", p.slotNumber},
             {"slotName", p.slotName},
+            {"carsanity", p.carsanity},
             {"locations", p.locations},
             {"items", p.items},
             {"goalEventKey", p.goalEventKey}
@@ -262,6 +266,7 @@ namespace Randomizer {
         j.at("schemaVersion").get_to(p.schemaVersion);
         j.at("slotNumber").get_to(p.slotNumber);
         j.at("slotName").get_to(p.slotName);
+        j.at("carsanity").get_to(p.carsanity);
         j.at("locations").get_to(p.locations);
         j.at("items").get_to(p.items);
         j.at("goalEventKey").get_to(p.goalEventKey);

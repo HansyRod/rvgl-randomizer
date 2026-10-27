@@ -7,6 +7,7 @@ namespace Randomizer {
 namespace ArchipelagoEventKeys {
 
 constexpr const char* SingleRaceWin = "single_race_win";
+constexpr const char* CarRaceWin = "car_race_win";
 constexpr const char* PracticeStar = "practice_star";
 constexpr const char* TimeTrialNormal = "time_trial_normal";
 constexpr const char* TimeTrialReverse = "time_trial_reverse";
