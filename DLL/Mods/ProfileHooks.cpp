@@ -452,18 +452,18 @@ void RecordArchipelagoProfileCarWin(const std::string& seed, int slot, const std
     }
 }
 
-std::set<std::string> GetArchipelagoProfileCarWins(const std::string& seed, int slot) {
+const std::set<std::string>* GetArchipelagoProfileCarWins(const std::string& seed, int slot) {
     const auto& carWins = g_archipelagoProfileData.carWins;
     const auto seedWinsEntry = carWins.find(seed);
     if (seedWinsEntry == carWins.end()) {
-        return {};
+        return nullptr;
     }
     const auto& seedWins = seedWinsEntry->second;
     const auto slotWins = seedWins.find(std::to_string(slot));
     if (slotWins == seedWins.end()) {
-        return {};
+        return nullptr;
     }
-    return slotWins->second;
+    return &slotWins->second;
 }
 
 void SaveArchipelagoProfileReceivedItems(const std::string& seed, int slot) {

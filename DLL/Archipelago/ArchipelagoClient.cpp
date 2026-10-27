@@ -276,7 +276,7 @@ void SyncCarsanityLocationChecks(ArchipelagoClientState& state, const std::set<i
         return;
     }
     const int slot = state.archipelagoConfig->slotNumber;
-    const auto carWins = GetArchipelagoProfileCarWins(state.config.seed, slot);
+    const auto* carWins = GetArchipelagoProfileCarWins(state.config.seed, slot);
     for (const auto& location : state.archipelagoConfig->locations) {
         const auto carFolder = GetCarsanityCarFolder(location.first);
         if (!carFolder.has_value() || carFolder->empty() || location.second <= 0) {
@@ -286,7 +286,8 @@ void SyncCarsanityLocationChecks(ArchipelagoClientState& state, const std::set<i
             // Server checks restore the local checklist even if its history was lost.
             RecordArchipelagoProfileCarWin(state.config.seed, slot, *carFolder);
             state.queuedEventKeys.insert(location.first);
-        } else if (carWins.count(*carFolder) != 0) {
+        } else if (carWins != nullptr &&
+                   carWins->count(*carFolder) != 0) {
             // Recover a win saved before its pending location could be written.
             RecordLocationCheck(state, location.second);
             state.queuedEventKeys.insert(location.first);
