@@ -72,7 +72,6 @@ add_library(randomizer SHARED
     # Mods — individual mod logic
     Mods/RandomizerState.cpp
     Mods/RandomizerInit.cpp
-    Mods/ArchipelagoHooks.cpp
     Mods/CustomUnlocks.cpp
     Mods/CarHooks.cpp
     Mods/Carbox.cpp
@@ -92,13 +91,14 @@ add_library(randomizer SHARED
     Mods/ExtendedCupStandingsTable.cpp
     Mods/Fob.cpp
     Mods/MenuMod.cpp
-    Mods/ArchipelagoMenu.cpp
     Mods/KnockoutMode.cpp
 
     # Archipelago - network integration wrapper
     Archipelago/ArchipelagoClient.cpp
     Archipelago/ArchipelagoEventKeys.cpp
     Archipelago/ArchipelagoLog.cpp
+    Archipelago/Mods/ArchipelagoHooks.cpp
+    Archipelago/Mods/ArchipelagoMenu.cpp
     Archipelago/Mods/Carsanity.cpp
 
     # DebugUtils — debug tools
