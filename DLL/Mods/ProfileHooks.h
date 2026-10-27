@@ -14,6 +14,9 @@ namespace Randomizer {
     std::set<int64_t> GetArchipelagoProfileLocationChecks(const std::string& seed, int slot);
     void RemoveConfirmedArchipelagoProfileLocationChecks(
         const std::string& seed, int slot, const std::set<int64_t>& confirmedLocations);
+    // Uses list of car folders, persisted in the Archipelago profile data.
+    void RecordArchipelagoProfileCarWin(const std::string& seed, int slot, const std::string& carFolder);
+    std::set<std::string> GetArchipelagoProfileCarWins(const std::string& seed, int slot);
     void SaveArchipelagoProfileReceivedItems(const std::string& seed, int slot);
     void FlushArchipelagoProfileData();
 

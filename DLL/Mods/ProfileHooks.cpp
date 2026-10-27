@@ -55,6 +55,8 @@ struct ArchipelagoProfileData {
     // Seed -> slot number -> owned item IDs. RVGL unlocks are boolean;
     // filler and repeated copies of an item have no additional unlock effect.
     std::map<std::string, std::map<std::string, std::set<int64_t>>> receivedItems;
+    // Seed -> slot number -> car folders that have won a Single Race.
+    std::map<std::string, std::map<std::string, std::set<std::string>>> carWins;
     // Runtime-only flag: retry failed saves on a later save or normal game exit.
     bool dirty = false;
 };
@@ -126,7 +128,8 @@ bool SaveArchipelagoProfileData() {
         {"uuid", g_archipelagoProfileData.uuid}, {"server", g_archipelagoProfileData.server},
         {"requiresPassword", g_archipelagoProfileData.requiresPassword},
         {"completedLocations", g_archipelagoProfileData.completedLocations},
-        {"receivedItems", g_archipelagoProfileData.receivedItems}
+        {"receivedItems", g_archipelagoProfileData.receivedItems},
+        {"carWins", g_archipelagoProfileData.carWins}
     };
     std::ofstream file(temporaryPath, std::ios::binary | std::ios::trunc);
     file << data.dump(2) << '\n';
@@ -192,6 +195,8 @@ void LoadArchipelagoProfileData(const char* profileName, const ConfigData& confi
                 decltype(g_archipelagoProfileData.completedLocations){});
             g_archipelagoProfileData.receivedItems = data.value("receivedItems",
                 decltype(g_archipelagoProfileData.receivedItems){});
+            g_archipelagoProfileData.carWins = data.value("carWins",
+                decltype(g_archipelagoProfileData.carWins){});
             if (!IsValidUUID(g_archipelagoProfileData.uuid)) {
                 throw std::runtime_error("Invalid profile UUID.");
             }
@@ -432,6 +437,33 @@ void RemoveConfirmedArchipelagoProfileLocationChecks(
         // for the whole list; a failed write remains dirty for the usual retries.
         SaveArchipelagoProfileData();
     }
+}
+
+void RecordArchipelagoProfileCarWin(const std::string& seed, int slot, const std::string& carFolder) {
+    if (g_archipelagoProfilePath.empty() || !IsValidUUID(g_archipelagoProfileData.uuid) ||
+        seed.empty() || slot <= 0 || carFolder.empty()) {
+        return;
+    }
+    auto& carWins = g_archipelagoProfileData.carWins[seed][std::to_string(slot)];
+    const bool newWin = carWins.insert(carFolder).second;
+    if (newWin || g_archipelagoProfileData.dirty) {
+        // Retain wins in memory if saving fails; later saves and normal exit retry.
+        SaveArchipelagoProfileData();
+    }
+}
+
+std::set<std::string> GetArchipelagoProfileCarWins(const std::string& seed, int slot) {
+    const auto& carWins = g_archipelagoProfileData.carWins;
+    const auto seedWinsEntry = carWins.find(seed);
+    if (seedWinsEntry == carWins.end()) {
+        return {};
+    }
+    const auto& seedWins = seedWinsEntry->second;
+    const auto slotWins = seedWins.find(std::to_string(slot));
+    if (slotWins == seedWins.end()) {
+        return {};
+    }
+    return slotWins->second;
 }
 
 void SaveArchipelagoProfileReceivedItems(const std::string& seed, int slot) {
