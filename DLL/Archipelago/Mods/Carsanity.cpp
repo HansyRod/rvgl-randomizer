@@ -14,14 +14,13 @@ namespace {
 
 bool g_raceResultProcessed = false;
 
-std::string GetCarWinEventKey(const ArchipelagoConfig& config, const CarInfo& car) {
-    const std::string carFolder = GetCarFolderName(car);
+std::string GetCarWinEventKey(const ArchipelagoConfig& config, const std::string& carFolder) {
     const std::string eventKey = ArchipelagoEventKeys::MakeNamedEventKey(
         ArchipelagoEventKeys::CarRaceWin, carFolder.c_str());
     if (eventKey.empty()) {
         return {};
     }
-    // The normalized event key must match an enabled Archipelago location.
+    // The event key must match an enabled Archipelago location.
     const auto location = config.locations.find(eventKey);
     if (location == config.locations.end() ||
         location->second <= 0) {
@@ -85,13 +84,13 @@ void UpdateCarsanityRaceProgress() {
         modelId >= GetRuntimeCarCount()) {
         return;
     }
-    const std::string eventKey = GetCarWinEventKey(*config->archipelago, cars[modelId]);
+    // Use the car folder for the persistent checklist and event mapping.
+    const std::string carFolder = GetCarFolderName(cars[modelId]);
+    const std::string eventKey = GetCarWinEventKey(*config->archipelago, carFolder);
     // Cars without an enabled location mapping do not award a check.
     if (eventKey.empty()) {
         return;
     }
-    // Use the normalized folder from the event key for the persistent checklist.
-    const std::string carFolder = eventKey.substr(eventKey.find(':') + 1);
     // Save the car's win in the Archipelago profile so its Carsanity status survives restarts.
     RecordArchipelagoProfileCarWin(config->metadata.seed, config->archipelago->slotNumber, carFolder);
     QueueArchipelagoEventKey(eventKey);

@@ -1,6 +1,4 @@
 #include "ArchipelagoEventKeys.h"
-#include <algorithm>
-#include <cctype>
 
 namespace Randomizer {
 namespace ArchipelagoEventKeys {
@@ -30,11 +28,7 @@ std::string MakeNamedEventKey(const char* eventName, const char* name) {
         return "";
     }
 
-    std::string eventKey = std::string(eventName) + ":" + name;
-    // Named keys use lowercase to match the generated Archipelago mappings.
-    std::transform(eventKey.begin(), eventKey.end(), eventKey.begin(),
-        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return eventKey;
+    return std::string(eventName) + ":" + name;
 }
 
 } // namespace ArchipelagoEventKeys
