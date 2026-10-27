@@ -398,6 +398,12 @@ constexpr uint32_t RVA_LOCALE_STRINGS_PTR = 0x002a79a0;
 // Pointer to frontend menu slot runtime storage.
 constexpr uint32_t RVA_MENU_SLOTS_PTR = 0x002a6860;
 
+// Native full car-selection panel.
+constexpr uint32_t RVA_CAR_SELECTION_MENU_PANEL = 0x002658e0;
+
+// Local player whose car is currently being selected (0..3).
+constexpr uint32_t RVA_ACTIVE_PLAYER_SLOT = 0x0aaa0c84;
+
 // Pointer-to-pointer to the active UI viewport transform. Native cup progress
 // drawing reads *(*ptr + 0x10) and applies DAT_006755ec before subtracting 320.
 constexpr uint32_t RVA_UI_VIEWPORT_PTR_PTR = 0x002a5f50;

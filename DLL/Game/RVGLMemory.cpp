@@ -12,6 +12,19 @@ RaceSettingsRuntime* GetRaceSettings() {
     return *reinterpret_cast<RaceSettingsRuntime**>(AbsFromRva(RVA_RACE_SETTINGS_PTR));
 }
 
+int GetActivePlayerSlot() {
+    return *reinterpret_cast<int*>(AbsFromRva(RVA_ACTIVE_PLAYER_SLOT));
+}
+
+MenuPanelDescriptor* GetCarSelectionMenuPanel() {
+    return reinterpret_cast<MenuPanelDescriptor*>(AbsFromRva(RVA_CAR_SELECTION_MENU_PANEL));
+}
+
+MenuPanelSlot* GetMenuPanelSlot(int slotIndex) {
+    auto* slots = *reinterpret_cast<MenuPanelSlot**>(AbsFromRva(RVA_MENU_SLOTS_PTR));
+    return slots == nullptr || slotIndex < 0 ? nullptr : &slots[slotIndex];
+}
+
 PlayerRaceInfoRuntime* GetPlayerRaceInfo() {
     return *reinterpret_cast<PlayerRaceInfoRuntime**>(AbsFromRva(RVA_PLAYER_RACE_INFO_PTR));
 }

@@ -39,7 +39,7 @@ int GetSelectedCupIndexFromSettings() {
 
 int GetSelectedPlayerModelFromSettings() {
     RaceSettingsRuntime* settings = GetRaceSettings();
-    return settings != nullptr ? settings->playerModelId : 0;
+    return settings != nullptr ? settings->playerModelIds[0] : 0;
 }
 
 int GetSelectedPlayerSkinFromSettings() {

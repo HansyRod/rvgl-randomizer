@@ -1,11 +1,15 @@
 #pragma once
 #include "RVGLRaceStructs.h"
 #include "RVGLStructs.h"
+#include "RVGLMenuStructs.h"
 #include <cstdint>
 
 namespace Randomizer {
 
     RaceSettingsRuntime* GetRaceSettings();
+    int GetActivePlayerSlot();
+    MenuPanelDescriptor* GetCarSelectionMenuPanel();
+    MenuPanelSlot* GetMenuPanelSlot(int slotIndex);
     PlayerRaceInfoRuntime* GetPlayerRaceInfo();
     GameModeRuntime& GetGameModeRuntime();
     CupResultRuntime& GetCupResultRuntime();

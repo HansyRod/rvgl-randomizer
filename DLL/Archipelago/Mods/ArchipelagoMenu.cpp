@@ -42,13 +42,8 @@ LocaleStringOverride g_menuLocaleOverrides[] = {
     {kTitleLabel + 4, "Connect"}
 };
 
-MenuPanelSlot* MenuSlot(int slotIndex) {
-    auto* slots = *reinterpret_cast<MenuPanelSlot**>(AbsFromRva(RVA_MENU_SLOTS_PTR));
-    return slots == nullptr ? nullptr : &slots[slotIndex];
-}
-
 MenuPanelDescriptor* ActivePanel(int slotIndex) {
-    auto* slot = MenuSlot(slotIndex);
+    auto* slot = GetMenuPanelSlot(slotIndex);
     return slot == nullptr ? nullptr : slot->panel;
 }
 
@@ -65,7 +60,7 @@ bool IsValidInput(const std::string& text, size_t limit) {
 }
 
 void ReadInput(int slotIndex, int itemIndex) {
-    auto* slot = MenuSlot(slotIndex);
+    auto* slot = GetMenuPanelSlot(slotIndex);
     // RenderMenuPanel invokes every value callback, including outgoing panels.
     // Only the selected field of the foreground, settled panel may consume text.
     // Match native HandleMenuRowInput: a secondary menu blocks primary-menu input.
@@ -130,7 +125,7 @@ void ReadInput(int slotIndex, int itemIndex) {
 }
 
 void DrawFormValue(int slotIndex, int itemIndex) {
-    auto* slot = MenuSlot(slotIndex);
+    auto* slot = GetMenuPanelSlot(slotIndex);
     if (slot == nullptr) {
         return;
     }
@@ -252,7 +247,7 @@ void InitializeMenu() {
 void Hook_BuildMainMenu(int slotIndex) {
     Orig_BuildMainMenu(slotIndex);
     if (HasArchipelagoMetadata()) {
-        auto* slot = MenuSlot(slotIndex);
+        auto* slot = GetMenuPanelSlot(slotIndex);
         // Archipelago fixes the profile for this launch. Remove Select Profile
         // from the native rows before adding the Archipelago entry.
         const auto menuItemsEnd = std::remove_if(slot->items, slot->items + slot->itemCount,
@@ -273,7 +268,7 @@ void Hook_BuildMainMenu(int slotIndex) {
 bool Hook_HandleMainMenuAction(int slotIndex, uint32_t action) {
     const bool result = Orig_HandleMainMenuAction(slotIndex, action);
     if (g_connectionMenuInitialized && HasArchipelagoMetadata()) {
-        auto* slot = MenuSlot(slotIndex);
+        auto* slot = GetMenuPanelSlot(slotIndex);
         // Like Mod Settings, retain the shared title when opening our submenu.
         // Check the destination because Back on the main menu is ignored by RVGL.
         const bool leavingMainMenu = slot->nextPanel != slot->panel;
@@ -298,7 +293,7 @@ void UpdateArchipelagoMenu() {
     }
     // Update only while the Archipelago connection menu is displayed in the
     // primary slot and is not transitioning to another menu.
-    auto* slot = MenuSlot(0);
+    auto* slot = GetMenuPanelSlot(0);
     if (slot == nullptr || slot->panel != &g_connectionMenuPanel || slot->nextPanel != &g_connectionMenuPanel) {
         return;
     }

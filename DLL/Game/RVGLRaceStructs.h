@@ -128,8 +128,7 @@ struct RaceSettingsRuntime {
     char player2Name[16];             // +0x38
     char player3Name[16];             // +0x48
     char player4Name[16];             // +0x58
-    int32_t playerModelId;            // +0x68
-    uint8_t _pad_6C[12];
+    int32_t playerModelIds[4];        // +0x68, local players 1..4
     int32_t playerSkinId;             // +0x78
     uint8_t _pad_7C[34];
     uint8_t pickupsEnabled;           // +0x9E
@@ -199,7 +198,7 @@ static_assert(offsetof(RaceParticipantRuntime, playerName) == 0x40, "RacePartici
 static_assert(offsetof(RaceSettingsRuntime, mode) == 0x00, "RaceSettingsRuntime::mode offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, selectedCupIndex) == 0x04, "RaceSettingsRuntime::selectedCupIndex offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, playerName) == 0x28, "RaceSettingsRuntime::playerName offset mismatch.");
-static_assert(offsetof(RaceSettingsRuntime, playerModelId) == 0x68, "RaceSettingsRuntime::playerModelId offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, playerModelIds) == 0x68, "RaceSettingsRuntime::playerModelIds offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, playerSkinId) == 0x78, "RaceSettingsRuntime::playerSkinId offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, pickupsEnabled) == 0x9E, "RaceSettingsRuntime::pickupsEnabled offset mismatch.");
 static_assert(offsetof(GameModeRuntime, mode) == 0x00, "GameModeRuntime::mode offset mismatch.");
