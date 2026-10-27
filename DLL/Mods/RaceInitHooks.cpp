@@ -5,6 +5,7 @@
 #include "30CarMod.h"
 #include "GridShuffle.h"
 #include "KnockoutMode.h"
+#include "Carsanity.h"
 #include "ThirtyCarCupMod.h"
 
 namespace Randomizer {
@@ -61,6 +62,7 @@ void Hook_RaceSessionSetup(bool isRestart) {
     ResetThirtyCarModState();
     ResetThirtyCarCupState();
     ResetKnockoutRaceState();
+    ResetCarsanityRaceState();
 
     Orig_RaceSessionSetup(isRestart);
     StartKnockoutRaceIfSelected();

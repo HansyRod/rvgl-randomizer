@@ -13,6 +13,8 @@ namespace Randomizer {
     bool IsRaceFinished();
     bool IsLoadingScreenActive();
     CarInfo* GetCarInfoTable();
+    CarEntityRuntime* GetLocalPlayerCar();
+    RaceResultEntry* GetRaceResultTable();
     CarEntityRuntime* GetLiveCarById(int runtimeCarId);
     CupProfile*& GetActiveCupRef();
     int& GetCurrentCupIndex();

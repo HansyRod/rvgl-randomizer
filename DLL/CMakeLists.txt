@@ -99,6 +99,7 @@ add_library(randomizer SHARED
     Archipelago/ArchipelagoClient.cpp
     Archipelago/ArchipelagoEventKeys.cpp
     Archipelago/ArchipelagoLog.cpp
+    Archipelago/Mods/Carsanity.cpp
 
     # DebugUtils — debug tools
     DebugUtils/Logger.cpp        # OutputDebugStringA + file logging
@@ -134,6 +135,7 @@ target_include_directories(randomizer PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Config
     ${CMAKE_CURRENT_SOURCE_DIR}/File
     ${CMAKE_CURRENT_SOURCE_DIR}/Archipelago
+    ${CMAKE_CURRENT_SOURCE_DIR}/Archipelago/Mods
     ${CMAKE_CURRENT_SOURCE_DIR}/Archipelago/third_party/wswrap/include
     ${CMAKE_CURRENT_SOURCE_DIR}/Archipelago/third_party/asio/asio/include
     ${CMAKE_CURRENT_SOURCE_DIR}/Archipelago/third_party/websocketpp

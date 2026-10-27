@@ -375,6 +375,8 @@ constexpr uint32_t RVA_RACE_FINISHED_FLAG = 0x0a8ee7e0;
 // Pointer globals used by in-race results and finish notifications.
 constexpr uint32_t RVA_CURRENT_RACE_CLOCK_MS_PTR = 0x002a79d0;
 constexpr uint32_t RVA_RACE_RESULT_TABLE_PTR = 0x002a7400;
+// Native pointer to the primary local player's live car, used by race progress.
+constexpr uint32_t RVA_LOCAL_PLAYER_CAR_PTR = 0x002a7440;
 constexpr uint32_t RVA_PLAYER_COLORS_PTR = 0x002a6d90;
 
 constexpr uint32_t RVA_SETTINGS_NCARS = 0x0aa8e930;

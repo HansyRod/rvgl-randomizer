@@ -1,6 +1,7 @@
 #include "CupOpponentGrid.h"
 #include "30CarMod.h"
 #include "CupHooks.h"
+#include "GameUtils.h"
 #include "Logger.h"
 #include "RandomizerState.h"
 #include "RVGLMemory.h"
@@ -72,7 +73,7 @@ int FindCarModelIdByFolderName(const std::string& folderName) {
     const int totalModels = GetTotalCarModelCount();
     for (int modelId = 0; modelId < totalModels; ++modelId) {
         const CarInfo& car = cars[modelId];
-        if (!car.isInvalid && _stricmp(car.internalName, folderName.c_str()) == 0) {
+        if (!car.isInvalid && IsSameCarFolder(folderName, car.internalName)) {
             return modelId;
         }
     }

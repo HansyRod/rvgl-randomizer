@@ -28,6 +28,7 @@
 #include "ConfigData.h"
 #include "CustomUnlocks.h"
 #include "ArchipelagoLog.h"
+#include "ArchipelagoEventKeys.h"
 #include "Logger.h"
 #include "ProfileHooks.h"
 
@@ -261,6 +262,38 @@ void RecordLocationCheck(ArchipelagoClientState& state, int64_t locationId) {
     state.queuedLocationChecks.insert(locationId);
 }
 
+std::optional<std::string> GetCarsanityCarFolder(const std::string& eventKey) {
+    const std::string prefix = std::string(ArchipelagoEventKeys::CarRaceWin) + ":";
+    if (eventKey.compare(0, prefix.size(), prefix) != 0) {
+        return std::nullopt;
+    }
+    return eventKey.substr(prefix.size());
+}
+
+void SyncCarsanityLocationChecks(ArchipelagoClientState& state, const std::set<int64_t>& confirmedLocations) {
+    // Called with the client mutex held, after validating the connected seed and slot.
+    if (!state.archipelagoConfig.has_value() || !state.archipelagoConfig->carsanity) {
+        return;
+    }
+    const int slot = state.archipelagoConfig->slotNumber;
+    const auto carWins = GetArchipelagoProfileCarWins(state.config.seed, slot);
+    for (const auto& location : state.archipelagoConfig->locations) {
+        const auto carFolder = GetCarsanityCarFolder(location.first);
+        if (!carFolder.has_value() || carFolder->empty() || location.second <= 0) {
+            continue;
+        }
+        if (confirmedLocations.count(location.second) != 0) {
+            // Server checks restore the local checklist even if its history was lost.
+            RecordArchipelagoProfileCarWin(state.config.seed, slot, *carFolder);
+            state.queuedEventKeys.insert(location.first);
+        } else if (carWins.count(*carFolder) != 0) {
+            // Recover a win saved before its pending location could be written.
+            RecordLocationCheck(state, location.second);
+            state.queuedEventKeys.insert(location.first);
+        }
+    }
+}
+
 std::list<int64_t> TakeQueuedLocationChecks(ArchipelagoClientState& state) {
     std::list<int64_t> locations;
 
@@ -472,6 +505,7 @@ void StartArchipelagoClient() {
             // LocationChecks later adds IDs to that set before server acknowledgement,
             // so only this fresh snapshot is safe for removing checks from disk.
             const auto confirmedLocations = currentState.client->get_checked_locations();
+            SyncCarsanityLocationChecks(currentState, confirmedLocations);
             for (int64_t locationId : confirmedLocations) {
                 currentState.queuedLocationChecks.erase(locationId);
             }

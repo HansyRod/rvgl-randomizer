@@ -36,6 +36,14 @@ CarInfo* GetCarInfoTable() {
     return *reinterpret_cast<CarInfo**>(AbsFromRva(RVA_CAR_TABLE));
 }
 
+CarEntityRuntime* GetLocalPlayerCar() {
+    return *reinterpret_cast<CarEntityRuntime**>(AbsFromRva(RVA_LOCAL_PLAYER_CAR_PTR));
+}
+
+RaceResultEntry* GetRaceResultTable() {
+    return *reinterpret_cast<RaceResultEntry**>(AbsFromRva(RVA_RACE_RESULT_TABLE_PTR));
+}
+
 CarEntityRuntime* GetLiveCarById(int runtimeCarId) {
     CarEntityRuntime* car = *reinterpret_cast<CarEntityRuntime**>(AbsFromRva(RVA_CAR_LIST_HEAD));
     int visited = 0;

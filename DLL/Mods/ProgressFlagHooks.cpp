@@ -1,6 +1,7 @@
 #include "ProgressFlagHooks.h"
 #include "ArchipelagoClient.h"
 #include "ArchipelagoEventKeys.h"
+#include "Carsanity.h"
 #include "Addresses.h"
 #include "KnockoutMode.h"
 #include "Logger.h"
@@ -293,6 +294,8 @@ void Hook_Engine_UpdateRaceProgress() {
         }
         return;
     }
+
+    UpdateCarsanityRaceProgress();
 
     EmitNewTrackFlagEvents(
         trackIndex,
