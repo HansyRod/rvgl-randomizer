@@ -14,6 +14,7 @@
 #include "MenuMod.h"
 #include "ArchipelagoHooks.h"
 #include "ArchipelagoMenu.h"
+#include "Carsanity.h"
 #include "Fob.h"
 #include "CallLogger.h"
 #include "Logger.h"
@@ -145,6 +146,13 @@ static void RegisterHooks() {
     );
 
     // --- Car system ---
+    HookManager::Add(
+        AbsFromRva(RVA_CAR_SELECTION_HANDLER),
+        reinterpret_cast<void*>(Randomizer::Hook_CarSelectionHandler),
+        reinterpret_cast<void**>(&Randomizer::Orig_CarSelectionHandler),
+        "CarSelectionHandler"
+    );
+
     HookManager::Add(
         AbsFromRva(RVA_LOAD_VANILLA_CAR_POOL),
         reinterpret_cast<void*>(Randomizer::Hook_LoadVanillaCarPool),
