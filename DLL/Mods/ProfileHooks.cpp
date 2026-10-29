@@ -5,6 +5,7 @@
 #include "MenuMod.h"
 #include "CarHooks.h"
 #include "RVGLFunctions.h"
+#include "RVGLMemory.h"
 #include "Logger.h"
 #include "ArchipelagoClient.h"
 #include "ArchipelagoLog.h"
@@ -14,6 +15,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <cstring>
 #include <cstdlib>
 #include <fstream>
 #include <filesystem>
@@ -539,6 +541,20 @@ int Hook_GetProfileIndex(char* profileName) {
     if (index == -1) {
         Orig_Profile_CreateOrLoad(profileName);
         index = Orig_GetProfileIndex(profileName);
+
+        const ConfigData* config = GetActiveConfig();
+        if (index != -1 && config != nullptr && config->archipelago.has_value() &&
+            !config->archipelago->slotName.empty()) {
+            if (auto* settings = GetRaceSettings()) {
+                // Seed the name wheel once; native profile saves persist later player edits.
+                std::snprintf(settings->playerName, sizeof(settings->playerName), "%s",
+                    config->archipelago->slotName.c_str());
+                // Truncation must not leave a partial UTF-8 character in the 16-byte buffer.
+                if (const char* invalid = RVGL_UTF8Check(settings->playerName, std::strlen(settings->playerName))) {
+                    settings->playerName[invalid - settings->playerName] = '\0';
+                }
+            }
+        }
         
         // Profile_CreateOrLoad already calls Profile_LoadAndReset,
         // so we can skip it the next time it's called
