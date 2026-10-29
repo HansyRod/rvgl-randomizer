@@ -247,7 +247,9 @@ namespace Randomizer {
         std::map<std::string, int> locations;
         // An empty item string identifies filler and has no unlock effect.
         std::map<std::string, int> items;
-        std::string goalEventKey;
+        std::string goal;
+        // Victory requires every listed event; each key must have a location mapping.
+        std::vector<std::string> goalEventKeys;
     };
 
     inline void to_json(json& j, const ArchipelagoConfig& p) {
@@ -258,7 +260,8 @@ namespace Randomizer {
             {"carsanity", p.carsanity},
             {"locations", p.locations},
             {"items", p.items},
-            {"goalEventKey", p.goalEventKey}
+            {"goal", p.goal},
+            {"goalEventKeys", p.goalEventKeys}
         };
     }
 
@@ -269,7 +272,8 @@ namespace Randomizer {
         j.at("carsanity").get_to(p.carsanity);
         j.at("locations").get_to(p.locations);
         j.at("items").get_to(p.items);
-        j.at("goalEventKey").get_to(p.goalEventKey);
+        j.at("goal").get_to(p.goal);
+        j.at("goalEventKeys").get_to(p.goalEventKeys);
     }
 
     // The root structure containing all randomizer data

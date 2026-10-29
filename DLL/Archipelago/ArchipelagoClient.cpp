@@ -41,6 +41,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <unordered_set>
 
@@ -54,6 +55,8 @@ struct ArchipelagoClientState {
     ArchipelagoConnectionConfig config;
     // Loaded seed metadata: expected slot identity and item/location mappings.
     std::optional<ArchipelagoConfig> archipelagoConfig;
+    // All of these locations must be completed for victory; resolved at config load.
+    std::set<int64_t> requiredGoalLocations;
     // Reverse lookup from server item ID to the local unlock name; empty names are filler.
     std::map<int, std::string, std::less<>> itemNames;
     // Processed delivery indices, preventing duplicate item application across reconnects.
@@ -401,6 +404,7 @@ void InitializeArchipelagoMappings(const ArchipelagoConfig* config) {
     std::lock_guard<std::mutex> lock(state.mutex);
 
     state.archipelagoConfig.reset();
+    state.requiredGoalLocations.clear();
     state.itemNames.clear();
     state.receivedItemIndices.clear();
     state.queuedEventKeys.clear();
@@ -409,6 +413,10 @@ void InitializeArchipelagoMappings(const ArchipelagoConfig* config) {
 
     if (config == nullptr) {
         return;
+    }
+
+    for (const std::string& eventKey : config->goalEventKeys) {
+        state.requiredGoalLocations.insert(config->locations.at(eventKey));
     }
 
     state.archipelagoConfig = *config;
@@ -573,6 +581,7 @@ void StopArchipelagoClient() {
     FlushArchipelagoProfileData();
     ResetConnection(state);
     state.archipelagoConfig.reset();
+    state.requiredGoalLocations.clear();
     state.itemNames.clear();
     state.receivedItemIndices.clear();
     state.queuedEventKeys.clear();
