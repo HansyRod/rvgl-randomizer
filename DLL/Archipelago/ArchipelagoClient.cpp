@@ -38,6 +38,7 @@
 #include <cstdint>
 #include <exception>
 #include <list>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -261,7 +262,8 @@ void RecordLocationCheck(ArchipelagoClientState& state, int64_t locationId) {
         [locationId](const auto& location) { return location.second == locationId; })) {
         return;
     }
-    RecordArchipelagoProfileLocationCheck(state.config.seed, state.archipelagoConfig->slotNumber, locationId);
+    RecordArchipelagoProfileLocationCheck(state.config.seed, state.archipelagoConfig->slotNumber, locationId,
+        state.requiredGoalLocations.count(locationId) != 0);
     state.queuedLocationChecks.insert(locationId);
 }
 
@@ -514,6 +516,12 @@ void StartArchipelagoClient() {
             // LocationChecks later adds IDs to that set before server acknowledgement,
             // so only this fresh snapshot is safe for removing checks from disk.
             const auto confirmedLocations = currentState.client->get_checked_locations();
+            std::set<int64_t> completedGoalLocations;
+            std::set_intersection(currentState.requiredGoalLocations.begin(), currentState.requiredGoalLocations.end(),
+                confirmedLocations.begin(), confirmedLocations.end(),
+                std::inserter(completedGoalLocations, completedGoalLocations.end()));
+            RecordArchipelagoProfileGoalLocations(currentState.config.seed,
+                currentState.archipelagoConfig->slotNumber, completedGoalLocations);
             SyncCarsanityLocationChecks(currentState, confirmedLocations);
             for (int64_t locationId : confirmedLocations) {
                 currentState.queuedLocationChecks.erase(locationId);

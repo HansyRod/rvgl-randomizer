@@ -52,6 +52,8 @@ struct ArchipelagoProfileData {
     // Seed -> slot number -> completed IDs awaiting server confirmation. Sending
     // a packet does not prove receipt; retain it until a server list confirms it.
     std::map<std::string, std::map<std::string, std::set<int64_t>>> completedLocations;
+    // Seed -> slot number -> achieved goal locations, retained after confirmation.
+    std::map<std::string, std::map<std::string, std::set<int64_t>>> completedGoalLocations;
     // Seed -> slot number -> owned item IDs. RVGL unlocks are boolean;
     // filler and repeated copies of an item have no additional unlock effect.
     std::map<std::string, std::map<std::string, std::set<int64_t>>> receivedItems;
@@ -128,6 +130,7 @@ bool SaveArchipelagoProfileData() {
         {"uuid", g_archipelagoProfileData.uuid}, {"server", g_archipelagoProfileData.server},
         {"requiresPassword", g_archipelagoProfileData.requiresPassword},
         {"completedLocations", g_archipelagoProfileData.completedLocations},
+        {"completedGoalLocations", g_archipelagoProfileData.completedGoalLocations},
         {"receivedItems", g_archipelagoProfileData.receivedItems},
         {"carWins", g_archipelagoProfileData.carWins}
     };
@@ -193,6 +196,8 @@ void LoadArchipelagoProfileData(const char* profileName, const ConfigData& confi
             // Files created before completion caching simply have no history yet.
             g_archipelagoProfileData.completedLocations = data.value("completedLocations",
                 decltype(g_archipelagoProfileData.completedLocations){});
+            g_archipelagoProfileData.completedGoalLocations = data.value("completedGoalLocations",
+                decltype(g_archipelagoProfileData.completedGoalLocations){});
             g_archipelagoProfileData.receivedItems = data.value("receivedItems",
                 decltype(g_archipelagoProfileData.receivedItems){});
             g_archipelagoProfileData.carWins = data.value("carWins",
@@ -394,13 +399,16 @@ void MarkArchipelagoProfilePasswordRequired() {
     }
 }
 
-void RecordArchipelagoProfileLocationCheck(const std::string& seed, int slot, int64_t locationId) {
+void RecordArchipelagoProfileLocationCheck(const std::string& seed, int slot, int64_t locationId,
+    bool goalLocation) {
     if (g_archipelagoProfilePath.empty() || !IsValidUUID(g_archipelagoProfileData.uuid)) {
         return;
     }
     auto& completedLocations = g_archipelagoProfileData.completedLocations[seed][std::to_string(slot)];
     const bool newCompletion = completedLocations.insert(locationId).second;
-    if (newCompletion || g_archipelagoProfileData.dirty) {
+    const bool newGoalCompletion = goalLocation &&
+        g_archipelagoProfileData.completedGoalLocations[seed][std::to_string(slot)].insert(locationId).second;
+    if (newCompletion || newGoalCompletion || g_archipelagoProfileData.dirty) {
         // Save before submitting, even while connected. Normal exit is a retry
         // opportunity, not the only protection against losing an unsent check.
         SaveArchipelagoProfileData();
@@ -414,6 +422,28 @@ std::set<int64_t> GetArchipelagoProfileLocationChecks(const std::string& seed, i
     }
     const auto slotChecks = seedChecks->second.find(std::to_string(slot));
     return slotChecks == seedChecks->second.end() ? std::set<int64_t>{} : slotChecks->second;
+}
+
+void RecordArchipelagoProfileGoalLocations(const std::string& seed, int slot,
+    const std::set<int64_t>& locationIds) {
+    if (g_archipelagoProfilePath.empty() || !IsValidUUID(g_archipelagoProfileData.uuid) || locationIds.empty()) {
+        return;
+    }
+    auto& completedGoalLocations = g_archipelagoProfileData.completedGoalLocations[seed][std::to_string(slot)];
+    const size_t previousCount = completedGoalLocations.size();
+    completedGoalLocations.insert(locationIds.begin(), locationIds.end());
+    if (completedGoalLocations.size() != previousCount || g_archipelagoProfileData.dirty) {
+        SaveArchipelagoProfileData();
+    }
+}
+
+const std::set<int64_t>* GetArchipelagoProfileGoalLocations(const std::string& seed, int slot) {
+    const auto seedLocations = g_archipelagoProfileData.completedGoalLocations.find(seed);
+    if (seedLocations == g_archipelagoProfileData.completedGoalLocations.end()) {
+        return nullptr;
+    }
+    const auto slotLocations = seedLocations->second.find(std::to_string(slot));
+    return slotLocations == seedLocations->second.end() ? nullptr : &slotLocations->second;
 }
 
 void RemoveConfirmedArchipelagoProfileLocationChecks(

@@ -10,10 +10,15 @@ namespace Randomizer {
     void SaveArchipelagoProfileConnection(const std::string& server, bool requiresPassword);
     void MarkArchipelagoProfilePasswordRequired();
     // Completed checks awaiting server confirmation, scoped to a seed and slot within the active RVGL profile.
-    void RecordArchipelagoProfileLocationCheck(const std::string& seed, int slot, int64_t locationId);
+    void RecordArchipelagoProfileLocationCheck(const std::string& seed, int slot, int64_t locationId,
+        bool goalLocation = false);
     std::set<int64_t> GetArchipelagoProfileLocationChecks(const std::string& seed, int slot);
     void RemoveConfirmedArchipelagoProfileLocationChecks(
         const std::string& seed, int slot, const std::set<int64_t>& confirmedLocations);
+    // Goal history survives confirmation and is stored separately from pending checks.
+    void RecordArchipelagoProfileGoalLocations(const std::string& seed, int slot,
+        const std::set<int64_t>& locationIds);
+    const std::set<int64_t>* GetArchipelagoProfileGoalLocations(const std::string& seed, int slot);
     // Uses list of car folders, persisted in the Archipelago profile data.
     void RecordArchipelagoProfileCarWin(const std::string& seed, int slot, const std::string& carFolder);
     // Returns stored wins without copying, or nullptr if the seed/slot is missing.
