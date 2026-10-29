@@ -58,6 +58,10 @@ struct ArchipelagoClientState {
     std::optional<ArchipelagoConfig> archipelagoConfig;
     // All of these locations must be completed for victory; resolved at config load.
     std::set<int64_t> requiredGoalLocations;
+    // Resend victory after each authenticated connection; no server acknowledgement is implied.
+    bool goalReported = false;
+    // Suppress repeated errors while a failed victory send is retried by the pump.
+    bool goalSendErrorLogged = false;
     // Reverse lookup from server item ID to the local unlock name; empty names are filler.
     std::map<int, std::string, std::less<>> itemNames;
     // Processed delivery indices, preventing duplicate item application across reconnects.
@@ -101,6 +105,8 @@ void ResetConnection(ArchipelagoClientState& state) {
     state.previouslyConnected = false;
     state.transportFailed = false;
     state.awaitingInitialItems = false;
+    state.goalReported = false;
+    state.goalSendErrorLogged = false;
     state.fallbackUri.clear();
     state.config.enabled = false;
     state.config.password.clear();
@@ -300,6 +306,17 @@ void SyncCarsanityLocationChecks(ArchipelagoClientState& state, const std::set<i
     }
 }
 
+bool HasCompletedGoal(const ArchipelagoClientState& state) {
+    if (!state.archipelagoConfig.has_value() || state.requiredGoalLocations.empty()) {
+        return false;
+    }
+    const auto* completedLocations = GetArchipelagoProfileGoalLocations(
+        state.config.seed, state.archipelagoConfig->slotNumber);
+    return completedLocations != nullptr &&
+        std::includes(completedLocations->begin(), completedLocations->end(),
+            state.requiredGoalLocations.begin(), state.requiredGoalLocations.end());
+}
+
 std::list<int64_t> TakeQueuedLocationChecks(ArchipelagoClientState& state) {
     std::list<int64_t> locations;
 
@@ -407,6 +424,8 @@ void InitializeArchipelagoMappings(const ArchipelagoConfig* config) {
 
     state.archipelagoConfig.reset();
     state.requiredGoalLocations.clear();
+    state.goalReported = false;
+    state.goalSendErrorLogged = false;
     state.itemNames.clear();
     state.receivedItemIndices.clear();
     state.queuedEventKeys.clear();
@@ -505,6 +524,8 @@ void StartArchipelagoClient() {
             }
             currentState.previouslyConnected = true;
             currentState.awaitingInitialItems = true;
+            currentState.goalReported = false;
+            currentState.goalSendErrorLogged = false;
             const auto completedLocations = GetArchipelagoProfileLocationChecks(
                 currentState.config.seed, currentState.archipelagoConfig->slotNumber);
             for (const auto& location : currentState.archipelagoConfig->locations) {
@@ -640,6 +661,7 @@ void PumpArchipelagoClient() {
     }
 
     std::list<int64_t> queuedLocations;
+    bool sendGoal = false;
     {
         ArchipelagoClientState& state = GetArchipelagoClientState();
         std::lock_guard<std::mutex> lock(state.mutex);
@@ -661,6 +683,7 @@ void PumpArchipelagoClient() {
         // Take the Archipelago location IDs completed in-game and awaiting submission.
         // Copy them into this batch and clear the shared queue while holding its lock.
         queuedLocations = TakeQueuedLocationChecks(state);
+        sendGoal = !state.goalReported && HasCompletedGoal(state);
     }
 
     try {
@@ -672,6 +695,28 @@ void PumpArchipelagoClient() {
         std::lock_guard<std::mutex> lock(state.mutex);
         // Restore the batch so a later update can retry a failed submission.
         state.queuedLocationChecks.insert(queuedLocations.begin(), queuedLocations.end());
+        return;
+    }
+
+    if (sendGoal) {
+        try {
+            if (client->StatusUpdate(APClient::ClientStatus::GOAL)) {
+                ArchipelagoClientState& state = GetArchipelagoClientState();
+                std::lock_guard<std::mutex> lock(state.mutex);
+                if (state.client == client && IsSlotConnected(state)) {
+                    state.goalReported = true;
+                    state.goalSendErrorLogged = false;
+                    Logger::TimestampLog("[Archipelago] Victory status sent.");
+                }
+            }
+        } catch (const std::exception& ex) {
+            ArchipelagoClientState& state = GetArchipelagoClientState();
+            std::lock_guard<std::mutex> lock(state.mutex);
+            if (!state.goalSendErrorLogged) {
+                Logger::TimestampLogf("[Archipelago] Could not send victory status: %s. Will retry.", ex.what());
+                state.goalSendErrorLogged = true;
+            }
+        }
     }
 }
 
