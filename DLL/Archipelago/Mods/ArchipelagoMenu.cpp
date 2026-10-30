@@ -2,6 +2,7 @@
 #include "ArchipelagoClient.h"
 #include "ArchipelagoLog.h"
 #include "Addresses.h"
+#include "CarHooks.h"
 #include "LocaleUtils.h"
 #include "RandomizerState.h"
 #include "RVGLMenuStructs.h"
@@ -23,6 +24,7 @@ constexpr int kCtrlModifiers = 0xc0; // SDL KMOD_LCTRL | KMOD_RCTRL.
 constexpr int kVScancode = 25;
 
 MenuItemDescriptor g_archipelagoMainMenuItem{};
+MenuItemDescriptor* g_startRaceMainMenuItem = nullptr;
 MenuItemDescriptor g_connectionMenuItems[4]{};
 alignas(8) MenuPanelDescriptor g_connectionMenuPanel{};
 bool g_connectionMenuInitialized = false;
@@ -50,6 +52,28 @@ MenuPanelDescriptor* ActivePanel(int slotIndex) {
 bool HasArchipelagoMetadata() {
     const auto* config = GetActiveConfig();
     return config != nullptr && config->archipelago.has_value();
+}
+
+void UpdateStartRaceMenuState(int slotIndex) {
+    if (g_startRaceMainMenuItem == nullptr) {
+        return;
+    }
+    const auto* cars = GetCarPool();
+    const int carCount = GetRuntimeCarCount();
+    // Match native car selection, including cars that failed to load.
+    // Cached AP items already restore availability for later offline launches.
+    const bool available = cars != nullptr && carCount > 0 &&
+        std::any_of(cars, cars + carCount,
+            [](const CarInfo& car) { return car.selectableByPlayer && !car.isInvalid; });
+    g_startRaceMainMenuItem->flags.selectable = available;
+    g_startRaceMainMenuItem->flags.enabled = available;
+    // Native menu builds clamp the selection but do not skip disabled rows.
+    // Start Race is always first; only move selection when that menu is displayed.
+    auto* slot = GetMenuPanelSlot(slotIndex);
+    if (!available && slot != nullptr && slot->panel != nullptr && slot->itemCount > 0 &&
+        slot->items[0] == g_startRaceMainMenuItem && slot->panel->selectedItem == 0) {
+        RVGL_HandleGenericMenuAction(slotIndex, 1);
+    }
 }
 
 bool IsValidInput(const std::string& text, size_t limit) {
@@ -256,6 +280,10 @@ void Hook_BuildMainMenu(int slotIndex) {
         if (menuItemsEnd != slot->items + slot->itemCount) {
             --slot->itemCount;
         }
+        // Archipelago mode lasts for the process, so edit the native descriptor directly.
+        // BuildMainMenu always registers Start Race first.
+        g_startRaceMainMenuItem = slot->items[0];
+        UpdateStartRaceMenuState(slotIndex);
         InitializeMenu();
         OverrideLocaleString(g_menuLocaleOverrides[0]);
         RVGL_RegisterMenuItemInActiveMenu(slotIndex, reinterpret_cast<int*>(&g_archipelagoMainMenuItem));
@@ -291,6 +319,8 @@ void UpdateArchipelagoMenu() {
     if (!g_connectionMenuInitialized) {
         return;
     }
+    // Startup auto-connect can deliver the first car while the main menu is open.
+    UpdateStartRaceMenuState(0);
     // Update only while the Archipelago connection menu is displayed in the
     // primary slot and is not transitioning to another menu.
     auto* slot = GetMenuPanelSlot(0);
