@@ -30,6 +30,7 @@ FnResetCurrentTrackSelectionState RVGL_ResetCurrentTrackSelectionState = reinter
 FnRaceTeardownAndSave       RVGL_RaceTeardownAndSave        = reinterpret_cast<FnRaceTeardownAndSave>(AbsFromRva(RVA_RACE_TEARDOWN_AND_SAVE));
 FnLevelDestroyAndFree       RVGL_LevelDestroyAndFree        = reinterpret_cast<FnLevelDestroyAndFree>(AbsFromRva(RVA_LEVEL_DESTROY_AND_FREE));
 FnLoadNextRaceFromPlayerRaceInfo RVGL_LoadNextRaceFromPlayerRaceInfo = reinterpret_cast<FnLoadNextRaceFromPlayerRaceInfo>(AbsFromRva(RVA_LOAD_NEXT_RACE_FROM_PLAYER_RACE_INFO));
+FnSetRaceState              RVGL_SetRaceState               = reinterpret_cast<FnSetRaceState>(AbsFromRva(RVA_SET_RACE_STATE));
 FnRegisterMenuItemInActiveMenu RVGL_RegisterMenuItemInActiveMenu = reinterpret_cast<FnRegisterMenuItemInActiveMenu>(AbsFromRva(RVA_REGISTER_MENU_ITEM_IN_ACTIVE_MENU));
 FnActivateMenuDisplaySlot   RVGL_ActivateMenuDisplaySlot    = reinterpret_cast<FnActivateMenuDisplaySlot>(AbsFromRva(RVA_ACTIVATE_MENU_DISPLAY_SLOT));
 FnHandleGenericMenuAction   RVGL_HandleGenericMenuAction    = reinterpret_cast<FnHandleGenericMenuAction>(AbsFromRva(RVA_HANDLE_GENERIC_MENU_ACTION));

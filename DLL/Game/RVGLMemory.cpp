@@ -29,6 +29,14 @@ PlayerRaceInfoRuntime* GetPlayerRaceInfo() {
     return *reinterpret_cast<PlayerRaceInfoRuntime**>(AbsFromRva(RVA_PLAYER_RACE_INFO_PTR));
 }
 
+const MenuItemDescriptor* GetInRaceNextTrackMenuItem() {
+    return reinterpret_cast<const MenuItemDescriptor*>(AbsFromRva(RVA_IN_RACE_NEXT_TRACK_ITEM));
+}
+
+int* GetRaceTransitionRequest() {
+    return *reinterpret_cast<int**>(AbsFromRva(RVA_RACE_TRANSITION_REQUEST_PTR));
+}
+
 GameModeRuntime& GetGameModeRuntime() {
     return *reinterpret_cast<GameModeRuntime*>(AbsFromRva(RVA_GAME_MODE));
 }

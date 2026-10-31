@@ -476,6 +476,20 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
+        AbsFromRva(RVA_BUILD_IN_RACE_MENU),
+        reinterpret_cast<void*>(Randomizer::Hook_BuildInRaceMenu),
+        reinterpret_cast<void**>(&Randomizer::Orig_BuildInRaceMenu),
+        "BuildInRaceMenu"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_HANDLE_IN_RACE_MENU_ACTION),
+        reinterpret_cast<void*>(Randomizer::Hook_HandleInRaceMenuAction),
+        reinterpret_cast<void**>(&Randomizer::Orig_HandleInRaceMenuAction),
+        "HandleInRaceMenuAction"
+    );
+
+    HookManager::Add(
         AbsFromRva(RVA_SETUP_ALL_RACE_CARS),
         reinterpret_cast<void*>(Randomizer::Hook_SetupAllRaceCars),
         reinterpret_cast<void**>(&Randomizer::Orig_SetupAllRaceCars),

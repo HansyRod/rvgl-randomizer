@@ -27,6 +27,17 @@ constexpr uint32_t RVA_PROCESS_SDL_EVENTS = 0x00002980;
 constexpr uint32_t RVA_MENU_UPDATE_LOOP = 0x00143d60;
 constexpr uint32_t RVA_IN_RACE_GAME_LOOP = 0x0005a2b0;
 
+// Pause/results menu and the native fade-out/restart request.
+// BuildInRaceMenu - registers the rows shown in the pause/results menu.
+constexpr uint32_t RVA_BUILD_IN_RACE_MENU = 0x00142ed0;
+
+// HandleInRaceMenuAction - processes navigation and confirmation in the pause/results menu.
+constexpr uint32_t RVA_HANDLE_IN_RACE_MENU_ACTION = 0x00142c70;
+
+// SetRaceState - changes the race state and initializes its fade transition.
+// State 3 begins the fade-out used before a requested restart.
+constexpr uint32_t RVA_SET_RACE_STATE = 0x0008a560;
+
 // LoadVanillaCarPool — loads the built-in car pool into memory.
 // Ghidra signature: bool __fastcall LoadVanillaCarPool(void)
 constexpr uint32_t RVA_LOAD_VANILLA_CAR_POOL   = 0x0003F140;
@@ -353,6 +364,10 @@ constexpr uint32_t RVA_CUSTOM_CUP_ARRAY = 0x002fbbc8;
 // Global variable for the current game mode
 constexpr uint32_t RVA_GAME_MODE = 0x002e34c0;
 
+// Pointer to the native race-transition request integer, consumed by InRaceGameLoop.
+// Dereference this global before writing the request; 6 requests a race restart.
+constexpr uint32_t RVA_RACE_TRANSITION_REQUEST_PTR = 0x002a65e0;
+
 // Pointer to the active profile progress cache. In Stunt Arena this points to
 // a block whose +0x10 count, +0x14 max, and +0x18 byte array record caught stars.
 constexpr uint32_t RVA_TRACK_PROGRESS_CACHE_PTR = 0x002a7750;
@@ -385,6 +400,9 @@ constexpr uint32_t RVA_PLAYER_COLORS_PTR = 0x002a6d90;
 constexpr uint32_t RVA_SETTINGS_NCARS = 0x0aa8e930;
 constexpr uint32_t RVA_NCARS = 0x00b43488;
 constexpr uint32_t RVA_SETTINGS_NCARS_MENU_ITEM = 0x00264280;
+
+// Native Next Track row descriptor, copied as the template for the Next Car selector.
+constexpr uint32_t RVA_IN_RACE_NEXT_TRACK_ITEM = 0x002634c0;
 
 // Native Quit row descriptor, copied as the template for the Archipelago main-menu entry.
 constexpr uint32_t RVA_MAIN_MENU_QUIT_ITEM = 0x00263600;

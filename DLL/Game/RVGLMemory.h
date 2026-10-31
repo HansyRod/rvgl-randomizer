@@ -10,7 +10,9 @@ namespace Randomizer {
     int GetActivePlayerSlot();
     MenuPanelDescriptor* GetCarSelectionMenuPanel();
     MenuPanelSlot* GetMenuPanelSlot(int slotIndex);
+    const MenuItemDescriptor* GetInRaceNextTrackMenuItem();
     PlayerRaceInfoRuntime* GetPlayerRaceInfo();
+    int* GetRaceTransitionRequest();
     GameModeRuntime& GetGameModeRuntime();
     CupResultRuntime& GetCupResultRuntime();
     char** GetLocaleStrings();
