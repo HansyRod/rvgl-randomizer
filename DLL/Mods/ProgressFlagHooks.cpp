@@ -5,6 +5,7 @@
 #include "Addresses.h"
 #include "KnockoutMode.h"
 #include "Logger.h"
+#include "MenuMod.h"
 #include "RVGLMemory.h"
 #include "ThirtyCarCupMod.h"
 #include "TrackHooks.h"
@@ -179,6 +180,12 @@ FnUpdateTimeTrialLeaderboards Orig_UpdateTimeTrialLeaderboards = nullptr;
 FnPickup_CollectProgressObject Orig_Pickup_CollectProgressObject = nullptr;
 FnEngine_UpdateRaceProgress Orig_Engine_UpdateRaceProgress = nullptr;
 FnCup_OnStageFinished Orig_Cup_OnStageFinished = nullptr;
+FnRace_TeardownAndSave Orig_Race_TeardownAndSave = nullptr;
+
+void Hook_Race_TeardownAndSave() {
+    Orig_Race_TeardownAndSave();
+    ApplyPendingInRaceCarSelection();
+}
 
 void Hook_UpdateTimeTrialLeaderboards(int* carRaceData) {
     const int trackIndex = GetCurrentTrackIndex();

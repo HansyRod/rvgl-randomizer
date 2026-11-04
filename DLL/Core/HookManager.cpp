@@ -364,6 +364,13 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
+        AbsFromRva(RVA_RACE_TEARDOWN_AND_SAVE),
+        reinterpret_cast<void*>(Randomizer::Hook_Race_TeardownAndSave),
+        reinterpret_cast<void**>(&Randomizer::Orig_Race_TeardownAndSave),
+        "Race_TeardownAndSave"
+    );
+
+    HookManager::Add(
         AbsFromRva(RVA_PICKUP_COLLECT_PROGRESS_OBJECT),
         reinterpret_cast<void*>(Randomizer::Hook_Pickup_CollectProgressObject),
         reinterpret_cast<void**>(&Randomizer::Orig_Pickup_CollectProgressObject),
