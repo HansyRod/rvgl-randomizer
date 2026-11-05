@@ -141,7 +141,8 @@ struct GameModeRuntime {
     int32_t mode;                     // +0x00
     uint8_t _pad_04[4];
     int32_t trackId;                  // +0x08
-    uint8_t _pad_0C[8];
+    int32_t playerModelId;            // +0x0C, selects Per-Rating Time Trial table/ghost
+    uint8_t _pad_10[4];
     int32_t countdown;                // +0x14
     int32_t laps;                     // +0x18
     uint8_t _pad_1C[18];
@@ -211,6 +212,7 @@ static_assert(offsetof(RaceSettingsRuntime, randomCars) == 0xA4, "RaceSettingsRu
 static_assert(offsetof(RaceSettingsRuntime, randomTracks) == 0xA5, "RaceSettingsRuntime::randomTracks offset mismatch.");
 static_assert(offsetof(GameModeRuntime, mode) == 0x00, "GameModeRuntime::mode offset mismatch.");
 static_assert(offsetof(GameModeRuntime, trackId) == 0x08, "GameModeRuntime::trackId offset mismatch.");
+static_assert(offsetof(GameModeRuntime, playerModelId) == 0x0C, "GameModeRuntime::playerModelId offset mismatch.");
 static_assert(offsetof(GameModeRuntime, countdown) == 0x14, "GameModeRuntime::countdown offset mismatch.");
 static_assert(offsetof(GameModeRuntime, laps) == 0x18, "GameModeRuntime::laps offset mismatch.");
 static_assert(offsetof(GameModeRuntime, randomCars) == 0x2E, "GameModeRuntime::randomCars offset mismatch.");

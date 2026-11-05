@@ -826,6 +826,9 @@ void ApplyPendingInRaceCarSelection() {
     }
     settings->playerModelIds[0] = modelId;
     settings->playerSkinId = 0;
+    // Time Trial reloads its table and ghost using this cached car, not the roster.
+    // Update it after the old session is saved and before native level loading.
+    GetGameModeRuntime().playerModelId = modelId;
 }
 
 // Called on every action on the "Options" menu (navigation with up/down arrows,
