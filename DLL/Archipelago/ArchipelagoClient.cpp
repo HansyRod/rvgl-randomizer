@@ -442,7 +442,8 @@ void InitializeArchipelagoMappings(const ArchipelagoConfig* config) {
 
     state.archipelagoConfig = *config;
     for (const auto& item : config->items) {
-        state.itemNames.emplace(item.second, item.first);
+        // Named filler keeps distinct network IDs but has no local unlock name.
+        state.itemNames.emplace(item.second, item.first.rfind("filler:", 0) == 0 ? "" : item.first);
     }
 
     Logger::TimestampLogf("[Archipelago] Loaded %zu location and %zu item mappings.",

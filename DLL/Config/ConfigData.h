@@ -246,6 +246,7 @@ namespace Randomizer {
         bool carsanity = false;
         std::map<std::string, int> locations;
         // An empty item string identifies filler and has no unlock effect.
+        // Named filler uses filler:<item name> and is normalized to an empty unlock name.
         std::map<std::string, int> items;
         std::string goal;
         // Victory requires every listed event; each key must have a location mapping.
