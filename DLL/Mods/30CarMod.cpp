@@ -232,9 +232,10 @@ std::vector<int> BuildModelPool(
 ) {
     std::vector<int> pool;
 
+    const int playerModelId = GetParticipantModelId(0);
     const int totalModels = GetTotalCarModelCount();
     for (int modelId = 0; modelId < totalModels; ++modelId) {
-        if (!IsCarModelCpuSelectable(modelId)) {
+        if (modelId == playerModelId || !IsCarModelCpuSelectable(modelId)) {
             continue;
         }
 

@@ -1,6 +1,7 @@
 #include "CupOpponentGrid.h"
 #include "30CarMod.h"
 #include "CupHooks.h"
+#include "GameUtils.h"
 #include "Logger.h"
 #include "RandomizerState.h"
 #include "RVGLMemory.h"
@@ -38,7 +39,7 @@ int GetSelectedCupIndexFromSettings() {
 
 int GetSelectedPlayerModelFromSettings() {
     RaceSettingsRuntime* settings = GetRaceSettings();
-    return settings != nullptr ? settings->playerModelId : 0;
+    return settings != nullptr ? settings->playerModelIds[0] : 0;
 }
 
 int GetSelectedPlayerSkinFromSettings() {
@@ -72,7 +73,7 @@ int FindCarModelIdByFolderName(const std::string& folderName) {
     const int totalModels = GetTotalCarModelCount();
     for (int modelId = 0; modelId < totalModels; ++modelId) {
         const CarInfo& car = cars[modelId];
-        if (!car.isInvalid && _stricmp(car.internalName, folderName.c_str()) == 0) {
+        if (!car.isInvalid && IsSameCarFolder(folderName, car.internalName)) {
             return modelId;
         }
     }

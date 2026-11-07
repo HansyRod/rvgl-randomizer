@@ -4,6 +4,7 @@
 #include <vector>
 #include <optional>
 #include <fstream>
+#include <map>
 #include <nlohmann/json.hpp>
 #include "RVGLStructs.h"
 #include "CustomUnlocks.h"
@@ -236,6 +237,46 @@ namespace Randomizer {
         }
     }
 
+    struct ArchipelagoConfig {
+        int schemaVersion = 1;
+        int slotNumber = 0;
+        std::string slotName;
+        // Enables per-car Single Race win tracking and its car-selection status.
+        // The location map identifies which car_race_win:<folder> checks are active.
+        bool carsanity = false;
+        std::map<std::string, int> locations;
+        // An empty item string identifies filler and has no unlock effect.
+        // Named filler uses filler:<item name> and is normalized to an empty unlock name.
+        std::map<std::string, int> items;
+        std::string goal;
+        // Victory requires every listed event; each key must have a location mapping.
+        std::vector<std::string> goalEventKeys;
+    };
+
+    inline void to_json(json& j, const ArchipelagoConfig& p) {
+        j = json{
+            {"schemaVersion", p.schemaVersion},
+            {"slotNumber", p.slotNumber},
+            {"slotName", p.slotName},
+            {"carsanity", p.carsanity},
+            {"locations", p.locations},
+            {"items", p.items},
+            {"goal", p.goal},
+            {"goalEventKeys", p.goalEventKeys}
+        };
+    }
+
+    inline void from_json(const json& j, ArchipelagoConfig& p) {
+        j.at("schemaVersion").get_to(p.schemaVersion);
+        j.at("slotNumber").get_to(p.slotNumber);
+        j.at("slotName").get_to(p.slotName);
+        j.at("carsanity").get_to(p.carsanity);
+        j.at("locations").get_to(p.locations);
+        j.at("items").get_to(p.items);
+        j.at("goal").get_to(p.goal);
+        j.at("goalEventKeys").get_to(p.goalEventKeys);
+    }
+
     // The root structure containing all randomizer data
     struct ConfigData {
         ConfigMetadata metadata;
@@ -245,6 +286,7 @@ namespace Randomizer {
         std::vector<RandomizedCar> extraCars;
         std::vector<RandomizedTrack> tracks;
         std::vector<RandomizedCup> cups;
+        std::optional<ArchipelagoConfig> archipelago;
     };
 
     inline void to_json(json& j, const ConfigData& p) {
@@ -257,6 +299,9 @@ namespace Randomizer {
             {"tracks", p.tracks},
             {"cups", p.cups}
         };
+        if (p.archipelago.has_value()) {
+            j["archipelago"] = p.archipelago.value();
+        }
     }
 
     inline void from_json(const json& j, ConfigData& p) {
@@ -267,6 +312,11 @@ namespace Randomizer {
         p.extraCars = j.value("extraCars", std::vector<RandomizedCar>{});
         j.at("tracks").get_to(p.tracks);
         j.at("cups").get_to(p.cups);
+        if (j.contains("archipelago") && !j.at("archipelago").is_null()) {
+            p.archipelago = j.at("archipelago").get<ArchipelagoConfig>();
+        } else {
+            p.archipelago = std::nullopt;
+        }
     }
 
 } // namespace Randomizer

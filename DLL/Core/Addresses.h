@@ -19,6 +19,39 @@
 // Functions
 // ----------------------------------------------------------------------------
 
+// MainGameLoop(int argc, char** argv) and its per-frame SDL event pump.
+constexpr uint32_t RVA_MAIN_GAME_LOOP = 0x00002ec0;
+constexpr uint32_t RVA_PROCESS_SDL_EVENTS = 0x00002980;
+
+// Window mode: native SDL transitions, Video Settings, and focus-loss handling.
+// ApplyWindowMode - applies the fullscreen flag and selected native display mode.
+constexpr uint32_t RVA_APPLY_WINDOW_MODE = 0x001397c0;
+
+// RefreshWindowLayout - reads window/drawable dimensions and updates cameras and menus.
+constexpr uint32_t RVA_REFRESH_WINDOW_LAYOUT = 0x00139750;
+
+// BuildVideoSettingsMenu - registers the native Video Settings rows.
+constexpr uint32_t RVA_BUILD_VIDEO_SETTINGS_MENU = 0x00154030;
+
+// DrawMenuRow - draws a localized label for a native menu row.
+constexpr uint32_t RVA_DRAW_MENU_ROW = 0x00147050;
+
+// Normal game-state loops, entered after content loading has completed.
+// Frontend initialization selects Menu_UpdateLoop (void()) at 0x00543B67.
+constexpr uint32_t RVA_MENU_UPDATE_LOOP = 0x00143d60;
+constexpr uint32_t RVA_IN_RACE_GAME_LOOP = 0x0005a2b0;
+
+// Pause/results menu and the native fade-out/restart request.
+// BuildInRaceMenu - registers the rows shown in the pause/results menu.
+constexpr uint32_t RVA_BUILD_IN_RACE_MENU = 0x00142ed0;
+
+// HandleInRaceMenuAction - processes navigation and confirmation in the pause/results menu.
+constexpr uint32_t RVA_HANDLE_IN_RACE_MENU_ACTION = 0x00142c70;
+
+// SetRaceState - changes the race state and initializes its fade transition.
+// State 3 begins the fade-out used before a requested restart.
+constexpr uint32_t RVA_SET_RACE_STATE = 0x0008a560;
+
 // LoadVanillaCarPool — loads the built-in car pool into memory.
 // Ghidra signature: bool __fastcall LoadVanillaCarPool(void)
 constexpr uint32_t RVA_LOAD_VANILLA_CAR_POOL   = 0x0003F140;
@@ -183,9 +216,51 @@ constexpr uint32_t RVA_DRAW_PROGRESS_TABLE = 0x00154870;
 // DrawPreRaceSummary - draws the summary panel shown before a race.
 constexpr uint32_t RVA_DRAW_PRE_RACE_SUMMARY = 0x00155700;
 
+// CarSelectionHandler - draws the selected car's name and statistics.
+constexpr uint32_t RVA_CAR_SELECTION_HANDLER = 0x00158a50;
+
 // Start-race frontend menu builder and action handler.
 constexpr uint32_t RVA_BUILD_START_RACE_MENU = 0x0015E730;
 constexpr uint32_t RVA_HANDLE_START_RACE_MENU_ACTION = 0x0015E880;
+
+// BuildMainMenu - registers the native main-menu rows before the mod adds its entry.
+constexpr uint32_t RVA_BUILD_MAIN_MENU = 0x00144900;
+
+// HandleMainMenuAction - handles main-menu navigation before borrowed labels are restored.
+constexpr uint32_t RVA_HANDLE_MAIN_MENU_ACTION = 0x00144810;
+
+// ActivateMenuDisplaySlot - starts a frontend display slot's transition to another panel.
+constexpr uint32_t RVA_ACTIVATE_MENU_DISPLAY_SLOT = 0x00144e30;
+
+// Input_GetTextInput - returns pending UTF-8 text or editing commands from the native input system.
+constexpr uint32_t RVA_INPUT_GET_TEXT_INPUT = 0x0012a670;
+
+// SDL_GetKeyboardState - import thunk returning the current scancode states and their count.
+constexpr uint32_t RVA_SDL_GET_KEYBOARD_STATE = 0x0019d7d8;
+
+// SDL_GetModState - import thunk returning the active keyboard modifier flags.
+constexpr uint32_t RVA_SDL_GET_MOD_STATE = 0x0019d7d0;
+
+// SDL_GetClipboardText - import thunk returning allocated UTF-8 text; release it with SDL_free.
+constexpr uint32_t RVA_SDL_GET_CLIPBOARD_TEXT = 0x0019d800;
+
+// SDL_free - import thunk releasing memory allocated by SDL, including clipboard text.
+constexpr uint32_t RVA_SDL_FREE = 0x0019d5b0;
+
+// SDL_GetDesktopDisplayMode - import thunk returning a monitor's desktop display mode.
+constexpr uint32_t RVA_SDL_GET_DESKTOP_DISPLAY_MODE = 0x0019d7f8;
+
+// SDL_GetError - import thunk returning the calling thread's SDL error text.
+constexpr uint32_t RVA_SDL_GET_ERROR = 0x0019d7e8;
+
+// SDL_LockMutex - import thunk acquiring an opaque SDL mutex.
+constexpr uint32_t RVA_SDL_LOCK_MUTEX = 0x0019d688;
+
+// SDL_UnlockMutex - import thunk releasing an opaque SDL mutex.
+constexpr uint32_t RVA_SDL_UNLOCK_MUTEX = 0x0019d5c0;
+
+// SDL_MinimizeWindow - RVGL's import thunk, used as the window-minimize hook target.
+constexpr uint32_t RVA_SDL_MINIMIZE_WINDOW = 0x0019d680;
 
 // Options frontend menu builder.
 constexpr uint32_t RVA_BUILD_OPTIONS_MENU = 0x00154700;
@@ -243,16 +318,49 @@ constexpr uint32_t RVA_UI_DRAW_ROUNDED_RECT = 0x00148640;
 constexpr uint32_t RVA_SETUP_GL_RENDER_STATE = 0x00091f60;
 constexpr uint32_t RVA_FLUSH_DEFERRED_UI_BATCHES = 0x00082e40;
 
+// Shared menu/race fade and UI rendering step, after graphics initialization.
+constexpr uint32_t RVA_UPDATE_RACE_STATE = 0x0008a5d0;
+
+// Loading screens present directly, without calling UpdateRaceState.
+constexpr uint32_t RVA_SCREENSHOT_AND_FRAME_END = 0x00139bc0;
+
 // Checks whether a track should be selectable/visible in the current frontend mode.
 constexpr uint32_t RVA_TRACK_IS_AVAILABLE_FOR_FRONTEND = 0x000548d0;
 
 // Counts visible UTF-8 characters while ignoring combining marks.
 constexpr uint32_t RVA_UTF8_VISIBLE_CHAR_COUNT = 0x00133aa0;
 
+// String_LastCharPos - returns a byte offset at a native display-character boundary.
+// Negative character indices count backwards from the end, as used by Join Game editing.
+constexpr uint32_t RVA_STRING_LAST_CHAR_POS = 0x00133900;
+
+// u8_check - import thunk for libunistring's UTF-8 validator.
+// Returns null for valid UTF-8, otherwise a pointer to the first invalid byte.
+constexpr uint32_t RVA_UTF8_CHECK = 0x0019d968;
+
 
 // ----------------------------------------------------------------------------
 // Globals
 // ----------------------------------------------------------------------------
+
+// Native fullscreen byte; 1 includes both exclusive and desktop fullscreen.
+constexpr uint32_t RVA_FULLSCREEN_FLAG = 0x0025c020;
+
+// Native -nores byte; 1 selects desktop fullscreen without a resolution change.
+constexpr uint32_t RVA_NORES_FLAG = 0x002e3436;
+
+// SDL_Window pointer variable. Dereference once to obtain the opaque window handle.
+constexpr uint32_t RVA_SDL_WINDOW = 0x0aa85df0;
+
+// SDL_mutex pointer variable. Dereference once for loading/render synchronization.
+constexpr uint32_t RVA_RENDER_MUTEX = 0x002e3090;
+
+// Native byte set while window layout is updated under the render mutex.
+constexpr uint32_t RVA_RENDER_UPDATING_FLAG = 0x002e308c;
+
+// Native loading-thread service callback. LevelLoad sets this while drawing
+// loading frames and clears it before returning to normal menu/race rendering.
+constexpr uint32_t RVA_LOADING_FRAME_CALLBACK = 0x002e3098;
 
 // Pointer to the CarInfo array (DAT_006fab50).
 // Dereference to get the base address of the car pool.
@@ -300,6 +408,10 @@ constexpr uint32_t RVA_CUSTOM_CUP_ARRAY = 0x002fbbc8;
 // Global variable for the current game mode
 constexpr uint32_t RVA_GAME_MODE = 0x002e34c0;
 
+// Pointer to the native race-transition request integer, consumed by InRaceGameLoop.
+// Dereference this global before writing the request; 6 requests a race restart.
+constexpr uint32_t RVA_RACE_TRANSITION_REQUEST_PTR = 0x002a65e0;
+
 // Pointer to the active profile progress cache. In Stunt Arena this points to
 // a block whose +0x10 count, +0x14 max, and +0x18 byte array record caught stars.
 constexpr uint32_t RVA_TRACK_PROGRESS_CACHE_PTR = 0x002a7750;
@@ -325,11 +437,25 @@ constexpr uint32_t RVA_RACE_FINISHED_FLAG = 0x0a8ee7e0;
 // Pointer globals used by in-race results and finish notifications.
 constexpr uint32_t RVA_CURRENT_RACE_CLOCK_MS_PTR = 0x002a79d0;
 constexpr uint32_t RVA_RACE_RESULT_TABLE_PTR = 0x002a7400;
+// Native pointer to the primary local player's live car, used by race progress.
+constexpr uint32_t RVA_LOCAL_PLAYER_CAR_PTR = 0x002a7440;
 constexpr uint32_t RVA_PLAYER_COLORS_PTR = 0x002a6d90;
 
 constexpr uint32_t RVA_SETTINGS_NCARS = 0x0aa8e930;
 constexpr uint32_t RVA_NCARS = 0x00b43488;
 constexpr uint32_t RVA_SETTINGS_NCARS_MENU_ITEM = 0x00264280;
+
+// Native Next Track row descriptor, copied as the template for the Next Car selector.
+constexpr uint32_t RVA_IN_RACE_NEXT_TRACK_ITEM = 0x002634c0;
+
+// Native Resolution row descriptor in Video Settings; the descriptor is stored directly.
+constexpr uint32_t RVA_VIDEO_RESOLUTION_ITEM = 0x00265120;
+
+// Native Quit row descriptor, copied as the template for the Archipelago main-menu entry.
+constexpr uint32_t RVA_MAIN_MENU_QUIT_ITEM = 0x00263600;
+
+// Native Join Game IP input panel descriptor, copied as the Archipelago connection form template.
+constexpr uint32_t RVA_JOIN_IP_MENU_PANEL = 0x00263a00;
 
 // Current frontend menu action code. Values 2/3 are left/right.
 constexpr uint32_t RVA_MENU_ACTION = 0x002637f4;
@@ -339,6 +465,12 @@ constexpr uint32_t RVA_LOCALE_STRINGS_PTR = 0x002a79a0;
 
 // Pointer to frontend menu slot runtime storage.
 constexpr uint32_t RVA_MENU_SLOTS_PTR = 0x002a6860;
+
+// Native full car-selection panel.
+constexpr uint32_t RVA_CAR_SELECTION_MENU_PANEL = 0x002658e0;
+
+// Local player whose car is currently being selected (0..3).
+constexpr uint32_t RVA_ACTIVE_PLAYER_SLOT = 0x0aaa0c84;
 
 // Pointer-to-pointer to the active UI viewport transform. Native cup progress
 // drawing reads *(*ptr + 0x10) and applies DAT_006755ec before subtracting 320.
@@ -388,6 +520,18 @@ constexpr uint32_t RVA_MENU_INITIALIZE_FRONTEND_PTR = 0x002a47f0;
 
 
 
+
+// ----------------------------------------------------------------------------
+// Call sites
+// ----------------------------------------------------------------------------
+
+// Return address after F11 calls ApplyWindowMode inside ProcessSDLEvents.
+// Distinguishes a user mode change from temporary fullscreen changes for dialogs.
+constexpr uint32_t RVA_F11_APPLY_MODE_RETURN = 0x00002bfa;
+
+// Return address after ProcessSDLEvents automatically calls SDL_MinimizeWindow.
+// Distinguishes focus-loss minimization from other callers of the SDL function.
+constexpr uint32_t RVA_FOCUS_LOSS_MINIMIZE_RETURN = 0x00002e1d;
 
 // ----------------------------------------------------------------------------
 // AbsFromRva

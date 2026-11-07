@@ -1,4 +1,9 @@
 #include "MenuMod.h"
+#include "CarHooks.h"
+#include "30CarMod.h"
+#include "RaceInitHooks.h"
+#include "Logger.h"
+#include "LocaleUtils.h"
 #include "Addresses.h"
 #include "RVGLMenuStructs.h"
 #include "RandomizerState.h"
@@ -18,14 +23,13 @@ namespace Randomizer {
 FnBuildMenu Orig_BuildStartRaceMenu = nullptr;
 FnBuildMenu Orig_BuildOptionsMenu = nullptr;
 FnBuildMenu Orig_DrawPreRaceSummary = nullptr;
+FnBuildMenu Orig_BuildInRaceMenu = nullptr;
 FnHandleMenuAction Orig_HandleStartRaceMenuAction = nullptr;
 FnHandleMenuAction Orig_HandleOptionsMenuAction = nullptr;
+FnHandleMenuAction Orig_HandleInRaceMenuAction = nullptr;
 
 namespace {
 
-constexpr int kMenuSlotStride = 0x140;
-constexpr int kMenuItemPointerOffset = 2;
-constexpr int kSelectedItemIndexOffset = 0x38;
 constexpr int kMenuPanelTitleLabelOffset = 0x04;
 constexpr int kMenuPanelBuildFunctionOffset = 0x20;
 constexpr int kMenuPanelActionFunctionOffset = 0x28;
@@ -40,6 +44,7 @@ constexpr int kKnockedOutCarStateLabelId = 0x20;
 constexpr int kModOptionsLabelId = 0x21;
 constexpr int kKnockoutLapCountLabelId = 0x22;
 constexpr int kNativeSingleRaceLabelId = 0x15;
+constexpr int kNextCarLabelId = 0x28;
 
 constexpr char kKnockoutLabel[] = "Knockout";
 constexpr char kKnockoutLapCountLabel[] = "Knockout Lap Count";
@@ -55,12 +60,6 @@ constexpr char kModOptionsLabel[] = "Mod Settings";
 constexpr int kSingleRaceMode = MODE_SINGLE_RACE;
 constexpr int kFrontendConfirmAction = 5;
 constexpr int kFrontendCancelAction = 4;
-constexpr int kRaceSettingsRandomFlagsOffset = 0xA4;
-constexpr int kGameModeRandomFlagsOffset = 0x2E;
-constexpr int kMenuValueXOffset = 0x114;
-constexpr int kMenuValueYOffset = 0x118;
-constexpr int kMenuValueWidthOffset = 0x134;
-constexpr int kMenuValueMaxWidthOffset = 0x138;
 constexpr float kMenuValueTextWidth = 8.0f;
 constexpr float kMenuValueTextHeight = 12.0f;
 constexpr float kMenuValueExtraX = 32.0f;
@@ -70,8 +69,6 @@ constexpr uint32_t kMenuValueEnabledColor = 0xffebebeb;
 constexpr uint32_t kMenuValueDisabledColor = 0xff464646;
 constexpr uint32_t RVA_OPTIONS_GAME_SETTINGS_MENU_ITEM = 0x00265460;
 constexpr uint32_t RVA_OPTIONS_GAME_SETTINGS_MENU_PANEL = 0x002643a0;
-
-using FnHandleGenericMenuAction = bool(*)(int slotIndex, uint32_t action);
 
 NumericMenuValue g_carCountMenuValue = {};
 NumericMenuValue g_knockoutLapCountMenuValue = {};
@@ -87,15 +84,11 @@ MenuItemDescriptor g_modOptionsMenuItem = {};
 alignas(8) uint8_t g_modOptionsMenuPanel[kMenuPanelDescriptorSize] = {};
 bool g_knockoutMenuItemInitialized = false;
 bool g_modOptionsMenuItemInitialized = false;
-
-struct LocaleStringOverride {
-    int labelId;
-    const char* replacement;
-    char* original = nullptr;
-    char** capturedLocaleStrings = nullptr;
-    char** overriddenLocaleStrings = nullptr;
-    bool originalCaptured = false;
-};
+int g_nextCarModelId = -1;
+int g_pendingInRaceCarModelId = -1;
+NumericMenuValue g_nextCarMenuValue = {};
+MenuItemDescriptor g_nextCarMenuItem = {};
+LocaleStringOverride g_nextCarLabelOverride{kNextCarLabelId, "Next Car"};
 
 LocaleStringOverride g_knockoutLabelOverride{
     kKnockoutLabelId,
@@ -152,75 +145,23 @@ char* MutableText(const char* text) {
     return const_cast<char*>(text != nullptr ? text : "");
 }
 
-uint8_t* GetMenuSlotStorage() {
-    return *reinterpret_cast<uint8_t**>(AbsFromRva(RVA_MENU_SLOTS_PTR));
-}
-
 MenuItemDescriptor* GetMenuItemDescriptor(int slotIndex, int itemIndex) {
-    uint8_t* slots = GetMenuSlotStorage();
-    if (slots == nullptr || itemIndex < 0) {
+    MenuPanelSlot* slot = GetMenuPanelSlot(slotIndex);
+    if (slot == nullptr || itemIndex < 0 || itemIndex >= slot->itemCount || itemIndex >= 30) {
         return nullptr;
     }
 
-    const int pointerIndex = itemIndex + kMenuItemPointerOffset + slotIndex * 0x28;
-    return *reinterpret_cast<MenuItemDescriptor**>(slots + pointerIndex * sizeof(void*));
+    return slot->items[itemIndex];
 }
 
 MenuItemDescriptor* GetSelectedMenuItemDescriptor(int slotIndex) {
-    uint8_t* slots = GetMenuSlotStorage();
-    if (slots == nullptr) {
+    MenuPanelSlot* slot = GetMenuPanelSlot(slotIndex);
+    if (slot == nullptr || slot->panel == nullptr) {
         return nullptr;
     }
 
-    uint8_t* activeMenu = *reinterpret_cast<uint8_t**>(slots + slotIndex * kMenuSlotStride);
-    if (activeMenu == nullptr) {
-        return nullptr;
-    }
-
-    const int selectedItemIndex =
-        *reinterpret_cast<int*>(activeMenu + kSelectedItemIndexOffset);
+    const int selectedItemIndex = slot->panel->selectedItem;
     return GetMenuItemDescriptor(slotIndex, selectedItemIndex);
-}
-
-bool SaveOriginalLocaleString(LocaleStringOverride& stringOverride) {
-    char** localeStrings = GetLocaleStrings();
-    if (localeStrings == nullptr) {
-        return false;
-    }
-
-    if (!stringOverride.originalCaptured ||
-        stringOverride.capturedLocaleStrings != localeStrings) {
-        stringOverride.original = localeStrings[stringOverride.labelId];
-        stringOverride.capturedLocaleStrings = localeStrings;
-        stringOverride.originalCaptured = true;
-    }
-
-    return true;
-}
-
-bool OverrideLocaleString(LocaleStringOverride& stringOverride) {
-    if (!SaveOriginalLocaleString(stringOverride)) {
-        return false;
-    }
-
-    char** localeStrings = GetLocaleStrings();
-    localeStrings[stringOverride.labelId] = MutableText(stringOverride.replacement);
-    stringOverride.overriddenLocaleStrings = localeStrings;
-    return true;
-}
-
-void RestoreLocaleString(LocaleStringOverride& stringOverride) {
-    if (!stringOverride.originalCaptured ||
-        stringOverride.overriddenLocaleStrings == nullptr) {
-        return;
-    }
-
-    if (GetLocaleStrings() == stringOverride.overriddenLocaleStrings) {
-        stringOverride.overriddenLocaleStrings[stringOverride.labelId] =
-            stringOverride.original;
-    }
-
-    stringOverride.overriddenLocaleStrings = nullptr;
 }
 
 void PatchModOptionsMenuLocaleStrings() {
@@ -289,15 +230,8 @@ void SelectKnockoutMode() {
     gameMode.mode = kSingleRaceMode;
 
     RaceSettingsRuntime* settings = GetRaceSettings();
-    const uint16_t randomFlags = settings != nullptr
-        ? *reinterpret_cast<uint16_t*>(
-            reinterpret_cast<uint8_t*>(settings) + kRaceSettingsRandomFlagsOffset
-        )
-        : 0;
-
-    *reinterpret_cast<uint16_t*>(
-        reinterpret_cast<uint8_t*>(&gameMode) + kGameModeRandomFlagsOffset
-    ) = randomFlags;
+    gameMode.randomCars = settings != nullptr ? settings->randomCars : 0;
+    gameMode.randomTracks = settings != nullptr ? settings->randomTracks : 0;
 
     PatchSingleRaceLabelForKnockout();
 }
@@ -378,24 +312,23 @@ bool DecrementKnockedOutCarState(int panelIndex) {
 }
 
 void DrawTextMenuValue(int panelIndex, int itemIndex, const char* text) {
-    uint8_t* slots = GetMenuSlotStorage();
+    MenuPanelSlot* panel = GetMenuPanelSlot(panelIndex);
     MenuItemDescriptor* descriptor = GetMenuItemDescriptor(panelIndex, itemIndex);
-    if (slots == nullptr || descriptor == nullptr ||
+    if (panel == nullptr || descriptor == nullptr ||
         descriptor->valueBinding == nullptr || descriptor->valueBinding->value == nullptr) {
         return;
     }
 
-    uint8_t* panel = slots + panelIndex * kMenuSlotStride;
     const float x =
-        *reinterpret_cast<float*>(panel + kMenuValueXOffset) +
-        *reinterpret_cast<float*>(panel + kMenuValueWidthOffset) +
+        panel->textX +
+        panel->labelWidth +
         kMenuValueExtraX;
     const float y =
         static_cast<float>(itemIndex << 4) +
-        *reinterpret_cast<float*>(panel + kMenuValueYOffset);
-    const float maxWidth = *reinterpret_cast<float*>(panel + kMenuValueMaxWidthOffset);
+        panel->textY;
+    const float maxWidth = panel->valueWidth;
     const uint32_t color =
-        (descriptor->flags & 2) == 0 ? kMenuValueDisabledColor : kMenuValueEnabledColor;
+        descriptor->flags.enabled ? kMenuValueEnabledColor : kMenuValueDisabledColor;
 
     RVGL_DrawUIText(
         x,
@@ -407,6 +340,66 @@ void DrawTextMenuValue(int panelIndex, int itemIndex, const char* text) {
         maxWidth,
         0
     );
+}
+
+bool CanSwitchCarsInRace() {
+    const int mode = GetGameModeRuntime().mode;
+    return (mode == MODE_SINGLE_RACE || mode == MODE_PRACTICE ||
+        mode == MODE_STUNT_ARENA || mode == MODE_TIME_TRIAL) &&
+        GetLocalPlayerCar() != nullptr;
+}
+
+bool IsSelectableRaceCar(int modelId) {
+    const CarInfo* cars = GetCarPool();
+    return cars != nullptr && modelId >= 0 && modelId < GetRuntimeCarCount() &&
+        cars[modelId].selectableByPlayer && !cars[modelId].isInvalid;
+}
+
+int FindNextSelectableRaceCar(int modelId, int direction) {
+    const int carCount = GetRuntimeCarCount();
+    if (carCount <= 0 || GetCarPool() == nullptr) {
+        return -1;
+    }
+    int candidate = modelId >= 0 && modelId < carCount ? modelId : 0;
+    for (int checked = 0; checked < carCount; ++checked) {
+        candidate += direction;
+        if (candidate >= carCount) {
+            candidate = 0;
+        } else if (candidate < 0) {
+            candidate = carCount - 1;
+        }
+        if (IsSelectableRaceCar(candidate)) {
+            return candidate;
+        }
+    }
+    return -1;
+}
+
+bool CycleNextCar(int direction) {
+    const int nextCar = FindNextSelectableRaceCar(g_nextCarModelId, direction);
+    if (nextCar < 0 || nextCar == g_nextCarModelId) {
+        return false;
+    }
+    g_nextCarModelId = nextCar;
+    return true;
+}
+
+bool DecrementNextCar(int panelIndex) {
+    return CycleNextCar(-1);
+}
+
+bool IncrementNextCar(int panelIndex) {
+    return CycleNextCar(1);
+}
+
+void DrawNextCar(int panelIndex, int itemIndex) {
+    if (!IsSelectableRaceCar(g_nextCarModelId)) {
+        return;
+    }
+    const CarInfo& car = GetCarPool()[g_nextCarModelId];
+    char name[sizeof(car.displayName) + 1] = {};
+    std::memcpy(name, car.displayName, sizeof(car.displayName));
+    DrawTextMenuValue(panelIndex, itemIndex, name);
 }
 
 void DrawKnockoutLapCountMenuValue(int panelIndex, int itemIndex) {
@@ -485,10 +478,7 @@ bool HandleModOptionsMenuAction(int slotIndex, uint32_t action) {
         return false;
     }
 
-    const auto handleGenericMenuAction =
-        reinterpret_cast<FnHandleGenericMenuAction>(AbsFromRva(RVA_HANDLE_GENERIC_MENU_ACTION));
-
-    const bool result = handleGenericMenuAction(slotIndex, action);
+    const bool result = RVGL_HandleGenericMenuAction(slotIndex, action);
 
     if (action == kFrontendCancelAction) {
         RestoreModOptionsMenuLocaleStrings();
@@ -726,6 +716,129 @@ void Hook_BuildOptionsMenu(int slotIndex) {
             slotIndex,
             reinterpret_cast<int*>(&g_modOptionsMenuItem)
         );
+    }
+}
+
+void Hook_BuildInRaceMenu(int slotIndex) {
+    RestoreLocaleString(g_nextCarLabelOverride);
+    Orig_BuildInRaceMenu(slotIndex);
+    MenuPanelSlot* slot = GetMenuPanelSlot(slotIndex);
+    const CarEntityRuntime* player = GetLocalPlayerCar();
+    if (!CanSwitchCarsInRace() || slot == nullptr || player == nullptr ||
+        slot->itemCount <= 0 || slot->itemCount >= 30) {
+        return;
+    }
+
+    g_nextCarModelId = player->transform.modelId;
+    if (!IsSelectableRaceCar(g_nextCarModelId) ||
+        !OverrideLocaleString(g_nextCarLabelOverride)) {
+        return;
+    }
+
+    const auto* nextTrackItem = GetInRaceNextTrackMenuItem();
+    g_nextCarMenuValue.value = &g_nextCarModelId;
+    g_nextCarMenuValue.minValue = 0;
+    g_nextCarMenuValue.maxValue = GetRuntimeCarCount() - 1;
+    g_nextCarMenuValue.step = 1;
+    g_nextCarMenuItem = *nextTrackItem;
+    g_nextCarMenuItem.labelId = kNextCarLabelId;
+    g_nextCarMenuItem.valueWidth = 160.0f;
+    g_nextCarMenuItem.valueBinding = &g_nextCarMenuValue;
+    g_nextCarMenuItem.drawValue = DrawNextCar;
+    g_nextCarMenuItem.decrementValue = DecrementNextCar;
+    g_nextCarMenuItem.incrementValue = IncrementNextCar;
+
+    RVGL_RegisterMenuItemInActiveMenu(slotIndex, reinterpret_cast<int*>(&g_nextCarMenuItem));
+    // Keep the car selector beside Next Track rather than below Quit.
+    const int lastItem = slot->itemCount - 1;
+    for (int index = 0; index < lastItem; ++index) {
+        if (slot->items[index] == nextTrackItem) {
+            std::move_backward(slot->items + index + 1, slot->items + lastItem, slot->items + lastItem + 1);
+            slot->items[index + 1] = &g_nextCarMenuItem;
+            break;
+        }
+    }
+}
+
+bool Hook_HandleInRaceMenuAction(int slotIndex, uint32_t action) {
+    if (GetSelectedMenuItemDescriptor(slotIndex) == &g_nextCarMenuItem &&
+        action == kFrontendConfirmAction) {
+        RaceSettingsRuntime* settings = GetRaceSettings();
+        int* transitionRequest = GetRaceTransitionRequest();
+        if (!CanSwitchCarsInRace() || !IsSelectableRaceCar(g_nextCarModelId) ||
+            settings == nullptr || transitionRequest == nullptr || GetPlayerRaceInfo() == nullptr) {
+            return false;
+        }
+
+        g_pendingInRaceCarModelId = g_nextCarModelId;
+        // An explicit car choice must survive the native restart's random-car step.
+        auto& gameMode = GetGameModeRuntime();
+        gameMode.randomCars = 0;
+        gameMode.randomTracks = 0;
+        // Match the native immediate-restart action: fade out, save/tear down,
+        // apply the pending car to PlayerRaceInfo, then reload the same level.
+        *transitionRequest = 6;
+        RVGL_ActivateMenuDisplaySlot(slotIndex, nullptr);
+        RVGL_SetRaceState(3);
+        Logger::TimestampLogf("[NextCar] Restarting with car %d: %s", g_nextCarModelId,
+            GetCarPool()[g_nextCarModelId].internalName);
+        RestoreLocaleString(g_nextCarLabelOverride);
+        return true;
+    }
+
+    const bool result = Orig_HandleInRaceMenuAction(slotIndex, action);
+    if (action == kFrontendCancelAction || action == kFrontendConfirmAction) {
+        const MenuPanelSlot* slot = GetMenuPanelSlot(slotIndex);
+        // The native pause menu can ignore Cancel or open a confirmation dialog.
+        // Keep our label while the original panel remains displayed.
+        if (slot == nullptr || slot->nextPanel != slot->panel) {
+            RestoreLocaleString(g_nextCarLabelOverride);
+        }
+    }
+    return result;
+}
+
+void ApplyPendingInRaceCarSelection() {
+    const int modelId = g_pendingInRaceCarModelId;
+    g_pendingInRaceCarModelId = -1;
+    if (!IsSelectableRaceCar(modelId)) {
+        return;
+    }
+    RaceSettingsRuntime* settings = GetRaceSettings();
+    PlayerRaceInfoRuntime* raceInfo = GetPlayerRaceInfo();
+    if (settings == nullptr || raceInfo == nullptr || raceInfo->participantCount <= 0) {
+        return;
+    }
+
+    const CarInfo& car = GetCarPool()[modelId];
+    // Solo restarts reuse the participant table at PlayerRaceInfo + 0x50.
+    // Change it only after teardown has saved the OLD car's session/replay.
+    auto* player = &raceInfo->participants[0];
+    if (player->modelId == modelId) {
+        return; // An unchanged selection retains the current car's skin.
+    }
+    player->modelId = modelId;
+    player->skinId = 0;
+    std::memcpy(player->carName, car.displayName, sizeof(player->carName));
+    player->carName[sizeof(player->carName) - 1] = '\0';
+    std::memset(player->skinName, 0, sizeof(player->skinName));
+    if (car.pSkinNames != nullptr && car.skinCount > 0) {
+        std::memcpy(player->skinName, car.pSkinNames, sizeof(player->skinName));
+        player->skinName[sizeof(player->skinName) - 1] = '\0';
+    }
+    settings->playerModelIds[0] = modelId;
+    settings->playerSkinId = 0;
+    // Time Trial reloads its table and ghost using this cached car, not the roster.
+    // Update it after the old session is saved and before native level loading.
+    GetGameModeRuntime().playerModelId = modelId;
+
+    if (GetGameModeRuntime().mode == MODE_SINGLE_RACE) {
+        // Native CPU picks use RaceSettings and a sixteen-car pick buffer.
+        // Rebuild the native roster first, then expand it through the usual hook.
+        raceInfo->participantCount = (std::min)(raceInfo->participantCount, vanillaMaxCarCount);
+        ResetThirtyCarModState();
+        Orig_RandomizeCarPicks();
+        Hook_AssignStartPositions();
     }
 }
 

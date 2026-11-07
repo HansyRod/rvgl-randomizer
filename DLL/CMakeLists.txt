@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
+include(Archipelago/Dependencies.cmake)
+
 # ============================================================================
 # nlohmann_json — content fetched from the public repository
 #                 and linked into the mod DLL.
@@ -11,12 +13,32 @@ include(FetchContent)
 # 2. Declare the dependency using the minimal release tarball
 FetchContent_Declare(
     nlohmann_json
-    URL "https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz"
+    URL "https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz"
+    URL_HASH SHA256=42f6e95cad6ec532fd372391373363b62a14af6d771056dbfc86160e6dfff7aa
     DOWNLOAD_EXTRACT_TIMESTAMP true
 )
 
 # 3. Make the targets available
 FetchContent_MakeAvailable(nlohmann_json)
+
+# ============================================================================
+# apclientpp - header-only Archipelago client library.
+# ============================================================================
+set(APCLIENTPP_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+add_subdirectory(Archipelago/third_party/apclientpp)
+
+# Link OpenSSL statically so the injected DLL has no extra runtime DLLs to deploy.
+set(OPENSSL_USE_STATIC_LIBS TRUE)
+find_package(OpenSSL REQUIRED COMPONENTS SSL Crypto)
+
+# WebSocket permessage-deflate support uses zlib, also linked statically.
+set(ZLIB_USE_STATIC_LIBS TRUE)
+find_package(ZLIB REQUIRED)
+
+if(MSVC)
+    # The TLS backend's templates exceed MSVC's default object section limit.
+    set_source_files_properties(Archipelago/ArchipelagoClient.cpp PROPERTIES COMPILE_OPTIONS /bigobj)
+endif()
 
 # ============================================================================
 # MinHook — compiled as a static library and linked into the mod DLL.
@@ -69,7 +91,16 @@ add_library(randomizer SHARED
     Mods/ExtendedCupStandingsTable.cpp
     Mods/Fob.cpp
     Mods/MenuMod.cpp
+    Mods/WindowMode.cpp
     Mods/KnockoutMode.cpp
+
+    # Archipelago - network integration wrapper
+    Archipelago/ArchipelagoClient.cpp
+    Archipelago/ArchipelagoEventKeys.cpp
+    Archipelago/ArchipelagoLog.cpp
+    Archipelago/Mods/ArchipelagoHooks.cpp
+    Archipelago/Mods/ArchipelagoMenu.cpp
+    Archipelago/Mods/Carsanity.cpp
 
     # DebugUtils — debug tools
     DebugUtils/Logger.cpp        # OutputDebugStringA + file logging
@@ -80,8 +111,10 @@ add_library(randomizer SHARED
 
     # Game - Game data or other utils
     Game/RVGLFunctions.cpp
+    Game/SDLFunctions.cpp
     Game/RVGLMemory.cpp
     Game/GameUtils.cpp
+    Game/LocaleUtils.cpp
 
     #Config - Handles loading the JSON configuration with the randomization data
     Config/ConfigManager.cpp
@@ -103,12 +136,24 @@ target_include_directories(randomizer PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Image/stb
     ${CMAKE_CURRENT_SOURCE_DIR}/Config
     ${CMAKE_CURRENT_SOURCE_DIR}/File
+    ${CMAKE_CURRENT_SOURCE_DIR}/Archipelago
+    ${CMAKE_CURRENT_SOURCE_DIR}/Archipelago/Mods
+    ${CMAKE_CURRENT_SOURCE_DIR}/Archipelago/third_party/wswrap/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/Archipelago/third_party/asio/asio/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/Archipelago/third_party/websocketpp
     MinHook/include
 )
 
 target_link_libraries(randomizer PRIVATE
     MinHook
     kernel32
+    ws2_32
+    rpcrt4
+    crypt32
+    apclientpp
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    ZLIB::ZLIB
     nlohmann_json::nlohmann_json
 )
 

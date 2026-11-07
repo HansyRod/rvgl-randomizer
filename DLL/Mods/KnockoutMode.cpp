@@ -31,13 +31,6 @@ constexpr uint32_t kDefaultPopupPrefixColor = 0xff00ffff;
 constexpr uint32_t kDefaultPopupTimeColor = 0xffffff;
 constexpr char kKnockoutLabel[] = "Knockout";
 
-struct RaceResultEntry {
-    CarEntityRuntime* car;
-    uint32_t totalTimeMs;
-    uint8_t dnfFlag;
-    uint8_t pad[3];
-};
-
 struct KnockoutResultEntry {
     CarEntityRuntime* car;
     uint32_t knockoutTimeMs;
@@ -161,10 +154,6 @@ std::vector<CarEntityRuntime*> GetActiveRaceCars() {
 uint32_t GetCurrentRaceClockMs() {
     int* raceClock = *reinterpret_cast<int**>(AbsFromRva(RVA_CURRENT_RACE_CLOCK_MS_PTR));
     return raceClock != nullptr ? static_cast<uint32_t>(*raceClock) : 0;
-}
-
-RaceResultEntry* GetRaceResultTable() {
-    return *reinterpret_cast<RaceResultEntry**>(AbsFromRva(RVA_RACE_RESULT_TABLE_PTR));
 }
 
 void ClearNativeKnockoutRaceState() {

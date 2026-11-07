@@ -4,16 +4,69 @@
 
 namespace Randomizer {
 
+bool IsLoadingScreenActive() {
+    return *reinterpret_cast<void**>(AbsFromRva(RVA_LOADING_FRAME_CALLBACK)) != nullptr;
+}
+
 RaceSettingsRuntime* GetRaceSettings() {
     return *reinterpret_cast<RaceSettingsRuntime**>(AbsFromRva(RVA_RACE_SETTINGS_PTR));
+}
+
+int GetActivePlayerSlot() {
+    return *reinterpret_cast<int*>(AbsFromRva(RVA_ACTIVE_PLAYER_SLOT));
+}
+
+MenuPanelDescriptor* GetCarSelectionMenuPanel() {
+    return reinterpret_cast<MenuPanelDescriptor*>(AbsFromRva(RVA_CAR_SELECTION_MENU_PANEL));
+}
+
+MenuPanelSlot* GetMenuPanelSlot(int slotIndex) {
+    auto* slots = *reinterpret_cast<MenuPanelSlot**>(AbsFromRva(RVA_MENU_SLOTS_PTR));
+    return slots == nullptr || slotIndex < 0 ? nullptr : &slots[slotIndex];
 }
 
 PlayerRaceInfoRuntime* GetPlayerRaceInfo() {
     return *reinterpret_cast<PlayerRaceInfoRuntime**>(AbsFromRva(RVA_PLAYER_RACE_INFO_PTR));
 }
 
+const MenuItemDescriptor* GetInRaceNextTrackMenuItem() {
+    return reinterpret_cast<const MenuItemDescriptor*>(AbsFromRva(RVA_IN_RACE_NEXT_TRACK_ITEM));
+}
+
+MenuItemDescriptor* GetNativeResolutionItem() {
+    return reinterpret_cast<MenuItemDescriptor*>(AbsFromRva(RVA_VIDEO_RESOLUTION_ITEM));
+}
+
+void* GetWindow() {
+    return *reinterpret_cast<void**>(AbsFromRva(RVA_SDL_WINDOW));
+}
+
+uint8_t& GetFullscreenFlag() {
+    return *reinterpret_cast<uint8_t*>(AbsFromRva(RVA_FULLSCREEN_FLAG));
+}
+
+uint8_t& GetNoresFlag() {
+    return *reinterpret_cast<uint8_t*>(AbsFromRva(RVA_NORES_FLAG));
+}
+
+void* GetRenderMutex() {
+    return *reinterpret_cast<void**>(AbsFromRva(RVA_RENDER_MUTEX));
+}
+
+uint8_t& GetRenderUpdatingFlag() {
+    return *reinterpret_cast<uint8_t*>(AbsFromRva(RVA_RENDER_UPDATING_FLAG));
+}
+
+int* GetRaceTransitionRequest() {
+    return *reinterpret_cast<int**>(AbsFromRva(RVA_RACE_TRANSITION_REQUEST_PTR));
+}
+
 GameModeRuntime& GetGameModeRuntime() {
     return *reinterpret_cast<GameModeRuntime*>(AbsFromRva(RVA_GAME_MODE));
+}
+
+StuntArenaProgressRuntime* GetStuntArenaProgress() {
+    return *reinterpret_cast<StuntArenaProgressRuntime**>(AbsFromRva(RVA_TRACK_PROGRESS_CACHE_PTR));
 }
 
 CupResultRuntime& GetCupResultRuntime() {
@@ -30,6 +83,14 @@ bool IsRaceFinished() {
 
 CarInfo* GetCarInfoTable() {
     return *reinterpret_cast<CarInfo**>(AbsFromRva(RVA_CAR_TABLE));
+}
+
+CarEntityRuntime* GetLocalPlayerCar() {
+    return *reinterpret_cast<CarEntityRuntime**>(AbsFromRva(RVA_LOCAL_PLAYER_CAR_PTR));
+}
+
+RaceResultEntry* GetRaceResultTable() {
+    return *reinterpret_cast<RaceResultEntry**>(AbsFromRva(RVA_RACE_RESULT_TABLE_PTR));
 }
 
 CarEntityRuntime* GetLiveCarById(int runtimeCarId) {

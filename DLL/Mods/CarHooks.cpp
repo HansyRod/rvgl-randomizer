@@ -29,26 +29,6 @@ static const char* defaultCars[49] = {
     "tc9",     "jg1jg7",   "tc7",     "jg3loco", "jg4snw35", "jg5purpxl", "jg2fulonx"
 };
 
-std::string GetCarFolderName(const std::string& path) {
-    if (path.compare(0, 5, "cars/") == 0) {
-        return path.substr(5);
-    }
-    if (path.compare(0, 5, "cars\\") == 0) {
-        return path.substr(5);
-    }
-    return path;
-}
-
-bool IsSameCarFolder(const std::string& left, const char* right) {
-    if (right == nullptr) {
-        return false;
-    }
-
-    const std::string normalizedLeft = GetCarFolderName(left);
-    const std::string normalizedRight = GetCarFolderName(right);
-    return _stricmp(normalizedLeft.c_str(), normalizedRight.c_str()) == 0;
-}
-
 bool IsConfiguredExtraCarFolder(const char* folderName) {
     Randomizer::ConfigData* config = Randomizer::GetActiveConfig();
     if (config == nullptr || folderName == nullptr) {
@@ -56,7 +36,7 @@ bool IsConfiguredExtraCarFolder(const char* folderName) {
     }
 
     for (const Randomizer::RandomizedCar& extraCar : config->extraCars) {
-        if (IsSameCarFolder(extraCar.folder, folderName)) {
+        if (Randomizer::IsSameCarFolder(extraCar.folder, folderName)) {
             return true;
         }
     }
@@ -66,7 +46,7 @@ bool IsConfiguredExtraCarFolder(const char* folderName) {
 
 int GetExtraCarSlot(const Randomizer::ConfigData& config, const CarInfo& car) {
     for (int i = 0; i < static_cast<int>(config.extraCars.size()); ++i) {
-        if (IsSameCarFolder(config.extraCars[i].folder, car.internalName)) {
+        if (Randomizer::IsSameCarFolder(config.extraCars[i].folder, car.internalName)) {
             return i;
         }
     }

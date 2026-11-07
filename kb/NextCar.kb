@@ -1,0 +1,32 @@
+# Next Car in the pause menu
+
+Single Race, Practice, Stunt Arena, and Time Trial expose a Next Car row directly
+after Next Track. The value starts at the current car. Left/right cycles through
+valid, player-selectable cars in the runtime pool and wraps at either end;
+confirm restarts the current level with that car and its default skin. Browsing
+does not change the current car until confirmed. Confirming the current car
+restarts without changing its skin. The row remains available when only the
+current car is eligible. Championship, multiplayer, replays, and other race modes
+retain their native menus.
+
+The implementation lives in MenuMod.cpp. It hooks the native pause-menu builder
+at 0x00542ed0 and action handler at 0x00542c70, copies the Next Track row template
+at 0x006634c0, and borrows locale slot 0x28 only while displaying the custom row.
+The native pause menu may ignore Cancel, so the label is restored only when the
+panel leaves or before the next build.
+
+Confirm queues the selected model, disables the current session's
+random-car/random-track flags, and uses the native immediate
+restart path: write 6 through the request pointer at 0x006a65e0, close the menu,
+and call SetRaceState(3) at 0x0048a560. After Race_TeardownAndSave saves the old
+session/replay, its hook applies the pending model/default skin and names to the
+first cached participant at PlayerRaceInfo + 0x50, plus RaceSettings. Solo
+restarts reuse that participant table rather than calling RaceSessionSetup.
+LevelLoad then creates the new car normally. The selector is a release feature
+and does not depend on the temporary Practice-star-reset hack. This also runs the temporary
+Practice-star-reset hook without replacing the live car mid-frame.
+
+Build Debug and Release with the existing CMake randomizer target. The local
+build/next_car_live.py smoke test uses a copied, isolated profile and exercises
+the native menu and keyboard path, left/right selection, resuming without
+applying a choice, keeping the track, and repeated car switches.

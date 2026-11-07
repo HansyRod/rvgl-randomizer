@@ -5,13 +5,26 @@
 #include "MenuMod.h"
 #include "CarHooks.h"
 #include "RVGLFunctions.h"
+#include "RVGLMemory.h"
 #include "Logger.h"
+#include "ArchipelagoClient.h"
+#include "ArchipelagoLog.h"
+#include "ArchipelagoMenu.h"
+#include "CustomUnlocks.h"
+#include "WindowMode.h"
+#include <rpc.h>
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
+#include <cstring>
 #include <cstdlib>
 #include <fstream>
+#include <filesystem>
 #include <limits>
+#include <map>
 #include <string>
+#include <stdexcept>
+#include <utility>
 
 namespace Randomizer {
 
@@ -32,6 +45,31 @@ namespace {
 constexpr char kRandomizerProfileFileName[] = "rvgl-randomizer.ini";
 constexpr char kRandomizerSection[] = "Randomizer";
 constexpr char kKnockoutSection[] = "Knockout";
+constexpr char kVideoSection[] = "Video";
+std::string g_randomizerProfileName;
+
+// These settings belong to the active RVGL profile, just like the other options
+// in this file. Passwords remain in the connection menu/client and never enter JSON.
+struct ArchipelagoProfileData {
+    std::string uuid;
+    std::string server;
+    bool requiresPassword = true;
+    // Seed -> slot number -> completed IDs awaiting server confirmation. Sending
+    // a packet does not prove receipt; retain it until a server list confirms it.
+    std::map<std::string, std::map<std::string, std::set<int64_t>>> completedLocations;
+    // Seed -> slot number -> achieved goal locations, retained after confirmation.
+    std::map<std::string, std::map<std::string, std::set<int64_t>>> completedGoalLocations;
+    // Seed -> slot number -> owned item IDs. RVGL unlocks are boolean;
+    // filler and repeated copies of an item have no additional unlock effect.
+    std::map<std::string, std::map<std::string, std::set<int64_t>>> receivedItems;
+    // Seed -> slot number -> car folders that have won a Single Race.
+    std::map<std::string, std::map<std::string, std::set<std::string>>> carWins;
+    // Runtime-only flag: retry failed saves on a later save or normal game exit.
+    bool dirty = false;
+};
+
+ArchipelagoProfileData g_archipelagoProfileData;
+std::string g_archipelagoProfilePath;
 
 std::string Trim(const std::string& value) {
     const size_t first = value.find_first_not_of(" \t\r\n");
@@ -78,6 +116,128 @@ std::string ResolveRandomizerProfilePath(const std::string& virtualPath, bool is
     }
 
     return virtualPath;
+}
+
+bool IsValidUUID(const std::string& uuid) {
+    return uuid.size() == 32 && std::all_of(uuid.begin(), uuid.end(),
+        [](unsigned char c) { return std::isxdigit(c) != 0; });
+}
+
+bool SaveArchipelagoProfileData() {
+    g_archipelagoProfileData.dirty = true;
+    if (g_archipelagoProfilePath.empty() || !IsValidUUID(g_archipelagoProfileData.uuid)) {
+        return false;
+    }
+    // A failed profile save must not truncate the UUID or previously saved progress.
+    // Write alongside the old file, close it, then replace it only after a full write.
+    const std::string temporaryPath = g_archipelagoProfilePath + ".tmp";
+    const nlohmann::json data = {
+        {"uuid", g_archipelagoProfileData.uuid}, {"server", g_archipelagoProfileData.server},
+        {"requiresPassword", g_archipelagoProfileData.requiresPassword},
+        {"completedLocations", g_archipelagoProfileData.completedLocations},
+        {"completedGoalLocations", g_archipelagoProfileData.completedGoalLocations},
+        {"receivedItems", g_archipelagoProfileData.receivedItems},
+        {"carWins", g_archipelagoProfileData.carWins}
+    };
+    std::ofstream file(temporaryPath, std::ios::binary | std::ios::trunc);
+    file << data.dump(2) << '\n';
+    file.close();
+    if (!file || !MoveFileExA(temporaryPath.c_str(), g_archipelagoProfilePath.c_str(),
+        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+        DeleteFileA(temporaryPath.c_str());
+        LogArchipelagoMessagef("Could not save Archipelago profile data: %s. Pending changes remain in memory.", g_archipelagoProfilePath.c_str());
+        return false;
+    }
+    g_archipelagoProfileData.dirty = false;
+    return true;
+}
+
+void RestoreArchipelagoProfileReceivedItems(const ConfigData& config) {
+    const auto seedItems = g_archipelagoProfileData.receivedItems.find(config.metadata.seed);
+    if (seedItems == g_archipelagoProfileData.receivedItems.end()) {
+        return;
+    }
+    const auto slotItems = seedItems->second.find(std::to_string(config.archipelago->slotNumber));
+    if (slotItems == seedItems->second.end()) {
+        return;
+    }
+    // Restore logical ownership before connecting. The usual game-thread unlock
+    // refresh applies it to RVGL's car, track and cup data once that data is ready.
+    size_t restoredItems = 0;
+    for (const auto& item : config.archipelago->items) {
+        if (!item.first.empty() && slotItems->second.count(item.second) != 0) {
+            MarkArchipelagoItemReceived(item.first);
+            ++restoredItems;
+        }
+    }
+    if (restoredItems != 0) {
+        Logger::TimestampLogf("[Archipelago] Restored %zu cached item unlock(s).", restoredItems);
+    }
+}
+
+void LoadArchipelagoProfileData(const char* profileName, const ConfigData& config) {
+    // Load the startup profile once. RVGL can reload settings during menu flows;
+    // retain our in-memory checks and connection instead of loading them again.
+    if (!g_archipelagoProfilePath.empty()) {
+        return;
+    }
+    const std::string internalName = GetProfileInternalName(profileName);
+    if (internalName.empty()) {
+        // RVGL loads global/default settings before selecting the startup profile.
+        return;
+    }
+    const std::string virtualPath = "profiles/" + internalName + "/archipelago.json";
+    const std::string resolvedPath = ResolveRandomizerProfilePath(virtualPath, true);
+    g_archipelagoProfilePath = resolvedPath;
+    try {
+        if (std::filesystem::exists(resolvedPath)) {
+            // Existing profile data: load its saved identity and connection preferences.
+            std::ifstream file(resolvedPath);
+            const nlohmann::json data = nlohmann::json::parse(file);
+            g_archipelagoProfileData.uuid = data.at("uuid").get<std::string>();
+            g_archipelagoProfileData.server = data.value("server", std::string{});
+            g_archipelagoProfileData.requiresPassword = data.value("requiresPassword", true);
+            // Read once with the profile, never from the per-frame network pump.
+            // Files created before completion caching simply have no history yet.
+            g_archipelagoProfileData.completedLocations = data.value("completedLocations",
+                decltype(g_archipelagoProfileData.completedLocations){});
+            g_archipelagoProfileData.completedGoalLocations = data.value("completedGoalLocations",
+                decltype(g_archipelagoProfileData.completedGoalLocations){});
+            g_archipelagoProfileData.receivedItems = data.value("receivedItems",
+                decltype(g_archipelagoProfileData.receivedItems){});
+            g_archipelagoProfileData.carWins = data.value("carWins",
+                decltype(g_archipelagoProfileData.carWins){});
+            if (!IsValidUUID(g_archipelagoProfileData.uuid)) {
+                throw std::runtime_error("Invalid profile UUID.");
+            }
+        } else {
+            // First use: create a new identity because this profile has no JSON file.
+            UUID uuid;
+            RPC_CSTR generatedUUID = nullptr;
+            if (UuidCreate(&uuid) != RPC_S_OK || UuidToStringA(&uuid, &generatedUUID) != RPC_S_OK) {
+                throw std::runtime_error("Could not generate a profile UUID.");
+            }
+            std::string& uuidString = g_archipelagoProfileData.uuid;
+            uuidString = reinterpret_cast<const char*>(generatedUUID);
+            RpcStringFreeA(&generatedUUID);
+            uuidString.erase(std::remove(uuidString.begin(), uuidString.end(), '-'), uuidString.end());
+            // Persist the UUID before connecting so the identity survives restarts.
+            if (!SaveArchipelagoProfileData()) {
+                return;
+            }
+        }
+    } catch (const std::exception& error) {
+        // Never regenerate an identity merely because its settings file is malformed.
+        LogArchipelagoMessagef("Could not load profile data: %s File left unchanged.", error.what());
+        g_archipelagoProfileData = {};
+        return;
+    }
+    SetArchipelagoClientUUID(g_archipelagoProfileData.uuid);
+    RestoreArchipelagoProfileReceivedItems(config);
+    ResetArchipelagoMenuProfile(g_archipelagoProfileData.server);
+    if (!g_archipelagoProfileData.server.empty() && !g_archipelagoProfileData.requiresPassword) {
+        RequestArchipelagoConnection(g_archipelagoProfileData.server, "");
+    }
 }
 
 int ClampCarsPerRace(int value) {
@@ -152,7 +312,11 @@ bool SaveRandomizerProfileSettings(const char* profileName) {
          << "EliminationsPerEvent = "
          << ClampEliminationsAtOnce(ctx.knockoutState.eliminationsPerEvent) << "\n"
          << "KnockedOutGhostMode = "
-         << ClampBinaryOption(ctx.knockoutState.knockedOutGhostMode) << "\n";
+         << ClampBinaryOption(ctx.knockoutState.knockedOutGhostMode) << "\n\n";
+
+    const WindowModeProfileSettings& video = GetWindowModeProfileSettings();
+    file << "[Video]\n"
+         << "WindowMode = " << video.mode << "\n";
 
     if (!file.good()) {
         Logger::TimestampLogf(
@@ -173,6 +337,7 @@ void LoadRandomizerProfileSettings(char* profileName, int baseCarCount) {
         return;
     }
 
+    GetWindowModeProfileSettings() = {};
     const std::string resolvedPath = ResolveRandomizerProfilePath(path, false);
     std::ifstream file(resolvedPath);
     if (!file.is_open()) {
@@ -226,17 +391,185 @@ void LoadRandomizerProfileSettings(char* profileName, int baseCarCount) {
         else if (section == kKnockoutSection && key == "KnockedOutGhostMode") {
             ctx.knockoutState.knockedOutGhostMode = ClampBinaryOption(value);
         }
+        else if (section == kVideoSection && key == "WindowMode" && value >= 0 && value <= 2) {
+            GetWindowModeProfileSettings().mode = value;
+        }
     }
 
 }
 
 } // anonymous namespace
 
+bool SaveActiveRandomizerProfileSettings() {
+    return SaveRandomizerProfileSettings(g_randomizerProfileName.c_str());
+}
+
+void SaveArchipelagoProfileConnection(const std::string& server, bool requiresPassword) {
+    g_archipelagoProfileData.server = server;
+    g_archipelagoProfileData.requiresPassword = requiresPassword;
+    SaveArchipelagoProfileData();
+}
+
+void MarkArchipelagoProfilePasswordRequired() {
+    if (!g_archipelagoProfileData.requiresPassword) {
+        SaveArchipelagoProfileConnection(g_archipelagoProfileData.server, true);
+    }
+}
+
+void RecordArchipelagoProfileLocationCheck(const std::string& seed, int slot, int64_t locationId,
+    bool goalLocation) {
+    if (g_archipelagoProfilePath.empty() || !IsValidUUID(g_archipelagoProfileData.uuid)) {
+        return;
+    }
+    auto& completedLocations = g_archipelagoProfileData.completedLocations[seed][std::to_string(slot)];
+    const bool newCompletion = completedLocations.insert(locationId).second;
+    const bool newGoalCompletion = goalLocation &&
+        g_archipelagoProfileData.completedGoalLocations[seed][std::to_string(slot)].insert(locationId).second;
+    if (newCompletion || newGoalCompletion || g_archipelagoProfileData.dirty) {
+        // Save before submitting, even while connected. Normal exit is a retry
+        // opportunity, not the only protection against losing an unsent check.
+        SaveArchipelagoProfileData();
+    }
+}
+
+std::set<int64_t> GetArchipelagoProfileLocationChecks(const std::string& seed, int slot) {
+    const auto seedChecks = g_archipelagoProfileData.completedLocations.find(seed);
+    if (seedChecks == g_archipelagoProfileData.completedLocations.end()) {
+        return {};
+    }
+    const auto slotChecks = seedChecks->second.find(std::to_string(slot));
+    return slotChecks == seedChecks->second.end() ? std::set<int64_t>{} : slotChecks->second;
+}
+
+void RecordArchipelagoProfileGoalLocations(const std::string& seed, int slot,
+    const std::set<int64_t>& locationIds) {
+    if (g_archipelagoProfilePath.empty() || !IsValidUUID(g_archipelagoProfileData.uuid) || locationIds.empty()) {
+        return;
+    }
+    auto& completedGoalLocations = g_archipelagoProfileData.completedGoalLocations[seed][std::to_string(slot)];
+    const size_t previousCount = completedGoalLocations.size();
+    completedGoalLocations.insert(locationIds.begin(), locationIds.end());
+    if (completedGoalLocations.size() != previousCount || g_archipelagoProfileData.dirty) {
+        SaveArchipelagoProfileData();
+    }
+}
+
+const std::set<int64_t>* GetArchipelagoProfileGoalLocations(const std::string& seed, int slot) {
+    const auto seedLocations = g_archipelagoProfileData.completedGoalLocations.find(seed);
+    if (seedLocations == g_archipelagoProfileData.completedGoalLocations.end()) {
+        return nullptr;
+    }
+    const auto slotLocations = seedLocations->second.find(std::to_string(slot));
+    return slotLocations == seedLocations->second.end() ? nullptr : &slotLocations->second;
+}
+
+void RemoveConfirmedArchipelagoProfileLocationChecks(
+    const std::string& seed, int slot, const std::set<int64_t>& confirmedLocations) {
+    const auto seedChecks = g_archipelagoProfileData.completedLocations.find(seed);
+    if (seedChecks == g_archipelagoProfileData.completedLocations.end()) {
+        return;
+    }
+    const auto slotChecks = seedChecks->second.find(std::to_string(slot));
+    if (slotChecks == seedChecks->second.end()) {
+        return;
+    }
+    bool changed = false;
+    for (int64_t locationId : confirmedLocations) {
+        if (slotChecks->second.erase(locationId) != 0) {
+            changed = true;
+        }
+    }
+    if (changed || g_archipelagoProfileData.dirty) {
+        // Only server-confirmed checks may leave the recovery file. Save once
+        // for the whole list; a failed write remains dirty for the usual retries.
+        SaveArchipelagoProfileData();
+    }
+}
+
+void RecordArchipelagoProfileCarWin(const std::string& seed, int slot, const std::string& carFolder) {
+    if (g_archipelagoProfilePath.empty() || !IsValidUUID(g_archipelagoProfileData.uuid) ||
+        seed.empty() || slot <= 0 || carFolder.empty()) {
+        return;
+    }
+    auto& carWins = g_archipelagoProfileData.carWins[seed][std::to_string(slot)];
+    const bool newWin = carWins.insert(carFolder).second;
+    if (newWin || g_archipelagoProfileData.dirty) {
+        // Retain wins in memory if saving fails; later saves and normal exit retry.
+        SaveArchipelagoProfileData();
+    }
+}
+
+const std::set<std::string>* GetArchipelagoProfileCarWins(const std::string& seed, int slot) {
+    const auto& carWins = g_archipelagoProfileData.carWins;
+    const auto seedWinsEntry = carWins.find(seed);
+    if (seedWinsEntry == carWins.end()) {
+        return nullptr;
+    }
+    const auto& seedWins = seedWinsEntry->second;
+    const auto slotWins = seedWins.find(std::to_string(slot));
+    if (slotWins == seedWins.end()) {
+        return nullptr;
+    }
+    return &slotWins->second;
+}
+
+void SaveArchipelagoProfileReceivedItems(const std::string& seed, int slot) {
+    if (g_archipelagoProfilePath.empty() || !IsValidUUID(g_archipelagoProfileData.uuid)) {
+        return;
+    }
+    const ConfigData* config = GetActiveConfig();
+    if (config == nullptr || !config->archipelago.has_value()) {
+        return;
+    }
+    std::set<int64_t> receivedItems;
+    {
+        ArchipelagoRuntimeState& state = GetRandomizerContext().archipelagoState;
+        std::lock_guard<std::mutex> lock(state.itemMutex);
+        // Runtime unlock checks use names; persist their numerical IDs from the
+        // same metadata mapping used to decode incoming Archipelago items.
+        for (const auto& item : config->archipelago->items) {
+            if (state.receivedItems.count(item.first) != 0) {
+                receivedItems.insert(item.second);
+            }
+        }
+    }
+    auto& cachedItems = g_archipelagoProfileData.receivedItems[seed][std::to_string(slot)];
+    if (cachedItems != receivedItems || g_archipelagoProfileData.dirty) {
+        // Snapshot the whole applied inventory once per packet, after a full
+        // server inventory has replaced it or incremental deliveries were added.
+        // Release the inventory mutex before writing; failed saves use the same
+        // dirty flag and shutdown retry as completed location checks.
+        cachedItems = std::move(receivedItems);
+        SaveArchipelagoProfileData();
+    }
+}
+
+void FlushArchipelagoProfileData() {
+    // Normal game-loop exit retries any failed save; clean data needs no write.
+    if (g_archipelagoProfileData.dirty) {
+        SaveArchipelagoProfileData();
+    }
+}
+
 int Hook_GetProfileIndex(char* profileName) {
     int index = Orig_GetProfileIndex(profileName);
     if (index == -1) {
         Orig_Profile_CreateOrLoad(profileName);
         index = Orig_GetProfileIndex(profileName);
+
+        const ConfigData* config = GetActiveConfig();
+        if (index != -1 && config != nullptr && config->archipelago.has_value() &&
+            !config->archipelago->slotName.empty()) {
+            if (auto* settings = GetRaceSettings()) {
+                // Seed the name wheel once; native profile saves persist later player edits.
+                std::snprintf(settings->playerName, sizeof(settings->playerName), "%s",
+                    config->archipelago->slotName.c_str());
+                // Truncation must not leave a partial UTF-8 character in the 16-byte buffer.
+                if (const char* invalid = RVGL_UTF8Check(settings->playerName, std::strlen(settings->playerName))) {
+                    settings->playerName[invalid - settings->playerName] = '\0';
+                }
+            }
+        }
         
         // Profile_CreateOrLoad already calls Profile_LoadAndReset,
         // so we can skip it the next time it's called
@@ -282,7 +615,20 @@ void Hook_LoadSettingsFromIni(char* profileName) {
 
     // Sync our cars per race count with the stored cars per race
     int nCars = *reinterpret_cast<int*>(AbsFromRva(RVA_SETTINGS_NCARS));
+    const std::string internalName = GetProfileInternalName(profileName);
+    const bool profileChanged = !internalName.empty() && internalName != g_randomizerProfileName;
+    if (!internalName.empty()) {
+        g_randomizerProfileName = internalName;
+    }
     LoadRandomizerProfileSettings(profileName, nCars);
+    if (profileChanged) {
+        ApplyWindowModeProfileSettings();
+    }
+
+    const ConfigData* config = GetActiveConfig();
+    if (config != nullptr && config->archipelago.has_value()) {
+        LoadArchipelagoProfileData(profileName, *config);
+    }
 
     // Change the NCars settings row so it uses our functions
     PatchCarCountMenuDescriptor();

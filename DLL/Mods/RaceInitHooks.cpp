@@ -5,6 +5,7 @@
 #include "30CarMod.h"
 #include "GridShuffle.h"
 #include "KnockoutMode.h"
+#include "Carsanity.h"
 #include "ThirtyCarCupMod.h"
 
 namespace Randomizer {
@@ -52,8 +53,8 @@ void Hook_DrawPostRaceLeaderboard() {
     // Logger::TimestampLogf("[RaceInitHooks] DrawPostRaceLeaderboard completed");
 }
 
-void Hook_RaceSessionSetup(bool isRestart) {
-    Logger::TimestampLogf("[RaceInitHooks] Calling RaceSessionSetup with isRestart=%d", isRestart);
+void Hook_RaceSessionSetup(bool isMultiplayerRestart) {
+    Logger::TimestampLogf("[RaceInitHooks] Calling RaceSessionSetup with isMultiplayerRestart=%d", isMultiplayerRestart);
 
     // Logger::TimestampLogf("[RaceInitHooks] Overriding number of cars to 30");
     // int* nCars = reinterpret_cast<int*>(AbsFromRva(RVA_SETTINGS_NCARS));
@@ -62,7 +63,7 @@ void Hook_RaceSessionSetup(bool isRestart) {
     ResetThirtyCarCupState();
     ResetKnockoutRaceState();
 
-    Orig_RaceSessionSetup(isRestart);
+    Orig_RaceSessionSetup(isMultiplayerRestart);
     StartKnockoutRaceIfSelected();
     Logger::TimestampLogf("[RaceInitHooks] RaceSessionSetup completed");
 }
@@ -76,6 +77,8 @@ void Hook_AssignStartPositions() {
 
 void Hook_SetupAllRaceCars() {
     Logger::TimestampLogf("[RaceInitHooks] Calling SetupAllRaceCars");
+    // Car setup runs on both initial loads and Single Race restarts.
+    ResetCarsanityRaceState();
     Orig_SetupAllRaceCars();
 
     ApplyThirtyCarGrid();

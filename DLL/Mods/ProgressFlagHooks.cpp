@@ -1,7 +1,11 @@
 #include "ProgressFlagHooks.h"
+#include "ArchipelagoClient.h"
+#include "ArchipelagoEventKeys.h"
+#include "Carsanity.h"
 #include "Addresses.h"
 #include "KnockoutMode.h"
 #include "Logger.h"
+#include "MenuMod.h"
 #include "RVGLMemory.h"
 #include "ThirtyCarCupMod.h"
 #include "TrackHooks.h"
@@ -12,9 +16,6 @@ namespace {
 
 constexpr int kStockProgressTrackCount = 14;
 constexpr int kGameModeCurrentTrackOffset = 0x08;
-constexpr int kStuntProgressCaughtCountOffset = 0x10;
-constexpr int kStuntProgressMaxCountOffset = 0x14;
-constexpr int kStuntProgressCaughtIdsOffset = 0x18;
 
 enum class ProgressEventKind {
     TimeTrialChallengeBeaten,
@@ -44,16 +45,42 @@ const char* GetProgressEventName(ProgressEventKind kind) {
     }
 }
 
+const char* GetTimeTrialEventKeyName(uint32_t flag) {
+    using namespace Randomizer::ArchipelagoEventKeys;
+
+    switch (flag) {
+    case TRACKPROGRESS_NORMAL_CHALLENGE_BEATEN:
+        return TimeTrialNormal;
+    case TRACKPROGRESS_REVERSE_CHALLENGE_BEATEN:
+        return TimeTrialReverse;
+    case TRACKPROGRESS_MIRROR_CHALLENGE_BEATEN:
+        return TimeTrialMirror;
+    default:
+        return nullptr;
+    }
+}
+
+const char* GetTrackEventKeyName(ProgressEventKind kind, uint32_t flag) {
+    using namespace Randomizer::ArchipelagoEventKeys;
+
+    switch (kind) {
+    case ProgressEventKind::TimeTrialChallengeBeaten:
+        return GetTimeTrialEventKeyName(flag);
+    case ProgressEventKind::PracticeStarFound:
+        return PracticeStar;
+    case ProgressEventKind::SingleRaceWon:
+        return SingleRaceWin;
+    default:
+        return nullptr;
+    }
+}
+
 int GetCurrentGameModeValue() {
     return *reinterpret_cast<int*>(AbsFromRva(RVA_GAME_MODE));
 }
 
 int GetCurrentTrackIndex() {
     return *reinterpret_cast<int*>(AbsFromRva(RVA_GAME_MODE) + kGameModeCurrentTrackOffset);
-}
-
-uint8_t* GetTrackProgressCache() {
-    return *reinterpret_cast<uint8_t**>(AbsFromRva(RVA_TRACK_PROGRESS_CACHE_PTR));
 }
 
 uint32_t GetTrackProgressFlags(int trackIndex) {
@@ -68,30 +95,55 @@ uint32_t GetTrackProgressFlags(int trackIndex) {
 void EmitTrackProgressEvent(ProgressEventKind kind, int trackIndex, uint32_t flag) {
     TrackInfo* track = Randomizer::GetTrackInfoByRuntimeIndex(trackIndex);
     const char* folderName = track != nullptr ? track->folderName : "<unknown>";
+    const char* eventKeyName = GetTrackEventKeyName(kind, flag);
+    const std::string eventKey =
+        track != nullptr
+            ? Randomizer::ArchipelagoEventKeys::MakeNamedEventKey(eventKeyName, track->folderName)
+            : "";
 
     Logger::TimestampLogf(
-        "[ProgressFlagHooks] %s track=%d folder='%s' flag=0x%08x",
+        "[ProgressFlagHooks] %s track=%d folder='%s' flag=0x%08x apKey='%s'",
         GetProgressEventName(kind),
         trackIndex,
         folderName,
-        flag
+        flag,
+        eventKey.empty() ? "<none>" : eventKey.c_str()
     );
+
+    Randomizer::QueueArchipelagoEventKey(eventKey);
 }
 
 void EmitChampionshipWonEvent(int difficultyTier) {
-    Logger::TimestampLogf(
-        "[ProgressFlagHooks] %s difficultyTier=%d",
-        GetProgressEventName(ProgressEventKind::ChampionshipWon),
+    const std::string eventKey = Randomizer::ArchipelagoEventKeys::MakeIndexedEventKey(
+        Randomizer::ArchipelagoEventKeys::ChampionshipWin,
         difficultyTier
     );
+
+    Logger::TimestampLogf(
+        "[ProgressFlagHooks] %s difficultyTier=%d apKey='%s'",
+        GetProgressEventName(ProgressEventKind::ChampionshipWon),
+        difficultyTier,
+        eventKey.empty() ? "<none>" : eventKey.c_str()
+    );
+
+    Randomizer::QueueArchipelagoEventKey(eventKey);
 }
 
 void EmitStuntArenaStarCaughtEvent(int starId) {
-    Logger::TimestampLogf(
-        "[ProgressFlagHooks] %s starId=%d",
-        GetProgressEventName(ProgressEventKind::StuntArenaStarCaught),
-        starId
+    const int checkNumber = Randomizer::ArchipelagoEventKeys::GetStuntStarCheckNumber(starId);
+    const std::string eventKey = Randomizer::ArchipelagoEventKeys::MakeIndexedEventKey(
+        Randomizer::ArchipelagoEventKeys::StuntStar,
+        checkNumber
     );
+
+    Logger::TimestampLogf(
+        "[ProgressFlagHooks] %s starId=%d apKey='%s'",
+        GetProgressEventName(ProgressEventKind::StuntArenaStarCaught),
+        starId,
+        eventKey.empty() ? "<none>" : eventKey.c_str()
+    );
+
+    Randomizer::QueueArchipelagoEventKey(eventKey);
 }
 
 void EmitNewTrackFlagEvents(
@@ -121,6 +173,12 @@ FnUpdateTimeTrialLeaderboards Orig_UpdateTimeTrialLeaderboards = nullptr;
 FnPickup_CollectProgressObject Orig_Pickup_CollectProgressObject = nullptr;
 FnEngine_UpdateRaceProgress Orig_Engine_UpdateRaceProgress = nullptr;
 FnCup_OnStageFinished Orig_Cup_OnStageFinished = nullptr;
+FnRace_TeardownAndSave Orig_Race_TeardownAndSave = nullptr;
+
+void Hook_Race_TeardownAndSave() {
+    Orig_Race_TeardownAndSave();
+    ApplyPendingInRaceCarSelection();
+}
 
 void Hook_UpdateTimeTrialLeaderboards(int* carRaceData) {
     const int trackIndex = GetCurrentTrackIndex();
@@ -148,10 +206,10 @@ void Hook_Pickup_CollectProgressObject(void* pickup) {
     const int trackIndex = GetCurrentTrackIndex();
     const uint32_t beforeFlags = GetTrackProgressFlags(trackIndex);
 
-    uint8_t* progressCache = GetTrackProgressCache();
+    StuntArenaProgressRuntime* progressCache = GetStuntArenaProgress();
     const int beforeStuntCount =
         gameMode == MODE_STUNT_ARENA && progressCache != nullptr
-            ? *reinterpret_cast<int*>(progressCache + kStuntProgressCaughtCountOffset)
+            ? progressCache->caughtCount
             : -1;
 
     Orig_Pickup_CollectProgressObject(pickup);
@@ -173,20 +231,20 @@ void Hook_Pickup_CollectProgressObject(void* pickup) {
     }
 
     const int afterStuntCount =
-        *reinterpret_cast<int*>(progressCache + kStuntProgressCaughtCountOffset);
+        progressCache->caughtCount;
     if (afterStuntCount <= beforeStuntCount) {
         return;
     }
 
     const int maxStuntCount =
-        *reinterpret_cast<int*>(progressCache + kStuntProgressMaxCountOffset);
+        progressCache->totalCount;
     const int safeAfterStuntCount =
         maxStuntCount > 0 && afterStuntCount > maxStuntCount
             ? maxStuntCount
             : afterStuntCount;
 
     for (int starIndex = beforeStuntCount; starIndex < safeAfterStuntCount; ++starIndex) {
-        const int starId = progressCache[kStuntProgressCaughtIdsOffset + starIndex];
+        const int starId = progressCache->caughtStarIds[starIndex];
         EmitStuntArenaStarCaughtEvent(starId);
     }
 }
@@ -236,6 +294,8 @@ void Hook_Engine_UpdateRaceProgress() {
         }
         return;
     }
+
+    UpdateCarsanityRaceProgress();
 
     EmitNewTrackFlagEvents(
         trackIndex,

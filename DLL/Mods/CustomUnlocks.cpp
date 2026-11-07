@@ -3,6 +3,7 @@
 #include "RandomizerState.h"
 #include "TrackHooks.h"
 #include "CarHooks.h"
+#include "CupHooks.h"
 #include "Logger.h"
 #include "ProgressTableHooks.h"
 
@@ -93,7 +94,13 @@ void MarkArchipelagoItemReceived(const std::string& itemName) {
 
     ArchipelagoRuntimeState& archipelagoState = GetRandomizerContext().archipelagoState;
     std::lock_guard<std::mutex> lock(archipelagoState.itemMutex);
-    archipelagoState.receivedItems.insert(itemName);
+    // insert() returns {iterator, inserted}; second indicates whether ownership is new.
+    const auto insertionResult = archipelagoState.receivedItems.insert(itemName);
+    const bool isNewUnlock = insertionResult.second;
+    if (isNewUnlock) {
+        // RVGL availability needs reevaluation when a new unlock is received.
+        archipelagoState.unlockRefreshPending = true;
+    }
 }
 
 bool HasArchipelagoItem(const std::string& itemName) {
@@ -109,7 +116,49 @@ bool HasArchipelagoItem(const std::string& itemName) {
 void ClearArchipelagoItems() {
     ArchipelagoRuntimeState& archipelagoState = GetRandomizerContext().archipelagoState;
     std::lock_guard<std::mutex> lock(archipelagoState.itemMutex);
+    if (!archipelagoState.receivedItems.empty()) {
+        archipelagoState.unlockRefreshPending = true;
+    }
     archipelagoState.receivedItems.clear();
+}
+
+void RefreshArchipelagoUnlocks() {
+    ArchipelagoRuntimeState& archipelagoState = GetRandomizerContext().archipelagoState;
+    {
+        std::lock_guard<std::mutex> lock(archipelagoState.itemMutex);
+        if (!archipelagoState.unlockRefreshPending) {
+            return;
+        }
+        archipelagoState.unlockRefreshPending = false;
+    }
+
+    ConfigData* config = GetActiveConfig();
+    if (config == nullptr || !config->archipelago.has_value()) {
+        return;
+    }
+
+    UpdateCarCustomUnlocks();
+
+    const Obtain archipelagoObtain = static_cast<Obtain>(CustomUnlockMethod::ArchipelagoItem);
+    for (int trackIndex = 0; trackIndex < GetRuntimeTrackCount(); ++trackIndex) {
+        TrackInfo* track = GetTrackInfoByRuntimeIndex(trackIndex);
+        if (track != nullptr && track->obtainCondition == archipelagoObtain) {
+            // A full server inventory may remove a cached unlock. Rebuild mode
+            // availability while preserving the flag that says the track exists.
+            constexpr uint32_t selectableModes =
+                TRACKAVAIL_NORMAL | TRACKAVAIL_MIRROR | TRACKAVAIL_REVERSE | TRACKAVAIL_REVERSE_MIRROR;
+            track->trackAvailFlags = static_cast<TrackAvailFlags>(track->trackAvailFlags & ~selectableModes);
+            Hook_Track_ApplyCustomUnlock(trackIndex);
+        }
+    }
+
+    for (int cupID = 1; cupID <= static_cast<int>(config->cups.size()); ++cupID) {
+        CupProfile* cup = GetCupProfileByCupID(cupID);
+        if (cup != nullptr && cup->numStages > 0 &&
+            cup->obtainCondition == archipelagoObtain) {
+            Hook_Cup_ValidateAndCheckUnlock(cupID);
+        }
+    }
 }
 
 bool EvaluateCustomUnlock(

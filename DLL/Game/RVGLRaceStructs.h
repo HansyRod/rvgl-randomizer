@@ -99,6 +99,13 @@ struct CarEntityRuntime {
     char driverName[56];             // +0x6A70
 };
 
+struct RaceResultEntry {
+    CarEntityRuntime* car;            // +0x00
+    uint32_t totalTimeMs;             // +0x08
+    uint8_t dnfFlag;                  // +0x0C
+    uint8_t pad[3];
+};
+
 struct RaceParticipantRuntime {
     int32_t carType;                 // +0x00
     int32_t startSlot;               // +0x04
@@ -121,21 +128,26 @@ struct RaceSettingsRuntime {
     char player2Name[16];             // +0x38
     char player3Name[16];             // +0x48
     char player4Name[16];             // +0x58
-    int32_t playerModelId;            // +0x68
-    uint8_t _pad_6C[12];
+    int32_t playerModelIds[4];        // +0x68, local players 1..4
     int32_t playerSkinId;             // +0x78
     uint8_t _pad_7C[34];
     uint8_t pickupsEnabled;           // +0x9E
+    uint8_t _pad_9F[5];
+    uint8_t randomCars;               // +0xA4
+    uint8_t randomTracks;             // +0xA5
 };
 
 struct GameModeRuntime {
     int32_t mode;                     // +0x00
     uint8_t _pad_04[4];
     int32_t trackId;                  // +0x08
-    uint8_t _pad_0C[8];
+    int32_t playerModelId;            // +0x0C, selects Per-Rating Time Trial table/ghost
+    uint8_t _pad_10[4];
     int32_t countdown;                // +0x14
     int32_t laps;                     // +0x18
-    uint8_t _pad_1C[20];
+    uint8_t _pad_1C[18];
+    uint8_t randomCars;               // +0x2E
+    uint8_t randomTracks;             // +0x2F
     uint8_t reverse;                  // +0x30
     uint8_t mirror;                   // +0x31
     uint8_t pickupsEnabled;           // +0x32
@@ -157,6 +169,15 @@ struct PlayerRaceInfoRuntime {
     int32_t carModelHalfScale;        // +0x34
     uint8_t _pad_38[8];
     char trackFolder[16];             // +0x40
+    RaceParticipantRuntime participants[30]; // +0x50, cached race roster
+};
+
+// Native per-track Stunt Arena progress record; profile files store all 0x58 bytes.
+struct StuntArenaProgressRuntime {
+    char trackFolder[16];             // +0x00
+    int32_t caughtCount;              // +0x10
+    int32_t totalCount;               // +0x14
+    uint8_t caughtStarIds[64];        // +0x18, IDs in collection order
 };
 
 struct UiViewportRuntime {
@@ -185,18 +206,25 @@ static_assert(offsetof(CarEntityRuntime, finishPosition) == 0x6A4C, "CarEntityRu
 static_assert(offsetof(CarEntityRuntime, driverName) == 0x6A70, "CarEntityRuntime::driverName offset mismatch.");
 static_assert(sizeof(CarEntityRuntime) == 0x6AA8, "CarEntityRuntime size mismatch.");
 static_assert(sizeof(RaceParticipantRuntime) == 0x50, "RaceParticipantRuntime size mismatch.");
+static_assert(sizeof(RaceResultEntry) == 0x10, "RaceResultEntry size mismatch.");
+static_assert(offsetof(RaceResultEntry, dnfFlag) == 0x0C, "RaceResultEntry::dnfFlag offset mismatch.");
 static_assert(offsetof(RaceParticipantRuntime, modelId) == 0x08, "RaceParticipantRuntime::modelId offset mismatch.");
 static_assert(offsetof(RaceParticipantRuntime, playerName) == 0x40, "RaceParticipantRuntime::playerName offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, mode) == 0x00, "RaceSettingsRuntime::mode offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, selectedCupIndex) == 0x04, "RaceSettingsRuntime::selectedCupIndex offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, playerName) == 0x28, "RaceSettingsRuntime::playerName offset mismatch.");
-static_assert(offsetof(RaceSettingsRuntime, playerModelId) == 0x68, "RaceSettingsRuntime::playerModelId offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, playerModelIds) == 0x68, "RaceSettingsRuntime::playerModelIds offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, playerSkinId) == 0x78, "RaceSettingsRuntime::playerSkinId offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, pickupsEnabled) == 0x9E, "RaceSettingsRuntime::pickupsEnabled offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, randomCars) == 0xA4, "RaceSettingsRuntime::randomCars offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, randomTracks) == 0xA5, "RaceSettingsRuntime::randomTracks offset mismatch.");
 static_assert(offsetof(GameModeRuntime, mode) == 0x00, "GameModeRuntime::mode offset mismatch.");
 static_assert(offsetof(GameModeRuntime, trackId) == 0x08, "GameModeRuntime::trackId offset mismatch.");
+static_assert(offsetof(GameModeRuntime, playerModelId) == 0x0C, "GameModeRuntime::playerModelId offset mismatch.");
 static_assert(offsetof(GameModeRuntime, countdown) == 0x14, "GameModeRuntime::countdown offset mismatch.");
 static_assert(offsetof(GameModeRuntime, laps) == 0x18, "GameModeRuntime::laps offset mismatch.");
+static_assert(offsetof(GameModeRuntime, randomCars) == 0x2E, "GameModeRuntime::randomCars offset mismatch.");
+static_assert(offsetof(GameModeRuntime, randomTracks) == 0x2F, "GameModeRuntime::randomTracks offset mismatch.");
 static_assert(offsetof(GameModeRuntime, reverse) == 0x30, "GameModeRuntime::reverse offset mismatch.");
 static_assert(offsetof(GameModeRuntime, mirror) == 0x31, "GameModeRuntime::mirror offset mismatch.");
 static_assert(offsetof(GameModeRuntime, pickupsEnabled) == 0x32, "GameModeRuntime::pickupsEnabled offset mismatch.");
@@ -209,5 +237,10 @@ static_assert(offsetof(PlayerRaceInfoRuntime, pickupsEnabled) == 0x20, "PlayerRa
 static_assert(offsetof(PlayerRaceInfoRuntime, countdown) == 0x28, "PlayerRaceInfoRuntime::countdown offset mismatch.");
 static_assert(offsetof(PlayerRaceInfoRuntime, carModelHalfScale) == 0x34, "PlayerRaceInfoRuntime::carModelHalfScale offset mismatch.");
 static_assert(offsetof(PlayerRaceInfoRuntime, trackFolder) == 0x40, "PlayerRaceInfoRuntime::trackFolder offset mismatch.");
+static_assert(offsetof(PlayerRaceInfoRuntime, participants) == 0x50, "PlayerRaceInfoRuntime::participants offset mismatch.");
+static_assert(offsetof(StuntArenaProgressRuntime, caughtCount) == 0x10, "StuntArenaProgressRuntime::caughtCount offset mismatch.");
+static_assert(offsetof(StuntArenaProgressRuntime, totalCount) == 0x14, "StuntArenaProgressRuntime::totalCount offset mismatch.");
+static_assert(offsetof(StuntArenaProgressRuntime, caughtStarIds) == 0x18, "StuntArenaProgressRuntime::caughtStarIds offset mismatch.");
+static_assert(sizeof(StuntArenaProgressRuntime) == 0x58, "StuntArenaProgressRuntime size mismatch.");
 static_assert(offsetof(UiViewportRuntime, centerX) == 0x10, "UiViewportRuntime::centerX offset mismatch.");
 static_assert(offsetof(UiViewportRuntime, centerY) == 0x14, "UiViewportRuntime::centerY offset mismatch.");

@@ -12,6 +12,10 @@
 #include "CupOpponentGrid.h"
 #include "ThirtyCarCupMod.h"
 #include "MenuMod.h"
+#include "WindowMode.h"
+#include "ArchipelagoHooks.h"
+#include "ArchipelagoMenu.h"
+#include "Carsanity.h"
 #include "Fob.h"
 #include "CallLogger.h"
 #include "Logger.h"
@@ -104,7 +108,81 @@ static void RegisterHooks() {
     // 1. Typed hooks — mod logic lives in the corresponding Mods/ file
     // ------------------------------------------------------------------
 
+    // --- Archipelago connection lifecycle ---
+    HookManager::Add(
+        AbsFromRva(RVA_SCREENSHOT_AND_FRAME_END),
+        reinterpret_cast<void*>(Randomizer::Hook_ScreenshotAndFrameEnd),
+        reinterpret_cast<void**>(&Randomizer::Orig_ScreenshotAndFrameEnd),
+        "ScreenshotAndFrameEnd"
+    );
+    HookManager::Add(
+        AbsFromRva(RVA_UPDATE_RACE_STATE),
+        reinterpret_cast<void*>(Randomizer::Hook_UpdateRaceState),
+        reinterpret_cast<void**>(&Randomizer::Orig_UpdateRaceState),
+        "UpdateRaceState"
+    );
+    HookManager::Add(
+        AbsFromRva(RVA_MENU_UPDATE_LOOP),
+        reinterpret_cast<void*>(Randomizer::Hook_MenuUpdateLoop),
+        reinterpret_cast<void**>(&Randomizer::Orig_MenuUpdateLoop),
+        "Menu_UpdateLoop"
+    );
+    HookManager::Add(
+        AbsFromRva(RVA_IN_RACE_GAME_LOOP),
+        reinterpret_cast<void*>(Randomizer::Hook_InRaceGameLoop),
+        reinterpret_cast<void**>(&Randomizer::Orig_InRaceGameLoop),
+        "InRaceGameLoop"
+    );
+    HookManager::Add(
+        AbsFromRva(RVA_PROCESS_SDL_EVENTS),
+        reinterpret_cast<void*>(Randomizer::Hook_ProcessSDLEvents),
+        reinterpret_cast<void**>(&Randomizer::Orig_ProcessSDLEvents),
+        "ProcessSDLEvents"
+    );
+    HookManager::Add(
+        AbsFromRva(RVA_MAIN_GAME_LOOP),
+        reinterpret_cast<void*>(Randomizer::Hook_MainGameLoop),
+        reinterpret_cast<void**>(&Randomizer::Orig_MainGameLoop),
+        "MainGameLoop"
+    );
+
+    // --- Window mode ---
+    HookManager::Add(
+        AbsFromRva(RVA_APPLY_WINDOW_MODE),
+        reinterpret_cast<void*>(Randomizer::Hook_ApplyWindowMode),
+        reinterpret_cast<void**>(&Randomizer::Orig_ApplyWindowMode),
+        "ApplyWindowMode"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_BUILD_VIDEO_SETTINGS_MENU),
+        reinterpret_cast<void*>(Randomizer::Hook_BuildVideoSettingsMenu),
+        reinterpret_cast<void**>(&Randomizer::Orig_BuildVideoSettingsMenu),
+        "BuildVideoSettingsMenu"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_DRAW_MENU_ROW),
+        reinterpret_cast<void*>(Randomizer::Hook_DrawWindowModeMenuRow),
+        reinterpret_cast<void**>(&Randomizer::Orig_DrawWindowModeMenuRow),
+        "DrawWindowModeMenuRow"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_SDL_MINIMIZE_WINDOW),
+        reinterpret_cast<void*>(Randomizer::Hook_MinimizeGameWindow),
+        reinterpret_cast<void**>(&Randomizer::Orig_MinimizeGameWindow),
+        "MinimizeGameWindow"
+    );
+
     // --- Car system ---
+    HookManager::Add(
+        AbsFromRva(RVA_CAR_SELECTION_HANDLER),
+        reinterpret_cast<void*>(Randomizer::Hook_CarSelectionHandler),
+        reinterpret_cast<void**>(&Randomizer::Orig_CarSelectionHandler),
+        "CarSelectionHandler"
+    );
+
     HookManager::Add(
         AbsFromRva(RVA_LOAD_VANILLA_CAR_POOL),
         reinterpret_cast<void*>(Randomizer::Hook_LoadVanillaCarPool),
@@ -316,6 +394,13 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
+        AbsFromRva(RVA_RACE_TEARDOWN_AND_SAVE),
+        reinterpret_cast<void*>(Randomizer::Hook_Race_TeardownAndSave),
+        reinterpret_cast<void**>(&Randomizer::Orig_Race_TeardownAndSave),
+        "Race_TeardownAndSave"
+    );
+
+    HookManager::Add(
         AbsFromRva(RVA_PICKUP_COLLECT_PROGRESS_OBJECT),
         reinterpret_cast<void*>(Randomizer::Hook_Pickup_CollectProgressObject),
         reinterpret_cast<void**>(&Randomizer::Orig_Pickup_CollectProgressObject),
@@ -379,6 +464,20 @@ static void RegisterHooks() {
     );
 
     HookManager::Add(
+        AbsFromRva(RVA_BUILD_MAIN_MENU),
+        reinterpret_cast<void*>(Randomizer::Hook_BuildMainMenu),
+        reinterpret_cast<void**>(&Randomizer::Orig_BuildMainMenu),
+        "BuildMainMenu"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_HANDLE_MAIN_MENU_ACTION),
+        reinterpret_cast<void*>(Randomizer::Hook_HandleMainMenuAction),
+        reinterpret_cast<void**>(&Randomizer::Orig_HandleMainMenuAction),
+        "HandleMainMenuAction"
+    );
+
+    HookManager::Add(
         AbsFromRva(RVA_BUILD_OPTIONS_MENU),
         reinterpret_cast<void*>(Randomizer::Hook_BuildOptionsMenu),
         reinterpret_cast<void**>(&Randomizer::Orig_BuildOptionsMenu),
@@ -411,6 +510,20 @@ static void RegisterHooks() {
         reinterpret_cast<void*>(Randomizer::Hook_RaceSessionSetup),
         reinterpret_cast<void**>(&Randomizer::Orig_RaceSessionSetup),
         "RaceSessionSetup"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_BUILD_IN_RACE_MENU),
+        reinterpret_cast<void*>(Randomizer::Hook_BuildInRaceMenu),
+        reinterpret_cast<void**>(&Randomizer::Orig_BuildInRaceMenu),
+        "BuildInRaceMenu"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_HANDLE_IN_RACE_MENU_ACTION),
+        reinterpret_cast<void*>(Randomizer::Hook_HandleInRaceMenuAction),
+        reinterpret_cast<void**>(&Randomizer::Orig_HandleInRaceMenuAction),
+        "HandleInRaceMenuAction"
     );
 
     HookManager::Add(
