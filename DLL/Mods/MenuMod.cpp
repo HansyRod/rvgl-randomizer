@@ -1,5 +1,7 @@
 #include "MenuMod.h"
 #include "CarHooks.h"
+#include "30CarMod.h"
+#include "RaceInitHooks.h"
 #include "Logger.h"
 #include "LocaleUtils.h"
 #include "Addresses.h"
@@ -829,6 +831,15 @@ void ApplyPendingInRaceCarSelection() {
     // Time Trial reloads its table and ghost using this cached car, not the roster.
     // Update it after the old session is saved and before native level loading.
     GetGameModeRuntime().playerModelId = modelId;
+
+    if (GetGameModeRuntime().mode == MODE_SINGLE_RACE) {
+        // Native CPU picks use RaceSettings and a sixteen-car pick buffer.
+        // Rebuild the native roster first, then expand it through the usual hook.
+        raceInfo->participantCount = (std::min)(raceInfo->participantCount, vanillaMaxCarCount);
+        ResetThirtyCarModState();
+        Orig_RandomizeCarPicks();
+        Hook_AssignStartPositions();
+    }
 }
 
 // Called on every action on the "Options" menu (navigation with up/down arrows,
