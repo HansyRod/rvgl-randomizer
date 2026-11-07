@@ -14,6 +14,7 @@ namespace Randomizer {
     PlayerRaceInfoRuntime* GetPlayerRaceInfo();
     int* GetRaceTransitionRequest();
     GameModeRuntime& GetGameModeRuntime();
+    StuntArenaProgressRuntime* GetStuntArenaProgress();
     CupResultRuntime& GetCupResultRuntime();
     char** GetLocaleStrings();
     bool IsRaceFinished();

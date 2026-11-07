@@ -41,6 +41,10 @@ GameModeRuntime& GetGameModeRuntime() {
     return *reinterpret_cast<GameModeRuntime*>(AbsFromRva(RVA_GAME_MODE));
 }
 
+StuntArenaProgressRuntime* GetStuntArenaProgress() {
+    return *reinterpret_cast<StuntArenaProgressRuntime**>(AbsFromRva(RVA_TRACK_PROGRESS_CACHE_PTR));
+}
+
 CupResultRuntime& GetCupResultRuntime() {
     return *reinterpret_cast<CupResultRuntime*>(AbsFromRva(RVA_CUP_RESULT));
 }

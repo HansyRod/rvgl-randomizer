@@ -16,9 +16,6 @@ namespace {
 
 constexpr int kStockProgressTrackCount = 14;
 constexpr int kGameModeCurrentTrackOffset = 0x08;
-constexpr int kStuntProgressCaughtCountOffset = 0x10;
-constexpr int kStuntProgressMaxCountOffset = 0x14;
-constexpr int kStuntProgressCaughtIdsOffset = 0x18;
 
 enum class ProgressEventKind {
     TimeTrialChallengeBeaten,
@@ -84,10 +81,6 @@ int GetCurrentGameModeValue() {
 
 int GetCurrentTrackIndex() {
     return *reinterpret_cast<int*>(AbsFromRva(RVA_GAME_MODE) + kGameModeCurrentTrackOffset);
-}
-
-uint8_t* GetTrackProgressCache() {
-    return *reinterpret_cast<uint8_t**>(AbsFromRva(RVA_TRACK_PROGRESS_CACHE_PTR));
 }
 
 uint32_t GetTrackProgressFlags(int trackIndex) {
@@ -213,10 +206,10 @@ void Hook_Pickup_CollectProgressObject(void* pickup) {
     const int trackIndex = GetCurrentTrackIndex();
     const uint32_t beforeFlags = GetTrackProgressFlags(trackIndex);
 
-    uint8_t* progressCache = GetTrackProgressCache();
+    StuntArenaProgressRuntime* progressCache = GetStuntArenaProgress();
     const int beforeStuntCount =
         gameMode == MODE_STUNT_ARENA && progressCache != nullptr
-            ? *reinterpret_cast<int*>(progressCache + kStuntProgressCaughtCountOffset)
+            ? progressCache->caughtCount
             : -1;
 
     Orig_Pickup_CollectProgressObject(pickup);
@@ -238,20 +231,20 @@ void Hook_Pickup_CollectProgressObject(void* pickup) {
     }
 
     const int afterStuntCount =
-        *reinterpret_cast<int*>(progressCache + kStuntProgressCaughtCountOffset);
+        progressCache->caughtCount;
     if (afterStuntCount <= beforeStuntCount) {
         return;
     }
 
     const int maxStuntCount =
-        *reinterpret_cast<int*>(progressCache + kStuntProgressMaxCountOffset);
+        progressCache->totalCount;
     const int safeAfterStuntCount =
         maxStuntCount > 0 && afterStuntCount > maxStuntCount
             ? maxStuntCount
             : afterStuntCount;
 
     for (int starIndex = beforeStuntCount; starIndex < safeAfterStuntCount; ++starIndex) {
-        const int starId = progressCache[kStuntProgressCaughtIdsOffset + starIndex];
+        const int starId = progressCache->caughtStarIds[starIndex];
         EmitStuntArenaStarCaughtEvent(starId);
     }
 }

@@ -172,6 +172,14 @@ struct PlayerRaceInfoRuntime {
     RaceParticipantRuntime participants[30]; // +0x50, cached race roster
 };
 
+// Native per-track Stunt Arena progress record; profile files store all 0x58 bytes.
+struct StuntArenaProgressRuntime {
+    char trackFolder[16];             // +0x00
+    int32_t caughtCount;              // +0x10
+    int32_t totalCount;               // +0x14
+    uint8_t caughtStarIds[64];        // +0x18, IDs in collection order
+};
+
 struct UiViewportRuntime {
     uint8_t _pad_00[16];
     float centerX;                    // +0x10
@@ -230,5 +238,9 @@ static_assert(offsetof(PlayerRaceInfoRuntime, countdown) == 0x28, "PlayerRaceInf
 static_assert(offsetof(PlayerRaceInfoRuntime, carModelHalfScale) == 0x34, "PlayerRaceInfoRuntime::carModelHalfScale offset mismatch.");
 static_assert(offsetof(PlayerRaceInfoRuntime, trackFolder) == 0x40, "PlayerRaceInfoRuntime::trackFolder offset mismatch.");
 static_assert(offsetof(PlayerRaceInfoRuntime, participants) == 0x50, "PlayerRaceInfoRuntime::participants offset mismatch.");
+static_assert(offsetof(StuntArenaProgressRuntime, caughtCount) == 0x10, "StuntArenaProgressRuntime::caughtCount offset mismatch.");
+static_assert(offsetof(StuntArenaProgressRuntime, totalCount) == 0x14, "StuntArenaProgressRuntime::totalCount offset mismatch.");
+static_assert(offsetof(StuntArenaProgressRuntime, caughtStarIds) == 0x18, "StuntArenaProgressRuntime::caughtStarIds offset mismatch.");
+static_assert(sizeof(StuntArenaProgressRuntime) == 0x58, "StuntArenaProgressRuntime size mismatch.");
 static_assert(offsetof(UiViewportRuntime, centerX) == 0x10, "UiViewportRuntime::centerX offset mismatch.");
 static_assert(offsetof(UiViewportRuntime, centerY) == 0x14, "UiViewportRuntime::centerY offset mismatch.");
