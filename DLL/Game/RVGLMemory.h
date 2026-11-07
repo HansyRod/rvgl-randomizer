@@ -11,6 +11,12 @@ namespace Randomizer {
     MenuPanelDescriptor* GetCarSelectionMenuPanel();
     MenuPanelSlot* GetMenuPanelSlot(int slotIndex);
     const MenuItemDescriptor* GetInRaceNextTrackMenuItem();
+    MenuItemDescriptor* GetNativeResolutionItem();
+    void* GetWindow();
+    uint8_t& GetFullscreenFlag();
+    uint8_t& GetNoresFlag();
+    void* GetRenderMutex();
+    uint8_t& GetRenderUpdatingFlag();
     PlayerRaceInfoRuntime* GetPlayerRaceInfo();
     int* GetRaceTransitionRequest();
     GameModeRuntime& GetGameModeRuntime();

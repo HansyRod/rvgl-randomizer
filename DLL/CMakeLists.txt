@@ -91,6 +91,7 @@ add_library(randomizer SHARED
     Mods/ExtendedCupStandingsTable.cpp
     Mods/Fob.cpp
     Mods/MenuMod.cpp
+    Mods/WindowMode.cpp
     Mods/KnockoutMode.cpp
 
     # Archipelago - network integration wrapper
@@ -110,6 +111,7 @@ add_library(randomizer SHARED
 
     # Game - Game data or other utils
     Game/RVGLFunctions.cpp
+    Game/SDLFunctions.cpp
     Game/RVGLMemory.cpp
     Game/GameUtils.cpp
     Game/LocaleUtils.cpp

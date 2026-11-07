@@ -11,6 +11,7 @@
 #include "ArchipelagoLog.h"
 #include "ArchipelagoMenu.h"
 #include "CustomUnlocks.h"
+#include "WindowMode.h"
 #include <rpc.h>
 #include <algorithm>
 #include <cctype>
@@ -44,6 +45,8 @@ namespace {
 constexpr char kRandomizerProfileFileName[] = "rvgl-randomizer.ini";
 constexpr char kRandomizerSection[] = "Randomizer";
 constexpr char kKnockoutSection[] = "Knockout";
+constexpr char kVideoSection[] = "Video";
+std::string g_randomizerProfileName;
 
 // These settings belong to the active RVGL profile, just like the other options
 // in this file. Passwords remain in the connection menu/client and never enter JSON.
@@ -309,7 +312,11 @@ bool SaveRandomizerProfileSettings(const char* profileName) {
          << "EliminationsPerEvent = "
          << ClampEliminationsAtOnce(ctx.knockoutState.eliminationsPerEvent) << "\n"
          << "KnockedOutGhostMode = "
-         << ClampBinaryOption(ctx.knockoutState.knockedOutGhostMode) << "\n";
+         << ClampBinaryOption(ctx.knockoutState.knockedOutGhostMode) << "\n\n";
+
+    const WindowModeProfileSettings& video = GetWindowModeProfileSettings();
+    file << "[Video]\n"
+         << "WindowMode = " << video.mode << "\n";
 
     if (!file.good()) {
         Logger::TimestampLogf(
@@ -330,6 +337,7 @@ void LoadRandomizerProfileSettings(char* profileName, int baseCarCount) {
         return;
     }
 
+    GetWindowModeProfileSettings() = {};
     const std::string resolvedPath = ResolveRandomizerProfilePath(path, false);
     std::ifstream file(resolvedPath);
     if (!file.is_open()) {
@@ -383,11 +391,18 @@ void LoadRandomizerProfileSettings(char* profileName, int baseCarCount) {
         else if (section == kKnockoutSection && key == "KnockedOutGhostMode") {
             ctx.knockoutState.knockedOutGhostMode = ClampBinaryOption(value);
         }
+        else if (section == kVideoSection && key == "WindowMode" && value >= 0 && value <= 2) {
+            GetWindowModeProfileSettings().mode = value;
+        }
     }
 
 }
 
 } // anonymous namespace
+
+bool SaveActiveRandomizerProfileSettings() {
+    return SaveRandomizerProfileSettings(g_randomizerProfileName.c_str());
+}
 
 void SaveArchipelagoProfileConnection(const std::string& server, bool requiresPassword) {
     g_archipelagoProfileData.server = server;
@@ -600,7 +615,15 @@ void Hook_LoadSettingsFromIni(char* profileName) {
 
     // Sync our cars per race count with the stored cars per race
     int nCars = *reinterpret_cast<int*>(AbsFromRva(RVA_SETTINGS_NCARS));
+    const std::string internalName = GetProfileInternalName(profileName);
+    const bool profileChanged = !internalName.empty() && internalName != g_randomizerProfileName;
+    if (!internalName.empty()) {
+        g_randomizerProfileName = internalName;
+    }
     LoadRandomizerProfileSettings(profileName, nCars);
+    if (profileChanged) {
+        ApplyWindowModeProfileSettings();
+    }
 
     const ConfigData* config = GetActiveConfig();
     if (config != nullptr && config->archipelago.has_value()) {

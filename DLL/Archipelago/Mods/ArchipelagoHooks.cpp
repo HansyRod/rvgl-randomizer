@@ -5,6 +5,7 @@
 #include "CustomUnlocks.h"
 #include "RandomizerState.h"
 #include "RVGLMemory.h"
+#include "WindowMode.h"
 
 namespace Randomizer {
 
@@ -70,6 +71,7 @@ void Hook_InRaceGameLoop() {
 }
 
 int Hook_MainGameLoop(int argc, char** argv) {
+    ConfigureWindowModeLaunch(argc, argv);
     const int result = Orig_MainGameLoop(argc, argv);
     const ConfigData* config = GetActiveConfig();
     if (config != nullptr && config->archipelago.has_value()) {

@@ -22,6 +22,20 @@
 // MainGameLoop(int argc, char** argv) and its per-frame SDL event pump.
 constexpr uint32_t RVA_MAIN_GAME_LOOP = 0x00002ec0;
 constexpr uint32_t RVA_PROCESS_SDL_EVENTS = 0x00002980;
+
+// Window mode: native SDL transitions, Video Settings, and focus-loss handling.
+// ApplyWindowMode - applies the fullscreen flag and selected native display mode.
+constexpr uint32_t RVA_APPLY_WINDOW_MODE = 0x001397c0;
+
+// RefreshWindowLayout - reads window/drawable dimensions and updates cameras and menus.
+constexpr uint32_t RVA_REFRESH_WINDOW_LAYOUT = 0x00139750;
+
+// BuildVideoSettingsMenu - registers the native Video Settings rows.
+constexpr uint32_t RVA_BUILD_VIDEO_SETTINGS_MENU = 0x00154030;
+
+// DrawMenuRow - draws a localized label for a native menu row.
+constexpr uint32_t RVA_DRAW_MENU_ROW = 0x00147050;
+
 // Normal game-state loops, entered after content loading has completed.
 // Frontend initialization selects Menu_UpdateLoop (void()) at 0x00543B67.
 constexpr uint32_t RVA_MENU_UPDATE_LOOP = 0x00143d60;
@@ -233,6 +247,21 @@ constexpr uint32_t RVA_SDL_GET_CLIPBOARD_TEXT = 0x0019d800;
 // SDL_free - import thunk releasing memory allocated by SDL, including clipboard text.
 constexpr uint32_t RVA_SDL_FREE = 0x0019d5b0;
 
+// SDL_GetDesktopDisplayMode - import thunk returning a monitor's desktop display mode.
+constexpr uint32_t RVA_SDL_GET_DESKTOP_DISPLAY_MODE = 0x0019d7f8;
+
+// SDL_GetError - import thunk returning the calling thread's SDL error text.
+constexpr uint32_t RVA_SDL_GET_ERROR = 0x0019d7e8;
+
+// SDL_LockMutex - import thunk acquiring an opaque SDL mutex.
+constexpr uint32_t RVA_SDL_LOCK_MUTEX = 0x0019d688;
+
+// SDL_UnlockMutex - import thunk releasing an opaque SDL mutex.
+constexpr uint32_t RVA_SDL_UNLOCK_MUTEX = 0x0019d5c0;
+
+// SDL_MinimizeWindow - RVGL's import thunk, used as the window-minimize hook target.
+constexpr uint32_t RVA_SDL_MINIMIZE_WINDOW = 0x0019d680;
+
 // Options frontend menu builder.
 constexpr uint32_t RVA_BUILD_OPTIONS_MENU = 0x00154700;
 constexpr uint32_t RVA_HANDLE_OPTIONS_MENU_ACTION = 0x00154680;
@@ -313,6 +342,21 @@ constexpr uint32_t RVA_UTF8_CHECK = 0x0019d968;
 // ----------------------------------------------------------------------------
 // Globals
 // ----------------------------------------------------------------------------
+
+// Native fullscreen byte; 1 includes both exclusive and desktop fullscreen.
+constexpr uint32_t RVA_FULLSCREEN_FLAG = 0x0025c020;
+
+// Native -nores byte; 1 selects desktop fullscreen without a resolution change.
+constexpr uint32_t RVA_NORES_FLAG = 0x002e3436;
+
+// SDL_Window pointer variable. Dereference once to obtain the opaque window handle.
+constexpr uint32_t RVA_SDL_WINDOW = 0x0aa85df0;
+
+// SDL_mutex pointer variable. Dereference once for loading/render synchronization.
+constexpr uint32_t RVA_RENDER_MUTEX = 0x002e3090;
+
+// Native byte set while window layout is updated under the render mutex.
+constexpr uint32_t RVA_RENDER_UPDATING_FLAG = 0x002e308c;
 
 // Native loading-thread service callback. LevelLoad sets this while drawing
 // loading frames and clears it before returning to normal menu/race rendering.
@@ -404,6 +448,9 @@ constexpr uint32_t RVA_SETTINGS_NCARS_MENU_ITEM = 0x00264280;
 // Native Next Track row descriptor, copied as the template for the Next Car selector.
 constexpr uint32_t RVA_IN_RACE_NEXT_TRACK_ITEM = 0x002634c0;
 
+// Native Resolution row descriptor in Video Settings; the descriptor is stored directly.
+constexpr uint32_t RVA_VIDEO_RESOLUTION_ITEM = 0x00265120;
+
 // Native Quit row descriptor, copied as the template for the Archipelago main-menu entry.
 constexpr uint32_t RVA_MAIN_MENU_QUIT_ITEM = 0x00263600;
 
@@ -473,6 +520,18 @@ constexpr uint32_t RVA_MENU_INITIALIZE_FRONTEND_PTR = 0x002a47f0;
 
 
 
+
+// ----------------------------------------------------------------------------
+// Call sites
+// ----------------------------------------------------------------------------
+
+// Return address after F11 calls ApplyWindowMode inside ProcessSDLEvents.
+// Distinguishes a user mode change from temporary fullscreen changes for dialogs.
+constexpr uint32_t RVA_F11_APPLY_MODE_RETURN = 0x00002bfa;
+
+// Return address after ProcessSDLEvents automatically calls SDL_MinimizeWindow.
+// Distinguishes focus-loss minimization from other callers of the SDL function.
+constexpr uint32_t RVA_FOCUS_LOSS_MINIMIZE_RETURN = 0x00002e1d;
 
 // ----------------------------------------------------------------------------
 // AbsFromRva

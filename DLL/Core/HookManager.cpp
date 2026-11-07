@@ -12,6 +12,7 @@
 #include "CupOpponentGrid.h"
 #include "ThirtyCarCupMod.h"
 #include "MenuMod.h"
+#include "WindowMode.h"
 #include "ArchipelagoHooks.h"
 #include "ArchipelagoMenu.h"
 #include "Carsanity.h"
@@ -143,6 +144,35 @@ static void RegisterHooks() {
         reinterpret_cast<void*>(Randomizer::Hook_MainGameLoop),
         reinterpret_cast<void**>(&Randomizer::Orig_MainGameLoop),
         "MainGameLoop"
+    );
+
+    // --- Window mode ---
+    HookManager::Add(
+        AbsFromRva(RVA_APPLY_WINDOW_MODE),
+        reinterpret_cast<void*>(Randomizer::Hook_ApplyWindowMode),
+        reinterpret_cast<void**>(&Randomizer::Orig_ApplyWindowMode),
+        "ApplyWindowMode"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_BUILD_VIDEO_SETTINGS_MENU),
+        reinterpret_cast<void*>(Randomizer::Hook_BuildVideoSettingsMenu),
+        reinterpret_cast<void**>(&Randomizer::Orig_BuildVideoSettingsMenu),
+        "BuildVideoSettingsMenu"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_DRAW_MENU_ROW),
+        reinterpret_cast<void*>(Randomizer::Hook_DrawWindowModeMenuRow),
+        reinterpret_cast<void**>(&Randomizer::Orig_DrawWindowModeMenuRow),
+        "DrawWindowModeMenuRow"
+    );
+
+    HookManager::Add(
+        AbsFromRva(RVA_SDL_MINIMIZE_WINDOW),
+        reinterpret_cast<void*>(Randomizer::Hook_MinimizeGameWindow),
+        reinterpret_cast<void**>(&Randomizer::Orig_MinimizeGameWindow),
+        "MinimizeGameWindow"
     );
 
     // --- Car system ---

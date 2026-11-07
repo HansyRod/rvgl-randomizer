@@ -33,6 +33,30 @@ const MenuItemDescriptor* GetInRaceNextTrackMenuItem() {
     return reinterpret_cast<const MenuItemDescriptor*>(AbsFromRva(RVA_IN_RACE_NEXT_TRACK_ITEM));
 }
 
+MenuItemDescriptor* GetNativeResolutionItem() {
+    return reinterpret_cast<MenuItemDescriptor*>(AbsFromRva(RVA_VIDEO_RESOLUTION_ITEM));
+}
+
+void* GetWindow() {
+    return *reinterpret_cast<void**>(AbsFromRva(RVA_SDL_WINDOW));
+}
+
+uint8_t& GetFullscreenFlag() {
+    return *reinterpret_cast<uint8_t*>(AbsFromRva(RVA_FULLSCREEN_FLAG));
+}
+
+uint8_t& GetNoresFlag() {
+    return *reinterpret_cast<uint8_t*>(AbsFromRva(RVA_NORES_FLAG));
+}
+
+void* GetRenderMutex() {
+    return *reinterpret_cast<void**>(AbsFromRva(RVA_RENDER_MUTEX));
+}
+
+uint8_t& GetRenderUpdatingFlag() {
+    return *reinterpret_cast<uint8_t*>(AbsFromRva(RVA_RENDER_UPDATING_FLAG));
+}
+
 int* GetRaceTransitionRequest() {
     return *reinterpret_cast<int**>(AbsFromRva(RVA_RACE_TRANSITION_REQUEST_PTR));
 }

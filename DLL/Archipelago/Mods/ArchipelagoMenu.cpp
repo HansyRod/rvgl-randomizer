@@ -7,6 +7,7 @@
 #include "RandomizerState.h"
 #include "RVGLMenuStructs.h"
 #include "RVGLMemory.h"
+#include "SDLFunctions.h"
 #include <algorithm>
 
 namespace Randomizer {

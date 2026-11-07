@@ -7,6 +7,8 @@
 
 namespace Randomizer {
 
+    bool SaveActiveRandomizerProfileSettings();
+
     void SaveArchipelagoProfileConnection(const std::string& server, bool requiresPassword);
     void MarkArchipelagoProfilePasswordRequired();
     // Completed checks awaiting server confirmation, scoped to a seed and slot within the active RVGL profile.
