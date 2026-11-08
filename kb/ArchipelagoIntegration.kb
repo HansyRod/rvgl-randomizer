@@ -1,17 +1,15 @@
 # Archipelago Integration
 
-This note records the current Archipelago integration decisions, the code added
-so far, the intended config contract, and the remaining work.
+This note records the current Archipelago integration, config contract, and
+remaining work after the feature merge into `dev`.
 
 ## Current Scope
 
-The current integration is deliberately a foundation layer. The DLL can now
-compile with `apclientpp`, owns a thin Archipelago client wrapper, and can emit
-stable local event keys when game progress happens.
-
-No real APWorld-generated location or item mapping is wired yet. The current
-event-key queue is a dry-run/logging path that gives later code a stable input
-surface.
+The integration merged into `dev` includes APWorld-generated config parsing,
+event-key to location-ID mapping, received-item unlocks, game-thread polling,
+TLS and WebSocket compression, persistent offline progress, and goal reporting.
+The APWorld supports stock content and optional Dreamcast cars/Rooftops.
+Custom-content manifests and launcher YAML export remain future work.
 
 ## Library Decision
 
@@ -48,15 +46,13 @@ Current compile definitions in `ArchipelagoClient.cpp`:
 
 - `ASIO_STANDALONE`
 - `AP_NO_SCHEMA`
-- `WSWRAP_NO_SSL`
-- `WSWRAP_NO_COMPRESSION`
 - `_WEBSOCKETPP_CPP11_THREAD_`
 - `_WEBSOCKETPP_CPP11_STL_`
 
-`WSWRAP_NO_SSL` and `WSWRAP_NO_COMPRESSION` are temporary build simplifications.
-Compression support should be added before production AP server use, because
-Archipelago is expected to require compression. TLS support should also be
-revisited for non-localhost servers.
+TLS and permessage-deflate compression are enabled. `DLL/CMakeLists.txt` requires
+and statically links OpenSSL and zlib; `crypt32` supplies the Windows trust-store
+integration. Neither `WSWRAP_NO_SSL` nor `WSWRAP_NO_COMPRESSION` is defined.
+See `DEPENDENCIES.md` for build requirements.
 
 ## Added DLL Files
 
@@ -65,6 +61,13 @@ DLL/Archipelago/ArchipelagoClient.h
 DLL/Archipelago/ArchipelagoClient.cpp
 DLL/Archipelago/ArchipelagoEventKeys.h
 DLL/Archipelago/ArchipelagoEventKeys.cpp
+DLL/Archipelago/ArchipelagoLog.h
+DLL/Archipelago/ArchipelagoLog.cpp
+DLL/Archipelago/ArchipelagoLogBuffer.h
+DLL/Archipelago/Mods/ArchipelagoHooks.h
+DLL/Archipelago/Mods/ArchipelagoHooks.cpp
+DLL/Archipelago/Mods/ArchipelagoMenu.h
+DLL/Archipelago/Mods/ArchipelagoMenu.cpp
 ```
 
 `ArchipelagoClient` owns the `APClient` instance and exposes project-native
@@ -75,7 +78,10 @@ functions:
 - `StopArchipelagoClient`
 - `PumpArchipelagoClient`
 - `QueueArchipelagoEventKey`
-- `QueueArchipelagoLocationCheck`
+- `InitializeArchipelagoMappings`
+- `RequestArchipelagoConnection`
+- `CancelArchipelagoConnection`
+- `GetArchipelagoItemName`
 - `IsArchipelagoClientEnabled`
 
 Important threading/callback decision:
@@ -85,67 +91,78 @@ Important threading/callback decision:
 - The current wrapper copies the shared client pointer under lock, releases the
   lock, calls `poll()`, then takes queued location checks under lock.
 
-`DllMain` now calls `Randomizer::StopArchipelagoClient()` on process detach.
+`Hook_ProcessSDLEvents` creates and polls the client on the game thread, including
+loading screens. Menu and race updates apply pending unlock refreshes separately.
+`Hook_MainGameLoop` stops the client on normal exit, before process detach and
+outside `DllMain`'s loader lock.
 
-## Config Direction
+## Config Contract
 
 There will always be a local randomizer config loaded by the DLL.
 
 For normal randomizer use, this config can continue to come from the randomizer
 UI.
 
-For Archipelago use, the config should be produced as part of the multiworld
-generation flow, based on the player's Archipelago YAML/options and the APWorld
-logic. That config may extend the existing randomizer config with an
-`archipelago` section or be represented as a sidecar that is loaded alongside
-the existing config.
+The APWorld's `generate_output()` writes one
+`AP_<seed>_P<slot>_<player>.rvgl.json` per RVGL player, using the existing
+randomizer config extended with an `archipelago` section. `ConfigData.h` parses
+that section into an optional `ArchipelagoConfig`; absent or null means normal
+randomizer mode. `metadata.seed` identifies the room, and `metadata.profileName`
+isolates the seed/slot's native game progress.
 
 The presence of an `archipelago` section implies AP mode. `enabled` and `game`
 are not needed.
 
-Initial proposed shape:
+Current schema-1 shape (mapping subset):
 
 ```json
 {
   "archipelago": {
+    "schemaVersion": 1,
+    "slotNumber": 1,
     "slotName": "Player1",
+    "carsanity": false,
     "locations": {
-      "single_race_win:nhood1": {
-        "id": 1230001,
-        "name": "Win Single Race: Neighborhood 1"
-      },
-      "practice_star:nhood1": {
-        "id": 1230002,
-        "name": "Find Practice Star: Neighborhood 1"
-      },
-      "time_trial_normal:nhood1": {
-        "id": 1230003,
-        "name": "Beat Normal Time Trial: Neighborhood 1"
-      },
-      "championship_win:4": {
-        "id": 1230104,
-        "name": "Win Platinum Cup"
-      }
+      "single_race_win:nhood1": 2000001,
+      "practice_star:nhood1": 2000002,
+      "time_trial_normal:nhood1": 2000010,
+      "championship_win:4": 3000305
     },
     "items": {
-      "1230501": {
-        "name": "Unlock Car: Adeon",
-        "unlockToken": "car:adeon"
-      }
-    }
+      "car:adeon": 1001900,
+      "track:nhood1": 2000000,
+      "cup:4": 3000300,
+      "filler:Filler: Star": 90
+    },
+    "goal": "platinum_cup",
+    "goalEventKeys": ["championship_win:4"]
   }
 }
 ```
 
-The APWorld should own the pretty item/location names used by Archipelago
+The APWorld owns the pretty item/location names used by Archipelago
 trackers and UI. The DLL event keys are internal stable identifiers that map to
 AP location IDs through config.
 
+`items` maps internal unlock strings to numerical IDs; the client builds the
+reverse lookup once. Named `filler:` entries and the legacy empty-string filler
+entry have no unlock effect. All unlock definitions use method `13` with a
+matching `customUnlock.archipelagoItem`, including starting content delivered
+through AP's precollected inventory.
+
+The in-game Archipelago menu supplies server address and password. The startup
+profile's `archipelago.json` persists the UUID, server, and password-required
+preference; passwords are never saved. Seed and slot identity are validated
+before accepting inventory or submitting checks. Parsing requires the schema
+fields but does not yet perform additional semantic config validation.
+
 ## Event Key Design
 
-The DLL emits local event keys when progress happens. Later, the Archipelago
-mapping layer will translate those keys to AP location IDs and call
-`LocationChecks`.
+The DLL emits local event keys when progress happens. `QueueArchipelagoEventKey`
+de-duplicates them, logs unknown keys once, and resolves known keys through the
+loaded location map. Completed locations are saved before submission and queued
+until authentication; the pump sends them through `LocationChecks`. On reconnect,
+the validated server snapshot removes confirmed checks from the pending cache.
 
 ### Track Events
 
@@ -223,92 +240,90 @@ from the existing progress emitters:
 - championship won
 - Stunt Arena star caught
 
-The log lines include `apKey='...'` so event behavior can be inspected before
-real AP location checks are enabled.
+The log lines include `apKey='...'` for inspecting event behavior. These events
+now drive real AP location checks when a mapping exists. Carsanity adds
+`car_race_win:<carFolder>` through `DLL/Archipelago/Mods/Carsanity.cpp` and keeps
+its per-car win checklist in the startup profile.
 
-## Item/Unlock Direction
+## Item/Unlock Handling
 
-The DLL already has initial support for Archipelago item unlock checks:
+The DLL applies Archipelago item unlocks through:
 
 - `MarkArchipelagoItemReceived`
 - `HasArchipelagoItem`
 - `ClearArchipelagoItems`
 - `CustomUnlockMethod::ArchipelagoItem`
 
-Current limitation:
+`ReceiveArchipelagoItems` resolves network IDs to local unlock strings and tracks
+delivery indices to suppress duplicate application during a connection. A full
+inventory replaces cached ownership; incremental deliveries add to it. Changes
+set `unlockRefreshPending`, and menu/race hooks refresh cars, tracks, and cups on
+the game thread.
 
-- Received AP items are stored as a string set.
+Runtime ownership remains a string set because current items are boolean
+unlocks. The profile persists unique numerical item IDs, scoped by seed/slot,
+and restores them through the loaded item map before connecting. Delivery indices
+are rebuilt from the server inventory on reconnect. Quantity/progressive effects
+are not implemented and would require additional state if introduced.
 
-Future item storage should become ID/index/count aware:
+## Goal Completion
 
-- AP item ID
-- AP item name/display name
-- received index
-- count for duplicate/progressive items
+The APWorld exports schema-1 `archipelago.goal` and `archipelago.goalEventKeys`.
+The DLL resolves the keys through `archipelago.locations` once at startup.
+Every required location must be completed:
 
-The local config should map AP item IDs to internal unlock tokens. Existing
-custom unlock evaluation can then check those tokens.
+- `platinum_cup`: overall Platinum victory, `championship_win:4`.
+- `carsanity`: a Single Race win with every enabled car.
+- `tracksanity`: a Single Race win on every enabled track.
+- `tracksanity_plus`: Single Race win, Practice star, and Normal Time Trial on
+  every enabled track.
 
-## Goal Direction
+Each run begins with its own clean, uniquely named profile. Required completions
+are recorded in `completedGoalLocations` in the profile's `archipelago.json`,
+under the existing seed/slot identity. A local contributing check saves its pending
+location and goal history in the same atomic file write. Goal history remains
+after server confirmation removes the location from `completedLocations`.
+It is loaded on restart and merged with required IDs in the freshly authenticated
+server snapshot. No native-flag recovery or migration of older runs is needed.
 
-Initial goal:
+The game-thread client pump compares this history with the required locations;
+an empty requirement list cannot complete a goal. Once all are achieved, it sends
+queued `LocationChecks` before `StatusUpdate(APClient::ClientStatus::GOAL)`
+(status 30). Successful submission is remembered only for the current authenticated
+connection. Reconnecting resets that flag and resends victory, so a disconnected
+or interrupted session cannot permanently suppress it. Failed sends are retried.
+The client writes `Victory status sent.` to the base log file without claiming
+server acknowledgement. Victory submission success/failure messages do not
+update the in-game log.
 
-- Beat Platinum Cup.
-
-This can be represented as `championship_win:4` in the first implementation.
-When that event is checked or observed, the AP client should send
-`StatusUpdate(GOAL)`.
-
-Future goals can be generated from APWorld options and expressed in config.
+There is no separate persisted completion flag: completion is derived from the
+saved location set. Existing seed and slot validation still gates network work.
+No victory network location or aggregate gameplay event is added.
 
 ## Future Work
 
-1. Add Archipelago config parsing.
-   - Extend `ConfigData` or add a sidecar config loader.
-   - Parse `archipelago.slotName`, `locations`, and `items`.
-   - Decide where server URI, password, and UUID live. These may be local
-     launcher/session settings rather than seed config.
+1. Add custom-content generation and launcher support.
+   - Implement the manifest schema, transport, registration, and YAML export
+     described in `APWorld.kb`. The current APWorld has a fixed stock/DC catalogue.
 
-2. Add event-key to location-ID mapping.
-   - `QueueArchipelagoEventKey` should look up the event key in config.
-   - Unknown keys should log once and be ignored.
-   - Known keys should de-duplicate and call `QueueArchipelagoLocationCheck`.
+2. Add semantic validation for AP-generated config.
+   - Validate supported schema versions, positive/unique IDs, mapped goal keys,
+     and non-empty `customUnlock.archipelagoItem` values for method `13`.
+   - Required-field/type parsing already exists; it does not enforce these rules.
 
-3. Add AP item receive handling.
-   - Convert received `APClient::NetworkItem` values into local unlock tokens.
-   - Track AP item index so reconnect/resync does not duplicate effects.
-   - Refresh car, track, and cup unlock state after item application.
+3. Make DLL regression coverage reproducible from the repository.
+   - Local mapping, item, connection, and goal smoke harnesses exist under the
+     ignored `build/` directory, but are not a tracked Archipelago test suite.
+   - Promote the useful cases into maintained tests, including event-key helper
+     boundaries, unknown-key de-duplication, reconnect/persistence, and gameplay
+     events for representative track/cup/stunt progress.
 
-4. Add a polling point or worker.
-   - The wrapper has `PumpArchipelagoClient`, but it is not called yet.
-   - Decide whether to pump from a safe periodic game/menu hook or from a worker
-     thread with a game-thread application queue.
+4. Extend cup identity only if custom-cup semantics require it.
+   - Current championship keys use completed difficulty tiers, matching the
+     APWorld's four stock cups. Literal active-cup identity is not implemented.
+   - Multiple cups sharing a difficulty would need distinct keys and matching
+     APWorld mappings.
 
-5. Add zlib/websocket compression support.
-   - Remove `WSWRAP_NO_COMPRESSION`.
-   - Link zlib.
-   - Keep the current warning visible until this is done.
-
-6. Add TLS support.
-   - Remove `WSWRAP_NO_SSL` when OpenSSL/cert handling is configured.
-   - Localhost-only testing can use unencrypted websockets, but public AP
-     servers should support TLS.
-
-7. Improve cup detection if needed.
-   - Current championship keys are based on completed difficulty tier.
-   - If APWorld semantics require literal cup ID, identify active cup state in
-     RVGL and emit `championship_win:<cupId>`.
-
-8. Implement APWorld side.
-   - Define item/location names and IDs.
-   - Generate RVGL randomizer config from APWorld options.
-   - Emit pretty tracker-facing names while keeping DLL keys stable.
-
-9. Add goal status update.
-   - First version: send AP goal when `championship_win:4` is completed.
-   - Later versions: read goal event key(s) from config.
-
-10. Add tests where practical.
-    - Unit-test event-key generation helpers.
-    - Unit-test config mapping and unknown-key behavior.
-    - Integration-test event logs with representative track/cup/stunt progress.
+5. Add quantity/progressive item state if those effects are introduced.
+   - Current boolean unlocks and effect-free filler do not need counts. Such
+     effects would need persistent quantities and replay-safe delivery handling.

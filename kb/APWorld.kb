@@ -1,8 +1,27 @@
 # APWorld
 
-This note records the current design direction for the RVGL Archipelago
-APWorld, especially the generation model, region model, dynamic content
-strategy, and item/location ID concerns.
+This note records the implemented RVGL Archipelago APWorld and the remaining
+custom-content work. The original stock/DC generation, regions, item/location
+tables, options, DLL output, and generation tests are implemented.
+
+## Current Scope
+
+The APWorld uses a fixed catalogue: 28 stock cars, optionally 14 Dreamcast cars,
+13 stock tracks, optional Rooftops, four cups, and optionally 20 Stunt Arena checks.
+Carsanity optionally adds one Single Race check per enabled car. Arbitrary custom
+content, `content_manifest`, and launcher YAML export are not implemented.
+
+Implemented source files are under `worlds/rvgl`:
+
+| Area | Source |
+| --- | --- |
+| World registration and generation | `__init__.py`, `world.py` |
+| Content catalogues | `cars.py`, `tracks.py`, `cups.py`, `stunt_arena.py` |
+| Names and IDs | `items.py`, `locations.py` |
+| Regions and access rules | `regions.py`, `rules.py`, `logic.py` |
+| Options and DLL config output | `options.py`, `output.py` |
+| Web metadata | `web_world.py`, `archipelago.json` |
+| Generation/output regression tests | `test/test_world.py`, `test/test_output.py`, `test/test_practice_stars.py`, `test/test_logic_tables.py` |
 
 ## Repository Direction
 
@@ -41,7 +60,7 @@ Important conventions for new RVGL APWorld code:
 - Keep RVGL package imports relative, for example `from .options import RVGLOptions`.
 - Do not add linter/test tools to `worlds/rvgl/requirements.txt`; that file is for runtime APWorld dependencies.
 
-Suggested APWorld layout:
+Current APWorld layout:
 
 ```text
 worlds/rvgl/
@@ -53,7 +72,12 @@ worlds/rvgl/
   regions.py
   rules.py
   output.py
-  content.py
+  cars.py
+  tracks.py
+  cups.py
+  stunt_arena.py
+  logic.py
+  web_world.py
   archipelago.json
   docs/
   test/
@@ -96,12 +120,13 @@ Two viable approaches were discussed:
 2. A `Menu` region plus one region per unlockable content group, such as a
    track, cup, or Stunt Arena.
 
-Current preferred direction:
+Implemented model:
 
 - Use `Menu` as the origin region.
-- Create dynamic track regions for each generated track.
-- Create cup regions for the generated cups.
+- Create a region for each enabled track and each stock cup.
 - Create a Stunt Arena region if stunt checks are enabled.
+- Create a region per enabled car when Carsanity is active.
+- Add an internal Victory event in Menu, requiring every selected goal check.
 
 This lets the APWorld express common access requirements once on the entrance
 to a region instead of repeating the same unlock rule on every location.
@@ -138,14 +163,14 @@ rule can accidentally point at the final loop value.
 
 ## Existing DLL Event Keys
 
-The DLL side already emits stable event keys for checks. The APWorld should
-preserve these as internal IDs used in generated config, while Archipelago sees
-human-readable item/location names.
+The DLL emits stable event keys for checks. The APWorld preserves these as
+internal IDs in generated config, while Archipelago sees human-readable names.
 
 Current event-key families:
 
 ```text
 single_race_win:<trackFolder>
+car_race_win:<carFolder>
 practice_star:<trackFolder>
 time_trial_normal:<trackFolder>
 time_trial_reverse:<trackFolder>
@@ -164,24 +189,24 @@ Track location generation checks `TrackData.has_reverse` before adding
 not require reverse data. Existing location IDs are preserved; Mirror appears
 before the optional Reverse location. There is no separate Reverse Mirror check.
 
-Initial goal:
-
-```text
-championship_win:4
-```
-
-This represents beating Platinum Cup.
+Implemented goals are `platinum_cup`, `carsanity`, `tracksanity`, and
+`tracksanity_plus`. Platinum Cup requires `championship_win:4`; the others
+require every enabled car's race win, every enabled track's race win, or every
+enabled track's race win/Practice star/Normal Time Trial respectively. Goal-required
+check categories are enabled even when their individual location options are off.
+The DLL receives all required keys through `goalEventKeys` and reports victory;
+see `ArchipelagoIntegration.kb` for persistence and runtime behavior.
 
 ## Item Model
 
-The first APWorld should use unlock-token items.
+The APWorld uses unlock-token items.
 
 Examples:
 
 ```text
-Unlock Car: Adeon [adeon]      -> car:adeon
-Unlock Track: Toys in the Hood 1 [nhood1] -> track:nhood1
-Unlock Cup: Platinum Cup       -> cup:4
+Car: Adeon                    -> car:adeon
+Track: Toys in the Hood 1      -> track:nhood1
+Platinum Cup                  -> cup:4
 ```
 
 The APWorld item names are for Archipelago UI, trackers, hints, spoilers, and
@@ -189,30 +214,36 @@ the data package.
 
 The unlock tokens are local RVGL config/runtime identifiers consumed by the DLL.
 
-Filler items will still be needed when the number of locations exceeds the
-number of progression/useful unlock items.
+Ten named filler types fill locations left after unlock items are placed. They
+have no local gameplay effect. Starting cars/tracks and Bronze Cup are
+precollected; their unlock items are removed from the random pool, while their
+checks remain. Generation rejects option combinations with too few locations
+for the remaining unlock items.
 
 ## Location Model
 
-First useful location pool:
+Implemented location pool:
 
 - Single race wins.
 - Practice stars.
 - Time trial checks.
 - Stunt Arena stars.
 - Cup wins.
+- Per-car Single Race wins when Carsanity is enabled.
 
-Names should include enough identity to stay unique when custom content exists.
-Folder suffixes are the safest convention.
+The fixed catalogue uses display names without folder suffixes. Custom-content
+name collision handling remains undecided; folder suffixes are a proposed
+convention for that future work.
 
 Examples:
 
 ```text
-Win Single Race: Toys in the Hood 1 [nhood1]
-Find Practice Star: Toys in the Hood 1 [nhood1]
-Beat Normal Time Trial: Toys in the Hood 1 [nhood1]
+Win Single Race: Toys in the Hood 1
+Find Practice Star: Toys in the Hood 1
+Beat Normal Time Trial: Toys in the Hood 1
 Win Platinum Cup
-Find Stunt Star 1
+Find Stunt Arena Star: 1
+Win Race with Car: Adeon
 ```
 
 The pretty names belong to the APWorld. The DLL event keys stay stable and
@@ -251,6 +282,9 @@ This was confirmed by inspecting `AutoWorld.py`, where the metaclass builds
 reverse maps and frozen name sets at class creation time.
 
 ## Dynamic Content Problem
+
+This section and the manifest design below describe remaining work. Current
+registration uses the fixed stock/DC tables; it does not scan player manifests.
 
 RVGL supports custom cars, tracks, and packs. That creates tension with
 Archipelago's world registration model:
@@ -301,7 +335,7 @@ fully registered by Archipelago.
 ## RVGL Dynamic Manifest Direction
 
 The term `content_manifest` was introduced during planning as a proposed
-RVGL-specific YAML option. It does not exist today.
+RVGL-specific YAML option. It is still unimplemented.
 
 It means: a launcher-generated description of the RVGL content available to the
 player for this AP seed.
@@ -369,9 +403,7 @@ RVGL:
 
 ## Manifest Processing Direction
 
-The APWorld should be designed around dynamic content from the start.
-
-High-level flow:
+Proposed flow for a future dynamic-content implementation:
 
 1. At import/class-registration time, scan all RVGL player YAMLs for the
    `content_manifest` option.
@@ -390,13 +422,13 @@ High-level flow:
 10. During output generation, write the final RVGL randomizer JSON plus the
     Archipelago mapping section for the DLL.
 
-## Deterministic Naming Rules
+## Proposed Custom-Content Naming Rules
 
 Display names alone are not stable enough.
 
 Use folder names or stable manifest content IDs as identity suffixes.
 
-Recommended conventions:
+Proposed conventions for custom content (not the current stock/DC names):
 
 ```text
 Unlock Car: <display name> [<folder>]
@@ -418,127 +450,104 @@ Normalize folder/content IDs consistently:
 
 ## Deterministic ID Rules
 
-Future decision required: exact ID range allocation.
+The stock/DC ranges are implemented in `items.py` and `locations.py`:
 
-The APWorld needs reserved ranges for:
+| Category | ID rule |
+| --- | --- |
+| Filler items | `90 + index` |
+| Car unlocks | `1000000 + set_offset + index * 100` |
+| Track unlocks | `2000000 + set_offset + index * 100` |
+| Cup unlocks | `3000000 + index * 100` |
+| Car/track Single Race checks | owning item ID `+ 1` |
+| Practice star checks | track item ID `+ 2` |
+| Normal/Reverse/Mirror Time Trials | track item ID `+ 10/11/12` |
+| Cup wins | cup item ID `+ 5` |
+| Stunt Arena stars | `4000000 + star_number` |
 
-- static/filler items
-- car unlock items
-- track unlock items
-- cup unlock items
-- single race locations
-- practice star locations
-- time trial locations
-- stunt star locations
-- cup win locations
-
-IDs should be assigned from sorted stable keys, not display order.
-
-Example strategy:
-
-```text
-base + category_offset + sorted_index
-```
-
-The exact bases and offsets still need to be chosen.
+`set_offset` is `0` for stock content and `5000` for Dreamcast content. Indices
+come from explicit catalogue order, not filesystem scans or sorted display names.
+Mirror checks keep their assigned IDs even where Reverse checks are unavailable.
+Custom-content allocation and duplicate handling remain future decisions and
+must preserve these existing IDs.
 
 ## APWorld Output Contract
 
-The APWorld should output the existing RVGL randomizer config shape, extended
-with Archipelago mapping data.
+`generate_output()` writes the existing RVGL randomizer config shape, extended
+with Archipelago mapping data, to `AP_<seed>_P<slot>_<player>.rvgl.json`.
+RVGL uses the default empty `fill_slot_data()` rather than duplicating this data.
 
-Current proposed extension:
+Current schema-1 extension (mapping subset):
 
 ```json
 {
   "archipelago": {
+    "schemaVersion": 1,
+    "slotNumber": 1,
     "slotName": "Player1",
+    "carsanity": false,
     "locations": {
-      "single_race_win:nhood1": {
-        "id": 1230001,
-        "name": "Win Single Race: Toys in the Hood 1 [nhood1]"
-      }
+      "single_race_win:nhood1": 2000001,
+      "championship_win:4": 3000305
     },
     "items": {
-      "1230501": {
-        "name": "Unlock Car: Adeon [adeon]",
-        "unlockToken": "car:adeon"
-      }
+      "car:adeon": 1001900,
+      "track:nhood1": 2000000,
+      "cup:4": 3000300,
+      "filler:Filler: Star": 90
     },
-    "goalEventKey": "championship_win:4"
+    "goal": "platinum_cup",
+    "goalEventKeys": ["championship_win:4"]
   }
 }
 ```
 
-Server URI, password, and UUID should remain local launcher/session settings,
-not seed config.
+Only enabled location mappings are exported; the item map contains the full
+catalogue, including starting items. All car/track/cup definitions use method
+`13` and an internal `customUnlock.archipelagoItem` string. The config retains
+AP-locked DC car definitions when those items are disabled to avoid vanilla
+fallback unlocks. Profile names are derived from seed/slot identity.
 
-## Future Decisions
+Server URI, password, and UUID remain local profile/session settings. The in-game
+menu handles connections; the profile stores the UUID and server preference,
+and passwords are never persisted.
 
-1. Manifest transport:
-   - embedded compressed JSON in YAML
-   - local JSON filename
-   - support both
+## Implemented Options And Tests
 
-2. Manifest schema:
-   - exact top-level shape
-   - required fields
-   - schema versioning
-   - validation errors
-   - stock fallback behavior
+`options.py` defines all four goals, Casual/Standard/Expert logic, starting car
+and track counts, independent Dreamcast content toggles, track-check category
+toggles, optional Stunt Arena stars, and optional Carsanity. Standard AP
+`start_inventory` can supply specific starting content. Capability tables in
+`logic.py` gate the supported checks by owned cars and logic difficulty.
 
-3. Dynamic registration:
-   - implement YARG-style all-player YAML scanning
-   - confirm behavior in local generation, packaged `.apworld`, and WebHost-like
-     generation
+`test_world.py` covers catalogue IDs/names, pool balance, starting inventory,
+region access, all goals, option combinations, and multiplayer fill/beatability.
+`test_output.py` covers deterministic files, DLL metadata, goal requirements,
+and per-player maps. `test_practice_stars.py` and `test_logic_tables.py` cover
+the capability tables and their rules. The original stock implementation and
+tests are complete; manifest-specific tests await the manifest implementation.
 
-4. ID ranges:
-   - choose RVGL base ID
-   - choose category offsets
-   - define stable sorting and duplicate handling
+## Future Work
 
-5. Naming:
-   - final item and location name format
-   - whether folder suffixes are always shown or only on conflicts
-   - how to handle non-ASCII display names from custom content
+1. Define and implement the custom-content manifest contract.
+   - Choose embedded compressed JSON, local files, or both for transport.
+   - Define typed records, required fields, schema versioning, validation errors,
+     and stock fallback behavior; add the `content_manifest` option.
 
-6. Region granularity:
-   - one region per track/cup/stunt arena
-   - or all locations directly in `Menu`
-   - current preference is one region per unlockable content group
+2. Extend catalogue registration to custom content.
+   - Load all players' manifests before world registration, using the proposed
+     flow above or another compatible registration mechanism.
+   - Allocate deterministic custom-content IDs without changing the stock/DC
+     ranges. Define normalization, duplicate handling, name collision rules,
+     folder suffix policy, and non-ASCII name handling.
+   - Use each player's resolved content for regions, rules, item pools, and output.
 
-7. Initial option set:
-   - content manifest option
-   - location pool toggles
-   - starting cars/tracks
-   - goal option, initially Platinum Cup
+3. Add launcher AP YAML/content-manifest export.
+   - Export scanned content metadata and selected AP options from the launcher.
+   - Keep the exported input distinct from the APWorld-generated final DLL config.
 
-8. Output:
-   - exact generated RVGL JSON filename/extension
-   - whether to use `generate_output()` only or also `fill_slot_data()`
-   - exact data needed by the DLL versus the launcher
-
-9. Tests:
-   - manifest parsing
-   - deterministic ID generation
-   - duplicate name handling
-   - stock fallback
-   - dynamic custom content smoke generation
-   - item/location count balance
-
-## Immediate Next Steps
-
-1. Replace copied APQuest placeholder files in `worlds/rvgl` with RVGL-specific
-   skeleton files.
-2. Define `content.py` with built-in stock cars/tracks/cups in the same shape as
-   the future launcher manifest.
-3. Define manifest dataclasses or typed records and validation helpers.
-4. Define deterministic item/location name builders.
-5. Define ID range constants and table builders.
-6. Implement dynamic table registration from stock fallback first.
-7. Add the `content_manifest` option, initially accepting empty/default stock
-   content.
-8. Add `regions.py` using loops over resolved content.
-9. Add tests before adding custom manifest support from the launcher.
-10. Later, update the RVGL launcher to generate the AP YAML/content manifest.
+4. Validate the custom-content generation flow.
+   - Add tests for manifest parsing, malformed/duplicate entries, stock fallback,
+     stable IDs, and multi-player unions with different custom content.
+   - Exercise custom-content smoke generation and item/location balance, including
+     local generation, packaged `.apworld`, and WebHost-style registration.
 

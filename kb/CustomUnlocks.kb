@@ -304,6 +304,7 @@ State:
 struct ArchipelagoRuntimeState {
     std::mutex itemMutex;
     std::unordered_set<std::string> receivedItems;
+    bool unlockRefreshPending = false;
 };
 ```
 
@@ -313,8 +314,13 @@ API:
 - `HasArchipelagoItem`
 - `ClearArchipelagoItems`
 
-The state is in-memory only. Networking, persistence, and integration with an
-Archipelago client are future work.
+The Archipelago client resolves received numerical IDs to these unlock strings
+and calls `MarkArchipelagoItemReceived`. Inventory changes queue a game-thread
+refresh of car, track, and cup availability. `ProfileHooks.cpp` persists unique
+item IDs in the startup profile's `archipelago.json`, scoped by seed/slot, and
+restores matching ownership before connecting. Full server inventories replace
+cached ownership after identity validation; incremental deliveries add to it.
+See `ArchipelagoIntegration.kb` for networking, persistence, and goal behavior.
 
 ### Car Utilities
 
@@ -449,6 +455,10 @@ Exposed methods:
 - `12` Stunt Arena Star Count
 
 Archipelago method `13` is hidden from the UI and remains integration-only.
+
+The registered Custom Unlocks preset in
+`ui/src/configure/presets/custom-unlocks.js` configures custom car and track
+progression. Adding the initial custom-unlock-enabled preset is complete.
 
 ### Allowed Method Options
 
@@ -674,8 +684,6 @@ Remaining work after the car and track UI/Rust custom unlock implementation:
   should become configurable from the app. The DLL already supports
   `customUnlock` on cups, but the current UI workflow is scoped to cars and
   tracks.
-- Add Archipelago client integration that calls
-  `MarkArchipelagoItemReceived`.
 - Decide whether Archipelago method `13` should get a dedicated integration UI
   later. It should remain hidden from normal car and track randomization
   controls.
@@ -683,5 +691,3 @@ Remaining work after the car and track UI/Rust custom unlock implementation:
   `archipelagoItem`.
 - Add custom-unlock-aware seed summary details only if the summary becomes
   detailed enough to make those counts useful.
-- Add custom-unlock-enabled presets after the base feature has been manually
-  tested and the desired preset behavior is clear.

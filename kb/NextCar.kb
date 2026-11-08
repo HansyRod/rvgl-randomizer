@@ -20,13 +20,46 @@ random-car/random-track flags, and uses the native immediate
 restart path: write 6 through the request pointer at 0x006a65e0, close the menu,
 and call SetRaceState(3) at 0x0048a560. After Race_TeardownAndSave saves the old
 session/replay, its hook applies the pending model/default skin and names to the
-first cached participant at PlayerRaceInfo + 0x50, plus RaceSettings. Solo
-restarts reuse that participant table rather than calling RaceSessionSetup.
+first cached participant at PlayerRaceInfo + 0x50, plus RaceSettings and
+GameModeRuntime::playerModelId (+0x0C). Solo restarts reuse that participant
+table rather than calling RaceSessionSetup.
 LevelLoad then creates the new car normally. The selector is a release feature
-and does not depend on the temporary Practice-star-reset hack. This also runs the temporary
-Practice-star-reset hook without replacing the live car mid-frame.
+and does not depend on the temporary Practice-star-reset hack.
+
+For a changed car in Single Race, ApplyPendingInRaceCarSelection also calls
+RandomizeCarPicks (0x0044fb30) after updating RaceSettings. The native routine
+uses RaceSettings::playerModelIds to exclude local players' cars and choose CPU
+cars from the player's rating, falling back to lower ratings when needed. It
+updates CPU model IDs, names, and skins in the cached participant table. Normal
+Single Race setup calls it at 0x0045165d, before AssignStartPositions
+(0x0044f980). Its selected-car buffer holds sixteen entries, so the refresh caps
+the cached participant count at sixteen, clears the thirty-car cache, then uses
+Hook_AssignStartPositions to expand and position the rebuilt roster normally.
+The expansion's duplicate fallback pool also excludes the player model, matching
+native picks when a rating has fewer unique CPU cars than the requested grid.
+An unchanged selection returns before this refresh and retains its opponents.
+
+Time Trial resource loading at 0x004557e0 uses the rating of the cached
+GameModeRuntime::playerModelId to select its table. LoadTrackLeaderboards
+(0x004765f0) loads the tables and SelectTrackLeaderboard (0x00476070) selects
+the requested rating, or merges ratings for Global mode. InitializeRaceSession
+then calls LoadLocalTimeTrialGhost (0x0044dba0) and
+LoadDownloadedTimeTrialGhost (0x0044ea60), which use the same cached car in
+Per-Rating mode. Updating only the participant and RaceSettings leaves both
+the table and ghost on the previous rating. Updating the cached ID after
+teardown lets the native restart reload both for the new car.
 
 Build Debug and Release with the existing CMake randomizer target. The local
 build/next_car_live.py smoke test uses a copied, isolated profile and exercises
 the native menu and keyboard path, left/right selection, resuming without
 applying a choice, keeping the track, and repeated car switches.
+
+The local build/time_trial_next_car_live.py regression test uses copied times
+and an isolated preference directory. It checks the cached model, selected
+per-rating table, and loaded ghost rating when switching between ratings,
+switching back, and restarting with the same car.
+
+The local build/single_race_next_car_live.py regression test accepts a car count
+(8 or 30) and checks switching to an existing CPU car, cross-rating picks,
+opponent names, unchanged track/laps, repeated switches, and retaining the
+roster and skins when the same car is confirmed, using an isolated profile.
