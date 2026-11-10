@@ -1,0 +1,101 @@
+.mode-view {
+  --mode-spacing: clamp(1.5rem, 3vw, 3rem);
+  --mode-card-padding: clamp(1.5rem, 4vw, 4rem);
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mode-spacing);
+  padding: var(--mode-spacing);
+  overflow-y: auto;
+}
+
+.mode-view h2 {
+  margin: 0;
+}
+
+.mode-description {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.mode-cards {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr));
+  /* Shared title, spacer, summary, details, spacer and footer rows align both cards. */
+  grid-auto-rows: auto 1fr auto auto 1fr auto;
+  column-gap: var(--mode-spacing);
+  row-gap: 1.25rem;
+}
+
+.mode-card {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 6;
+  background: var(--card-bg);
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.mode-card-action {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 5;
+  align-items: start;
+  gap: 1.25rem;
+  padding: var(--mode-card-padding);
+  padding-bottom: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+}
+
+.mode-card:hover {
+  border-color: var(--accent);
+}
+
+.mode-card.selected {
+  border-color: var(--accent-text);
+  background: var(--tab-active-bg);
+}
+
+.mode-card-action:focus-visible,
+.mode-project-link:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 3px;
+}
+
+.mode-card-title {
+  grid-row: 1;
+  font-size: 4rem;
+  font-weight: bold;
+  overflow-wrap: anywhere;
+}
+
+.mode-summary {
+  grid-row: 3;
+}
+
+.mode-details {
+  grid-row: 4;
+}
+
+.mode-card-footer {
+  grid-row: 6;
+  min-height: 1.5em;
+  padding: 0 var(--mode-card-padding) var(--mode-card-padding);
+}
+
+.mode-route {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.mode-project-link {
+  color: var(--accent-text);
+  line-height: 1.5;
+}

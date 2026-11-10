@@ -10,7 +10,7 @@ import { validateGenerate } from "./generateValidators";
 
 export function useValidation() {
   const { state } = useAppContext();
-  const { setup, configure, generate, play } = state;
+  const { app, setup, configure, generate } = state;
   const { preset } = configure || {};
 
   return useMemo(() => {
@@ -38,43 +38,46 @@ export function useValidation() {
       });
     }
 
-    if (setup.scanResult) {
-      collect(validateScan(setup.scanResult, preset));
-      collect(validateSelectedPreset(configure, setup.scanResult, PRESETS));
-    }
+    // Validations exclusive to Randomizer mode
+    if (app.mode === "randomizer") {
+      if (setup.scanResult) {
+        collect(validateScan(setup.scanResult, preset));
+        collect(validateSelectedPreset(configure, setup.scanResult, PRESETS));
+      }
 
-    if (setup.scanResult && configure.carOptions) {
-      collect(validateCarOptions(
-        configure.carOptions,
-        configure.carsSpecState,
-        setup.scanResult,
-        preset,
-        configure.trackSpecState
-      ));
-    }
+      if (setup.scanResult && configure.carOptions) {
+        collect(validateCarOptions(
+          configure.carOptions,
+          configure.carsSpecState,
+          setup.scanResult,
+          preset,
+          configure.trackSpecState
+        ));
+      }
 
-    if (setup.scanResult && configure.trackSpecState) {
-      collect(validateTrackSpec(
-        configure.trackSpecState,
-        configure.trackOptions,
-        setup.scanResult,
-        preset
-      ));
-    }
+      if (setup.scanResult && configure.trackSpecState) {
+        collect(validateTrackSpec(
+          configure.trackSpecState,
+          configure.trackOptions,
+          setup.scanResult,
+          preset
+        ));
+      }
 
-    if (configure.cupSpecState && configure.trackSpecState) {
-      collect(validateCupSpec(
-        configure.cupSpecState,
-        configure.trackSpecState,
-        setup.scanResult,
-        configure.featureOptions,
-        configure.carsSpecState,
-        preset
-      ));
-    }
+      if (configure.cupSpecState && configure.trackSpecState) {
+        collect(validateCupSpec(
+          configure.cupSpecState,
+          configure.trackSpecState,
+          setup.scanResult,
+          configure.featureOptions,
+          configure.carsSpecState,
+          preset
+        ));
+      }
 
-    collect(validateGenerate(generate));
+      collect(validateGenerate(generate));
+    }
 
     return { errors, warnings, infos };
-  }, [setup, configure, generate, play]);
+  }, [app.mode, setup, configure, generate]);
 }

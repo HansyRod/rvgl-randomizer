@@ -1,14 +1,15 @@
 import { useState } from "react";
-import { SCOPE_TO_STEP, SCOPE_LABELS, STEP_LABELS, STEP_ORDER } from "./validationConfig";
+import { SCOPE_TO_STEP, SCOPE_LABELS, STEP_LABELS } from "./validationConfig";
 
-export default function ValidationPanel({ errors = [], warnings = [], infos = [], activeStep, onNavigate, onClose, panelRef }) {
+export default function ValidationPanel({ errors = [], warnings = [], infos = [], activeStep, onNavigate, onClose, panelRef, steps }) {
   const [filter, setFilter] = useState("current");
+  const stepOrder = steps.map(step => step.id);
 
   const allIssues = [
     ...errors.map(e => ({ ...e, issueType: "error" })),
     ...warnings.map(w => ({ ...w, issueType: "warning" })),
     ...infos.map(i => ({ ...i, issueType: "info" })),
-  ];
+  ].filter(issue => stepOrder.includes(SCOPE_TO_STEP[issue.scope]));
 
   const currentStepIssues = allIssues.filter(
     i => SCOPE_TO_STEP[i.scope] === activeStep
@@ -59,7 +60,7 @@ export default function ValidationPanel({ errors = [], warnings = [], infos = []
               : "No issues found."}
           </p>
         ) : (
-          STEP_ORDER.filter(step => grouped[step]).map(step => (
+          stepOrder.filter(step => grouped[step]).map(step => (
             <div key={step} className="vp-step-group">
               {filter === "all" && (
                 <button

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import ValidationPanel from "./ValidationPanel";
 import "./ValidationStatus.css";
 
-export default function ValidationStatus({ errors = [], warnings = [], infos = [], activeStep, onNavigate }) {
+export default function ValidationStatus({ errors = [], warnings = [], infos = [], activeStep, onNavigate, steps }) {
   const [open, setOpen] = useState(false);
   const panelRef = useRef(null);
   const btnRef = useRef(null);
@@ -42,6 +42,7 @@ export default function ValidationStatus({ errors = [], warnings = [], infos = [
           warnings={warnings}
           infos={infos}
           activeStep={activeStep}
+          steps={steps}
           onNavigate={(stepId) => { onNavigate(stepId); setOpen(false); }}
           onClose={() => setOpen(false)}
           panelRef={panelRef}

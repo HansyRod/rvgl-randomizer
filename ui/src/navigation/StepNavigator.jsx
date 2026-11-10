@@ -1,22 +1,12 @@
 import { useAppContext } from "../AppProvider";
 import "./StepNavigator.css";
 import { SCOPE_TO_STEP } from "../validation/validationConfig";
-
-const STEPS = [
-  { id: "setup",     label: "Setup",     desc: "Installation & content" },
-  { id: "configure", label: "Configure", desc: "Cars, tracks & cups" },
-  { id: "generate",  label: "Generate",  desc: "Create your seed" },
-  { id: "play",      label: "Play",      desc: "Launch the game" },
-];
+import { canNavigateToStep, getSteps } from "./steps";
 
 export default function StepNavigator({ activeStep, onStepClick, errors = [], warnings = [] }) {
   const { state } = useAppContext();
+  const STEPS = getSteps(state.app.mode);
   const activeIdx = STEPS.findIndex(s => s.id === activeStep);
-
-  const hasValidInstall = Boolean(
-    state.setup?.installPath && state.setup?.scanResult
-  );
-  const hasGeneratedPath = !!state.generate?.generatedFilePath;
 
   // Compute per-step issue counts
   const stepIssues = {};
@@ -34,13 +24,7 @@ export default function StepNavigator({ activeStep, onStepClick, errors = [], wa
         const isActive = i === activeIdx;
         const { errorCount, warningCount } = stepIssues[step.id];
 
-        let isDisabled = false;
-        if (!hasValidInstall && step.id !== "setup") {
-          isDisabled = true;
-        }
-        if (!hasGeneratedPath && step.id === "play") {
-          isDisabled = true;
-        }
+        const isDisabled = !canNavigateToStep(state, step.id);
 
         const cls = [
           "step-nav-item",

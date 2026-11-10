@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "test": "npm run test:ui && npm run test:rust",
-    "test:ui": "node --experimental-loader ./scripts/extensionless-loader.mjs src/validation/validation.test.js",
+    "test:ui": "node --experimental-loader ./scripts/extensionless-loader.mjs --test src/validation/validation.test.js src/navigation/navigation.test.js",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "preview": "vite preview",
     "tauri": "tauri",

@@ -5,6 +5,7 @@ import {
 } from "./constants.js";
 import { normalizeExtraCarRowIds } from "../configure/carOptions/CarOptionsUtils";
 import { DEFAULT_MAX_RACE_LENGTH } from "../configure/cupSpec/CupUtils";
+import { getAccessibleStep } from "../navigation/steps";
 
 function normalizeSpecRows(rows) {
   return (rows || []).map(row => ({
@@ -73,11 +74,25 @@ export function normalizeConfigureContext(configure) {
   };
 }
 
+// Executed after the cache is loaded from file, to ensure that the app state is valid
+// and compatible with the current version of the app. 
 export function normalizeAppContext(state) {
-  if (!state?.configure) return state;
+  if (!state || Object.keys(state).length === 0) {
+    return state;
+  }
+
+  const isLegacyCache = state.app?.mode === undefined;
+  const app = { ...state.app };
+  // Legacy caches belong to Randomizer; new sessions still start with mode selection.
+  if (isLegacyCache) {
+    app.mode = "randomizer";
+  }
+  const defaultStep = isLegacyCache ? "setup" : "mode";
+  app.activeStep = getAccessibleStep({ ...state, app }, app.activeStep ?? defaultStep);
 
   return {
     ...state,
-    configure: normalizeConfigureContext(state.configure),
+    app,
+    ...(state.configure ? { configure: normalizeConfigureContext(state.configure) } : {}),
   };
 }

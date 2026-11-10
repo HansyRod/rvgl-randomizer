@@ -6,6 +6,9 @@ import { useAppContext } from "./AppProvider";
 import "./App.css";
 
 import StepNavigator from "./navigation/StepNavigator";
+import ModeView from "./navigation/ModeView";
+import ImportView from "./import/ImportView";
+import { canNavigateToStep, getAccessibleStep, getSteps } from "./navigation/steps";
 import SetupView from "./setup/SetupView";
 import ConfigureView from "./configure/ConfigureView";
 import PlayView from "./play/PlayView";
@@ -28,7 +31,11 @@ export default function App() {
   const { app, setup, configure } = state;
   const { preset, carsSpecState, trackSpecState } = configure || {};
   const { isLoading, theme, isFetchingPack } = app;
-  const activeStep = app?.activeStep ?? "setup";
+  const activeStep = getAccessibleStep(state, app?.activeStep ?? "mode");
+  const steps = getSteps(app.mode);
+  const activeIdx = steps.findIndex(step => step.id === activeStep);
+  const previousStep = steps[activeIdx - 1]?.id;
+  const nextStep = steps[activeIdx + 1]?.id;
 
   // Combine sync and async validation results
   const { errors: syncErrors, warnings: syncWarnings, infos: syncInfos = [] } = useValidation();
@@ -43,7 +50,7 @@ export default function App() {
 
   // Clean up includeDcCars if stock mode is active
   useEffect(() => {
-    if (setup.scanResult) {
+    if (app.mode === "randomizer" && setup.scanResult) {
       const isStockMode = isEffectiveStockCarsMode(setup.scanResult, preset);
       if (isStockMode && carsSpecState?.includeDcCars) {
         updateCategoryCtx("configure", {
@@ -54,10 +61,12 @@ export default function App() {
         });
       }
     }
-  }, [setup.scanResult, preset, carsSpecState, updateCategoryCtx]);
+  }, [app.mode, setup.scanResult, preset, carsSpecState, updateCategoryCtx]);
 
   useEffect(() => {
-    if (!setup.scanResult || !trackSpecState?.tracks) return;
+    if (app.mode !== "randomizer" || !setup.scanResult || !trackSpecState?.tracks) {
+      return;
+    }
 
     const isStockTracksMode = isEffectiveStockTracksMode(setup.scanResult, preset);
     const roofIndex = trackSpecState.tracks.findIndex(row => row?.id?.toLowerCase() === "roof");
@@ -90,7 +99,7 @@ export default function App() {
         }
       });
     }
-  }, [setup.scanResult, preset, trackSpecState, updateCategoryCtx]);
+  }, [app.mode, setup.scanResult, preset, trackSpecState, updateCategoryCtx]);
 
   // Load cache on mount
   useEffect(() => {
@@ -171,6 +180,9 @@ export default function App() {
   }, [runningPid]);
 
   function goToStep(stepId) {
+    if (!canNavigateToStep(state, stepId)) {
+      return;
+    }
     updateCategoryCtx("app", { activeStep: stepId });
   }
 
@@ -226,13 +238,15 @@ export default function App() {
       </header>
 
       <div className="dashboard" style={{ overflow: "hidden" }}>
-        {activeStep === "setup"     && <SetupView onContinue={() => goToStep("configure")} />}
+        {activeStep === "mode" && <ModeView />}
+        {activeStep === "setup"     && <SetupView />}
         {activeStep === "configure" && <ConfigureView />}
         {activeStep === "generate"  && (
           <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
             <GenerationTab errors={syncErrors} warnings={syncWarnings} />
           </div>
         )}
+        {activeStep === "import"    && <ImportView />}
         {activeStep === "play"      && <PlayView errors={allErrors} />}
       </div>
 
@@ -242,31 +256,25 @@ export default function App() {
           warnings={allWarnings}
           infos={allInfos}
           activeStep={activeStep}
+          steps={steps}
           onNavigate={goToStep}
         />
         <div style={{ display: "flex", gap: "0.75rem", marginLeft: "auto" }}>
-          {activeStep !== "setup" && (
+          {previousStep && (
             <button
               className="btn-secondary"
-              onClick={() => {
-                const steps = ["setup", "configure", "generate", "play"];
-                const idx = steps.indexOf(activeStep);
-                if (idx > 0) goToStep(steps[idx - 1]);
-              }}
+              onClick={() => goToStep(previousStep)}
             >
               ← Back
             </button>
           )}
-          {activeStep !== "play" && setup.scanResult && (
+          {nextStep && (
             <button
               className="btn-primary"
-              onClick={() => {
-                const steps = ["setup", "configure", "generate", "play"];
-                const idx = steps.indexOf(activeStep);
-                if (idx < steps.length - 1) goToStep(steps[idx + 1]);
-              }}
+              disabled={!canNavigateToStep(state, nextStep)}
+              onClick={() => goToStep(nextStep)}
             >
-              {activeStep === "generate" ? "Continue to Play →" : "Continue →"}
+              {nextStep === "play" ? "Continue to Play →" : "Continue →"}
             </button>
           )}
         </div>

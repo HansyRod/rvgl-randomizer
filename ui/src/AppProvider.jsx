@@ -14,7 +14,8 @@ export const DEFAULT_STATE = {
   app: {
     isLoading: true,
     theme: "dark",
-    activeStep: "setup", // Wizard step: "setup" | "configure" | "generate" | "play"
+    activeStep: "mode", // Wizard step: "mode" | "setup" | "configure" | "generate" | "import" | "play"
+    mode: null,
     isScanning: false,
     isFetchingPack: false,
   },
@@ -53,9 +54,24 @@ export const DEFAULT_STATE = {
     seedContext: null,
   },
   play: {
+    // Command-line arguments and process status are shared; extraPacks belongs to Randomizer.
     extraArgs: "",
     extraPacks: [],
     runningPid: 0
+  },
+  // AP run and pack preferences are separate; play.extraArgs and play.runningPid stay shared.
+  archipelago: {
+    setup: {
+      setupTab: "install",
+    },
+    import: {
+      importedFilePath: "",
+      seedMetadata: null,
+      importedHistory: [],
+    },
+    play: {
+      extraPacks: [],
+    },
   }
 };
 
@@ -71,6 +87,20 @@ export function AppProvider({ children }) {
       [category]: {
         ...prevState[category],
         ...newData,
+      },
+    }));
+  };
+
+  // Update a specific category inside Archipelago, preserving its other fields and categories.
+  const updateArchipelagoCategoryCtx = (category, newData) => {
+    setState((prevState) => ({
+      ...prevState,
+      archipelago: {
+        ...prevState.archipelago,
+        [category]: {
+          ...prevState.archipelago[category],
+          ...newData,
+        },
       },
     }));
   };
@@ -93,6 +123,14 @@ export function AppProvider({ children }) {
             ...mergedState[category],
             ...fullNewState[category]
           };
+          if (category === "archipelago") {
+            Object.keys(fullNewState[category]).forEach((archipelagoCategory) => {
+              mergedState[category][archipelagoCategory] = {
+                ...prevState[category][archipelagoCategory],
+                ...fullNewState[category][archipelagoCategory],
+              };
+            });
+          }
         }
       });
       
@@ -101,7 +139,7 @@ export function AppProvider({ children }) {
   };
 
   return (
-    <AppContext.Provider value={{ state, updateContext, updateCategoryCtx, resetContext }}>
+    <AppContext.Provider value={{ state, updateContext, updateCategoryCtx, updateArchipelagoCategoryCtx, resetContext }}>
       {children}
     </AppContext.Provider>
   );

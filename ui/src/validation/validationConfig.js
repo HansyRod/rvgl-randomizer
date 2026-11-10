@@ -1,3 +1,5 @@
+import { STEP_DEFINITIONS } from "../navigation/steps";
+
 export const SCOPE_TO_STEP = {
   scan: "setup",
   preset: "configure",
@@ -6,6 +8,7 @@ export const SCOPE_TO_STEP = {
   trackSpec: "configure",
   cupSpec: "configure",
   generate: "generate",
+  import: "import",
   launch: "play",
 };
 
@@ -17,14 +20,10 @@ export const SCOPE_LABELS = {
   trackSpec: "Track Specification",
   cupSpec: "Cup Specification",
   generate: "Generation Settings",
+  import: "Archipelago File",
   launch: "Launch",
 };
 
-export const STEP_LABELS = {
-  setup: "Setup",
-  configure: "Configure",
-  generate: "Generate",
-  play: "Play",
-};
-
-export const STEP_ORDER = ["setup", "configure", "generate", "play"];
+export const STEP_LABELS = Object.fromEntries(
+  Object.values(STEP_DEFINITIONS).map(step => [step.id, step.label])
+);
