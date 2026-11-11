@@ -31,7 +31,10 @@ export default function ModeView() {
                 aria-pressed={state.app.mode === mode.id}
                 onClick={() => updateCategoryCtx("app", { mode: mode.id, activeStep: "setup" })}
               >
-                <span className="mode-card-title">{mode.label}</span>
+                <span className="mode-card-title">
+                  <span>{mode.label}</span>
+                  <img className="mode-card-icon" src={mode.icon} alt="" />
+                </span>
                 <span className="mode-description mode-summary">
                   {mode.desc}
                 </span>

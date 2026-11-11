@@ -2,12 +2,14 @@ export const MODES = [
   {
     id: "randomizer",
     label: "Randomizer",
+    icon: new URL("../assets/Randomizer.png", import.meta.url).href,
     desc: "Create or load a standalone randomized game.",
     details: "Configure cars, tracks, and cups in this app, then generate your game.",
   },
   {
     id: "archipelago",
     label: "Archipelago",
+    icon: new URL("../assets/Archipelago.png", import.meta.url).href,
     desc: "Play RVGL as part of an Archipelago multiworld.",
     details: "Import the .rvgl.json generated for your player slot. Connect to the server through RVGL's in-game menu.",
     project: {

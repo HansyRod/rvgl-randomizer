@@ -33,6 +33,7 @@
 
 .mode-card {
   min-width: 0;
+  container-type: inline-size;
   display: grid;
   grid-template-rows: subgrid;
   grid-row: span 6;
@@ -52,6 +53,7 @@
   text-align: left;
   background: transparent;
   border: none;
+  transition: none;
 }
 
 .mode-card:hover {
@@ -71,9 +73,20 @@
 
 .mode-card-title {
   grid-row: 1;
-  font-size: 4rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  /* Reserve padding and the gap, then fit the title and icon in about 7.5em. */
+  font-size: min(4rem, calc((100cqi - 2 * var(--mode-card-padding) - 1rem) / 7.5));
   font-weight: bold;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+}
+
+.mode-card-icon {
+  height: 1lh;
+  width: auto;
+  flex-shrink: 0;
 }
 
 .mode-summary {
