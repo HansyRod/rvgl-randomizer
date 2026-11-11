@@ -270,8 +270,22 @@ export default function GenerationTab({errors}) {
 
     const loadedName = getInstanceNameFromPath(file);
 
+    await loadExistingFile(file, loadedName);
+  };
+
+  async function handleLoadFromHistory(entry) {
+    const loadedName = entry.instanceName || getInstanceNameFromPath(entry.path);
+    await loadExistingFile(entry.path, loadedName);
+  }
+
+  async function loadExistingFile(file, loadedName) {
     try {
-      const metadata = await invoke("read_seed_context", { filePath: file });
+      const config = await invoke("read_config_file", { filePath: file });
+      if (config?.archipelago != null) {
+        setMessage("This is an Archipelago file. Load this file in Archipelago mode.");
+        return;
+      }
+      const metadata = config?.metadata;
       if (metadata?.uiContext) {
         setLoadDialogData({ file, metadata, loadedName });
       } else {
@@ -280,22 +294,6 @@ export default function GenerationTab({errors}) {
     } catch (err) {
       console.error("Failed to read metadata from config:", err);
       applyLoad(file, null, loadedName);
-    }
-  };
-
-  async function handleLoadFromHistory(entry) {
-    const loadedName = entry.instanceName || getInstanceNameFromPath(entry.path);
-
-    try {
-      const metadata = await invoke("read_seed_context", { filePath: entry.path });
-      if (metadata?.uiContext) {
-        setLoadDialogData({ file: entry.path, metadata, loadedName });
-      } else {
-        applyLoad(entry.path, metadata, loadedName);
-      }
-    } catch (err) {
-      console.error("Failed to read metadata from history entry:", err);
-      applyLoad(entry.path, null, loadedName);
     }
   }
 
