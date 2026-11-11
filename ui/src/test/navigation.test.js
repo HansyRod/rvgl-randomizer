@@ -56,13 +56,17 @@ test("Randomizer Play requires its own file and does not use an AP selection", (
   assert.equal(canNavigateToStep(state, "play"), true);
 });
 
-test("AP Play stays unavailable before its import and launch stages, even with cached files from either mode", () => {
+test("AP Play requires its own imported file, independently of the Randomizer file", () => {
   const state = makeState("archipelago");
   state.generate.generatedFilePath = "normal.json";
-  state.archipelago.import.importedFilePath = "AP_Player.rvgl.json";
   assert.equal(canNavigateToStep(state, "import"), true);
   assert.equal(canNavigateToStep(state, "play"), false);
   assert.equal(getAccessibleStep(state, "play"), "import");
+  state.archipelago.import.importedFilePath = "AP_Player.rvgl.json";
+  assert.equal(canNavigateToStep(state, "play"), true);
+  assert.equal(getAccessibleStep(state, "play"), "play");
+  state.archipelago.import.importedFilePath = "";
+  assert.equal(canNavigateToStep(state, "play"), false);
 });
 
 test("legacy cache migration selects Randomizer and preserves its saved screen and data", () => {

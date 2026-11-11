@@ -4,7 +4,6 @@ import { STOCK_CARS, DC_CARS, STOCK_TRACKS } from "../utils/constants.js";
 import {
   ARCHIPELAGO_CONTENT_CATEGORIES,
   scanArchipelagoContent,
-  resolveArchipelagoPacks,
 } from "../setup/archipelagoContent.js";
 
 const EXE_PATH = "D:/RVGL/rvgl.exe";
@@ -63,7 +62,6 @@ test("classic discovery reports all categories and folder sources, including Stu
   assert.equal(discovery.categories.dcCars.items.length, 14);
   assert.equal(discovery.categories.stockTracks.items.length, 14);
   assert.equal(discovery.categories.stockTracks.items.find(item => item.folderName === "stunts").trackType, 2);
-  assert.deepEqual(resolveArchipelagoPacks(discovery), []);
 });
 
 test("missing Stunt Arena makes stock tracks partial and DC requirements stay independent", async () => {
@@ -115,7 +113,6 @@ test("missing preferred packs scan fallbacks in stable order and stop when conte
   assert.deepEqual(calls, ["a_content"]);
   assert.ok(Object.values(discovery.categories).every(category => category.status === "complete"));
   assert.equal(discovery.categories.stockCars.items.some(item => item.folderName === "custom_car"), false);
-  assert.deepEqual(resolveArchipelagoPacks(discovery), ["a_content"]);
 });
 
 test("partial preferred content can be completed from multiple fallback sources", async () => {
@@ -131,7 +128,6 @@ test("partial preferred content can be completed from multiple fallback sources"
   assert.equal(discovery.categories.stockCars.status, "complete");
   assert.deepEqual(discovery.categories.stockCars.items.slice(0, 2).map(item => item.source.packName), ["a_pack", "b_pack"]);
   assert.deepEqual(new Set(discovery.categories.stockCars.sources.map(source => source.packName)), new Set(["game_files", "a_pack", "b_pack"]));
-  assert.deepEqual(resolveArchipelagoPacks(discovery), ["a_pack", "b_pack", "game_files", "rvgl_dcpack"]);
   assert.deepEqual(scan, before);
 });
 
@@ -174,7 +170,6 @@ test("preferred pack names are case-insensitive and input enumeration cannot cha
   const second = await scanArchipelagoContent(launcher([dc, stock]), EXE_PATH, unexpectedScan);
   assert.deepEqual(first, second);
   assert.equal(first.categories.stockCars.items[0].source.packName, "GAME_FILES");
-  assert.deepEqual(resolveArchipelagoPacks(first), ["GAME_FILES", "RVGL_DCPACK"]);
 });
 
 test("fallback reads use the existing native scan without enabling Randomizer pools", async () => {
@@ -199,21 +194,11 @@ test("fallback reads use the existing native scan without enabling Randomizer po
   }
 });
 
-test("whole-pack ordering preserves a preferred duplicate while loading a fallback for a different car", async () => {
+test("preferred sources win when a fallback supplies a different car", async () => {
   const [stock, dc] = preferredPacks();
   stock.cars = stock.cars.filter(item => item.folderName !== "mite");
   const discovery = await scanArchipelagoContent(launcher([
     stock, dc, pack("z_fallback", [], [], { hasCars: true }),
   ]), EXE_PATH, async () => pack("z_fallback", [car("mite"), car("rc", { name: "Fallback replacement" })]));
   assert.equal(discovery.categories.stockCars.items.find(item => item.folderName === "rc").source.packName, "game_files");
-  const resolution = resolveArchipelagoPacks(discovery);
-  assert.deepEqual(resolution, ["z_fallback", "game_files", "rvgl_dcpack"]);
-});
-
-test("optional DC source packs are included only for requested categories", async () => {
-  const [stock, dc] = preferredPacks();
-  const discovery = await scanArchipelagoContent(launcher([dc, stock]), EXE_PATH, unexpectedScan);
-  assert.deepEqual(resolveArchipelagoPacks(discovery), ["game_files", "rvgl_dcpack"]);
-  assert.deepEqual(resolveArchipelagoPacks(discovery, ["stockCars", "stockTracks"]), ["game_files"]);
-  assert.deepEqual(resolveArchipelagoPacks(discovery, ["dcCars", "dcTracks"]), ["rvgl_dcpack"]);
 });

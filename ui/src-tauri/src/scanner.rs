@@ -47,6 +47,8 @@ pub struct ContentPack {
     pub absolute_path: String,
     pub has_cars: bool,
     pub has_tracks: bool,
+    #[serde(default)]
+    pub has_other_content: bool,
     pub use_cars: bool,
     pub use_tracks: bool,
     pub cars: Vec<Car>,
@@ -149,6 +151,7 @@ pub fn scan_install(executable_path: String) -> Result<ScanResult, String> {
                                 absolute_path: path.to_string_lossy().to_string(),
                                 has_cars,
                                 has_tracks,
+                                has_other_content: has_other_content(&path),
                                 use_cars,
                                 use_tracks,
                                 cars,
@@ -250,6 +253,33 @@ fn calculate_sha256<R: Read>(mut reader: R) -> Result<String, std::io::Error> {
 mod tests {
     use super::*;
     use std::io::Cursor;
+
+    #[test]
+    fn extra_content_ignores_car_track_and_thumbnail_folders() {
+        let path = std::env::temp_dir().join(format!("rvgl-pack-extras-{}", std::process::id()));
+        for folder in ["cars", "levels", "GFX"] {
+            fs::create_dir_all(path.join(folder)).expect("content folder should be created");
+        }
+        let content_only = scan_pack_folder_sync(&path, false, false).expect("pack should scan");
+        assert!(!content_only.has_other_content);
+
+        fs::create_dir(path.join("music")).expect("music folder should be created");
+        let mixed = scan_pack_folder_sync(&path, false, false).expect("mixed pack should scan");
+        assert!(mixed.has_other_content);
+        assert!(mixed.has_cars && mixed.has_tracks);
+        assert!(!mixed.use_cars && !mixed.use_tracks);
+
+        fs::remove_dir(path.join("music")).expect("music folder should be removed");
+        fs::write(path.join("README.txt"), "pack documentation").expect("readme should be created");
+        let root_file = scan_pack_folder_sync(&path, false, false).expect("pack with root file should scan");
+        assert!(root_file.has_other_content);
+
+        for folder in ["cars", "levels", "GFX"] {
+            fs::remove_dir(path.join(folder)).expect("empty content folder should be removed");
+        }
+        fs::remove_file(path.join("README.txt")).expect("readme should be removed");
+        fs::remove_dir(path).expect("empty pack should be removed");
+    }
 
     #[test]
     fn reads_track_length_from_pan_header() {
@@ -357,6 +387,20 @@ pub fn check_profile_exists(executable_path: String, profile_name: String) -> bo
     false
 }
 
+fn has_other_content(folder_path: &Path) -> bool {
+    let entries = match fs::read_dir(folder_path) {
+        Ok(entries) => entries,
+        Err(_) => return false,
+    };
+    entries.flatten().any(|entry| {
+        !entry.path().is_dir()
+            || !matches!(
+                entry.file_name().to_string_lossy().to_ascii_lowercase().as_str(),
+                "cars" | "levels" | "gfx"
+            )
+    })
+}
+
 fn scan_pack_folder_sync(
     folder_path: &Path,
     use_cars: bool,
@@ -405,6 +449,7 @@ fn scan_pack_folder_sync(
         absolute_path: folder_path.to_string_lossy().to_string(),
         has_cars,
         has_tracks,
+        has_other_content: has_other_content(folder_path),
         use_cars: use_cars && has_cars,
         use_tracks: use_tracks && has_tracks,
         cars,

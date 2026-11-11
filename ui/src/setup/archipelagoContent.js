@@ -142,20 +142,3 @@ export async function scanArchipelagoContent(scanResult, installPath, scanPack =
 
   return { categories, scanErrors };
 }
-
-// Resolve only categories needed by the run. Loading a source pack loads both its cars and tracks.
-// This returns content packs only; launch-time support/extra packs are added separately.
-export function resolveArchipelagoPacks(discovery, categoryIds = Object.keys(ARCHIPELAGO_CONTENT_CATEGORIES)) {
-  if (!discovery) {
-    return [];
-  }
-
-  const categories = categoryIds.map(id => discovery.categories[id]);
-  const selectedNames = [...new Set(categories.flatMap(category => category.sources.map(source => source.packName)).filter(Boolean))];
-  const preferred = selectedNames.filter(name => PREFERRED_PACKS.includes(name.toLowerCase()));
-  const others = selectedNames.filter(name => !PREFERRED_PACKS.includes(name.toLowerCase()));
-  // Later packs overwrite earlier files. Put preferred packs last.
-  const ordered = [...others, ...preferred];
-
-  return ordered;
-}

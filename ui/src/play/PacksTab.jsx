@@ -1,36 +1,49 @@
 import { useAppContext } from "../AppProvider";
 import { getAutoPacks } from "../setup/packHelpers";
+import { getArchipelagoPacks } from "./archipelagoPacks";
 
 function PacksTab() {
 
-  const { state, updateCategoryCtx } = useAppContext();
+  const { state, updateCategoryCtx, updateArchipelagoCategoryCtx } = useAppContext();
 
   // Destructure categories
-  const { setup, play } = state;
+  const { app, setup, play, archipelago } = state;
+  const isArchipelago = app.mode === "archipelago";
   
   // Destructure individual variables
   const { scanResult } = setup;
-  const { extraPacks } = play;
+  const extraPacks = isArchipelago ? archipelago.play.extraPacks : play.extraPacks;
 
   const allPacks = scanResult?.contentPacks || [];
-  const autoPacks = getAutoPacks(scanResult);
+  let autoPacks = getAutoPacks(scanResult);
 
-  const selectedContentPacks = allPacks.filter(
+  let selectedContentPacks = allPacks.filter(
     pack => pack.useCars || pack.useTracks
   );
 
-  const extraPackCandidates = allPacks.filter(
+  let extraPackCandidates = allPacks.filter(
     pack => 
       !autoPacks.includes(pack.name.toLowerCase()) && 
       !pack.useCars && !pack.useTracks && 
       !pack.hasCars && !pack.hasTracks
   );
 
+  if (isArchipelago) {
+    const packs = getArchipelagoPacks(scanResult, archipelago.setup.scanResult, archipelago.import.seedMetadata, extraPacks);
+    autoPacks = packs.autoPacks;
+    selectedContentPacks = packs.selectedContentPacks;
+    extraPackCandidates = packs.extraPackCandidates;
+  }
+
   const toggleExtraPack = (packName) => {
     const newPackList = extraPacks.includes(packName)
       ? extraPacks.filter(p => p !== packName)
       : [...extraPacks, packName];
-    updateCategoryCtx("play", { extraPacks: newPackList });
+    if (isArchipelago) {
+      updateArchipelagoCategoryCtx("play", { extraPacks: newPackList });
+    } else {
+      updateCategoryCtx("play", { extraPacks: newPackList });
+    }
   };
 
   return (
@@ -50,9 +63,9 @@ function PacksTab() {
       </div>
 
       <div className="pack-group">
-        <h3>Selected car / track packs:</h3>
+        <h3>{isArchipelago ? "Required car / track packs:" : "Selected car / track packs:"}</h3>
         {selectedContentPacks.length === 0 ? (
-          <p className="empty-text">No content packs selected in Cars/Tracks tabs.</p>
+          <p className="empty-text">{isArchipelago ? "No required content packs found. Check Setup." : "No content packs selected in Cars/Tracks tabs."}</p>
         ) : (
           <ul className="pack-list">
             {selectedContentPacks.map(pack => (

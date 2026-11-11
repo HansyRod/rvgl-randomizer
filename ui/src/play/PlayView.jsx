@@ -6,14 +6,17 @@ import PacksTab from "./PacksTab";
 
 export default function PlayView({ errors }) {
   const { state } = useAppContext();
-  const { setup: { scanResult } } = state;
+  const { app, setup: { scanResult } } = state;
   const isLauncher = scanResult?.installType === "launcher";
+  const isArchipelago = app.mode === "archipelago";
 
   return (
     <div className="play-view">
-      {isLauncher && (
+      {(isLauncher || isArchipelago) && (
         <p className="tab-description play-view-description">
-          Configure which content packs are loaded when the randomized game launches.
+          {isArchipelago
+            ? "Launch RVGL, then open Archipelago in the main menu to connect to your server. To resume, use the same run and RVGL installation."
+            : "Configure which content packs are loaded when the randomized game launches."}
         </p>
       )}
 

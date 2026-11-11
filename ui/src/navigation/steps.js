@@ -58,8 +58,11 @@ export function canNavigateToStep(state, stepId) {
     return false;
   }
   if (stepId === "play") {
-    // AP Play stays unavailable until its import and launch stages are implemented.
-    return mode === "randomizer" && Boolean(state.generate?.generatedFilePath);
+    // AP Play uses the imported identity, independently of the Randomizer file.
+    if (mode === "archipelago") {
+      return Boolean(state.archipelago?.import?.importedFilePath);
+    }
+    return Boolean(state.generate?.generatedFilePath);
   }
   return true;
 }
