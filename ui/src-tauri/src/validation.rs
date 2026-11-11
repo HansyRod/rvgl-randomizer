@@ -1,4 +1,19 @@
 use tauri::Manager;
+use serde::Serialize;
+
+#[derive(Serialize)]
+pub struct MissingPaths {
+    files: Vec<String>,
+    directories: Vec<String>,
+}
+
+#[tauri::command]
+pub fn check_missing_paths(files: Vec<String>, directories: Vec<String>) -> MissingPaths {
+    MissingPaths {
+        files: files.into_iter().filter(|path| !std::path::Path::new(path).is_file()).collect(),
+        directories: directories.into_iter().filter(|path| !std::path::Path::new(path).is_dir()).collect(),
+    }
+}
 
 #[tauri::command]
 pub fn check_file_exists(file_path: String) -> bool {
@@ -72,4 +87,28 @@ pub fn check_dll_exists(app_handle: tauri::AppHandle) -> bool {
     }
 
     dll_path.is_file()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_paths_distinguishes_files_from_directories() {
+        let root = std::env::temp_dir().join(format!("rvgl-launch-paths-{}", std::process::id()));
+        std::fs::create_dir_all(&root).expect("test folder should be created");
+        let file = root.join("parameters.txt");
+        std::fs::write(&file, "test").expect("test file should be created");
+        let missing = root.join("missing").to_string_lossy().to_string();
+        let file_path = file.to_string_lossy().to_string();
+        let directory_path = root.to_string_lossy().to_string();
+        let result = check_missing_paths(
+            vec![file_path.clone(), missing.clone(), directory_path.clone()],
+            vec![directory_path.clone(), missing.clone(), file_path.clone()],
+        );
+        std::fs::remove_file(file).expect("test file should be removed");
+        std::fs::remove_dir(root).expect("test folder should be removed");
+        assert_eq!(result.files, vec![missing.clone(), directory_path]);
+        assert_eq!(result.directories, vec![missing, file_path]);
+    }
 }

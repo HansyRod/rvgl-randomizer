@@ -1,4 +1,5 @@
 const WINDOWS_RESERVED = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
+// eslint-disable-next-line no-control-regex -- Windows filenames cannot contain control characters.
 const INVALID_FILENAME_CHARS = /[<>:"/\\|?*\x00-\x1f]/;
 
 // Characters confirmed to work properly in-game (no warning shown).
@@ -40,6 +41,16 @@ export function validateGenerate(generate) {
     }
   }
 
+  const profileResults = validateProfileName(profileName);
+  errors.push(...profileResults.errors);
+  warnings.push(...profileResults.warnings);
+
+  return { errors, warnings };
+}
+
+export function validateProfileName(profileName) {
+  const errors = [];
+  const warnings = [];
   // Profile name validation
   if (!profileName || !profileName.trim()) {
     errors.push({

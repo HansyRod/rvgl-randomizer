@@ -1,3 +1,5 @@
+import { validateProfileName } from "../validation/generateValidators";
+
 export const ARCHIPELAGO_GOALS = {
   platinum_cup: "Platinum Cup: Win Platinum Cup.",
   carsanity: "Carsanity: Win a Single Race with every enabled car.",
@@ -20,9 +22,24 @@ export function getArchipelagoMetadata(config) {
   if (typeof is_stock_cars !== "boolean" || typeof is_stock_tracks !== "boolean") {
     throw new Error("The Archipelago file is missing its required content settings.");
   }
+  const profile = validateProfileName(profileName);
+  if (profile.errors.length > 0) {
+    throw new Error(profile.errors[0].message);
+  }
 
   // DC definitions can exist even when disabled; the global options decide requirements.
   return { slotName, profileName, seed, goal, includeDcCars: !is_stock_cars, includeDcTrack: !is_stock_tracks };
+}
+
+export function getArchipelagoCategoryIds(metadata) {
+  const categoryIds = ["stockCars", "stockTracks"];
+  if (metadata?.includeDcCars) {
+    categoryIds.push("dcCars");
+  }
+  if (metadata?.includeDcTrack) {
+    categoryIds.push("dcTracks");
+  }
+  return categoryIds;
 }
 
 export function getArchipelagoRequiredContent(metadata, scanResult) {

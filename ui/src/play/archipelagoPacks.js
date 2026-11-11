@@ -1,12 +1,8 @@
+import { getArchipelagoCategoryIds } from "../import/archipelagoSeed";
+
 export function getArchipelagoPacks(scanResult, discovery, metadata, extraPacks) {
   const allPacks = scanResult?.contentPacks || [];
-  const categoryIds = ["stockCars", "stockTracks"];
-  if (metadata?.includeDcCars) {
-    categoryIds.push("dcCars");
-  }
-  if (metadata?.includeDcTrack) {
-    categoryIds.push("dcTracks");
-  }
+  const categoryIds = getArchipelagoCategoryIds(metadata);
   // Resolve only categories needed by the run. Loading a source pack loads both its cars and tracks.
   const sources = categoryIds.flatMap(id => discovery?.categories[id].sources || []);
   const requiredNames = [...new Set(sources.map(source => source.packName).filter(Boolean))];

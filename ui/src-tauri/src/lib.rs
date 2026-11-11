@@ -36,6 +36,7 @@ pub fn run() {
             cache::write_config_file,
             cache::read_seed_context,
             validation::check_file_exists,
+            validation::check_missing_paths,
             validation::check_path_writable,
             validation::check_carbox_assets_exist,
             validation::check_dll_exists,

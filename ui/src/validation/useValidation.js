@@ -7,10 +7,11 @@ import { validateCarOptions } from "./carValidators";
 import { validateTrackSpec } from "./trackValidators";
 import { validateCupSpec } from "./cupValidators";
 import { validateGenerate } from "./generateValidators";
+import { validateArchipelago } from "./archipelagoValidators";
 
 export function useValidation() {
   const { state } = useAppContext();
-  const { app, setup, configure, generate } = state;
+  const { app, setup, configure, generate, archipelago } = state;
   const { preset } = configure || {};
 
   return useMemo(() => {
@@ -76,8 +77,10 @@ export function useValidation() {
       }
 
       collect(validateGenerate(generate));
+    } else if (app.mode === "archipelago") {
+      collect(validateArchipelago(setup, archipelago, app.isScanning));
     }
 
     return { errors, warnings, infos };
-  }, [app.mode, setup, configure, generate]);
+  }, [app.mode, app.isScanning, setup, configure, generate, archipelago]);
 }
