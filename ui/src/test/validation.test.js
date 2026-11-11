@@ -7,13 +7,13 @@ import {
   evaluatePresetSelection,
   getStockModePresetErrors,
 } from "../configure/presets/presetValidation.js";
-import { validateCarOptions } from "./carValidators.js";
-import { validateCupSpec } from "./cupValidators.js";
-import { validateSelectedPreset } from "./presetValidators.js";
-import { validateScan } from "./scanValidators.js";
-import { validateTrackSpec } from "./trackValidators.js";
-import { isEffectiveStockCarsMode, isEffectiveStockTracksMode } from "./stockMode.js";
-import { formatValidationList } from "./validationUtils.js";
+import { validateCarOptions } from "../validation/carValidators.js";
+import { validateCupSpec } from "../validation/cupValidators.js";
+import { validateSelectedPreset } from "../validation/presetValidators.js";
+import { validateScan } from "../validation/scanValidators.js";
+import { validateTrackSpec } from "../validation/trackValidators.js";
+import { isEffectiveStockCarsMode, isEffectiveStockTracksMode } from "../validation/stockMode.js";
+import { formatValidationList } from "../validation/validationUtils.js";
 import { normalizeConfigureContext } from "../utils/configureContext.js";
 import { DEFAULT_CAR_OPTIONS, STOCK_CARS, STOCK_TRACKS } from "../utils/constants.js";
 

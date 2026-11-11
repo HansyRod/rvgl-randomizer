@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { DEFAULT_STATE } from "../AppProvider.jsx";
 import { normalizeAppContext } from "../utils/configureContext.js";
-import { canNavigateToStep, getAccessibleStep, getSteps } from "./steps.js";
+import { canNavigateToStep, getAccessibleStep, getSteps } from "../navigation/steps.js";
 
 function makeState(mode, overrides = {}) {
   return {
