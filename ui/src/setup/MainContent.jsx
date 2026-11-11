@@ -8,7 +8,10 @@ export default function MainContent() {
   const { state } = useAppContext();
 
   // Destructure categories
-  const { setup : { installPath, scanResult, setupTab : activeTab } } = state;
+  const { app, setup : { installPath, scanResult, setupTab : activeTab }, archipelago } = state;
+  const isArchipelago = app.mode === "archipelago";
+  const { scanResult: archipelagoScanResult } = archipelago.setup;
+  const ready = archipelagoScanResult && !app.isScanning;
     
   const [ratingFilter, setRatingFilter] = useState("All");
 
@@ -24,8 +27,17 @@ export default function MainContent() {
     </div>
   );
 
+  let archipelagoItems = [];
+  if (isArchipelago && ready) {
+    const categoryIds = activeTab === "cars" ? ["stockCars", "dcCars"] : ["stockTracks", "dcTracks"];
+    archipelagoItems = categoryIds.flatMap(id => archipelagoScanResult.categories[id].items);
+  }
+
   if (scanResult.installType === "classic") {
-    const list = activeTab === "cars" ? scanResult.cars : scanResult.tracks;
+    let list = activeTab === "cars" ? scanResult.cars : scanResult.tracks;
+    if (isArchipelago) {
+      list = archipelagoItems;
+    }
     // We assume executable path is the root
     const rootPath = installPath.substring(0, installPath.lastIndexOf('\\'));
     
@@ -33,32 +45,40 @@ export default function MainContent() {
       <div className="main-column">
         {filterUI}
         <div className="main-content">
-          <PoolGrid items={list} rootPath={rootPath} activeTab={activeTab} ratingFilter={ratingFilter} />
+          {(!isArchipelago || list.length > 0) && (
+            <PoolGrid items={list} rootPath={rootPath} activeTab={activeTab} ratingFilter={ratingFilter} includeStuntArena={isArchipelago} />
+          )}
         </div>
       </div>
     );
   }
 
   // Launcher Installation
-  const activePacks = scanResult.contentPacks.filter(p => 
-    activeTab === "cars" ? p.useCars : p.useTracks
-  );
+  const activePacks = scanResult.contentPacks.filter(p => {
+    if (isArchipelago) {
+      return archipelagoItems.some(item => item.source.packName === p.name);
+    }
+    return activeTab === "cars" ? p.useCars : p.useTracks;
+  });
 
   return (
       <div className="main-column">
         {filterUI}
         <div className="main-content">
-          {activePacks.length === 0 && (
+          {!isArchipelago && activePacks.length === 0 && (
             <p style={{opacity: 0.7}}>No content packs enabled. Enable packs from the sidebar.</p>
           )}
           {activePacks.map(pack => (
             <div key={pack.name} className="pool-section">
               <h2 className="pool-section-title">{pack.name}</h2>
               <PoolGrid 
-                items={activeTab === "cars" ? pack.cars : pack.tracks} 
+                items={isArchipelago
+                  ? archipelagoItems.filter(item => item.source.packName === pack.name)
+                  : activeTab === "cars" ? pack.cars : pack.tracks}
                 rootPath={pack.absolutePath} 
                 activeTab={activeTab}
                 ratingFilter={ratingFilter} 
+                includeStuntArena={isArchipelago}
               />
             </div>
           ))}

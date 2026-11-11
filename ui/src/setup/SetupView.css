@@ -241,6 +241,12 @@
   padding: 1.25rem;
 }
 
+.pack-list-box > .setup-section-title {
+  text-transform: capitalize;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
 .pack-list {
   display: flex;
   flex-direction: column;
@@ -350,4 +356,51 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Archipelago content availability and read-only browsing */
+.ap-content-entry {
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ap-content-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.ap-content-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.ap-content-sources span {
+  background-color: var(--border-color);
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+}
+
+.ap-missing-content {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.ap-missing-content summary {
+  cursor: pointer;
+}
+
+.ap-missing-content p {
+  margin: 0.5rem 0 0;
 }

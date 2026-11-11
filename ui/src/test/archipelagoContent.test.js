@@ -3,7 +3,7 @@ import test from "node:test";
 import { STOCK_CARS, DC_CARS, STOCK_TRACKS } from "../utils/constants.js";
 import {
   ARCHIPELAGO_CONTENT_CATEGORIES,
-  discoverArchipelagoContent,
+  scanArchipelagoContent,
   resolveArchipelagoPacks,
 } from "../setup/archipelagoContent.js";
 
@@ -46,12 +46,12 @@ function unexpectedScan() {
 }
 
 test("discovery waits for an installation and scan", async () => {
-  assert.equal(await discoverArchipelagoContent(null, EXE_PATH, unexpectedScan), null);
-  assert.equal(await discoverArchipelagoContent(classic(), "", unexpectedScan), null);
+  assert.equal(await scanArchipelagoContent(null, EXE_PATH, unexpectedScan), null);
+  assert.equal(await scanArchipelagoContent(classic(), "", unexpectedScan), null);
 });
 
 test("classic discovery reports all categories and folder sources, including Stunt Arena", async () => {
-  const discovery = await discoverArchipelagoContent(classic(), "D:\\RVGL\\rvgl.exe", unexpectedScan);
+  const discovery = await scanArchipelagoContent(classic(), "D:\\RVGL\\rvgl.exe", unexpectedScan);
   for (const [id, definition] of Object.entries(ARCHIPELAGO_CONTENT_CATEGORIES)) {
     const category = discovery.categories[id];
     assert.equal(category.status, "complete");
@@ -68,20 +68,20 @@ test("classic discovery reports all categories and folder sources, including Stu
 
 test("missing Stunt Arena makes stock tracks partial and DC requirements stay independent", async () => {
   const scan = classic(STOCK_CARS.map(folder => car(folder)), STOCK_TRACKS.map(folder => track(folder)));
-  const discovery = await discoverArchipelagoContent(scan, EXE_PATH, unexpectedScan);
+  const discovery = await scanArchipelagoContent(scan, EXE_PATH, unexpectedScan);
   assert.equal(discovery.categories.stockCars.status, "complete");
   assert.equal(discovery.categories.dcCars.status, "missing");
   assert.equal(discovery.categories.dcTracks.status, "complete");
   assert.equal(discovery.categories.stockTracks.status, "partial");
   assert.deepEqual(discovery.categories.stockTracks.missingFolders, ["stunts"]);
 
-  const withoutRoof = await discoverArchipelagoContent(classic(undefined, STOCK_LEVELS.map(folder => track(folder))), EXE_PATH);
+  const withoutRoof = await scanArchipelagoContent(classic(undefined, STOCK_LEVELS.map(folder => track(folder))), EXE_PATH);
   assert.equal(withoutRoof.categories.dcCars.status, "complete");
   assert.equal(withoutRoof.categories.dcTracks.status, "missing");
 });
 
 test("folder matching ignores case but rejects missing primary files, system cars and wrong track types", async () => {
-  const discovery = await discoverArchipelagoContent(classic([
+  const discovery = await scanArchipelagoContent(classic([
     car("RC"), car("mite", { hasValidFile: false }), car("phat", { isSystemCar: true }), car("custom_car"),
   ], [track("NHOOD1"), track("garden1", { trackType: 2 }), track("roof", { hasValidFile: false }), track("stunts", { trackType: 0 })]), EXE_PATH);
   assert.deepEqual(discovery.categories.stockCars.items.map(item => item.folderName), ["RC"]);
@@ -93,7 +93,7 @@ test("folder matching ignores case but rejects missing primary files, system car
 test("complete preferred packs need no fallback reads and disabled pool flags are untouched", async () => {
   const scan = launcher([...preferredPacks(), pack("custom", [], [], { hasCars: true, hasTracks: true })]);
   const before = structuredClone(scan);
-  const discovery = await discoverArchipelagoContent(scan, EXE_PATH, unexpectedScan);
+  const discovery = await scanArchipelagoContent(scan, EXE_PATH, unexpectedScan);
   for (const category of Object.values(discovery.categories)) {
     assert.equal(category.status, "complete");
   }
@@ -108,13 +108,13 @@ test("missing preferred packs scan fallbacks in stable order and stop when conte
     pack("z_unused", [], [], { hasCars: true, hasTracks: true }),
     pack("a_content", [], [], { hasCars: true, hasTracks: true }),
   ]);
-  const discovery = await discoverArchipelagoContent(scan, EXE_PATH, async candidate => {
+  const discovery = await scanArchipelagoContent(scan, EXE_PATH, async candidate => {
     calls.push(candidate.name);
     return pack(candidate.name, [...STOCK_CARS, ...DC_CARS, "custom_car"].map(folder => car(folder)), [...STOCK_LEVELS, "roof", "custom_track"].map(folder => track(folder)));
   });
   assert.deepEqual(calls, ["a_content"]);
   assert.ok(Object.values(discovery.categories).every(category => category.status === "complete"));
-  assert.equal(discovery.packs[0].cars.some(item => item.folderName === "custom_car"), false);
+  assert.equal(discovery.categories.stockCars.items.some(item => item.folderName === "custom_car"), false);
   assert.deepEqual(resolveArchipelagoPacks(discovery), ["a_content"]);
 });
 
@@ -127,7 +127,7 @@ test("partial preferred content can be completed from multiple fallback sources"
   };
   const scan = launcher([stock, dc, pack("b_pack", [], [], { hasCars: true }), pack("a_pack", [], [], { hasCars: true })]);
   const before = structuredClone(scan);
-  const discovery = await discoverArchipelagoContent(scan, EXE_PATH, async candidate => contents[candidate.name]);
+  const discovery = await scanArchipelagoContent(scan, EXE_PATH, async candidate => contents[candidate.name]);
   assert.equal(discovery.categories.stockCars.status, "complete");
   assert.deepEqual(discovery.categories.stockCars.items.slice(0, 2).map(item => item.source.packName), ["a_pack", "b_pack"]);
   assert.deepEqual(new Set(discovery.categories.stockCars.sources.map(source => source.packName)), new Set(["game_files", "a_pack", "b_pack"]));
@@ -139,7 +139,7 @@ test("track-only gaps skip car-only packs and discover stunts from fallback leve
   const [stock, dc] = preferredPacks();
   stock.tracks = stock.tracks.filter(item => item.folderName !== "stunts");
   const calls = [];
-  const discovery = await discoverArchipelagoContent(launcher([
+  const discovery = await scanArchipelagoContent(launcher([
     stock, dc, pack("a_cars", [], [], { hasCars: true }), pack("b_music"),
     pack("c_levels", [], [], { hasTracks: true }),
   ]), EXE_PATH, async candidate => {
@@ -154,7 +154,7 @@ test("track-only gaps skip car-only packs and discover stunts from fallback leve
 test("fallback scan failures are reported and other sources can still complete the content", async () => {
   const [stock, dc] = preferredPacks();
   stock.cars = stock.cars.filter(item => item.folderName !== "rc");
-  const discovery = await discoverArchipelagoContent(launcher([
+  const discovery = await scanArchipelagoContent(launcher([
     stock, dc, pack("a_broken", [], [], { hasCars: true }), pack("b_good", [], [], { hasCars: true }),
   ]), EXE_PATH, async candidate => {
     if (candidate.name === "a_broken") {
@@ -170,8 +170,8 @@ test("preferred pack names are case-insensitive and input enumeration cannot cha
   const [stock, dc] = preferredPacks();
   stock.name = "GAME_FILES";
   dc.name = "RVGL_DCPACK";
-  const first = await discoverArchipelagoContent(launcher([stock, dc]), EXE_PATH, unexpectedScan);
-  const second = await discoverArchipelagoContent(launcher([dc, stock]), EXE_PATH, unexpectedScan);
+  const first = await scanArchipelagoContent(launcher([stock, dc]), EXE_PATH, unexpectedScan);
+  const second = await scanArchipelagoContent(launcher([dc, stock]), EXE_PATH, unexpectedScan);
   assert.deepEqual(first, second);
   assert.equal(first.categories.stockCars.items[0].source.packName, "GAME_FILES");
   assert.deepEqual(resolveArchipelagoPacks(first), ["GAME_FILES", "RVGL_DCPACK"]);
@@ -185,7 +185,7 @@ test("fallback reads use the existing native scan without enabling Randomizer po
     return pack("fallback", [car("rc")]);
   } } };
   try {
-    const discovery = await discoverArchipelagoContent(launcher([pack("fallback", [], [], { hasCars: true })]), EXE_PATH);
+    const discovery = await scanArchipelagoContent(launcher([pack("fallback", [], [], { hasCars: true })]), EXE_PATH);
     assert.equal(discovery.categories.stockCars.items.length, 1);
     assert.deepEqual(calls, [{ command: "scan_pack_folder", args: {
       folderPath: "D:/RVGL/packs/fallback", useCars: false, useTracks: false,
@@ -202,7 +202,7 @@ test("fallback reads use the existing native scan without enabling Randomizer po
 test("whole-pack ordering preserves a preferred duplicate while loading a fallback for a different car", async () => {
   const [stock, dc] = preferredPacks();
   stock.cars = stock.cars.filter(item => item.folderName !== "mite");
-  const discovery = await discoverArchipelagoContent(launcher([
+  const discovery = await scanArchipelagoContent(launcher([
     stock, dc, pack("z_fallback", [], [], { hasCars: true }),
   ]), EXE_PATH, async () => pack("z_fallback", [car("mite"), car("rc", { name: "Fallback replacement" })]));
   assert.equal(discovery.categories.stockCars.items.find(item => item.folderName === "rc").source.packName, "game_files");
@@ -212,7 +212,7 @@ test("whole-pack ordering preserves a preferred duplicate while loading a fallba
 
 test("optional DC source packs are included only for requested categories", async () => {
   const [stock, dc] = preferredPacks();
-  const discovery = await discoverArchipelagoContent(launcher([dc, stock]), EXE_PATH, unexpectedScan);
+  const discovery = await scanArchipelagoContent(launcher([dc, stock]), EXE_PATH, unexpectedScan);
   assert.deepEqual(resolveArchipelagoPacks(discovery), ["game_files", "rvgl_dcpack"]);
   assert.deepEqual(resolveArchipelagoPacks(discovery, ["stockCars", "stockTracks"]), ["game_files"]);
   assert.deepEqual(resolveArchipelagoPacks(discovery, ["dcCars", "dcTracks"]), ["rvgl_dcpack"]);

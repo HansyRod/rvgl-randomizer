@@ -62,7 +62,8 @@ export const DEFAULT_STATE = {
   // AP run and pack preferences are separate; play.extraArgs and play.runningPid stay shared.
   archipelago: {
     setup: {
-      setupTab: "install",
+      scanResult: null,
+      scanError: "",
     },
     import: {
       importedFilePath: "",

@@ -4,11 +4,11 @@ import { useAppContext } from "../AppProvider";
 
 export default function CarsTab() {
 
-  const { state : { setup : { scanResult } } } = useAppContext();
+  const { state : { app, setup : { scanResult } } } = useAppContext();
   
   return (
     <>
-      {scanResult.installType === "launcher" && (
+      {app.mode === "randomizer" && scanResult.installType === "launcher" && (
           <Sidebar />
       )}      
       <MainContent />

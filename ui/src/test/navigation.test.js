@@ -94,8 +94,9 @@ test("valid cached routes restore their screens without changing either mode's r
     const state = makeState(mode);
     state.generate.generatedFilePath = "normal.json";
     state.play.extraArgs = "-window";
+    state.setup.setupTab = "tracks";
     state.archipelago = {
-      setup: { setupTab: "tracks" },
+      setup: { scanResult: null },
       import: {
         importedFilePath: "AP_Player.rvgl.json", seedMetadata: { profileName: "ap_123" },
         importedHistory: [{ path: "AP_Player.rvgl.json" }],
@@ -107,6 +108,7 @@ test("valid cached routes restore their screens without changing either mode's r
       const normalized = normalizeAppContext(state);
       assert.equal(normalized.app.mode, mode);
       assert.equal(normalized.app.activeStep, step.id);
+      assert.equal(normalized.setup.setupTab, "tracks");
       assert.deepEqual(normalized.generate, state.generate);
       assert.deepEqual(normalized.play, state.play);
       assert.deepEqual(normalized.archipelago, state.archipelago);
@@ -140,7 +142,7 @@ test("empty caches stay empty and unknown cached modes fall back to Mode without
 });
 
 test("AP state is grouped by tab with separate packs and shared command-line arguments", () => {
-  assert.equal(DEFAULT_STATE.archipelago.setup.setupTab, "install");
+  assert.equal(DEFAULT_STATE.setup.setupTab, "install");
   assert.notEqual(DEFAULT_STATE.generate.generatedHistory, DEFAULT_STATE.archipelago.import.importedHistory);
   assert.notEqual(DEFAULT_STATE.play.extraPacks, DEFAULT_STATE.archipelago.play.extraPacks);
   assert.equal(DEFAULT_STATE.play.extraArgs, "");

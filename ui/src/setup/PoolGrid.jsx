@@ -19,7 +19,7 @@ function formatReverseBadge(track) {
   return null;
 }
 
-export default function PoolGrid({ items, rootPath, activeTab, ratingFilter }) {
+export default function PoolGrid({ items, rootPath, activeTab, ratingFilter, includeStuntArena = false }) {
   if (!items || items.length === 0) {
     return <p style={{ opacity: 0.5, fontStyle: 'italic', fontSize: '0.9rem' }}>Empty or loading...</p>;
   }
@@ -29,7 +29,9 @@ export default function PoolGrid({ items, rootPath, activeTab, ratingFilter }) {
     if (!item.hasValidFile) return false;
     if (activeTab === "cars" && item.isSystemCar) return false;
     if (activeTab === "cars" && ratingFilter !== "All" && item.rating.toString() !== ratingFilter) return false;
-    if (activeTab === "tracks" && item.trackType !== 0) return false;
+    if (activeTab === "tracks" && item.trackType !== 0) {
+      if (!includeStuntArena || item.folderName.toLowerCase() !== "stunts" || item.trackType !== 2) return false;
+    }
     return true;
   });
 

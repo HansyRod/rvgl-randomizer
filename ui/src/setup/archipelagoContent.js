@@ -13,8 +13,6 @@ export const ARCHIPELAGO_CONTENT_CATEGORIES = {
 };
 
 const PREFERRED_PACKS = ["game_files", "rvgl_dcpack"];
-const CAR_FOLDERS = new Set([...STOCK_CARS, ...DC_CARS]);
-const TRACK_FOLDERS = new Set([...STOCK_TRACKS, "stunts"]);
 
 function comparePacks(a, b) {
   const nameA = a.name.toLowerCase();
@@ -32,17 +30,6 @@ function normalizePath(path) {
   return path.replace(/\\/g, "/").replace(/\/+$/, "");
 }
 
-function snapshotPack(pack) {
-  return {
-    name: pack.name,
-    absolutePath: normalizePath(pack.absolutePath),
-    cars: (pack.cars || []).filter(car => CAR_FOLDERS.has(car.folderName.toLowerCase()))
-      .map(car => ({ ...car })),
-    tracks: (pack.tracks || []).filter(track => TRACK_FOLDERS.has(track.folderName.toLowerCase()))
-      .map(track => ({ ...track })),
-  };
-}
-
 function isAvailable(item, type, folder) {
   if (item.folderName.toLowerCase() !== folder || !item.hasValidFile) {
     return false;
@@ -55,7 +42,7 @@ function isAvailable(item, type, folder) {
 
 function contentSource(pack, type) {
   const directory = type === "cars" ? "cars" : "levels";
-  return { packName: pack.name, path: `${pack.absolutePath}/${directory}` };
+  return { packName: pack.name, path: `${normalizePath(pack.absolutePath)}/${directory}` };
 }
 
 function summarizeCategory(packs, definition) {
@@ -69,7 +56,7 @@ function summarizeCategory(packs, definition) {
   for (const folder of definition.folders) {
     let found = false;
     for (const pack of orderedPacks) {
-      const item = pack[definition.type].find(candidate => isAvailable(candidate, definition.type, folder));
+      const item = (pack[definition.type] || []).find(candidate => isAvailable(candidate, definition.type, folder));
       if (item) {
         const source = contentSource(pack, definition.type);
         items.push({ ...item, source });
@@ -109,25 +96,24 @@ async function scanContentPack(pack) {
 
 // Accept a fresh scan_install result. Preferred packs have already been read eagerly.
 // Fallback scans stay local to discovery and never change Randomizer pack selections.
-export async function discoverArchipelagoContent(scanResult, installPath, scanPack = scanContentPack) {
+export async function scanArchipelagoContent(scanResult, installPath, scanPack = scanContentPack) {
   if (!scanResult || !installPath) {
     return null;
   }
 
   if (scanResult.installType === "classic") {
     const root = normalizePath(installPath).replace(/\/[^/]+$/, "");
-    const packs = [snapshotPack({
+    const packs = [{
       name: null,
       absolutePath: root,
       cars: scanResult.cars,
       tracks: scanResult.tracks,
-    })];
-    return { installType: "classic", categories: summarizeContent(packs), packs, scanErrors: [] };
+    }];
+    return { categories: summarizeContent(packs), scanErrors: [] };
   }
 
   const contentPacks = [...(scanResult.contentPacks || [])].sort(comparePacks);
-  const packs = contentPacks.filter(pack => PREFERRED_PACKS.includes(pack.name.toLowerCase()))
-    .map(snapshotPack);
+  const packs = contentPacks.filter(pack => PREFERRED_PACKS.includes(pack.name.toLowerCase()));
   const fallbacks = contentPacks.filter(pack => !PREFERRED_PACKS.includes(pack.name.toLowerCase()));
   const scanErrors = [];
   let categories = summarizeContent(packs);
@@ -143,7 +129,7 @@ export async function discoverArchipelagoContent(scanResult, installPath, scanPa
     }
 
     try {
-      packs.push(snapshotPack(await scanPack(pack)));
+      packs.push(await scanPack(pack));
       categories = summarizeContent(packs);
     } catch (error) {
       scanErrors.push({
@@ -154,23 +140,22 @@ export async function discoverArchipelagoContent(scanResult, installPath, scanPa
     }
   }
 
-  return { installType: "launcher", categories, packs, scanErrors };
+  return { categories, scanErrors };
 }
 
 // Resolve only categories needed by the run. Loading a source pack loads both its cars and tracks.
 // This returns content packs only; launch-time support/extra packs are added separately.
 export function resolveArchipelagoPacks(discovery, categoryIds = Object.keys(ARCHIPELAGO_CONTENT_CATEGORIES)) {
-  if (!discovery || discovery.installType === "classic") {
+  if (!discovery) {
     return [];
   }
 
   const categories = categoryIds.map(id => discovery.categories[id]);
-  const selectedNames = new Set(categories.flatMap(category => category.sources.map(source => source.packName)));
-  const selectedPacks = discovery.packs.filter(pack => selectedNames.has(pack.name)).sort(comparePacks);
-  const preferred = selectedPacks.filter(pack => PREFERRED_PACKS.includes(pack.name.toLowerCase()));
-  const others = selectedPacks.filter(pack => !PREFERRED_PACKS.includes(pack.name.toLowerCase()));
+  const selectedNames = [...new Set(categories.flatMap(category => category.sources.map(source => source.packName)).filter(Boolean))];
+  const preferred = selectedNames.filter(name => PREFERRED_PACKS.includes(name.toLowerCase()));
+  const others = selectedNames.filter(name => !PREFERRED_PACKS.includes(name.toLowerCase()));
   // Later packs overwrite earlier files. Put preferred packs last.
   const ordered = [...others, ...preferred];
 
-  return ordered.map(pack => pack.name);
+  return ordered;
 }

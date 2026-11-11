@@ -2,6 +2,7 @@ import { useAppContext } from "../AppProvider";
 import CarsTab from "./CarsTab";
 import TracksTab from "./TracksTab";
 import InstallPanel from "./InstallPanel";
+import { useInstallScan } from "./useInstallScan";
 import "./SetupView.css";
 
 const SETUP_TABS = [
@@ -15,14 +16,18 @@ const SETUP_TABS = [
 export default function SetupView() {
   const { state, updateCategoryCtx } = useAppContext();
   const { setup } = state;
-  const activeTab = setup?.setupTab ?? "install";
+  const { installPath, scanResult } = setup;
+  const hasValidInstall = Boolean(installPath && scanResult);
+  let activeTab = setup.setupTab;
+  if (!hasValidInstall || !activeTab) {
+    activeTab = "install";
+  }
+
+  const scanInstall = useInstallScan();
 
   function setTab(tab) {
     updateCategoryCtx("setup", { setupTab: tab });
   }
-
-  const { installPath, scanResult } = setup;
-  const hasValidInstall = Boolean(installPath && scanResult);
 
   return (
     <div className="setup-view">
@@ -43,7 +48,7 @@ export default function SetupView() {
         })}
       </div>
 
-      {activeTab === "install" && <InstallPanel />}
+      {activeTab === "install" && <InstallPanel scanInstall={scanInstall} />}
       {activeTab === "cars"    && <div className="pool-panel"><CarsTab /></div>}
       {activeTab === "tracks"  && <div className="pool-panel"><TracksTab /></div>}
     </div>

@@ -1,19 +1,20 @@
 import { useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useAppContext } from "../AppProvider";
 import HistoryPanel from "../components/HistoryPanel";
 import { handleTogglePack } from "./packHelpers";
 import { formatInstallError } from "./installValidation";
+import ArchipelagoSetupContent from "./ArchipelagoSetupContent";
 import "./SetupView.css";
 
 // ── Install sub-tab ──────────────────────────────────────────────────────────
 
-export default function InstallPanel() {
-  const { state, updateCategoryCtx } = useAppContext();
+export default function InstallPanel({ scanInstall }) {
+  const { state, updateCategoryCtx, updateArchipelagoCategoryCtx } = useAppContext();
   const { app, setup } = state;
   const { isScanning, isFetchingPack } = app;
   const { installPath, scanResult, installError } = setup;
+  const isArchipelago = app.mode === "archipelago";
   const installHistory = setup.installHistory || [];
   const [failedPath, setFailedPath] = useState("");
 
@@ -37,9 +38,8 @@ export default function InstallPanel() {
     if (!selected) return;
     const path = selected.path || selected;
     updateCategoryCtx("setup", { installError: "" });
-    updateCategoryCtx("app", { isScanning: true });
     try {
-      const result = await invoke("scan_install", { executablePath: path });
+      const result = await scanInstall(path);
       const history = updateHistory(path, result.installType);
       setFailedPath("");
       updateCategoryCtx("setup", {
@@ -54,8 +54,6 @@ export default function InstallPanel() {
       updateCategoryCtx("setup", {
         installError: formatInstallError(err, !!scanResult),
       });
-    } finally {
-      updateCategoryCtx("app", { isScanning: false });
     }
   }
 
@@ -67,9 +65,8 @@ export default function InstallPanel() {
   async function handleSwitch(historyPath) {
     if (isScanning || historyPath === installPath) return;
     updateCategoryCtx("setup", { installError: "" });
-    updateCategoryCtx("app", { isScanning: true });
     try {
-      const result = await invoke("scan_install", { executablePath: historyPath });
+      const result = await scanInstall(historyPath);
       const history = updateHistory(historyPath, result.installType);
       setFailedPath("");
       updateCategoryCtx("setup", {
@@ -85,17 +82,14 @@ export default function InstallPanel() {
         installError: formatInstallError(err, !!scanResult),
         installHistory: installHistory.filter((entry) => entry.path !== historyPath),
       });
-    } finally {
-      updateCategoryCtx("app", { isScanning: false });
     }
   }
 
   async function handleRefresh() {
-    if (!installPath) return;
+    if (!installPath || isScanning) return;
     updateCategoryCtx("setup", { installError: "" });
-    updateCategoryCtx("app", { isScanning: true });
     try {
-      const result = await invoke("scan_install", { executablePath: installPath });
+      const result = await scanInstall(installPath);
       updateCategoryCtx("setup", { scanResult: result, installError: "" });
     } catch (err) {
       console.error("Error refreshing:", err);
@@ -104,8 +98,7 @@ export default function InstallPanel() {
         installError: formatInstallError(err, false),
         installHistory: installHistory.filter((entry) => entry.path !== installPath),
       });
-    } finally {
-      updateCategoryCtx("app", { isScanning: false });
+      updateArchipelagoCategoryCtx("setup", { scanResult: null, scanError: "" });
     }
   }
 
@@ -151,8 +144,12 @@ export default function InstallPanel() {
         <div className="install-badges">
           {isLauncher && <span className="install-badge badge-launcher">Launcher install</span>}
           {isClassic  && <span className="install-badge badge-classic">Classic install</span>}
-          <span className="install-stat">{totalCars} cars found</span>
-          <span className="install-stat">{totalTracks} tracks found</span>
+          {!isArchipelago && 
+          <>
+            <span className="install-stat">{totalCars} cars found</span>
+            <span className="install-stat">{totalTracks} tracks found</span>
+          </>
+          }
         </div>
       )}
 
@@ -177,10 +174,12 @@ export default function InstallPanel() {
         </div>
       )}
 
-      {scanResult && isLauncher && (
+      {scanResult && isArchipelago && <ArchipelagoSetupContent />}
+
+      {scanResult && isLauncher && !isArchipelago && (
         <div className="setup-columns pack-columns">
           <div className="setup-section pack-list-box">
-            <h3 className="setup-section-title" style={{textTransform: "capitalize", fontSize: "0.95rem", color: "var(--text-primary)"}}>Cars</h3>
+            <h3 className="setup-section-title">Cars</h3>
             <p className="setup-hint">
               Choose which packs contribute cars to the randomization pool.
             </p>
@@ -208,7 +207,7 @@ export default function InstallPanel() {
           </div>
 
           <div className="setup-section pack-list-box">
-            <h3 className="setup-section-title" style={{textTransform: "capitalize", fontSize: "0.95rem", color: "var(--text-primary)"}}>Tracks</h3>
+            <h3 className="setup-section-title">Tracks</h3>
             <p className="setup-hint">
               Choose which packs contribute tracks to the randomization pool.
             </p>
