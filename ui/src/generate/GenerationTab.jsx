@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { appLocalDataDir, join } from '@tauri-apps/api/path';
-import { open, confirm } from '@tauri-apps/plugin-dialog';
+import { confirm } from '@tauri-apps/plugin-dialog';
 import { useAppContext } from '../AppProvider';
 import HistoryPanel from "../components/HistoryPanel";
 import LoadSeedDialog from "./LoadSeedDialog";
@@ -12,22 +12,9 @@ import { PRESETS } from "../configure/presets";
 import { DEFAULT_CAR_OPTIONS } from '../utils/constants';
 import { normalizeConfigureContext } from "../utils/configureContext";
 import { refreshTracks } from "../utils/trackScan";
+import { getFileName, selectSeedFile } from "../utils/seedFile";
 
 const { poolRatingDistributions, attrRatingDistributions } = DEFAULT_CAR_OPTIONS;
-
-function getSelectedPath(selected) {
-  if (typeof selected === "string") {
-    return selected;
-  }
-  if (selected && typeof selected === "object" && typeof selected.path === "string") {
-    return selected.path;
-  }
-  return "";
-}
-
-function getFileName(path) {
-  return path.split(/[\\/]/).pop() || path;
-}
 
 function getInstanceNameFromPath(path) {
   return getFileName(path).replace(/\.json$/i, "");
@@ -278,11 +265,7 @@ export default function GenerationTab({errors}) {
       console.error("Failed to determine generated seed directory:", err);
     }
 
-    const file = getSelectedPath(await open({
-      multiple: false,
-      defaultPath,
-      filters: [{ name: "JSON Config", extensions: ["json"] }],
-    }));
+    const file = await selectSeedFile(defaultPath);
     if (!file) return;
 
     const loadedName = getInstanceNameFromPath(file);

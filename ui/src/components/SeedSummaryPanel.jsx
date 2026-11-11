@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppContext } from "../AppProvider";
+import { ARCHIPELAGO_GOALS, getArchipelagoRequiredContent } from "../import/archipelagoSeed";
+import { getFileName } from "../utils/seedFile";
 import "./SeedSummaryPanel.css";
 
 function formatDate(isoString) {
@@ -33,9 +35,10 @@ function getStageModeLabel(modeId) {
   }
 }
 
-export default function SeedSummaryPanel({ configPath, seedMetadata, compact }) {
+export default function SeedSummaryPanel({ configPath, seedMetadata, compact, mode = "randomizer" }) {
   const { state } = useAppContext();
   const { scanResult } = state.setup;
+  const isArchipelago = mode === "archipelago";
   
   const [metadata, setMetadata] = useState(seedMetadata || null);
   const [loading, setLoading] = useState(false);
@@ -78,17 +81,17 @@ export default function SeedSummaryPanel({ configPath, seedMetadata, compact }) 
 
   if (!configPath && !seedMetadata) return null;
   if (loading) return <div className="seed-summary-panel loading">Loading summary...</div>;
-  if (error || !metadata || !metadata.uiContext) {
+  if (error || !metadata || (!isArchipelago && !metadata.uiContext)) {
     return (
       <div className="seed-summary-panel error">
         <p>No preview available for this file.</p>
-        {configPath && <span className="file-path">{configPath.split(/[\\/]/).pop()}</span>}
+        {configPath && <span className="file-path">{getFileName(configPath)}</span>}
       </div>
     );
   }
 
   const { uiContext, profileName } = metadata;
-  const { configure, setup, generatedAt } = uiContext;
+  const { configure, setup, generatedAt } = uiContext || {};
   
   const carUnlockMode = configure?.carOptions?.unlockMode;
   const carMode = getUnlockModeLabel(carUnlockMode);
@@ -112,7 +115,12 @@ export default function SeedSummaryPanel({ configPath, seedMetadata, compact }) 
     .filter(p => p.useCars || p.useTracks)
     .map(p => p.name);
 
-  const filename = configPath ? configPath.split(/[\\/]/).pop() : "Preview";
+  let requirements = requiredPacks.map(pack => ({ name: pack, available: currentlyEnabledPacks.includes(pack) }));
+  if (isArchipelago) {
+    requirements = getArchipelagoRequiredContent(metadata, state.archipelago.setup.scanResult);
+  }
+
+  const filename = configPath ? getFileName(configPath) : "Preview";
 
   return (
     <div className={`seed-summary-panel ${compact ? 'compact' : ''}`}>
@@ -122,11 +130,25 @@ export default function SeedSummaryPanel({ configPath, seedMetadata, compact }) 
           <span className="filename">{filename}</span>
         </div>
         <div className="summary-meta">
-          Generated: {formatDate(generatedAt)} &middot; Profile: {profileName || "player1"}
+          {!isArchipelago && <>Generated: {formatDate(generatedAt)} &middot; </>}
+          Profile: {profileName || "player1"}
         </div>
       </div>
 
       <div className="summary-body">
+        {isArchipelago ? (
+          <>
+            <div className="summary-section">
+              <div className="section-label">PLAYER SLOT</div>
+              <div className="section-content"><strong>{metadata.slotName}</strong></div>
+            </div>
+            <div className="summary-section">
+              <div className="section-label">GOAL</div>
+              <div className="section-content">{Object.hasOwn(ARCHIPELAGO_GOALS, metadata.goal) ? ARCHIPELAGO_GOALS[metadata.goal] : "Unknown goal"}</div>
+            </div>
+          </>
+        ) : (
+          <>
         <div className="summary-section">
           <div className="section-label">CARS</div>
           <div className="section-content">
@@ -152,17 +174,19 @@ export default function SeedSummaryPanel({ configPath, seedMetadata, compact }) 
             </div>
           </div>
         )}
+          </>
+        )}
       </div>
 
-      {requiredPacks.length > 0 && (
+      {requirements.length > 0 && (
         <div className="summary-footer">
           <div className="section-label">REQUIRES</div>
           <div className="pack-list">
-            {requiredPacks.map(pack => {
-              const hasPack = currentlyEnabledPacks.includes(pack);
+            {requirements.map(pack => {
+              const hasPack = pack.available;
               return (
-                <span key={pack} className={`pack-badge ${hasPack ? 'valid' : 'invalid'}`}>
-                  {pack} {hasPack ? '✓' : '✗'}
+                <span key={pack.name} className={`pack-badge ${hasPack ? 'valid' : 'invalid'}`} title={hasPack ? "Available" : "Missing content. Check Setup."}>
+                  {pack.name} {hasPack ? '✓' : '✗'}
                 </span>
               );
             })}
