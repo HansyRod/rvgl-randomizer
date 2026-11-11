@@ -129,6 +129,25 @@ test("cache normalization falls back to the missing prerequisite", () => {
   assert.equal(normalizeAppContext(state).app.activeStep, "setup");
 });
 
+test("cache loading clears interrupted work flags and keeps startup loading active", () => {
+  for (const mode of ["randomizer", "archipelago"]) {
+    const state = makeState(mode);
+    state.app = { ...state.app, isLoading: false, isScanning: true, isFetchingPack: true };
+    state.setup.setupTab = "tracks";
+    state.play.extraArgs = "-window";
+    const before = structuredClone(state);
+    const normalized = normalizeAppContext(state);
+
+    assert.deepEqual(normalized.app, {
+      ...state.app, isLoading: true, isScanning: false, isFetchingPack: false,
+    });
+    assert.deepEqual(normalized.setup, state.setup);
+    assert.deepEqual(normalized.play, state.play);
+    assert.deepEqual(normalized.archipelago, state.archipelago);
+    assert.deepEqual(state, before);
+  }
+});
+
 test("empty caches stay empty and unknown cached modes fall back to Mode without changing saved data", () => {
   const emptyCache = {};
   assert.equal(normalizeAppContext(emptyCache), emptyCache);

@@ -82,7 +82,8 @@ export function normalizeAppContext(state) {
   }
 
   const isLegacyCache = state.app?.mode === undefined;
-  const app = { ...state.app };
+  // Work from the previous session is no longer running; startup owns loading.
+  const app = { ...state.app, isLoading: true, isScanning: false, isFetchingPack: false };
   // Legacy caches belong to Randomizer; new sessions still start with mode selection.
   if (isLegacyCache) {
     app.mode = "randomizer";
