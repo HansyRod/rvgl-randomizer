@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useAppContext } from "../AppProvider";
 import { scanArchipelagoContent } from "./archipelagoContent";
+import { scanInstallation } from "./scanInstallation";
 
 export function useInstallScan() {
   const { state, updateCategoryCtx, updateArchipelagoCategoryCtx } = useAppContext();
@@ -13,7 +13,7 @@ export function useInstallScan() {
   async function scanInstall(path, existingScan = null) {
     updateCategoryCtx("app", { isScanning: true });
     try {
-      const result = existingScan ?? await invoke("scan_install", { executablePath: path });
+      const result = existingScan ?? await scanInstallation(path, installPath, scanResult);
       let archipelagoScanResult = null;
       let scanError = "";
       if (mode === "archipelago") {
