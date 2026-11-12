@@ -18,10 +18,8 @@ export function getArchipelagoPacks(scanResult, discovery, metadata, extraPacks)
   const extraPackCandidates = allPacks.filter(pack => !required.has(pack.name.toLowerCase())
     && ((!pack.hasCars && !pack.hasTracks) || pack.hasOtherContent));
   const selectedExtras = extraPackCandidates.filter(pack => extraPacks.includes(pack.name)).map(pack => pack.name);
-  const names = [...new Map([...autoPacks, ...selectedExtras, ...requiredNames].map(name => [name.toLowerCase(), name])).values()];
-  // Later packs overwrite earlier files, including files supplied by extras. Put preferred packs last.
-  const preferred = name => ["game_files", "rvgl_dcpack"].includes(name.toLowerCase());
-  const packlist = [...names.filter(name => !preferred(name)), ...names.filter(preferred)];
+  // Later packs overwrite earlier files. Load extras, required content, then automatic packs.
+  const packlist = [...new Map([...selectedExtras, ...requiredNames, ...autoPacks].map(name => [name.toLowerCase(), name])).values()];
 
   return { autoPacks, selectedContentPacks, extraPackCandidates, packlist };
 }

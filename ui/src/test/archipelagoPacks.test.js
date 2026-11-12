@@ -44,11 +44,11 @@ test("AP extras include mixed content and exclude car/track-only packs and requi
   const extras = ["music", "cars_and_music", "tracks_and_sounds", "cars_only", "missing_pack", "game_files"];
   const result = getArchipelagoPacks(scanResult, discovery(), {}, extras);
   assert.deepEqual(result.extraPackCandidates.map(entry => entry.name), ["music", "cars_and_music", "tracks_and_sounds"]);
-  assert.deepEqual(result.packlist, ["rvgl_win64", "rvgl_assets", "music", "cars_and_music", "tracks_and_sounds", "game_files"]);
+  assert.deepEqual(result.packlist, ["music", "cars_and_music", "tracks_and_sounds", "game_files", "rvgl_win64", "rvgl_assets"]);
   assert.deepEqual(extras, ["music", "cars_and_music", "tracks_and_sounds", "cars_only", "missing_pack", "game_files"]);
 });
 
-test("preferred content loads after fallback and extra packs, with case-insensitive deduplication", () => {
+test("AP packs load extras, required content, then automatic packs, with case-insensitive deduplication", () => {
   const scanResult = { contentPacks: [
     pack("GAME_FILES", { hasCars: true }), pack("RVGL_DCPACK", { hasCars: true }),
     pack("fallback", { hasTracks: true }), pack("extras", { hasOtherContent: true }),
@@ -57,7 +57,7 @@ test("preferred content loads after fallback and extra packs, with case-insensit
   const result = getArchipelagoPacks(scanResult, discovery({
     stockCars: "GAME_FILES", stockTracks: "fallback", dcCars: "RVGL_DCPACK", dcTracks: "RVGL_DCPACK",
   }), { includeDcCars: true, includeDcTrack: true }, ["extras", "RVGL_WIN64", "RVGL_DCPACK"]);
-  assert.deepEqual(result.packlist, ["rvgl_win64", "rvgl_assets", "extras", "fallback", "GAME_FILES", "RVGL_DCPACK"]);
+  assert.deepEqual(result.packlist, ["extras", "GAME_FILES", "fallback", "RVGL_DCPACK", "rvgl_win64", "rvgl_assets"]);
   assert.equal(new Set(result.packlist.map(name => name.toLowerCase())).size, result.packlist.length);
 });
 
@@ -65,10 +65,10 @@ test("fallback installs omit absent game_files; present game_files remains autom
   const fallback = pack("fallback", { hasCars: true, hasTracks: true });
   const sources = discovery({ stockCars: "fallback", stockTracks: "fallback" });
   const without = getArchipelagoPacks({ contentPacks: [fallback] }, sources, {}, []);
-  assert.deepEqual(without.packlist, ["rvgl_win64", "rvgl_assets", "fallback"]);
+  assert.deepEqual(without.packlist, ["fallback", "rvgl_win64", "rvgl_assets"]);
   const withGameFiles = getArchipelagoPacks({ contentPacks: [fallback, pack("game_files")] }, sources, {}, []);
   assert.deepEqual(withGameFiles.autoPacks, ["rvgl_win64", "rvgl_assets", "game_files"]);
-  assert.deepEqual(withGameFiles.packlist, ["rvgl_win64", "rvgl_assets", "fallback", "game_files"]);
+  assert.deepEqual(withGameFiles.packlist, ["fallback", "rvgl_win64", "rvgl_assets", "game_files"]);
 });
 
 test("required packs combine multiple sources once and tolerate discovery not being ready", () => {
@@ -77,7 +77,7 @@ test("required packs combine multiple sources once and tolerate discovery not be
   sources.categories.stockCars.sources = [{ packName: "game_files" }, { packName: "a_pack" }, { packName: "b_pack" }];
   sources.categories.stockTracks.sources = [{ packName: "a_pack" }, { packName: null }];
   const result = getArchipelagoPacks(scanResult, sources, {}, []);
-  assert.deepEqual(result.packlist, ["rvgl_win64", "rvgl_assets", "a_pack", "b_pack", "game_files"]);
+  assert.deepEqual(result.packlist, ["game_files", "a_pack", "b_pack", "rvgl_win64", "rvgl_assets"]);
   assert.equal(result.selectedContentPacks.length, 3);
   const pending = getArchipelagoPacks(scanResult, null, {}, []);
   assert.deepEqual(pending.selectedContentPacks, []);
