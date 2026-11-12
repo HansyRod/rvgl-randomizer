@@ -158,7 +158,7 @@ export default function InstallPanel({ scanInstall }) {
           {previousInstallations.length > 0 && (
             <HistoryPanel
               title="Previous installations"
-              items={installHistory}
+              items={previousInstallations}
               activeKey={installPath}
               getKey={(entry) => entry.path}
               getPrimaryText={(entry) => entry.path}

@@ -68,7 +68,7 @@ export default function ImportView() {
               </div>
             )}
             <HistoryPanel
-              title="Previous Archipelago runs"
+              title="Archipelago run history"
               items={history.filter(entry => entry?.path)}
               activeKey={importedFilePath}
               getKey={entry => entry.path}

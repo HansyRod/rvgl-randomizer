@@ -371,7 +371,7 @@ export default function GenerationTab({errors}) {
         )}
 
         <HistoryPanel
-          title="Previous seeds"
+          title="Seed history"
           items={generatedHistoryList.filter((entry) => entry?.path)}
           activeKey={generatedFilePath}
           getKey={(entry) => entry.path}

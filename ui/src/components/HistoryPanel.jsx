@@ -22,7 +22,7 @@ export default function HistoryPanel({
 }) {
   const [page, setPage] = useState(0);
 
-  const previousItems = (Array.isArray(items) ? items : []).filter((item) => getKey(item) !== activeKey);
+  const previousItems = Array.isArray(items) ? items : [];
   const lastPage = Math.max(Math.ceil(previousItems.length / pageSize) - 1, 0);
   const pageStart = page * pageSize;
   const visibleItems = previousItems.slice(pageStart, pageStart + pageSize);
@@ -45,6 +45,7 @@ export default function HistoryPanel({
       <div className="install-history-list">
         {visibleItems.map((item) => {
           const key = getKey(item);
+          const isActive = key === activeKey;
           const badgeLabel = getBadgeLabel?.(item);
           const badgeClassName = getBadgeClassName?.(item) || "install-badge";
 
@@ -55,12 +56,13 @@ export default function HistoryPanel({
                   {getPrimaryText(item)}
                 </span>
                 {badgeLabel ? <span className={badgeClassName}>{badgeLabel}</span> : null}
+                {isActive ? <span className="install-badge badge-classic">Loaded</span> : null}
               </div>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
                   className="btn-secondary btn-action-wide"
                   onClick={() => onAction(item)}
-                  disabled={disabled}
+                  disabled={disabled || isActive}
                 >
                   {actionLabel}
                 </button>
