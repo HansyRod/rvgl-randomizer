@@ -5,13 +5,41 @@ import { validateProfileName } from "../validation/generateValidators";
 const SUPPORTED_RANDOMIZER_VERSION = { major: 0, minor: 3 };
 const SUPPORTED_WORLD_VERSION = { major: 0, minor: 1 };
 
+function rejectArchipelagoFile(reason) {
+  throw new Error(`${reason}\nRegenerate the player file and multiworld with the current RVGL APWorld.`);
+}
+
+// The DLL stores slot numbers and mapping IDs as signed 32-bit integers.
+function isMappingId(value) {
+  return Number.isInteger(value) && value >= -2147483648 && value <= 2147483647;
+}
+
+function validateMappings(archipelago) {
+  for (const [map, label] of [[archipelago.locations, "location"], [archipelago.items, "item"]]) {
+    if (!map || typeof map !== "object" || Array.isArray(map)) {
+      rejectArchipelagoFile(`The Archipelago file has invalid ${label} information.`);
+    }
+    const ids = Object.values(map);
+    if (!ids.every(isMappingId) || new Set(ids).size !== ids.length) {
+      rejectArchipelagoFile(`The Archipelago file has invalid or duplicate ${label} IDs.`);
+    }
+  }
+  const { goalEventKeys, locations } = archipelago;
+  if (!Array.isArray(goalEventKeys) || goalEventKeys.length === 0
+    || goalEventKeys.some(key => typeof key !== "string" || !key.trim())
+    || new Set(goalEventKeys).size !== goalEventKeys.length
+    || goalEventKeys.some(key => !Object.hasOwn(locations, key))) {
+    rejectArchipelagoFile("The Archipelago file has invalid goal requirements.");
+  }
+}
+
 function validateVersion(value, field, supported, product) {
   if (typeof value !== "string" || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(value)) {
-    throw new Error(`The Archipelago file has a missing or invalid ${field}.\nRegenerate the player file and multiworld with the current RVGL APWorld.`);
+    rejectArchipelagoFile(`The Archipelago file has a missing or invalid ${field}.`);
   }
   const [major, minor, patch] = value.split(".").map(Number);
   if (![major, minor, patch].every(Number.isSafeInteger)) {
-    throw new Error(`The Archipelago file has an invalid ${field}.\nRegenerate the player file and multiworld with the current RVGL APWorld.`);
+    rejectArchipelagoFile(`The Archipelago file has an invalid ${field}.`);
   }
   if (major > supported.major || (major === supported.major && minor > supported.minor)) {
     throw new Error(`The Archipelago file uses ${field} ${value}.\nThis version supports ${product} versions through ${supported.major}.${supported.minor}.x.\nUpdate RVGL Randomizer to load this file.`);
@@ -33,19 +61,23 @@ export function getArchipelagoMetadata(config) {
   validateVersion(config.metadata?.version, "metadata.version", SUPPORTED_RANDOMIZER_VERSION, "RVGL Randomizer");
   const { slotName, goal } = config.archipelago;
   const { profileName, seed } = config.metadata || {};
-  for (const [label, value] of [["slot name", slotName], ["profile name", profileName], ["goal", goal]]) {
+  for (const [label, value] of [["slot name", slotName], ["profile name", profileName], ["goal", goal], ["seed identity", seed]]) {
     if (typeof value !== "string" || !value.trim()) {
-      throw new Error(`The Archipelago file is missing a valid ${label}.`);
+      rejectArchipelagoFile(`The Archipelago file is missing a valid ${label}.`);
     }
   }
   const { is_stock_cars, is_stock_tracks } = config.global_options || {};
   if (typeof is_stock_cars !== "boolean" || typeof is_stock_tracks !== "boolean") {
-    throw new Error("The Archipelago file is missing its required content settings.");
+    rejectArchipelagoFile("The Archipelago file is missing its required content settings.");
   }
   const profile = validateProfileName(profileName);
   if (profile.errors.length > 0) {
-    throw new Error(profile.errors[0].message);
+    rejectArchipelagoFile(profile.errors[0].message);
   }
+  if (!isMappingId(config.archipelago.slotNumber) || config.archipelago.slotNumber <= 0) {
+    rejectArchipelagoFile("The Archipelago file has an invalid player slot number.");
+  }
+  validateMappings(config.archipelago);
 
   // DC definitions can exist even when disabled; the global options decide requirements.
   return { slotName, profileName, seed, goal, includeDcCars: !is_stock_cars, includeDcTrack: !is_stock_tracks };

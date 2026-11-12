@@ -5,6 +5,7 @@
 #include <optional>
 #include <fstream>
 #include <map>
+#include <set>
 #include <nlohmann/json.hpp>
 #include "RVGLStructs.h"
 #include "CustomUnlocks.h"
@@ -275,6 +276,19 @@ namespace Randomizer {
         j.at("items").get_to(p.items);
         j.at("goal").get_to(p.goal);
         j.at("goalEventKeys").get_to(p.goalEventKeys);
+
+        // Reject invalid goals while LoadConfiguration can still handle JSON errors.
+        // Never skip a missing mapping: doing so would weaken the victory requirements.
+        if (p.goalEventKeys.empty()) {
+            throw json::other_error::create(501, "Archipelago goal requirements are empty.", &j);
+        }
+        std::set<std::string> goalKeys;
+        for (const std::string& eventKey : p.goalEventKeys) {
+            if (eventKey.find_first_not_of(" \t\r\n") == std::string::npos ||
+                !goalKeys.insert(eventKey).second || p.locations.find(eventKey) == p.locations.end()) {
+                throw json::other_error::create(501, "Invalid Archipelago goal requirement: " + eventKey, &j);
+            }
+        }
     }
 
     // The root structure containing all randomizer data

@@ -5,7 +5,8 @@ import { ARCHIPELAGO_GOALS, getArchipelagoMetadata, getArchipelagoRequiredConten
 function config(includeDcCars = false, includeDcTrack = false) {
   return {
     metadata: { version: "0.3.0", seed: "123456789", profileName: "ap_0123456789ab" },
-    archipelago: { worldVersion: "0.1.0", slotName: "My Player", goal: "platinum_cup" },
+    archipelago: { worldVersion: "0.1.0", slotNumber: 1, slotName: "My Player", goal: "platinum_cup",
+      locations: { "championship_win:4": 3000305 }, items: { "cup:4": 3000300 }, goalEventKeys: ["championship_win:4"] },
     global_options: { is_stock_cars: !includeDcCars, is_stock_tracks: !includeDcTrack },
     // Disabled DC definitions and item mappings can still be present in exports.
     dcCars: [{ folder: "bigvolt" }],
@@ -86,6 +87,7 @@ test("non-AP and incomplete files are rejected before replacing an imported run"
     ["archipelago", "slotName", "slot name"],
     ["archipelago", "goal", "goal"],
     ["metadata", "profileName", "profile name"],
+    ["metadata", "seed", "seed identity"],
   ]) {
     for (const value of [undefined, null, "", "   ", 123]) {
       const file = config();
@@ -98,6 +100,54 @@ test("non-AP and incomplete files are rejected before replacing an imported run"
     file.global_options[field] = "false";
     assert.throws(() => getArchipelagoMetadata(file), /required content settings/);
   }
+});
+
+test("AP import requires a positive slot number within the DLL integer range", () => {
+  for (const slotNumber of [undefined, null, "1", 0, -1, 1.5, 2147483648]) {
+    const file = config();
+    file.archipelago.slotNumber = slotNumber;
+    assert.throws(() => getArchipelagoMetadata(file), /invalid player slot number/);
+  }
+});
+
+test("AP import validates mapping types, integer ranges and uniqueness within each map", () => {
+  for (const field of ["locations", "items"]) {
+    for (const value of [undefined, null, [], "invalid", 123,
+      { first: "1" }, { first: null }, { first: 1.5 }, { first: NaN }, { first: Infinity },
+      { first: -2147483649 }, { first: 2147483648 }, { first: 1, second: 1 }]) {
+      const file = config();
+      file.archipelago[field] = value;
+      assert.throws(() => getArchipelagoMetadata(file), /invalid.*(location|item)/);
+    }
+  }
+  const file = config();
+  file.archipelago.locations = { "championship_win:4": 0, first: -2147483648, last: 2147483647 };
+  file.archipelago.items = { "": 0, "filler:Battery": -2147483648, "cup:4": 2147483647 };
+  assert.doesNotThrow(() => getArchipelagoMetadata(file));
+});
+
+test("AP import rejects empty, duplicate, malformed and unmapped goal requirements", () => {
+  for (const goalEventKeys of [undefined, null, "championship_win:4", [], [null], [1], [""], ["   "],
+    ["championship_win:4", "championship_win:4"], ["missing"], ["championship_win:4", "missing"], ["constructor"]]) {
+    const file = config();
+    file.archipelago.goalEventKeys = goalEventKeys;
+    assert.throws(() => getArchipelagoMetadata(file), error => {
+      assert.equal(error.message, "The Archipelago file has invalid goal requirements.\nRegenerate the player file and multiworld with the current RVGL APWorld.");
+      return true;
+    });
+  }
+});
+
+test("AP import accepts multiple goal requirements without requiring dormant unlock tokens", () => {
+  const file = config();
+  file.archipelago.locations["single_race_win:nhood1"] = 2000001;
+  file.archipelago.goalEventKeys.push("single_race_win:nhood1");
+  file.archipelago.items = {};
+  file.dcCars[0].customUnlock = { archipelagoItem: "car:bigvolt" };
+  file.tracks[0].customUnlock = { archipelagoItem: "track:roof" };
+  const before = structuredClone(file);
+  assert.doesNotThrow(() => getArchipelagoMetadata(file));
+  assert.deepEqual(file, before);
 });
 
 test("required content uses AP discovery, combining stock cars and tracks and checking DC groups independently", () => {

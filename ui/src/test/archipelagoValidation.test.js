@@ -104,7 +104,7 @@ test("AP run/profile issues use Import scope and existing profile rules", () => 
 
 test("import rejects an unsafe or overlong exported profile before selecting it", () => {
   for (const profileName of ["../../file", "1234567890123456"]) {
-    assert.throws(() => getArchipelagoMetadata({ metadata: { version: "0.3.0", profileName }, archipelago: { worldVersion: "0.1.0", slotName: "Player", goal: "carsanity" },
+    assert.throws(() => getArchipelagoMetadata({ metadata: { version: "0.3.0", seed: "test", profileName }, archipelago: { worldVersion: "0.1.0", slotName: "Player", goal: "carsanity" },
       global_options: { is_stock_cars: true, is_stock_tracks: true } }), /Profile name/);
   }
 });
