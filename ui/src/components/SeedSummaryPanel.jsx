@@ -3,17 +3,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { useAppContext } from "../AppProvider";
 import { getArchipelagoRequiredContent } from "../import/archipelagoSeed";
 import { getFileName } from "../utils/seedFile";
+import { formatSeedDate, getGeneratedAt } from "../utils/seedMetadata";
 import ArchipelagoSummary from "./ArchipelagoSummary";
 import "./SeedSummaryPanel.css";
-
-function formatDate(isoString) {
-  if (!isoString) return "Unknown date";
-  const d = new Date(isoString);
-  return d.toLocaleDateString(undefined, { 
-    day: 'numeric', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  });
-}
 
 function getUnlockModeLabel(modeId) {
   switch (modeId) {
@@ -92,7 +84,8 @@ export default function SeedSummaryPanel({ configPath, seedMetadata, compact, mo
   }
 
   const { uiContext, profileName } = metadata;
-  const { configure, setup, generatedAt } = uiContext || {};
+  const { configure, setup } = uiContext || {};
+  const generatedAt = getGeneratedAt(metadata);
   
   const carUnlockMode = configure?.carOptions?.unlockMode;
   const carMode = getUnlockModeLabel(carUnlockMode);
@@ -132,7 +125,7 @@ export default function SeedSummaryPanel({ configPath, seedMetadata, compact, mo
           <span className="filename">{filename}</span>
         </div>
         <div className="summary-meta">
-          {!isArchipelago && <>Generated: {formatDate(generatedAt)} &middot; </>}
+          Generated: {formatSeedDate(generatedAt)} &middot;{" "}
           Profile: {profileName || "player1"}
         </div>
       </div>

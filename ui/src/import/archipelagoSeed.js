@@ -60,7 +60,7 @@ export function getArchipelagoMetadata(config) {
   validateVersion(config.archipelago.worldVersion, "archipelago.worldVersion", SUPPORTED_WORLD_VERSION, "RVGL APWorld");
   validateVersion(config.metadata?.version, "metadata.version", SUPPORTED_RANDOMIZER_VERSION, "RVGL Randomizer");
   const { slotName, goal, yamlOptions } = config.archipelago;
-  const { profileName, seed } = config.metadata || {};
+  const { profileName, seed, generatedAt } = config.metadata || {};
   for (const [label, value] of [["slot name", slotName], ["profile name", profileName], ["goal", goal], ["seed identity", seed]]) {
     if (typeof value !== "string" || !value.trim()) {
       rejectArchipelagoFile(`The Archipelago file is missing a valid ${label}.`);
@@ -83,6 +83,7 @@ export function getArchipelagoMetadata(config) {
   return {
     slotName,
     profileName,
+    generatedAt,
     seed,
     goal,
     includeDcCars: !is_stock_cars,

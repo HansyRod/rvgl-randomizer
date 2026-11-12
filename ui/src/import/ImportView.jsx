@@ -24,7 +24,7 @@ export default function ImportView() {
       const config = await invoke("read_config_file", { filePath: file });
       const metadata = getArchipelagoMetadata(config);
       const nextHistory = history.filter(entry => entry?.path && entry.path !== file);
-      nextHistory.unshift({ path: file, slotName: metadata.slotName, profileName: metadata.profileName });
+      nextHistory.unshift({ path: file, slotName: metadata.slotName, generatedAt: metadata.generatedAt });
       updateArchipelagoCategoryCtx("import", {
         importedFilePath: file,
         seedMetadata: metadata,
@@ -73,7 +73,7 @@ export default function ImportView() {
               activeKey={importedFilePath}
               getKey={entry => entry.path}
               getPrimaryText={entry => getFileName(entry.path)}
-              getBadgeLabel={entry => `${entry.slotName} · ${entry.profileName}`}
+              getBadgeLabel={entry => entry.slotName}
               getBadgeClassName={() => "install-badge badge-seed"}
               actionLabel="Load"
               onAction={entry => loadFile(entry.path)}

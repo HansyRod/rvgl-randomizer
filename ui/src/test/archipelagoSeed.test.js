@@ -21,7 +21,7 @@ test("AP summary keeps the exported identity and derives independent DC requirem
       const before = structuredClone(file);
       const metadata = getArchipelagoMetadata(file);
       assert.deepEqual(metadata, {
-        slotName: "My Player", profileName: "ap_0123456789ab", seed: "123456789",
+        slotName: "My Player", profileName: "ap_0123456789ab", seed: "123456789", generatedAt: undefined,
         goal: "platinum_cup", includeDcCars, includeDcTrack, yamlOptions: undefined,
       });
       const expected = ["Stock Content"];
@@ -31,6 +31,14 @@ test("AP summary keeps the exported identity and derives independent DC requirem
       assert.deepEqual(file, before);
     }
   }
+});
+
+test("AP import preserves the generation timestamp and accepts older exports without one", () => {
+  const file = config();
+  file.metadata.generatedAt = "2026-10-24T09:20:54.681395400+00:00";
+  assert.equal(getArchipelagoMetadata(file).generatedAt, file.metadata.generatedAt);
+  delete file.metadata.generatedAt;
+  assert.equal(getArchipelagoMetadata(file).generatedAt, undefined);
 });
 
 test("AP import accepts supported and older versions independently of patch differences", () => {

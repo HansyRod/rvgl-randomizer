@@ -13,6 +13,7 @@ import { DEFAULT_CAR_OPTIONS } from '../utils/constants';
 import { normalizeConfigureContext } from "../utils/configureContext";
 import { refreshTracks } from "../utils/trackScan";
 import { getFileName, selectSeedFile } from "../utils/seedFile";
+import { getGeneratedAt } from "../utils/seedMetadata";
 
 const { poolRatingDistributions, attrRatingDistributions } = DEFAULT_CAR_OPTIONS;
 
@@ -20,10 +21,10 @@ function getInstanceNameFromPath(path) {
   return getFileName(path).replace(/\.json$/i, "");
 }
 
-function updateGeneratedHistory(currentHistory, path, instanceName, profileName) {
+function updateGeneratedHistory(currentHistory, path, instanceName, profileName, generatedAt) {
   const history = Array.isArray(currentHistory) ? currentHistory : [];
   const next = history.filter((entry) => entry?.path && entry.path !== path);
-  next.unshift({ path, instanceName, profileName });
+  next.unshift({ path, instanceName, profileName, generatedAt });
   return next;
 }
 
@@ -135,22 +136,25 @@ export default function GenerationTab({errors}) {
         profileName: profileName.trim()
       });
 
-      const newHistory = updateGeneratedHistory(
-        generatedHistoryList,
-        outPath,
-        instanceName.trim(),
-        profileName.trim()
-      );
-
       let seedContext = null;
+      let generatedAt;
       try {
         const metadata = await invoke("read_seed_context", { filePath: outPath });
+        generatedAt = getGeneratedAt(metadata);
         if (metadata?.uiContext) {
           seedContext = metadata.uiContext;
         }
       } catch (err) {
         console.error("Failed to read metadata from generated config:", err);
       }
+
+      const newHistory = updateGeneratedHistory(
+        generatedHistoryList,
+        outPath,
+        instanceName.trim(),
+        profileName.trim(),
+        generatedAt
+      );
 
       updateCategoryCtx("generate", {
         generatedFilePath: outPath,
@@ -184,7 +188,8 @@ export default function GenerationTab({errors}) {
       generatedHistoryList,
       file,
       loadedName,
-      resolvedProfileName
+      resolvedProfileName,
+      getGeneratedAt(metadata)
     );
 
     updateCategoryCtx("generate", {

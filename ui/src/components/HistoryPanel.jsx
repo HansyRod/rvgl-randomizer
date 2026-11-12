@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatSeedDate } from "../utils/seedMetadata";
 
 const DEFAULT_PAGE_SIZE = 5;
 
@@ -55,8 +56,9 @@ export default function HistoryPanel({
                 <span className="install-path-text" title={getPrimaryTitle(item)}>
                   {getPrimaryText(item)}
                 </span>
-                {badgeLabel ? <span className={badgeClassName}>{badgeLabel}</span> : null}
-                {isActive ? <span className="install-badge badge-classic">Loaded</span> : null}
+                {isActive && <span className="install-badge badge-classic">Loaded</span>}
+                {Boolean(badgeLabel) && <span className={badgeClassName}>{badgeLabel}</span>}
+                {Boolean(item.generatedAt) && <span className="install-badge badge-date">{formatSeedDate(item.generatedAt, false)}</span>}
               </div>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
