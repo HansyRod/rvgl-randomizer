@@ -22,7 +22,7 @@ test("AP summary keeps the exported identity and derives independent DC requirem
       const metadata = getArchipelagoMetadata(file);
       assert.deepEqual(metadata, {
         slotName: "My Player", profileName: "ap_0123456789ab", seed: "123456789",
-        goal: "platinum_cup", includeDcCars, includeDcTrack,
+        goal: "platinum_cup", includeDcCars, includeDcTrack, yamlOptions: undefined,
       });
       const expected = ["Stock Content"];
       if (includeDcCars) expected.push("Dreamcast Cars");
@@ -42,6 +42,17 @@ test("AP import accepts supported and older versions independently of patch diff
       assert.doesNotThrow(() => getArchipelagoMetadata(file));
     }
   }
+});
+
+test("AP import retains YAML options including generic settings without changing their values", () => {
+  const file = config();
+  file.archipelago.yamlOptions = {
+    logic_difficulty: "expert", include_single_race_wins: false, carsanity: "disabled",
+    progression_balancing: 35, local_items: ["RC Bandit"], start_inventory: { "RC Bandit": 2 },
+  };
+  const before = structuredClone(file);
+  assert.deepEqual(getArchipelagoMetadata(file).yamlOptions, before.archipelago.yamlOptions);
+  assert.deepEqual(file, before);
 });
 
 test("AP import rejects newer major/minor versions and tells the user to update", () => {

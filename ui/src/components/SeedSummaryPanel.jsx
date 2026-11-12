@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppContext } from "../AppProvider";
-import { ARCHIPELAGO_GOALS, getArchipelagoRequiredContent } from "../import/archipelagoSeed";
+import { getArchipelagoRequiredContent } from "../import/archipelagoSeed";
 import { getFileName } from "../utils/seedFile";
+import ArchipelagoSummary from "./ArchipelagoSummary";
 import "./SeedSummaryPanel.css";
 
 function formatDate(isoString) {
@@ -122,6 +123,7 @@ export default function SeedSummaryPanel({ configPath, seedMetadata, compact, mo
 
   const filename = configPath ? getFileName(configPath) : "Preview";
 
+  // Compact Archipelago summaries hide YAML details while keeping the existing layout.
   return (
     <div className={`seed-summary-panel ${compact ? 'compact' : ''}`}>
       <div className="summary-header">
@@ -137,16 +139,7 @@ export default function SeedSummaryPanel({ configPath, seedMetadata, compact, mo
 
       <div className="summary-body">
         {isArchipelago ? (
-          <>
-            <div className="summary-section">
-              <div className="section-label">PLAYER SLOT</div>
-              <div className="section-content"><strong>{metadata.slotName}</strong></div>
-            </div>
-            <div className="summary-section">
-              <div className="section-label">GOAL</div>
-              <div className="section-content">{Object.hasOwn(ARCHIPELAGO_GOALS, metadata.goal) ? ARCHIPELAGO_GOALS[metadata.goal] : "Unknown goal"}</div>
-            </div>
-          </>
+          <ArchipelagoSummary metadata={metadata} compact={compact} />
         ) : (
           <>
         <div className="summary-section">

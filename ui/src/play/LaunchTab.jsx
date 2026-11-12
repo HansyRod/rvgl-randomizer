@@ -109,7 +109,7 @@ export default function LaunchTab({errors}) {
           ) : (
             <>
               <h3 style={{ marginTop: 0, marginBottom: "0.75rem" }}>Launch Summary</h3>
-              <SeedSummaryPanel configPath={configPath} seedMetadata={isArchipelago ? seedMetadata : undefined} mode={app.mode} compact={!isArchipelago} />
+              <SeedSummaryPanel configPath={configPath} seedMetadata={isArchipelago ? seedMetadata : undefined} mode={app.mode} compact />
             </>
           )}
         </div>
