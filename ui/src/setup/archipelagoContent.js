@@ -14,6 +14,14 @@ export const ARCHIPELAGO_CONTENT_CATEGORIES = {
 
 const PREFERRED_PACKS = ["game_files", "rvgl_dcpack"];
 
+export function isArchipelagoSourcePack(scanResult, packName) {
+  if (!packName) {
+    return false;
+  }
+  return Object.values(scanResult?.categories || {}).some(category =>
+    (category.sources || []).some(source => source.packName?.toLowerCase() === packName.toLowerCase()));
+}
+
 function comparePacks(a, b) {
   const nameA = a.name.toLowerCase();
   const nameB = b.name.toLowerCase();

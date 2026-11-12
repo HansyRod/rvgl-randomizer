@@ -3,6 +3,7 @@ import test from "node:test";
 import { STOCK_CARS, DC_CARS, STOCK_TRACKS } from "../utils/constants.js";
 import {
   ARCHIPELAGO_CONTENT_CATEGORIES,
+  isArchipelagoSourcePack,
   scanArchipelagoContent,
 } from "../setup/archipelagoContent.js";
 
@@ -43,6 +44,32 @@ function classic(cars = [...STOCK_CARS, ...DC_CARS].map(folder => car(folder)), 
 function unexpectedScan() {
   assert.fail("No fallback pack should be scanned");
 }
+
+test("pack refresh invalidation only applies to contributing AP sources, ignoring name case", async () => {
+  const scan = launcher([...preferredPacks(), pack("unrelated", [car("rc")])]);
+  const discovery = await scanArchipelagoContent(scan, EXE_PATH, unexpectedScan);
+  const before = structuredClone(discovery);
+  assert.equal(isArchipelagoSourcePack(discovery, "GAME_FILES"), true);
+  assert.equal(isArchipelagoSourcePack(discovery, "RVGL_DCPACK"), true);
+  assert.equal(isArchipelagoSourcePack(discovery, "unrelated"), false);
+  assert.equal(isArchipelagoSourcePack(null, "game_files"), false);
+  assert.equal(isArchipelagoSourcePack(discovery, null), false);
+  assert.deepEqual(discovery, before);
+});
+
+test("partial fallback sources count as used; examined packs without contributing content do not", async () => {
+  const scan = launcher([
+    pack("game_files", STOCK_CARS.map(folder => car(folder)), STOCK_LEVELS.map(folder => track(folder))),
+    pack("a_fallback", [car(DC_CARS[0])]),
+    pack("b_unrelated", [car("custom_car")]),
+  ]);
+  const discovery = await scanArchipelagoContent(scan, EXE_PATH, async pack => pack);
+  assert.equal(discovery.categories.dcCars.status, "partial");
+  assert.equal(isArchipelagoSourcePack(discovery, "a_fallback"), true);
+  assert.equal(isArchipelagoSourcePack(discovery, "b_unrelated"), false);
+  const classicDiscovery = await scanArchipelagoContent(classic(), EXE_PATH);
+  assert.equal(isArchipelagoSourcePack(classicDiscovery, "game_files"), false);
+});
 
 test("discovery waits for an installation and scan", async () => {
   assert.equal(await scanArchipelagoContent(null, EXE_PATH, unexpectedScan), null);

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppContext } from "../AppProvider";
 import { handleTogglePack } from "./packHelpers";
+import { isArchipelagoSourcePack } from "./archipelagoContent";
 
 export default function Sidebar() {
 
@@ -9,7 +10,7 @@ export default function Sidebar() {
   const [refreshNotice, setRefreshNotice] = useState("");
 
   // Destructure categories
-  const { state: { app, setup }, updateCategoryCtx } = context;
+  const { state: { app, setup, archipelago }, updateCategoryCtx, updateArchipelagoCategoryCtx } = context;
   
   // Destructure individual variables
   const { isFetchingPack } = app;
@@ -62,6 +63,9 @@ export default function Sidebar() {
 
       setRefreshNotice("");
       updateCategoryCtx("setup", { scanResult: newResult });
+      if (isArchipelagoSourcePack(archipelago.setup.scanResult, pack.name)) {
+        updateArchipelagoCategoryCtx("setup", { scanResult: null, scanError: "" });
+      }
     } catch (err) {
       console.error(err);
       const errorMessage = typeof err === "string"
