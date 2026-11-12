@@ -365,7 +365,7 @@ export default function GenerationTab({errors}) {
         </div>
 
         {message && (
-          <div className="status-message" style={{ marginTop: "1rem", padding: "0.75rem", backgroundColor: "var(--bg-secondary)", borderRadius: "6px" }}>
+          <div className="status-message">
             {message}
           </div>
         )}

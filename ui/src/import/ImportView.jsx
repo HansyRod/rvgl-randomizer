@@ -32,7 +32,7 @@ export default function ImportView() {
       });
       setMessage(`Loaded Archipelago player file: ${getFileName(file)}`);
     } catch (err) {
-      setError(`Could not load ${getFileName(file)}: ${err instanceof Error ? err.message : String(err)}`);
+      setError(`Could not load ${getFileName(file)}:\n${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsLoading(false);
     }
@@ -45,7 +45,7 @@ export default function ImportView() {
         await loadFile(file);
       }
     } catch (err) {
-      setError(`Could not open the file chooser: ${err instanceof Error ? err.message : String(err)}`);
+      setError(`Could not open the file chooser:\n${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -63,7 +63,7 @@ export default function ImportView() {
               </button>
             </div>
             {(message || error) && (
-              <div className="status-message" role={error ? "alert" : "status"} style={{ marginTop: "1rem", padding: "0.75rem", backgroundColor: "var(--bg-secondary)", borderRadius: "6px" }}>
+              <div className="status-message" role={error ? "alert" : "status"} style={{ whiteSpace: "pre-line" }}>
                 {error || message}
               </div>
             )}

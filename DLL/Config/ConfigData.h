@@ -238,7 +238,7 @@ namespace Randomizer {
     }
 
     struct ArchipelagoConfig {
-        int schemaVersion = 1;
+        std::string worldVersion;
         int slotNumber = 0;
         std::string slotName;
         // Enables per-car Single Race win tracking and its car-selection status.
@@ -255,7 +255,7 @@ namespace Randomizer {
 
     inline void to_json(json& j, const ArchipelagoConfig& p) {
         j = json{
-            {"schemaVersion", p.schemaVersion},
+            {"worldVersion", p.worldVersion},
             {"slotNumber", p.slotNumber},
             {"slotName", p.slotName},
             {"carsanity", p.carsanity},
@@ -267,7 +267,7 @@ namespace Randomizer {
     }
 
     inline void from_json(const json& j, ArchipelagoConfig& p) {
-        j.at("schemaVersion").get_to(p.schemaVersion);
+        j.at("worldVersion").get_to(p.worldVersion);
         j.at("slotNumber").get_to(p.slotNumber);
         j.at("slotName").get_to(p.slotName);
         j.at("carsanity").get_to(p.carsanity);

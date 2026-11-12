@@ -4,8 +4,8 @@ import { ARCHIPELAGO_GOALS, getArchipelagoMetadata, getArchipelagoRequiredConten
 
 function config(includeDcCars = false, includeDcTrack = false) {
   return {
-    metadata: { seed: "123456789", profileName: "ap_0123456789ab" },
-    archipelago: { slotName: "My Player", goal: "platinum_cup" },
+    metadata: { version: "0.3.0", seed: "123456789", profileName: "ap_0123456789ab" },
+    archipelago: { worldVersion: "0.1.0", slotName: "My Player", goal: "platinum_cup" },
     global_options: { is_stock_cars: !includeDcCars, is_stock_tracks: !includeDcTrack },
     // Disabled DC definitions and item mappings can still be present in exports.
     dcCars: [{ folder: "bigvolt" }],
@@ -30,6 +30,52 @@ test("AP summary keeps the exported identity and derives independent DC requirem
       assert.deepEqual(file, before);
     }
   }
+});
+
+test("AP import accepts supported and older versions independently of patch differences", () => {
+  for (const version of ["0.3.0", "0.3.99", "0.2.7", "0.0.0"]) {
+    for (const worldVersion of ["0.1.0", "0.1.99", "0.0.0"]) {
+      const file = config();
+      file.metadata.version = version;
+      file.archipelago.worldVersion = worldVersion;
+      assert.doesNotThrow(() => getArchipelagoMetadata(file));
+    }
+  }
+});
+
+test("AP import rejects newer major/minor versions and tells the user to update", () => {
+  for (const [section, field, versions] of [
+    ["metadata", "version", ["0.4.0", "0.10.0", "1.0.0"]],
+    ["archipelago", "worldVersion", ["0.2.0", "0.10.0", "1.0.0"]],
+  ]) {
+    for (const version of versions) {
+      const file = config();
+      file[section][field] = version;
+      assert.throws(() => getArchipelagoMetadata(file), error => {
+        assert.ok(error.message.includes(`${section}.${field} ${version}`));
+        assert.match(error.message, /Update RVGL Randomizer/);
+        return true;
+      });
+    }
+  }
+});
+
+test("AP import requires both version fields and rejects malformed or legacy-only versions", () => {
+  for (const [section, field] of [["metadata", "version"], ["archipelago", "worldVersion"]]) {
+    for (const value of [undefined, null, 1, "", "0.1", "v0.1.0", "0.1.0-beta", "0.1.0+build", " 0.1.0", "0.01.0", "-1.0.0", "0.1.9007199254740992"]) {
+      const file = config();
+      file[section][field] = value;
+      assert.throws(() => getArchipelagoMetadata(file), error => {
+        assert.ok(error.message.includes(`${section}.${field}`));
+        assert.match(error.message, /Regenerate/);
+        return true;
+      });
+    }
+  }
+  const file = config();
+  delete file.archipelago.worldVersion;
+  file.archipelago.schemaVersion = 1;
+  assert.throws(() => getArchipelagoMetadata(file), /archipelago.worldVersion/);
 });
 
 test("non-AP and incomplete files are rejected before replacing an imported run", () => {
