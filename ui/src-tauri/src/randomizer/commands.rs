@@ -451,7 +451,6 @@ pub fn generate_result(
     let generated_track_folders: Vec<String> = tracks.iter().map(|t| t.folder.clone()).collect();
 
     let ui_context = Some(UiContext {
-        generated_at: chrono::Utc::now().to_rfc3339(),
         setup: UiInstallContext {
             install_type: format!("{:?}", scan_result.install_type).to_lowercase(),
             install_path,
@@ -467,6 +466,7 @@ pub fn generate_result(
         metadata: ConfigMetadata {
             seed: rng.seed().to_string(),
             version: "0.2.0".to_string(),
+            generated_at: chrono::Utc::now().to_rfc3339(),
             profile_name: Some(profile_name),
             ui_context,
         },

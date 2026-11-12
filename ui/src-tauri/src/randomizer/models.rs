@@ -294,7 +294,6 @@ pub struct RandomizedTrack {
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UiContext {
-    pub generated_at: String,
     pub setup: UiInstallContext,
     pub configure: serde_json::Value,
     pub generated_car_folders: Vec<String>,
@@ -310,13 +309,45 @@ pub struct UiInstallContext {
 }
 
 #[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ConfigMetadata {
     pub seed: String,
     pub version: String,
-    #[serde(rename = "profileName", skip_serializing_if = "Option::is_none")]
+    pub generated_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub profile_name: Option<String>,
-    #[serde(rename = "uiContext", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ui_context: Option<UiContext>,
+}
+
+#[cfg(test)]
+mod metadata_tests {
+    use super::*;
+
+    #[test]
+    fn generation_timestamp_is_serialized_in_metadata() {
+        let generated_at = "2026-10-24T09:20:54.681395400+00:00";
+        let metadata = ConfigMetadata {
+            seed: "123".to_string(),
+            version: "0.2.0".to_string(),
+            generated_at: generated_at.to_string(),
+            profile_name: Some("player".to_string()),
+            ui_context: Some(UiContext {
+                setup: UiInstallContext {
+                    install_type: "classic".to_string(),
+                    install_path: "game".to_string(),
+                    required_packs: vec![],
+                },
+                configure: serde_json::json!({}),
+                generated_car_folders: vec![],
+                generated_track_folders: vec![],
+            }),
+        };
+        let json = serde_json::to_value(metadata).unwrap();
+        assert_eq!(json["generatedAt"], generated_at);
+        assert!(json["uiContext"].get("generatedAt").is_none());
+        assert_eq!(json["uiContext"]["setup"]["installType"], "classic");
+    }
 }
 
 #[derive(Serialize, Debug, Clone)]
