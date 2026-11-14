@@ -20,6 +20,16 @@
 
 **Note:** RVGL Randomizer creates a new profile in your RVGL installation. Outside of this profile, it doesn't affect your installation. Launching the game outside of RVGL Randomizer will continue to work with the unmodified behaviour.
 
+### Randomizer vs Archipelago Modes
+
+When launching RVGL Randomizer, you may see a choice between Randomizer mode and Archipelago mode.
+
+- Randomizer mode is the classic RVGL Randomizer experience: A single-player campaign where you can customize and randomize the cars, tracks and cups.
+- Archipelago mode gives support for loading games that were randomized through Archipelago.
+- You can switch between the two modes at any point by clicking on the "Mode" step on the wizard.
+
+Some information in this Readme is specific to Randomizer mode. For more information about Archipelago, see the [Archipelago-RVGL page](https://github.com/HansyRod/Archipelago-RVGL).
+
 ### Setup
 
 1. Click the Browse button and find your RVGL installation.
