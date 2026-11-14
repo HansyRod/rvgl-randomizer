@@ -1,6 +1,7 @@
 **v0.3.0**
 
 Added support to Archipelago in RVGL.
+
 - The UI now allows choosing between two modes:
     - Randomizer mode - which has all the features previously released
     - Archipelago mode - supports randomized games made through Archipelago
@@ -9,12 +10,14 @@ Added support to Archipelago in RVGL.
 - For more information about Archipelago, see the [Archipelago-RVGL page](https://github.com/HansyRod/Archipelago-RVGL).
 
 Other features:
+
 - Added a "Next Car" option in the in-game pause menu.
     - This restarts the race in the same track with the chosen car.
     - Available in Single Race, Time Trial, Practice, Stunt Arena and Knockout modes.
 - Added support to Borderless mode. It can be enabled in the Video Settings.
 
 Bug fixes:
+
 - Fixed unlocking of the Mirror version for tracks without a Reverse version, when that track is obtained through a custom unlock.
 - Fixed a bug where a car obtained through a custom unlock would become locked again after being selected.
 
