@@ -3,6 +3,7 @@ pub mod randomizer;
 pub mod launcher;
 pub mod cache; // Added cache module
 pub mod validation;
+pub mod archipelago;
 
 use tauri::Manager;
 
@@ -33,6 +34,7 @@ pub fn run() {
             cache::save_cache,
             cache::clear_cache,
             cache::read_config_file,
+            archipelago::extract_archipelago_file,
             cache::write_config_file,
             cache::read_seed_context,
             validation::check_file_exists,

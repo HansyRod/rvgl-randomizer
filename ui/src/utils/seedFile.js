@@ -4,11 +4,11 @@ export function getFileName(path) {
   return path.split(/[\\/]/).pop() || path;
 }
 
-export async function selectSeedFile(defaultPath) {
+export async function selectSeedFile(defaultPath, filters = [{ name: "JSON Config", extensions: ["json"] }]) {
   const selected = await open({
     multiple: false,
     defaultPath,
-    filters: [{ name: "JSON Config", extensions: ["json"] }],
+    filters,
   });
   if (typeof selected === "string") {
     return selected;
@@ -17,4 +17,8 @@ export async function selectSeedFile(defaultPath) {
     return selected.path;
   }
   return "";
+}
+
+export function selectArchipelagoFile(defaultPath) {
+  return selectSeedFile(defaultPath, [{ name: "Archipelago File", extensions: ["aprvgl", "json"] }]);
 }

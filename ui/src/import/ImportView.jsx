@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useAppContext } from "../AppProvider";
 import HistoryPanel from "../components/HistoryPanel";
 import SeedSummaryPanel from "../components/SeedSummaryPanel";
-import { getFileName, selectSeedFile } from "../utils/seedFile";
-import { getArchipelagoMetadata } from "./archipelagoSeed";
+import { getFileName, selectArchipelagoFile } from "../utils/seedFile";
+import { loadArchipelagoFile } from "./archipelagoFile";
 import "../setup/SetupView.css";
 import "../generate/GenerationTab.css";
 
@@ -21,18 +20,25 @@ export default function ImportView() {
     setMessage("");
     setError("");
     try {
-      const config = await invoke("read_config_file", { filePath: file });
-      const metadata = getArchipelagoMetadata(config);
-      const nextHistory = history.filter(entry => entry?.path && entry.path !== file);
-      nextHistory.unshift({ path: file, slotName: metadata.slotName, generatedAt: metadata.generatedAt });
+      const result = await loadArchipelagoFile(file);
+      if (!result) {
+        return;
+      }
+      const { configPath, metadata } = result;
+      const nextHistory = history.filter(entry => entry?.path && entry.path !== configPath);
+      nextHistory.unshift({
+        path: configPath,
+        slotName: metadata.slotName,
+        generatedAt: metadata.generatedAt
+      });
       updateArchipelagoCategoryCtx("import", {
-        importedFilePath: file,
+        importedFilePath: configPath,
         seedMetadata: metadata,
         importedHistory: nextHistory,
       });
       setMessage(`Loaded Archipelago player file: ${getFileName(file)}`);
     } catch (err) {
-      setError(`Could not load ${getFileName(file)}:\n${err instanceof Error ? err.message : String(err)}`);
+      setError(`Could not load ${getFileName(file)}:\n${err?.message || String(err)}`);
     } finally {
       setIsLoading(false);
     }
@@ -40,7 +46,7 @@ export default function ImportView() {
 
   async function handleLoadFile() {
     try {
-      const file = await selectSeedFile();
+      const file = await selectArchipelagoFile();
       if (file) {
         await loadFile(file);
       }
@@ -53,13 +59,13 @@ export default function ImportView() {
     <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
       <div className="tab-container generation-tab">
         <p className="tab-description" style={{ marginTop: 0 }}>
-          Load the .rvgl.json generated for your Archipelago player slot.
+          Load the .aprvgl or .rvgl.json generated for your Archipelago player slot.
         </p>
         <div className="generation-tab-grid">
           <div className="control-panel left-column">
             <div className="action-row">
               <button className="primary core-button" onClick={handleLoadFile} disabled={isLoading} style={{ padding: "0.5rem 1.5rem", fontSize: "1rem" }}>
-                {isLoading ? "Loading..." : "Load Archipelago JSON"}
+                {isLoading ? "Loading..." : "Load Archipelago File"}
               </button>
             </div>
             {(message || error) && (
