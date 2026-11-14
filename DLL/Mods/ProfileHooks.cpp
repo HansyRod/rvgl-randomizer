@@ -52,7 +52,7 @@ std::string g_randomizerProfileName;
 // in this file. Passwords remain in the connection menu/client and never enter JSON.
 struct ArchipelagoProfileData {
     std::string uuid;
-    std::string server;
+    std::string server = "archipelago.gg";
     bool requiresPassword = true;
     // Seed -> slot number -> completed IDs awaiting server confirmation. Sending
     // a packet does not prove receipt; retain it until a server list confirms it.
