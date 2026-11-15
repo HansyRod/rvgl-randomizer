@@ -24,6 +24,7 @@ namespace Randomizer {
     CupResultRuntime& GetCupResultRuntime();
     char** GetLocaleStrings();
     bool IsRaceFinished();
+    bool IsReplayPlayback();
     bool IsLoadingScreenActive();
     CarInfo* GetCarInfoTable();
     CarEntityRuntime* GetLocalPlayerCar();

@@ -123,7 +123,10 @@ struct RaceParticipantRuntime {
 struct RaceSettingsRuntime {
     int32_t mode;                     // +0x00
     int32_t selectedCupIndex;         // +0x04
-    uint8_t _pad_08[32];
+    uint8_t _pad_08[4];
+    int32_t laps;                     // +0x0C, configured lap count
+    int32_t carCount;                 // +0x10, native count capped at 16
+    uint8_t _pad_14[20];
     char playerName[16];              // +0x28
     char player2Name[16];             // +0x38
     char player3Name[16];             // +0x48
@@ -145,7 +148,9 @@ struct GameModeRuntime {
     uint8_t _pad_10[4];
     int32_t countdown;                // +0x14
     int32_t laps;                     // +0x18
-    uint8_t _pad_1C[18];
+    uint8_t _pad_1C[8];
+    int32_t levelState;               // +0x24, 2 = active race, 1 = torn down
+    uint8_t _pad_28[6];
     uint8_t randomCars;               // +0x2E
     uint8_t randomTracks;             // +0x2F
     uint8_t reverse;                  // +0x30
@@ -212,6 +217,8 @@ static_assert(offsetof(RaceParticipantRuntime, modelId) == 0x08, "RaceParticipan
 static_assert(offsetof(RaceParticipantRuntime, playerName) == 0x40, "RaceParticipantRuntime::playerName offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, mode) == 0x00, "RaceSettingsRuntime::mode offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, selectedCupIndex) == 0x04, "RaceSettingsRuntime::selectedCupIndex offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, laps) == 0x0C, "RaceSettingsRuntime::laps offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, carCount) == 0x10, "RaceSettingsRuntime::carCount offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, playerName) == 0x28, "RaceSettingsRuntime::playerName offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, playerModelIds) == 0x68, "RaceSettingsRuntime::playerModelIds offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, playerSkinId) == 0x78, "RaceSettingsRuntime::playerSkinId offset mismatch.");
@@ -223,6 +230,7 @@ static_assert(offsetof(GameModeRuntime, trackId) == 0x08, "GameModeRuntime::trac
 static_assert(offsetof(GameModeRuntime, playerModelId) == 0x0C, "GameModeRuntime::playerModelId offset mismatch.");
 static_assert(offsetof(GameModeRuntime, countdown) == 0x14, "GameModeRuntime::countdown offset mismatch.");
 static_assert(offsetof(GameModeRuntime, laps) == 0x18, "GameModeRuntime::laps offset mismatch.");
+static_assert(offsetof(GameModeRuntime, levelState) == 0x24, "GameModeRuntime::levelState offset mismatch.");
 static_assert(offsetof(GameModeRuntime, randomCars) == 0x2E, "GameModeRuntime::randomCars offset mismatch.");
 static_assert(offsetof(GameModeRuntime, randomTracks) == 0x2F, "GameModeRuntime::randomTracks offset mismatch.");
 static_assert(offsetof(GameModeRuntime, reverse) == 0x30, "GameModeRuntime::reverse offset mismatch.");

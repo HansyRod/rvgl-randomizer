@@ -266,6 +266,9 @@ constexpr uint32_t RVA_SDL_MINIMIZE_WINDOW = 0x0019d680;
 constexpr uint32_t RVA_BUILD_OPTIONS_MENU = 0x00154700;
 constexpr uint32_t RVA_HANDLE_OPTIONS_MENU_ACTION = 0x00154680;
 
+// Game Settings builder, shared by frontend and in-race Options.
+constexpr uint32_t RVA_BUILD_GAME_SETTINGS_MENU = 0x00150aa0;
+
 // Registers one MenuItemDescriptor in the currently active frontend menu slot.
 constexpr uint32_t RVA_REGISTER_MENU_ITEM_IN_ACTIVE_MENU = 0x001453B0;
 
@@ -412,6 +415,9 @@ constexpr uint32_t RVA_GAME_MODE = 0x002e34c0;
 // Dereference this global before writing the request; 6 requests a race restart.
 constexpr uint32_t RVA_RACE_TRANSITION_REQUEST_PTR = 0x002a65e0;
 
+// Pointer to the native replay-playback flag, separate from the selected game mode.
+constexpr uint32_t RVA_REPLAY_PLAYBACK_FLAG_PTR = 0x002a7530;
+
 // Pointer to the active profile progress cache. In Stunt Arena this points to
 // a block whose +0x10 count, +0x14 max, and +0x18 byte array record caught stars.
 constexpr uint32_t RVA_TRACK_PROGRESS_CACHE_PTR = 0x002a7750;
@@ -444,6 +450,7 @@ constexpr uint32_t RVA_PLAYER_COLORS_PTR = 0x002a6d90;
 constexpr uint32_t RVA_SETTINGS_NCARS = 0x0aa8e930;
 constexpr uint32_t RVA_NCARS = 0x00b43488;
 constexpr uint32_t RVA_SETTINGS_NCARS_MENU_ITEM = 0x00264280;
+constexpr uint32_t RVA_SETTINGS_LAPS_MENU_ITEM = 0x00264240;
 
 // Native Next Track row descriptor, copied as the template for the Next Car selector.
 constexpr uint32_t RVA_IN_RACE_NEXT_TRACK_ITEM = 0x002634c0;

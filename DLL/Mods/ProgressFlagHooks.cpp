@@ -176,8 +176,17 @@ FnCup_OnStageFinished Orig_Cup_OnStageFinished = nullptr;
 FnRace_TeardownAndSave Orig_Race_TeardownAndSave = nullptr;
 
 void Hook_Race_TeardownAndSave() {
+    const int* transitionRequest = GetRaceTransitionRequest();
+    // A track change may call teardown again after the race is already gone.
+    // Capture this before the original clears the live car and level state.
+    const bool restartingRace = GetGameModeRuntime().levelState == 2 && // Initialized race; teardown changes this to 1.
+        transitionRequest != nullptr &&
+        *transitionRequest == 6 && // Restart/reload requested by Restart Race, Next Car or Next Track.
+        !IsReplayPlayback() && GetGameModeRuntime().mode != MODE_REPLAY;
     Orig_Race_TeardownAndSave();
-    ApplyPendingInRaceCarSelection();
+    if (restartingRace) {
+        ApplyPendingInRaceCarSelection();
+    }
 }
 
 void Hook_UpdateTimeTrialLeaderboards(int* carRaceData) {

@@ -81,6 +81,11 @@ bool IsRaceFinished() {
     return *reinterpret_cast<bool*>(AbsFromRva(RVA_RACE_FINISHED_FLAG));
 }
 
+bool IsReplayPlayback() {
+    const auto* flag = *reinterpret_cast<const uint8_t**>(AbsFromRva(RVA_REPLAY_PLAYBACK_FLAG_PTR));
+    return flag != nullptr && *flag != 0;
+}
+
 CarInfo* GetCarInfoTable() {
     return *reinterpret_cast<CarInfo**>(AbsFromRva(RVA_CAR_TABLE));
 }

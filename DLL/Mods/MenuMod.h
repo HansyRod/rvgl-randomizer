@@ -10,6 +10,7 @@ using FnHandleMenuAction = bool(*)(int slotIndex, uint32_t action);
 
 extern FnBuildMenu Orig_BuildStartRaceMenu;
 extern FnBuildMenu Orig_BuildOptionsMenu;
+extern FnBuildMenu Orig_BuildGameSettingsMenu;
 extern FnBuildMenu Orig_DrawPreRaceSummary;
 extern FnBuildMenu Orig_BuildInRaceMenu;
 extern FnHandleMenuAction Orig_HandleStartRaceMenuAction;
@@ -25,6 +26,7 @@ void ApplyPendingInRaceCarSelection();
 
 void Hook_BuildStartRaceMenu(int slotIndex);
 void Hook_BuildOptionsMenu(int slotIndex);
+void Hook_BuildGameSettingsMenu(int slotIndex);
 void Hook_BuildInRaceMenu(int slotIndex);
 bool Hook_HandleInRaceMenuAction(int slotIndex, uint32_t action);
 void Hook_DrawPreRaceSummary(int slotIndex);
