@@ -89,7 +89,7 @@ int g_nextCarModelId = -1;
 int g_pendingInRaceCarModelId = -1;
 NumericMenuValue g_nextCarMenuValue = {};
 MenuItemDescriptor g_nextCarMenuItem = {};
-LocaleStringOverride g_nextCarLabelOverride{kNextCarLabelId, "Next Car"};
+LocaleStringOverride g_nextCarLabelOverride{kNextCarLabelId, "Restart With Car"};
 
 LocaleStringOverride g_knockoutLabelOverride{
     kKnockoutLabelId,
@@ -774,8 +774,8 @@ void Hook_BuildInRaceMenu(int slotIndex) {
     const int lastItem = slot->itemCount - 1;
     for (int index = 0; index < lastItem; ++index) {
         if (slot->items[index] == nextTrackItem) {
-            std::move_backward(slot->items + index + 1, slot->items + lastItem, slot->items + lastItem + 1);
-            slot->items[index + 1] = &g_nextCarMenuItem;
+            std::move_backward(slot->items + index, slot->items + lastItem, slot->items + lastItem + 1);
+            slot->items[index] = &g_nextCarMenuItem;
             break;
         }
     }

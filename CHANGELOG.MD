@@ -11,7 +11,7 @@ Added support to Archipelago in RVGL.
 
 Other features:
 
-- Added a "Next Car" option in the in-game pause menu.
+- Added a "Restart With Car" option in the in-game pause menu.
     - This restarts the race in the same track with the chosen car.
     - Available in Single Race, Time Trial, Practice, Stunt Arena and Knockout modes.
 - Added support to Borderless mode. It can be enabled in the Video Settings.
