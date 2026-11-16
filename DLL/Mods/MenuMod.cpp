@@ -782,6 +782,8 @@ void Hook_BuildInRaceMenu(int slotIndex) {
 }
 
 bool Hook_HandleInRaceMenuAction(int slotIndex, uint32_t action) {
+
+    // Ran when the player presses Enter on Restart With Car (In-Game Pause Menu option)
     if (GetSelectedMenuItemDescriptor(slotIndex) == &g_nextCarMenuItem &&
         action == kFrontendConfirmAction) {
         RaceSettingsRuntime* settings = GetRaceSettings();
@@ -796,6 +798,11 @@ bool Hook_HandleInRaceMenuAction(int slotIndex, uint32_t action) {
         auto& gameMode = GetGameModeRuntime();
         gameMode.randomCars = 0;
         gameMode.randomTracks = 0;
+        // Next Track browsing changes RaceSettings even when cancelled.
+        // Restore the active track and variants, matching native Restart Race.
+        settings->trackId = gameMode.trackId;
+        settings->reverse = gameMode.reverse;
+        settings->mirror = gameMode.mirror;
         // Match the native immediate-restart action: fade out, save/tear down,
         // apply the pending car to PlayerRaceInfo, then reload the same level.
         *transitionRequest = RaceTransitionRequest::ReloadRace;

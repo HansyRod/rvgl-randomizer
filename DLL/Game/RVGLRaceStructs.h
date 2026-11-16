@@ -168,7 +168,7 @@ struct RaceParticipantRuntime {
 struct RaceSettingsRuntime {
     int32_t mode;                     // +0x00
     int32_t selectedCupIndex;         // +0x04
-    uint8_t _pad_08[4];
+    int32_t trackId;                  // +0x08, frontend/Next Track selection
     int32_t laps;                     // +0x0C, configured lap count
     int32_t carCount;                 // +0x10, native count capped at 16
     uint8_t _pad_14[20];
@@ -178,7 +178,9 @@ struct RaceSettingsRuntime {
     char player4Name[16];             // +0x58
     int32_t playerModelIds[4];        // +0x68, local players 1..4
     int32_t playerSkinId;             // +0x78
-    uint8_t _pad_7C[34];
+    uint8_t _pad_7C[32];
+    uint8_t reverse;                  // +0x9C
+    uint8_t mirror;                   // +0x9D
     uint8_t pickupsEnabled;           // +0x9E
     uint8_t _pad_9F[5];
     uint8_t randomCars;               // +0xA4
@@ -262,11 +264,14 @@ static_assert(offsetof(RaceParticipantRuntime, modelId) == 0x08, "RaceParticipan
 static_assert(offsetof(RaceParticipantRuntime, playerName) == 0x40, "RaceParticipantRuntime::playerName offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, mode) == 0x00, "RaceSettingsRuntime::mode offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, selectedCupIndex) == 0x04, "RaceSettingsRuntime::selectedCupIndex offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, trackId) == 0x08, "RaceSettingsRuntime::trackId offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, laps) == 0x0C, "RaceSettingsRuntime::laps offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, carCount) == 0x10, "RaceSettingsRuntime::carCount offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, playerName) == 0x28, "RaceSettingsRuntime::playerName offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, playerModelIds) == 0x68, "RaceSettingsRuntime::playerModelIds offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, playerSkinId) == 0x78, "RaceSettingsRuntime::playerSkinId offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, reverse) == 0x9C, "RaceSettingsRuntime::reverse offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, mirror) == 0x9D, "RaceSettingsRuntime::mirror offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, pickupsEnabled) == 0x9E, "RaceSettingsRuntime::pickupsEnabled offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, randomCars) == 0xA4, "RaceSettingsRuntime::randomCars offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, randomTracks) == 0xA5, "RaceSettingsRuntime::randomTracks offset mismatch.");
