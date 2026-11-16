@@ -785,7 +785,7 @@ bool Hook_HandleInRaceMenuAction(int slotIndex, uint32_t action) {
     if (GetSelectedMenuItemDescriptor(slotIndex) == &g_nextCarMenuItem &&
         action == kFrontendConfirmAction) {
         RaceSettingsRuntime* settings = GetRaceSettings();
-        int* transitionRequest = GetRaceTransitionRequest();
+        RaceTransitionRequest* transitionRequest = GetRaceTransitionRequest();
         if (!CanSwitchCarsInRace() || !IsSelectableRaceCar(g_nextCarModelId) ||
             settings == nullptr || transitionRequest == nullptr || GetPlayerRaceInfo() == nullptr) {
             return false;
@@ -798,9 +798,9 @@ bool Hook_HandleInRaceMenuAction(int slotIndex, uint32_t action) {
         gameMode.randomTracks = 0;
         // Match the native immediate-restart action: fade out, save/tear down,
         // apply the pending car to PlayerRaceInfo, then reload the same level.
-        *transitionRequest = 6;
+        *transitionRequest = RaceTransitionRequest::ReloadRace;
         RVGL_ActivateMenuDisplaySlot(slotIndex, nullptr);
-        RVGL_SetRaceState(3);
+        RVGL_SetRaceState(RaceState::FadeOut);
         Logger::TimestampLogf("[NextCar] Restarting with car %d: %s", g_nextCarModelId,
             GetCarPool()[g_nextCarModelId].internalName);
         RestoreLocaleString(g_nextCarLabelOverride);

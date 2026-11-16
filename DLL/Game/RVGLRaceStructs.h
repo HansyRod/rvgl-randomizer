@@ -9,6 +9,51 @@
 // Keep these in Game/ so they are declared once and reused everywhere.
 // ============================================================================
 
+// Reconstructed from InRaceGameLoop (0x0045A2B0). A request selects the
+// operation performed after the separate RaceState fade reaches FadeOutComplete.
+enum class RaceTransitionRequest : int32_t {
+    // Continue the normal loop without a pending transition.
+    None = 0,
+    // Return to the frontend, tear down the race/level, and shut down networking if active.
+    ReturnToFrontend = 1,
+    // Return to the frontend, tear down the race/level, and leave the match while keeping the connection.
+    ReturnToFrontendKeepConnection = 2,
+    // Process championship stage completion through Cup_OnStageFinished.
+    CompleteCupStage = 3,
+    // Copy the current race into the replay buffer, switch to replay mode, and load it.
+    ViewReplay = 4,
+    // Restart replay playback through LevelLoad.
+    RestartReplay = 5,
+    // Reload a race using the selected/random track; also handles Next Track and multiplayer reloads.
+    ReloadRace = 6,
+    // Quit the application after race/level teardown; used by the benchmark path.
+    QuitApplication = 7,
+    // Tear down the race/level and return to the splash sequence or frontend, based on a runtime flag.
+    ReturnToSplashOrFrontend = 8
+};
+
+// Reconstructed from SetRaceState/UpdateRaceState (0x0048A560/0x0048A5D0).
+// These control fades in races, the frontend, and splash screens, not gameplay pause state.
+enum class RaceState : int32_t {
+    // Do not process a fade; also used outside initialization.
+    NoFade = 0,
+    // Fade in and automatically advance to FadeInComplete.
+    FadeIn = 1,
+    // Fade in without automatically completing; implemented, but no caller was found in the examined paths.
+    FadeInContinuous = 2,
+    // Fade out and automatically advance to FadeOutComplete.
+    FadeOut = 3,
+    // Fade out without automatically completing; another event must change the state.
+    FadeOutContinuous = 4,
+    // Fade-in has completed; no further fade processing and no implied gameplay pause.
+    FadeInComplete = 5,
+    // Fade-out has completed; callers may execute a pending transition, but this state performs no cleanup.
+    FadeOutComplete = 6
+};
+
+static_assert(sizeof(RaceTransitionRequest) == 4, "RaceTransitionRequest must match the native 32-bit integer.");
+static_assert(sizeof(RaceState) == 4, "RaceState must match the native 32-bit integer.");
+
 #pragma pack(push, 1)
 
 struct Vec3 {
