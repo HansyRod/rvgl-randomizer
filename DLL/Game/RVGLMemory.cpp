@@ -57,8 +57,8 @@ uint8_t& GetRenderUpdatingFlag() {
     return *reinterpret_cast<uint8_t*>(AbsFromRva(RVA_RENDER_UPDATING_FLAG));
 }
 
-int* GetRaceTransitionRequest() {
-    return *reinterpret_cast<int**>(AbsFromRva(RVA_RACE_TRANSITION_REQUEST_PTR));
+RaceTransitionRequest* GetRaceTransitionRequest() {
+    return *reinterpret_cast<RaceTransitionRequest**>(AbsFromRva(RVA_RACE_TRANSITION_REQUEST_PTR));
 }
 
 GameModeRuntime& GetGameModeRuntime() {
@@ -79,6 +79,11 @@ char** GetLocaleStrings() {
 
 bool IsRaceFinished() {
     return *reinterpret_cast<bool*>(AbsFromRva(RVA_RACE_FINISHED_FLAG));
+}
+
+bool IsReplayPlayback() {
+    const auto* flag = *reinterpret_cast<const uint8_t**>(AbsFromRva(RVA_REPLAY_PLAYBACK_FLAG_PTR));
+    return flag != nullptr && *flag != 0;
 }
 
 CarInfo* GetCarInfoTable() {

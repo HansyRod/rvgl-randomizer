@@ -55,7 +55,7 @@ export const ARCHIPELAGO_GOALS = {
 
 export function getArchipelagoMetadata(config) {
   if (!config?.archipelago || typeof config.archipelago !== "object") {
-    throw new Error("This is not an Archipelago file.\nSelect the .rvgl.json generated for your player slot.");
+    throw new Error("This is not an Archipelago file.\nSelect the .aprvgl or .rvgl.json generated for your player slot.");
   }
   validateVersion(config.archipelago.worldVersion, "archipelago.worldVersion", SUPPORTED_WORLD_VERSION, "RVGL APWorld");
   validateVersion(config.metadata?.version, "metadata.version", SUPPORTED_RANDOMIZER_VERSION, "RVGL Randomizer");

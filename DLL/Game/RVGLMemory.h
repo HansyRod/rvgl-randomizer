@@ -18,12 +18,13 @@ namespace Randomizer {
     void* GetRenderMutex();
     uint8_t& GetRenderUpdatingFlag();
     PlayerRaceInfoRuntime* GetPlayerRaceInfo();
-    int* GetRaceTransitionRequest();
+    RaceTransitionRequest* GetRaceTransitionRequest();
     GameModeRuntime& GetGameModeRuntime();
     StuntArenaProgressRuntime* GetStuntArenaProgress();
     CupResultRuntime& GetCupResultRuntime();
     char** GetLocaleStrings();
     bool IsRaceFinished();
+    bool IsReplayPlayback();
     bool IsLoadingScreenActive();
     CarInfo* GetCarInfoTable();
     CarEntityRuntime* GetLocalPlayerCar();

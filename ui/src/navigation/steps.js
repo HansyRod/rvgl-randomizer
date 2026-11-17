@@ -11,7 +11,7 @@ export const MODES = [
     label: "Archipelago",
     icon: new URL("../assets/Archipelago.png", import.meta.url).href,
     desc: "Play RVGL as part of an Archipelago multiworld.",
-    details: "Import the .rvgl.json generated for your player slot. Connect to the server through RVGL's in-game menu.",
+    details: "Import the Archipelago file generated for your player slot. Connect to the server through RVGL's in-game menu.",
     project: {
       url: "https://github.com/HansyRod/Archipelago-RVGL",
       label: "Archipelago-RVGL project on GitHub ↗",

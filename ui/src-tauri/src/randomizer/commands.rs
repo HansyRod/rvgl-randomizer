@@ -465,7 +465,7 @@ pub fn generate_result(
     let config = ConfigData {
         metadata: ConfigMetadata {
             seed: rng.seed().to_string(),
-            version: "0.2.0".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
             generated_at: chrono::Utc::now().to_rfc3339(),
             profile_name: Some(profile_name),
             ui_context,

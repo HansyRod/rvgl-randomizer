@@ -22,6 +22,7 @@ namespace Randomizer {
 
 FnBuildMenu Orig_BuildStartRaceMenu = nullptr;
 FnBuildMenu Orig_BuildOptionsMenu = nullptr;
+FnBuildMenu Orig_BuildGameSettingsMenu = nullptr;
 FnBuildMenu Orig_DrawPreRaceSummary = nullptr;
 FnBuildMenu Orig_BuildInRaceMenu = nullptr;
 FnHandleMenuAction Orig_HandleStartRaceMenuAction = nullptr;
@@ -88,7 +89,7 @@ int g_nextCarModelId = -1;
 int g_pendingInRaceCarModelId = -1;
 NumericMenuValue g_nextCarMenuValue = {};
 MenuItemDescriptor g_nextCarMenuItem = {};
-LocaleStringOverride g_nextCarLabelOverride{kNextCarLabelId, "Next Car"};
+LocaleStringOverride g_nextCarLabelOverride{kNextCarLabelId, "Restart With Car"};
 
 LocaleStringOverride g_knockoutLabelOverride{
     kKnockoutLabelId,
@@ -719,6 +720,26 @@ void Hook_BuildOptionsMenu(int slotIndex) {
     }
 }
 
+void Hook_BuildGameSettingsMenu(int slotIndex) {
+    Orig_BuildGameSettingsMenu(slotIndex);
+    MenuPanelSlot* slot = GetMenuPanelSlot(slotIndex);
+    if (GetGameModeRuntime().mode != MODE_SINGLE_RACE || slot == nullptr) {
+        return;
+    }
+
+    // Reuse the frontend controls, including the optional thirty-car binding.
+    // The existing Game Settings action handler already handles numeric rows.
+    auto* carCountMenuItem = reinterpret_cast<MenuItemDescriptor*>(AbsFromRva(RVA_SETTINGS_NCARS_MENU_ITEM));
+    auto* lapsMenuItem = reinterpret_cast<MenuItemDescriptor*>(AbsFromRva(RVA_SETTINGS_LAPS_MENU_ITEM));
+    const int originalItemCount = slot->itemCount;
+    RVGL_RegisterMenuItemInActiveMenu(slotIndex, reinterpret_cast<int*>(carCountMenuItem));
+    RVGL_RegisterMenuItemInActiveMenu(slotIndex, reinterpret_cast<int*>(lapsMenuItem));
+    // Keep the same Cars, Laps ordering as the frontend Game Settings menu.
+    std::move_backward(slot->items, slot->items + originalItemCount, slot->items + originalItemCount + 2);
+    slot->items[0] = carCountMenuItem;
+    slot->items[1] = lapsMenuItem;
+}
+
 void Hook_BuildInRaceMenu(int slotIndex) {
     RestoreLocaleString(g_nextCarLabelOverride);
     Orig_BuildInRaceMenu(slotIndex);
@@ -753,18 +774,20 @@ void Hook_BuildInRaceMenu(int slotIndex) {
     const int lastItem = slot->itemCount - 1;
     for (int index = 0; index < lastItem; ++index) {
         if (slot->items[index] == nextTrackItem) {
-            std::move_backward(slot->items + index + 1, slot->items + lastItem, slot->items + lastItem + 1);
-            slot->items[index + 1] = &g_nextCarMenuItem;
+            std::move_backward(slot->items + index, slot->items + lastItem, slot->items + lastItem + 1);
+            slot->items[index] = &g_nextCarMenuItem;
             break;
         }
     }
 }
 
 bool Hook_HandleInRaceMenuAction(int slotIndex, uint32_t action) {
+
+    // Ran when the player presses Enter on Restart With Car (In-Game Pause Menu option)
     if (GetSelectedMenuItemDescriptor(slotIndex) == &g_nextCarMenuItem &&
         action == kFrontendConfirmAction) {
         RaceSettingsRuntime* settings = GetRaceSettings();
-        int* transitionRequest = GetRaceTransitionRequest();
+        RaceTransitionRequest* transitionRequest = GetRaceTransitionRequest();
         if (!CanSwitchCarsInRace() || !IsSelectableRaceCar(g_nextCarModelId) ||
             settings == nullptr || transitionRequest == nullptr || GetPlayerRaceInfo() == nullptr) {
             return false;
@@ -775,11 +798,16 @@ bool Hook_HandleInRaceMenuAction(int slotIndex, uint32_t action) {
         auto& gameMode = GetGameModeRuntime();
         gameMode.randomCars = 0;
         gameMode.randomTracks = 0;
+        // Next Track browsing changes RaceSettings even when cancelled.
+        // Restore the active track and variants, matching native Restart Race.
+        settings->trackId = gameMode.trackId;
+        settings->reverse = gameMode.reverse;
+        settings->mirror = gameMode.mirror;
         // Match the native immediate-restart action: fade out, save/tear down,
         // apply the pending car to PlayerRaceInfo, then reload the same level.
-        *transitionRequest = 6;
+        *transitionRequest = RaceTransitionRequest::ReloadRace;
         RVGL_ActivateMenuDisplaySlot(slotIndex, nullptr);
-        RVGL_SetRaceState(3);
+        RVGL_SetRaceState(RaceState::FadeOut);
         Logger::TimestampLogf("[NextCar] Restarting with car %d: %s", g_nextCarModelId,
             GetCarPool()[g_nextCarModelId].internalName);
         RestoreLocaleString(g_nextCarLabelOverride);
@@ -801,44 +829,72 @@ bool Hook_HandleInRaceMenuAction(int slotIndex, uint32_t action) {
 void ApplyPendingInRaceCarSelection() {
     const int modelId = g_pendingInRaceCarModelId;
     g_pendingInRaceCarModelId = -1;
-    if (!IsSelectableRaceCar(modelId)) {
-        return;
-    }
     RaceSettingsRuntime* settings = GetRaceSettings();
     PlayerRaceInfoRuntime* raceInfo = GetPlayerRaceInfo();
-    if (settings == nullptr || raceInfo == nullptr || raceInfo->participantCount <= 0) {
+    if (settings == nullptr || raceInfo == nullptr || raceInfo->participantCount <= 0 ||
+        raceInfo->participantCount > randomizerMaxCarCount) {
         return;
     }
 
-    const CarInfo& car = GetCarPool()[modelId];
     // Solo restarts reuse the participant table at PlayerRaceInfo + 0x50.
     // Change it only after teardown has saved the OLD car's session/replay.
     auto* player = &raceInfo->participants[0];
-    if (player->modelId == modelId) {
-        return; // An unchanged selection retains the current car's skin.
+    const bool carChanged = IsSelectableRaceCar(modelId) && player->modelId != modelId;
+    // An unchanged selection retains the current car's skin.
+    if (carChanged) {
+        const CarInfo& car = GetCarPool()[modelId];
+        player->modelId = modelId;
+        player->skinId = 0;
+        std::memcpy(player->carName, car.displayName, sizeof(player->carName));
+        player->carName[sizeof(player->carName) - 1] = '\0';
+        std::memset(player->skinName, 0, sizeof(player->skinName));
+        if (car.pSkinNames != nullptr && car.skinCount > 0) {
+            std::memcpy(player->skinName, car.pSkinNames, sizeof(player->skinName));
+            player->skinName[sizeof(player->skinName) - 1] = '\0';
+        }
     }
-    player->modelId = modelId;
-    player->skinId = 0;
-    std::memcpy(player->carName, car.displayName, sizeof(player->carName));
-    player->carName[sizeof(player->carName) - 1] = '\0';
-    std::memset(player->skinName, 0, sizeof(player->skinName));
-    if (car.pSkinNames != nullptr && car.skinCount > 0) {
-        std::memcpy(player->skinName, car.pSkinNames, sizeof(player->skinName));
-        player->skinName[sizeof(player->skinName) - 1] = '\0';
+    if (IsSelectableRaceCar(modelId)) {
+        // Random Cars can leave the frontend choice different from the live car.
+        // Native CPU picks must exclude the explicitly confirmed player model.
+        settings->playerModelIds[0] = modelId;
+        settings->playerSkinId = player->skinId;
+        // Time Trial reloads its table and ghost using this cached car, not the roster.
+        // Update it after the old session is saved and before native level loading.
+        GetGameModeRuntime().playerModelId = modelId;
     }
-    settings->playerModelIds[0] = modelId;
-    settings->playerSkinId = 0;
-    // Time Trial reloads its table and ghost using this cached car, not the roster.
-    // Update it after the old session is saved and before native level loading.
-    GetGameModeRuntime().playerModelId = modelId;
 
     if (GetGameModeRuntime().mode == MODE_SINGLE_RACE) {
+        const int targetCarCount = IsThirtyCarModeEnabled()
+            ? ClampRandomizerCarCount(GetRandomizerContext().carState.carsPerRace)
+            : std::clamp(settings->carCount, randomizerMinCarCount, vanillaMaxCarCount);
+        SyncCarCountToVanillaSettings();
+        // Knockout's existing setup finalizer may override this with Automatic laps.
+        raceInfo->laps = GetGameModeRuntime().laps = std::clamp(settings->laps, 1, 20);
+
+        // If neither the player car nor the car count changed,
+        // We return here and don't need to redo the participant table.
+        if (!carChanged && raceInfo->participantCount == targetCarCount) {
+            return;
+        }
+
         // Native CPU picks use RaceSettings and a sixteen-car pick buffer.
         // Rebuild the native roster first, then expand it through the usual hook.
-        raceInfo->participantCount = (std::min)(raceInfo->participantCount, vanillaMaxCarCount);
+        const int nativeCarCount = (std::min)(targetCarCount, vanillaMaxCarCount);
+        raceInfo->participantCount = (std::min)(raceInfo->participantCount, nativeCarCount);
+        while (raceInfo->participantCount < nativeCarCount) {
+            if (!Orig_AddParticipantAndCount(3, 0, player->modelId, player->skinId, 0, 0, player->carName)) {
+                Logger::TimestampLogf("[InRaceSettings] Could not add CPU participant");
+                return;
+            }
+        }
         ResetThirtyCarModState();
-        Orig_RandomizeCarPicks();
+        // The native restart randomizes the complete roster later in Random Cars mode.
+        if (GetGameModeRuntime().randomCars == 0) {
+            Orig_RandomizeCarPicks();
+        }
         Hook_AssignStartPositions();
+        Logger::TimestampLogf("[InRaceSettings] Rebuilt roster cars=%d laps=%d carChanged=%d",
+            raceInfo->participantCount, raceInfo->laps, carChanged);
     }
 }
 

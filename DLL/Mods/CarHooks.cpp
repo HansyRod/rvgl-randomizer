@@ -507,6 +507,16 @@ void ApplyCarMods(int carIndex, CarInfo* car, CarPhysicsData *physData) {
                 // Note: PhysData doesn't have selectable flags, so we won't apply those there
             }
         }
+
+        const bool carDisabledByAP = 
+            config->archipelago.has_value() &&
+            config->global_options.is_stock_cars &&
+            carIndex >= 35 && carIndex <= 48;
+        
+        if (car->isInvalid || carDisabledByAP) {
+            car->selectableByPlayer = false;
+            car->selectableByCPU = false;
+        }
     }
 
 }

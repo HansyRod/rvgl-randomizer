@@ -89,8 +89,11 @@ test("scan failure/pending state is actionable and unused fallback errors do not
 test("AP run/profile issues use Import scope and existing profile rules", () => {
   const current = state();
   current.archipelago.import.importedFilePath = "";
-  assert.equal(validate(current).errors[0].scope, "import");
+  current.archipelago.import.seedMetadata = null;
+  assert.deepEqual(validate(current), { errors: [], warnings: [] });
   current.archipelago.import.importedFilePath = "D:/AP.rvgl.json";
+  assert.equal(validate(current).errors[0].id, "ap_metadata_missing");
+  current.archipelago.import.seedMetadata = state().archipelago.import.seedMetadata;
   for (const profileName of ["", "1234567890123456", "../other"]) {
     current.archipelago.import.seedMetadata.profileName = profileName;
     assert.ok(validate(current).errors.some(issue => issue.scope === "import" && issue.field === "profileName"));

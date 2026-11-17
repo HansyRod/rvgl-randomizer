@@ -13,16 +13,16 @@ export function validateArchipelago(setup, archipelago, isScanning) {
   const errors = [];
   const warnings = [];
   const { importedFilePath, seedMetadata } = archipelago.import;
-  if (!importedFilePath) {
-    errors.push({ id: "ap_file_required", scope: "import", message: "Import the .rvgl.json generated for your Archipelago player slot." });
-  } else if (!seedMetadata || typeof seedMetadata.slotName !== "string" || !seedMetadata.slotName.trim()
-    || typeof seedMetadata.goal !== "string" || !seedMetadata.goal.trim() || typeof seedMetadata.profileName !== "string"
-    || typeof seedMetadata.includeDcCars !== "boolean" || typeof seedMetadata.includeDcTrack !== "boolean") {
-    errors.push({ id: "ap_metadata_missing", scope: "import", message: "The selected Archipelago file has incomplete run information. Import it again." });
-  } else {
-    const profile = validateProfileName(seedMetadata.profileName);
-    errors.push(...profile.errors.map(issue => ({ ...issue, id: `ap_${issue.id}`, scope: "import", message: `${issue.message} Import a corrected Archipelago file.` })));
-    warnings.push(...profile.warnings.map(issue => ({ ...issue, id: `ap_${issue.id}`, scope: "import" })));
+  if (importedFilePath) {
+    if (!seedMetadata || typeof seedMetadata.slotName !== "string" || !seedMetadata.slotName.trim()
+      || typeof seedMetadata.goal !== "string" || !seedMetadata.goal.trim() || typeof seedMetadata.profileName !== "string"
+      || typeof seedMetadata.includeDcCars !== "boolean" || typeof seedMetadata.includeDcTrack !== "boolean") {
+      errors.push({ id: "ap_metadata_missing", scope: "import", message: "The selected Archipelago file has incomplete run information. Import it again." });
+    } else {
+      const profile = validateProfileName(seedMetadata.profileName);
+      errors.push(...profile.errors.map(issue => ({ ...issue, id: `ap_${issue.id}`, scope: "import", message: `${issue.message} Import a corrected Archipelago file.` })));
+      warnings.push(...profile.warnings.map(issue => ({ ...issue, id: `ap_${issue.id}`, scope: "import" })));
+    }
   }
 
   if (!setup.scanResult || isScanning) {

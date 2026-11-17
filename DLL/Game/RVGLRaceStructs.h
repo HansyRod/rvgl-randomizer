@@ -9,6 +9,51 @@
 // Keep these in Game/ so they are declared once and reused everywhere.
 // ============================================================================
 
+// Reconstructed from InRaceGameLoop (0x0045A2B0). A request selects the
+// operation performed after the separate RaceState fade reaches FadeOutComplete.
+enum class RaceTransitionRequest : int32_t {
+    // Continue the normal loop without a pending transition.
+    None = 0,
+    // Return to the frontend, tear down the race/level, and shut down networking if active.
+    ReturnToFrontend = 1,
+    // Return to the frontend, tear down the race/level, and leave the match while keeping the connection.
+    ReturnToFrontendKeepConnection = 2,
+    // Process championship stage completion through Cup_OnStageFinished.
+    CompleteCupStage = 3,
+    // Copy the current race into the replay buffer, switch to replay mode, and load it.
+    ViewReplay = 4,
+    // Restart replay playback through LevelLoad.
+    RestartReplay = 5,
+    // Reload a race using the selected/random track; also handles Next Track and multiplayer reloads.
+    ReloadRace = 6,
+    // Quit the application after race/level teardown; used by the benchmark path.
+    QuitApplication = 7,
+    // Tear down the race/level and return to the splash sequence or frontend, based on a runtime flag.
+    ReturnToSplashOrFrontend = 8
+};
+
+// Reconstructed from SetRaceState/UpdateRaceState (0x0048A560/0x0048A5D0).
+// These control fades in races, the frontend, and splash screens, not gameplay pause state.
+enum class RaceState : int32_t {
+    // Do not process a fade; also used outside initialization.
+    NoFade = 0,
+    // Fade in and automatically advance to FadeInComplete.
+    FadeIn = 1,
+    // Fade in without automatically completing; implemented, but no caller was found in the examined paths.
+    FadeInContinuous = 2,
+    // Fade out and automatically advance to FadeOutComplete.
+    FadeOut = 3,
+    // Fade out without automatically completing; another event must change the state.
+    FadeOutContinuous = 4,
+    // Fade-in has completed; no further fade processing and no implied gameplay pause.
+    FadeInComplete = 5,
+    // Fade-out has completed; callers may execute a pending transition, but this state performs no cleanup.
+    FadeOutComplete = 6
+};
+
+static_assert(sizeof(RaceTransitionRequest) == 4, "RaceTransitionRequest must match the native 32-bit integer.");
+static_assert(sizeof(RaceState) == 4, "RaceState must match the native 32-bit integer.");
+
 #pragma pack(push, 1)
 
 struct Vec3 {
@@ -123,14 +168,19 @@ struct RaceParticipantRuntime {
 struct RaceSettingsRuntime {
     int32_t mode;                     // +0x00
     int32_t selectedCupIndex;         // +0x04
-    uint8_t _pad_08[32];
+    int32_t trackId;                  // +0x08, frontend/Next Track selection
+    int32_t laps;                     // +0x0C, configured lap count
+    int32_t carCount;                 // +0x10, native count capped at 16
+    uint8_t _pad_14[20];
     char playerName[16];              // +0x28
     char player2Name[16];             // +0x38
     char player3Name[16];             // +0x48
     char player4Name[16];             // +0x58
     int32_t playerModelIds[4];        // +0x68, local players 1..4
     int32_t playerSkinId;             // +0x78
-    uint8_t _pad_7C[34];
+    uint8_t _pad_7C[32];
+    uint8_t reverse;                  // +0x9C
+    uint8_t mirror;                   // +0x9D
     uint8_t pickupsEnabled;           // +0x9E
     uint8_t _pad_9F[5];
     uint8_t randomCars;               // +0xA4
@@ -145,7 +195,9 @@ struct GameModeRuntime {
     uint8_t _pad_10[4];
     int32_t countdown;                // +0x14
     int32_t laps;                     // +0x18
-    uint8_t _pad_1C[18];
+    uint8_t _pad_1C[8];
+    int32_t levelState;               // +0x24, 2 = active race, 1 = torn down
+    uint8_t _pad_28[6];
     uint8_t randomCars;               // +0x2E
     uint8_t randomTracks;             // +0x2F
     uint8_t reverse;                  // +0x30
@@ -212,9 +264,14 @@ static_assert(offsetof(RaceParticipantRuntime, modelId) == 0x08, "RaceParticipan
 static_assert(offsetof(RaceParticipantRuntime, playerName) == 0x40, "RaceParticipantRuntime::playerName offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, mode) == 0x00, "RaceSettingsRuntime::mode offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, selectedCupIndex) == 0x04, "RaceSettingsRuntime::selectedCupIndex offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, trackId) == 0x08, "RaceSettingsRuntime::trackId offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, laps) == 0x0C, "RaceSettingsRuntime::laps offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, carCount) == 0x10, "RaceSettingsRuntime::carCount offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, playerName) == 0x28, "RaceSettingsRuntime::playerName offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, playerModelIds) == 0x68, "RaceSettingsRuntime::playerModelIds offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, playerSkinId) == 0x78, "RaceSettingsRuntime::playerSkinId offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, reverse) == 0x9C, "RaceSettingsRuntime::reverse offset mismatch.");
+static_assert(offsetof(RaceSettingsRuntime, mirror) == 0x9D, "RaceSettingsRuntime::mirror offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, pickupsEnabled) == 0x9E, "RaceSettingsRuntime::pickupsEnabled offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, randomCars) == 0xA4, "RaceSettingsRuntime::randomCars offset mismatch.");
 static_assert(offsetof(RaceSettingsRuntime, randomTracks) == 0xA5, "RaceSettingsRuntime::randomTracks offset mismatch.");
@@ -223,6 +280,7 @@ static_assert(offsetof(GameModeRuntime, trackId) == 0x08, "GameModeRuntime::trac
 static_assert(offsetof(GameModeRuntime, playerModelId) == 0x0C, "GameModeRuntime::playerModelId offset mismatch.");
 static_assert(offsetof(GameModeRuntime, countdown) == 0x14, "GameModeRuntime::countdown offset mismatch.");
 static_assert(offsetof(GameModeRuntime, laps) == 0x18, "GameModeRuntime::laps offset mismatch.");
+static_assert(offsetof(GameModeRuntime, levelState) == 0x24, "GameModeRuntime::levelState offset mismatch.");
 static_assert(offsetof(GameModeRuntime, randomCars) == 0x2E, "GameModeRuntime::randomCars offset mismatch.");
 static_assert(offsetof(GameModeRuntime, randomTracks) == 0x2F, "GameModeRuntime::randomTracks offset mismatch.");
 static_assert(offsetof(GameModeRuntime, reverse) == 0x30, "GameModeRuntime::reverse offset mismatch.");
